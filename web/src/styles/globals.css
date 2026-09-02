@@ -134,7 +134,8 @@
     --elevation-hairline: inset 0 0 0 1px rgba(17, 17, 17, 0.13);
     --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.05);
     --elevation-card-hover: 0 10px 26px rgba(0, 0, 0, 0.1), 0 2px 5px rgba(0, 0, 0, 0.05);
-    --elevation-overlay: 0 24px 60px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.09);
+    /* 安静化(DESIGN.md 表面补录):弹层/浮层升高从 60px 大投影收敛为低模糊克制阴影,与 AntD boxShadowSecondary 同向 */
+    --elevation-overlay: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
     --elevation-panel: -18px 0 52px rgba(0, 0, 0, 0.16);
     --focus-ring-soft: 0 0 0 3px color-mix(in srgb, var(--ring) 28%, transparent);
 
@@ -857,7 +858,8 @@
     --elevation-hairline: inset 0 0 0 1px rgba(255, 255, 255, 0.085);
     --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.4);
     --elevation-card-hover: 0 12px 30px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.32);
-    --elevation-overlay: 0 28px 72px rgba(0, 0, 0, 0.62), 0 4px 14px rgba(0, 0, 0, 0.4);
+    /* 安静化(DESIGN.md 表面补录):与 light 侧同向收敛 */
+    --elevation-overlay: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.28);
     --elevation-panel: -20px 0 60px rgba(0, 0, 0, 0.56);
 
     --surface-card: rgba(255, 255, 255, 0.035);
