@@ -16,8 +16,9 @@ export const canvasThemes = {
             panel: "#ffffff",
             stroke: "#e2e4e8",
             edge: "rgba(15,23,42,.16)",
-            shadow: "0 6px 18px rgba(15,23,42,.08)",
-            hoverShadow: "0 10px 24px rgba(15,23,42,.12)",
+            // 安静化(DESIGN.md 表面补录):与 dark 侧同档收敛
+            shadow: "0 4px 12px rgba(15,23,42,.07)",
+            hoverShadow: "0 6px 16px rgba(15,23,42,.10)",
             activeStroke: "#111827",
             placeholder: "#9ca3af",
             text: "#111827",
@@ -32,7 +33,8 @@ export const canvasThemes = {
             preview: "rgba(255,255,255,.82)",
         },
         toolbar: {
-            panel: "rgba(255,255,255,.94)",
+            // 安静化(DESIGN.md 表面补录):与 dark 侧同策略,降低不透明度
+            panel: "rgba(255,255,255,.92)",
             border: "rgba(17,24,39,.10)",
             item: "#4b5563",
             itemHover: "rgba(17,24,39,.06)",
@@ -83,8 +85,9 @@ export const canvasThemes = {
             panel: "#141414",
             stroke: "rgba(255,255,255,.12)",
             edge: "rgba(255,255,255,.18)",
-            shadow: "0 8px 24px rgba(0,0,0,.34)",
-            hoverShadow: "0 12px 30px rgba(0,0,0,.46)",
+            // 安静化(DESIGN.md 表面补录):阴影收敛到 --shadow-md 档,低模糊克制升高
+            shadow: "0 4px 12px rgba(0,0,0,.30)",
+            hoverShadow: "0 6px 16px rgba(0,0,0,.38)",
             activeStroke: "#f1f1f1",
             placeholder: "#737373",
             text: "#ededed",
@@ -99,8 +102,9 @@ export const canvasThemes = {
             preview: "rgba(20,20,20,.94)",
         },
         toolbar: {
-            panel: "rgba(20,20,20,.97)",
-            border: "rgba(255,255,255,.1)",
+            // 安静化(DESIGN.md 表面补录):alpha 表面 + 细边框,去投影(flora 工具条语法)
+            panel: "rgba(20,20,20,.92)",
+            border: "rgba(255,255,255,.10)",
             item: "#d4d4d4",
             itemHover: "rgba(255,255,255,.07)",
             activeBg: "rgba(255,255,255,.10)",
