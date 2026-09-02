@@ -80,9 +80,11 @@ function AuthenticatedWorkspaceLayout() {
 function devRoutes() {
     const FolderPreviewLab = lazy(() => import("@/pages/dev/folder-preview-lab"));
     const DirectorReproLab = lazy(() => import("@/pages/dev/director-repro-lab"));
+    const PrimitivesLab = lazy(() => import("@/pages/dev/primitives-lab"));
     return [
         { path: "/dev/folders", element: fullScreenDeferred(<FolderPreviewLab />), errorElement: <RouteErrorPage /> },
         { path: "/dev/director-repro", element: fullScreenDeferred(<DirectorReproLab />), errorElement: <RouteErrorPage /> },
+        { path: "/dev/primitives", element: fullScreenDeferred(<PrimitivesLab />), errorElement: <RouteErrorPage /> },
     ];
 }
 
