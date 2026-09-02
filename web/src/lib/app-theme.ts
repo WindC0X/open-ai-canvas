@@ -179,8 +179,18 @@ export function getAntThemeConfig(dark: boolean, skinID: unknown = "classic"): T
             colorBgElevated: elevatedBackground,
             colorBgContainer: skin.controlSurface || undefined,
             colorBorderSecondary: dark ? "rgba(255, 255, 255, 0.1)" : "rgba(17, 17, 17, 0.09)",
+            // 安静化:弹层升高从 24px/72px 大投影收敛为克制阴影(DESIGN.md 有意覆盖登记);
+            // flora 参考为 alpha 表面 + 细边框 + 低模糊投影。classic 基线值(自定义皮肤经 shadowStyle 独立取值)。
             boxShadowSecondary:
-                skin.shadowStyle === "none" ? "none" : skin.shadowStyle === "strong" ? (dark ? "0 28px 84px rgba(0, 0, 0, 0.68)" : "0 26px 72px rgba(15, 23, 42, 0.22)") : dark ? "0 24px 72px rgba(0, 0, 0, 0.48)" : "0 22px 64px rgba(15, 23, 42, 0.14)",
+                skin.shadowStyle === "none"
+                    ? "none"
+                    : skin.shadowStyle === "strong"
+                      ? dark
+                        ? "0 28px 84px rgba(0, 0, 0, 0.68)"
+                        : "0 26px 72px rgba(15, 23, 42, 0.22)"
+                      : dark
+                        ? "0 8px 24px rgba(0, 0, 0, 0.4)"
+                        : "0 6px 20px rgba(15, 23, 42, 0.1)",
             borderRadius: skin.borderRadius || 6,
             borderRadiusLG: skin.borderRadiusLG || 8,
             borderRadiusSM: skin.borderRadiusSM || 5,
@@ -190,9 +200,11 @@ export function getAntThemeConfig(dark: boolean, skinID: unknown = "classic"): T
             controlHeightSM: skin.controlHeightSmall || 30,
             fontSize: 13,
             fontSizeSM: 12,
-            motionDurationFast: `${skin.motionFast ?? 120}ms`,
-            motionDurationMid: `${skin.motionNormal ?? 180}ms`,
-            motionDurationSlow: `${Math.max(skin.motionNormal ?? 180, 240)}ms`,
+            // 动效三档对齐 DESIGN.md 动效规格表与 flora 实测常量(BORDER_FADE 150ms / SPAWN 200ms / GENERATION_REVEAL 400ms);
+            // classic 基线值;自定义皮肤经 motionFast/motionNormal 独立取值。CSS 同源变量见 globals.css --motion-dur-*。
+            motionDurationFast: `${skin.motionFast ?? 150}ms`,
+            motionDurationMid: `${skin.motionNormal ?? 200}ms`,
+            motionDurationSlow: `${Math.max(skin.motionNormal ?? 200, 400)}ms`,
         },
         components: {
             Button: {
