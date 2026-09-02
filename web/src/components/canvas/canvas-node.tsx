@@ -309,11 +309,14 @@ export const CanvasNode = React.memo(function CanvasNode({
                 data-node-state={nodeState}
                 data-connection-tilt={connectionTilt ? "true" : undefined}
                 data-state={data.metadata?.status || (isActive ? "active" : isRelated ? "related" : "idle")}
+                data-node-phase={data.metadata?.status === "error" ? "error" : isActive ? "running" : hasImageContent || hasVideoContent ? "generated" : isComposerNode || data.type === CanvasNodeType.Image ? "empty" : undefined}
+                data-node-selection={isSelected ? "selected" : hovered ? "hover" : "idle"}
                 style={{
                     background: hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
-                    // 固定占位但不绘制描边，避免聚焦切换时边框宽度变化造成白边跳动。
-                    border: isComposerNode ? "0" : "1px solid transparent",
-                    boxShadow: isComposerNode ? "none" : isSelected || isFocusRelated ? theme.node.hoverShadow : theme.node.shadow,
+                    // 固定占位；选中以描边表达（原语语义对齐），避免边框宽度变化造成白边跳动。
+                    border: isComposerNode ? "0" : `1px solid ${isSelected ? theme.node.activeStroke : theme.node.stroke}`,
+                    // 安静化（DESIGN.md 表面补录）：阴影保持常规档，hover 才升到 hoverShadow。
+                    boxShadow: isComposerNode ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,
                     "--connection-tilt-x": `${connectionTilt?.rotateX || 0}deg`,
                     "--connection-tilt-y": `${connectionTilt?.rotateY || 0}deg`,
                     transformOrigin: connectionTilt?.origin,
