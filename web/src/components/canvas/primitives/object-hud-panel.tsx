@@ -22,6 +22,8 @@ export type ObjectHudAction = {
 
 export type ObjectHudPanelProps = {
     node: CanvasNodeData | null;
+    /** 该节点关联生成任务的计费文案(冻结/已结算);无关联任务时不显示 */
+    consumptionText?: string | null;
     /** Agent 等右侧停靠面打开时的让位 CSS right 值;缺省 16px */
     rightInset?: string;
     actions?: ObjectHudAction[];
@@ -41,7 +43,7 @@ function hasContent(node: CanvasNodeData): boolean {
     return (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) && Boolean(node.metadata?.content);
 }
 
-export function ObjectHudPanel({ node, rightInset, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
+export function ObjectHudPanel({ node, consumptionText, rightInset, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const mountedRef = useRef(false);
     const [revealed, setRevealed] = useState(false);
@@ -72,7 +74,8 @@ export function ObjectHudPanel({ node, rightInset, actions = [], onViewImage, on
     const height = node.metadata?.naturalHeight;
     const resolution = Number.isFinite(width) && Number.isFinite(height) && width && height ? `${Math.round(width)} × ${Math.round(height)}` : null;
     const format = node.type === CanvasNodeType.Image ? "PNG" : node.type === CanvasNodeType.Video ? "MP4" : null;
-    const bytes = node.metadata?.content?.startsWith("data:") ? Math.round(node.metadata.content.length * 0.75) : null;
+    const storedBytes = node.metadata?.bytes;
+    const bytes = Number.isFinite(storedBytes) && storedBytes ? storedBytes : node.metadata?.content?.startsWith("data:") ? Math.round(node.metadata.content.length * 0.75) : null;
     const createdAt = node.createdAt ? new Date(node.createdAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
     // 负面约束:不显示渠道内部 ID;modelOptionName 解码出友好模型名
     const friendlyModel = node.metadata?.model ? modelOptionName(node.metadata.model) : null;
@@ -82,6 +85,7 @@ export function ObjectHudPanel({ node, rightInset, actions = [], onViewImage, on
         ["大小", bytes === null ? null : formatBytes(bytes)],
         ["分辨率", resolution],
         ["创建", createdAt],
+        ["消耗", consumptionText ?? null],
     ];
     const visibleFacts = facts.filter(([, v]) => v);
 
