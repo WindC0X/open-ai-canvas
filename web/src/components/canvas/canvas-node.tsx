@@ -129,7 +129,9 @@ export const CanvasNode = React.memo(function CanvasNode({
     const showStatusTrack = Boolean(resourceLabel || data.metadata?.locked || isBatchRoot || (isBatchChild && !readOnly) || (hasMediaContent && !readOnly));
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
     const nodeState = isFocusRelated ? "focus" : isConnectionTarget ? "target" : isSelected ? "selected" : isRelated && !isBatchChild ? "related" : "idle";
-    const showOutputConnection = getNodeDefinition(data.type)?.showOutputConnection !== false;
+const isGenerating = data.metadata?.status === "loading";
+    const showOutputConnection = data.type !== PORTRAIT_CLEARANCE_NODE_TYPE && getNodeDefinition(data.type)?.showOutputConnection !== false;
+8 (fix(canvas): 生成中信号改绑 loading 状态; 骨架脉动补 reduced-motion; 状态行补回阶段细节)
     const assetTags = data.metadata?.assetTags?.filter((tag) => tag.trim()) || [];
     const scriptMinHeight = data.type === CanvasNodeType.Script ? storyboardMinNodeHeight(data.metadata?.storyboardComposerHeight) : null;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -305,22 +307,19 @@ export const CanvasNode = React.memo(function CanvasNode({
                 onCancel={() => { setTitleDraft(data.title); setIsEditingTitle(false); }}
             />
             <div
-                className={`canvas-node-shell relative h-full w-full overflow-visible rounded-[var(--node-radius)] ${isActive ? "node-generating-border" : ""}`}
+                className={`canvas-node-shell relative h-full w-full overflow-visible rounded-[var(--node-radius)] ${data.metadata?.status === "loading" ? "node-generating-border" : ""}`}
                 data-node-state={nodeState}
                 data-connection-tilt={connectionTilt ? "true" : undefined}
                 data-state={data.metadata?.status || (isActive ? "active" : isRelated ? "related" : "idle")}
-                data-node-phase={data.metadata?.status === "error" ? "error" : isActive ? "running" : hasImageContent || hasVideoContent ? "generated" : isComposerNode || data.type === CanvasNodeType.Image ? "empty" : undefined}
+                data-node-phase={data.metadata?.status === "error" ? "error" : data.metadata?.status === "loading" ? "running" : hasImageContent || hasVideoContent ? "generated" : isComposerNode || data.type === CanvasNodeType.Image ? "empty" : undefined}
                 data-node-selection={isSelected ? "selected" : hovered ? "hover" : "idle"}
                 style={{
                     background: hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
-                    // 固定占位；选中以描边表达（原语语义对齐），避免边框宽度变化造成白边跳动。
-                    border: isComposerNode || isActive ? "0" : `1px solid ${isSelected ? theme.node.activeStroke : theme.node.stroke}`,
+                    // 固定占位；选中以描边表达（原语语义对齐），避免边框宽度变化造成白边跳动。生成中以旋转渐变环替代（.node-generating-border）。
+                    border: isComposerNode || isGenerating ? "0" : `1px solid ${isSelected ? theme.node.activeStroke : theme.node.stroke}`,
                     // 安静化（DESIGN.md 表面补录）：阴影保持常规档，hover 才升到 hoverShadow。生成中边框让位给旋转渐变环。
-                    boxShadow: isComposerNode || isActive ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,
-                    "--connection-tilt-x": `${connectionTilt?.rotateX || 0}deg`,
-                    "--connection-tilt-y": `${connectionTilt?.rotateY || 0}deg`,
-                    transformOrigin: connectionTilt?.origin,
-                } as React.CSSProperties}
+                    boxShadow: isComposerNode || isGenerating ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,
+                }}
                 onMouseDown={(event) => onMouseDown(event, data.id)}
                 onDoubleClick={(event) => {
                     if (isBatchRoot) {

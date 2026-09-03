@@ -195,12 +195,12 @@ function LoadingContent({ node, theme, onOpenTaskDetails }: Pick<CanvasNodeConte
     return (
         <div className="relative h-full w-full">
             {/* flora 语法(phase43 实证): 媒体区骨架脉动, 无居中转圈卡 */}
-            <div className="absolute inset-0 animate-pulse" style={{ background: theme.toolbar.itemHover, borderRadius: "inherit" }}></div>
+            <div className="absolute inset-0 animate-pulse motion-reduce:animate-none" style={{ background: "rgba(255,255,255,.14)", borderRadius: "inherit" }}></div>
             {/* 底部安静状态行: 状态 · 进度 · 耗时 · 详情(no-loss: 任务号入详情) */}
             <div className="absolute inset-x-0 bottom-0 z-[1] flex items-center justify-between gap-2 px-2.5 pb-2 text-[var(--fs-tiny)]" style={{ color: theme.node.muted, background: "linear-gradient(transparent, rgba(0,0,0,.4))" }}>
                 <span className="inline-flex min-w-0 items-center gap-1 truncate">
                     {submissionUncertain ? <AlertCircle className="size-3 shrink-0" style={{ color: theme.accent.danger }} /> : null}
-                    <span className="truncate">{statusLabel}{progress !== null ? ` · ${progress}%` : ""}</span>
+                    <span className="truncate">{stageLabel || statusLabel}{progress !== null ? ` · ${progress}%` : ""}</span>
                 </span>
                 <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums">
                     <Clock3 className="inline size-3" />{elapsed}
