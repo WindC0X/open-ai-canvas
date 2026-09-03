@@ -296,6 +296,8 @@ const isGenerating = data.metadata?.status === "loading";
                 scale={scale}
                 dimensionLabel={mediaDimensionLabel}
                 active={isSelected || isFocusRelated}
+                isGenerating={isGenerating}
+                taskCreatedAt={data.metadata?.taskCreatedAt}
                 editable={!readOnly && !data.metadata?.locked && Boolean(onTitleChange)}
                 editing={isEditingTitle}
                 draft={titleDraft}
@@ -307,7 +309,7 @@ const isGenerating = data.metadata?.status === "loading";
                 onCancel={() => { setTitleDraft(data.title); setIsEditingTitle(false); }}
             />
             <div
-                className={`canvas-node-shell relative h-full w-full overflow-visible rounded-[var(--node-radius)] ${data.metadata?.status === "loading" ? "node-generating-border" : ""}`}
+                className={`canvas-node-shell relative h-full w-full overflow-visible rounded-[var(--node-radius)] ${data.metadata?.status === "loading" && !hasImageContent && !hasVideoContent ? "node-generating-border" : ""}`}
                 data-node-state={nodeState}
                 data-connection-tilt={connectionTilt ? "true" : undefined}
                 data-state={data.metadata?.status || (isActive ? "active" : isRelated ? "related" : "idle")}
@@ -316,9 +318,9 @@ const isGenerating = data.metadata?.status === "loading";
                 style={{
                     background: hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
                     // 固定占位；选中以描边表达（原语语义对齐），避免边框宽度变化造成白边跳动。生成中以旋转渐变环替代（.node-generating-border）。
-                    border: isComposerNode || isGenerating ? "0" : `1px solid ${isSelected ? theme.node.activeStroke : theme.node.stroke}`,
-                    // 安静化（DESIGN.md 表面补录）：阴影保持常规档，hover 才升到 hoverShadow。生成中边框让位给旋转渐变环。
-                    boxShadow: isComposerNode || isGenerating ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,
+                    border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "0" : `1px solid ${isSelected ? theme.node.activeStroke : theme.node.stroke}`,
+                    // 安静化（DESIGN.md 表面补录）：阴影保持常规档，hover 才升到 hoverShadow。首次空白生成的边框让位给旋转渐变环。
+                    boxShadow: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,
                 }}
                 onMouseDown={(event) => onMouseDown(event, data.id)}
                 onDoubleClick={(event) => {
@@ -636,10 +638,28 @@ function formatMediaDimensionLabel(node: CanvasNodeData, hasVisualMediaContent: 
 }
 
 function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, editing, draft, theme, onDragStart, onDraftChange, onEdit, onCommit, onCancel }: {
+
+function RunningEtaToken({ since, color }: { since?: string; color: string }) {
+    const [, setTick] = useState(0);
+    const active = Boolean(since);
+    useEffect(() => {
+        if (!active) return;
+        const timer = window.setInterval(() => setTick((value) => value + 1), 1000);
+        return () => window.clearInterval(timer);
+    }, [active]);
+    if (!active || !since) return null;
+    const seconds = Math.max(0, Math.round((Date.now() - Date.parse(since)) / 1000));
+    return <span className="ml-auto shrink-0 whitespace-nowrap text-[var(--fs-micro)] font-medium leading-none tabular-nums" style={{ color }}>{seconds}s</span>;
+}
+
+function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, editing, draft, theme, isGenerating, taskCreatedAt, onDraftChange, onEdit, onCommit, onCancel }: {
+56785e35 (fix(canvas): 生成中语法对齐 phase43 实证 - 撤全幅骨架, ETA token 进标题区, 环收敛到首次空白分支)
     node: CanvasNodeData;
     scale: number;
     dimensionLabel: string | null;
     active: boolean;
+    isGenerating: boolean;
+    taskCreatedAt?: string;
     editable: boolean;
     editing: boolean;
     draft: string;
@@ -716,7 +736,7 @@ function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, edi
                     <span className="min-w-0 flex-1 truncate text-xs font-medium" title={node.title} style={{ opacity: active ? 1 : 0.78 }}>{node.title}</span>
                 )}
             </div>
-            {dimensionLabel ? <span className="ml-auto shrink-0 whitespace-nowrap text-[var(--fs-micro)] font-medium leading-none tabular-nums" style={{ color: theme.node.muted }}>{dimensionLabel}</span> : null}
+            {isGenerating ? <RunningEtaToken since={node.metadata?.taskCreatedAt} color={theme.node.muted} /> : dimensionLabel ? <span className="ml-auto shrink-0 whitespace-nowrap text-[var(--fs-micro)] font-medium leading-none tabular-nums" style={{ color: theme.node.muted }}>{dimensionLabel}</span> : null}
         </div>
     );
 }

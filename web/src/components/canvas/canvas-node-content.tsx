@@ -194,8 +194,7 @@ function LoadingContent({ node, theme, onOpenTaskDetails }: Pick<CanvasNodeConte
     const elapsed = useTaskElapsed(node.metadata?.taskCreatedAt);
     return (
         <div className="relative h-full w-full">
-            {/* flora 语法(phase43 实证): 媒体区骨架脉动, 无居中转圈卡 */}
-            <div className="absolute inset-0 animate-pulse motion-reduce:animate-none" style={{ background: "rgba(255,255,255,.14)", borderRadius: "inherit" }}></div>
+            {/* flora phase43: 重生成路径不加全幅骨架, 媒体舞台保持; 进度走标题 ETA 与底部状态行 */}
             {/* 底部安静状态行: 状态 · 进度 · 耗时 · 详情(no-loss: 任务号入详情) */}
             <div className="absolute inset-x-0 bottom-0 z-[1] flex items-center justify-between gap-2 px-2.5 pb-2 text-[var(--fs-tiny)]" style={{ color: theme.node.muted, background: "linear-gradient(transparent, rgba(0,0,0,.4))" }}>
                 <span className="inline-flex min-w-0 items-center gap-1 truncate">
