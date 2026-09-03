@@ -16,7 +16,6 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { CanvasCameraControlPopover } from "./canvas-camera-control-popover";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
-import { ObjectHud } from "./primitives/object-hud";
 import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasVideoSettingsPopover } from "./canvas-video-settings-popover";
@@ -501,7 +500,6 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                 onPointerDown={(event) => event.stopPropagation()}
                 onWheel={(event) => event.stopPropagation()}
             >
-            {hasImageContent || hasTextContent ? <ObjectHud node={node} style={{ marginBottom: 6 }} /> : null}
             {renderComposerHeader(false)}
 
             {renderPromptEditor(false)}
