@@ -2010,7 +2010,11 @@ function InfiniteCanvasPage() {
                     }}
                     onPromptChange={handleNodePromptChange}
                     onConfigChange={handleConfigNodeChange}
-                    onGenerate={handleGenerateNode}
+                    onGenerate={(nodeId, mode, prompt) => {
+                        // flora 语法:生成启动即收起编辑面(S04);mode/prompt 由面板调用参数携带,先捕获再收起
+                        setDialogNodeId(null);
+                        handleGenerateNode(nodeId, mode, prompt);
+                    }}
                     onRemoveReference={handleRemoveNodeReference}
                     onReorderReferences={handleReorderNodeReferences}
                     onReplaceReference={handleReplaceNodeReference}
@@ -2136,6 +2140,8 @@ function InfiniteCanvasPage() {
                     onComposerToggle={() => setDialogNodeId((current) => (current === contentNode.id ? null : contentNode.id))}
                     onGenerate={(nodeId) => {
                         const target = nodesRef.current.find((item) => item.id === nodeId);
+                        // flora 语法:生成启动即收起编辑面,节点以 ambient 呈现进度(S04)
+                        setDialogNodeId(null);
                         void handleGenerateNode(nodeId, target?.metadata?.generationMode || "image", target?.metadata?.composerContent ?? target?.metadata?.prompt ?? "");
                     }}
                     workspaceMode={workspaceMode}

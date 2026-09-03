@@ -193,8 +193,10 @@ function LoadingContent({ node, theme, onOpenTaskDetails }: Pick<CanvasNodeConte
     const stageLabel = taskId ? generationTaskStageLabel(displayTask) : "正在创建任务";
     const elapsed = useTaskElapsed(node.metadata?.taskCreatedAt);
     return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 px-5 text-center" style={{ color: theme.node.activeStroke }}>
-            {submissionUncertain ? <AlertCircle className="size-10" /> : <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />}
+        <div className="relative flex h-full w-full flex-col items-center justify-center gap-2.5 px-5 text-center" style={{ color: theme.node.activeStroke }}>
+            <div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] motion-safe:animate-[flora-ambient-pulse_2.4s_var(--motion-ease-in-out)_infinite_alternate]" style={{ background: `radial-gradient(circle at 50% 45%, ${theme.node.activeStroke}, transparent 70%)` }}></div>
+            <div className="relative flex flex-col items-center gap-2.5">
+            {submissionUncertain ? <AlertCircle className="size-10 motion-reduce:animate-none" /> : <div className="size-10 animate-spin rounded-full border-2 motion-reduce:animate-none" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />}
             <span className="text-[var(--fs-tiny)] font-semibold">{stageLabel}</span>
             {taskId ? (
                 <div className="flex w-full max-w-[210px] flex-col items-center gap-1.5">
@@ -215,6 +217,7 @@ function LoadingContent({ node, theme, onOpenTaskDetails }: Pick<CanvasNodeConte
                     </div>
                 </div>
             ) : null}
+            </div>
         </div>
     );
 }

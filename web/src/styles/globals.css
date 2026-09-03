@@ -2037,6 +2037,11 @@
     .workspace-route-loader.is-visible { opacity: 1; }
     .workspace-route-loader-content { justify-content: center; }
 
+    /* 安静化(DESIGN.md 动效六规则): 生成中 ambient 呼吸, opacity-only, reduced-motion 由 .motion-reduce:animate-none 关闭 */
+    @keyframes flora-ambient-pulse {
+        from { opacity: 0.05; }
+        to { opacity: 0.16; }
+    }
     @keyframes loader-surface-enter {
         from { opacity: 0; }
         to { opacity: 1; }
