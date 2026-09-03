@@ -749,6 +749,11 @@ func (s *Service) persistGeneratedMediaValueMode(userID string, value interface{
 				if kind == "image" && (width <= 0 || height <= 0) {
 					width, height = imageDimensions(data)
 				}
+				// 生成结果入库前校验魔数: 上游偶发返回 HTML 错误页(如 OpenAI Widgets 页)时,
+				// 明确让任务失败并走退款, 而不是把裂图资源落库展示给用户。
+				if kind == "image" && (width <= 0 || height <= 0) {
+					return nil, fmt.Errorf("上游返回的内容不是有效图像（%d 字节无法解码为图片），请重试或更换渠道", len(data))
+				}
 				quotaDay := ""
 				if enforceQuota {
 					quotaDay, err = s.reserveGeneratedResourceQuota(userID, int64(len(data)))
