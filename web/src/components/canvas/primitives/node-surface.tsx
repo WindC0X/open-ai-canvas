@@ -34,9 +34,10 @@ export function NodeSurface({ phase, selection, children, className, style, widt
         width,
         aspectRatio,
         background: theme.node.fill,
-        border: `1px solid ${selected ? theme.node.activeStroke : theme.node.stroke}`,
+        // 生成中(flora phase43 实证): 旋转渐变边框替代常规描边/阴影; 边环经 globals 的 ::before z-index 盖住骨架层
+        border: phase === "running" ? "0" : `1px solid ${selected ? theme.node.activeStroke : theme.node.stroke}`,
         borderRadius: 12,
-        boxShadow: hovered ? theme.node.hoverShadow : theme.node.shadow,
+        boxShadow: phase === "running" ? "none" : hovered ? theme.node.hoverShadow : theme.node.shadow,
         overflow: "hidden",
         position: "relative",
         transition: "box-shadow var(--motion-dur-fast) var(--motion-ease-out), border-color var(--motion-dur-fast) var(--motion-ease-out)",
@@ -44,7 +45,13 @@ export function NodeSurface({ phase, selection, children, className, style, widt
     };
 
     return (
-        <div className={className} style={shellStyle} data-node-phase={phase} data-node-selection={selection} {...rest}>
+        <div
+            className={`${className || ""} ${phase === "running" ? "node-generating-border" : ""}`}
+            style={shellStyle}
+            data-node-phase={phase}
+            data-node-selection={selection}
+            {...rest}
+        >
             {children}
         </div>
     );

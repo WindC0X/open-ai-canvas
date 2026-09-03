@@ -2052,9 +2052,10 @@
     .node-generating-border::before {
         content: "";
         position: absolute;
-        inset: -1px;
+        inset: 0;
         border-radius: inherit;
-        padding: 1px;
+        padding: 2px;
+        z-index: 2;
         background: conic-gradient(from var(--flora-generating-angle), #ffffff, #ffffff10 25%, #ffffff 50%, #ffffff10 75%, #ffffff);
         -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
         -webkit-mask-composite: xor;
