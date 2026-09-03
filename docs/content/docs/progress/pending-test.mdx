@@ -1904,4 +1904,8 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 - 变更三(生图节点):选中态改以 activeStroke 描边表达(阴影保持常规档);节点挂 `data-node-phase`/`data-node-selection` 正交轴标记。
 - 验证:tsc 零错误;vite build 通过;dev 实测(动效变量、computed 阴影/面板、四态工具条关闭动效、选中态联动)逐项命中契约;截图与证据包在本地 flora-evidence-kit(不入库)。
 - 待办:flora 参考侧 PNG 重采后补 G10 人眼并排签收;`--elevation-panel` 未动(侧栏抽屉,影响面另行评估)。
+
 0 (docs(progress): 视觉安静化与画布原语第一批登记待测)
+
+- 更正(2026-09-03):初版曾同时实现"媒体节点悬浮动作条"与"对象信息 HUD 折叠段",经用户评审指出与既有右键菜单/标题头重复、事实面板硬塞 composer,已整体 revert(1b4347a/a6ff26b)。原语本体保留于 primitives/(仅 /dev/primitives 可见)。教训已录入 DESIGN.md"归属面去重纪律":动作/信息的归属先决策、新面必须替换而非叠加,实现一律先过闸门。
+3 (docs(progress): 更正被撤销的悬浮动作条与对象信息HUD登记)
