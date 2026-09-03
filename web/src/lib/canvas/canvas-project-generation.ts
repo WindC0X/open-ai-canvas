@@ -164,6 +164,7 @@ export function generationTaskMetadata(task: GenerationTask): CanvasNodeMetadata
         taskErrorCode: task.errorCode,
         taskOfficialStatus: task.officialStatus,
         taskReceiptRecorded: task.receiptRecorded,
+        taskBilling: task.billing ? { amountMicrocredits: task.billing.amountMicrocredits, status: task.billing.status } : undefined,
         taskCreatedAt: task.createdAt || task.created_at,
         taskUpdatedAt: task.updatedAt || task.updated_at,
     };

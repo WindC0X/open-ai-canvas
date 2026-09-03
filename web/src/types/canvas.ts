@@ -315,6 +315,7 @@ export type CanvasNodeMetadata = {
     actionBoardColumns?: number;
     taskId?: string;
     taskClientOperationId?: string;
+    taskBilling?: { amountMicrocredits: number; status: string };
     retryOf?: string;
     attemptGroupId?: string;
     taskStatus?: "queued" | "running" | "succeeded" | "failed" | "cancelled" | string;

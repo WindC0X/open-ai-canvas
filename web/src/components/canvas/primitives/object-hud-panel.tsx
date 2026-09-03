@@ -5,6 +5,7 @@ import { Maximize2 } from "lucide-react";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { modelDisplayName, type AiConfig } from "@/stores/use-config-store";
+import { formatCredits } from "@/constant/credits";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 
 /**
@@ -45,7 +46,7 @@ function hasContent(node: CanvasNodeData): boolean {
     return (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) && Boolean(node.metadata?.content);
 }
 
-export function ObjectHudPanel({ node, config, consumptionText, rightInset, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
+export function ObjectHudPanel({ node, config, rightInset, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const mountedRef = useRef(false);
     const [revealed, setRevealed] = useState(false);
@@ -87,7 +88,7 @@ export function ObjectHudPanel({ node, config, consumptionText, rightInset, acti
         ["大小", bytes === null ? null : formatBytes(bytes)],
         ["分辨率", resolution],
         ["创建", createdAt],
-        ["消耗", consumptionText ?? null],
+        ["消耗", node.metadata?.taskBilling ? `${formatCredits(node.metadata.taskBilling.amountMicrocredits)} 积分${node.metadata.taskBilling.status === "settled" ? "" : " · 冻结中"}` : null],
     ];
     const visibleFacts = facts.filter(([, v]) => v);
 
