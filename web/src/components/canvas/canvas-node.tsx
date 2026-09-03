@@ -14,9 +14,10 @@ import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-refer
 import { ART_CRITIQUE_NODE_TYPE } from "@/lib/art-critique/contracts";
 import { getNodeDefinition, getNodeMinSize, shouldKeepAspectRatio } from "@/lib/canvas/node-registry";
 import { CanvasNodeContent, CanvasNodeImageInfo } from "./canvas-node-content";
+import { NodeHoverActions } from "./canvas-node-hover-actions";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
-type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
+export type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
 
 type CanvasNodeProps = {
     data: CanvasNodeData;
@@ -304,6 +305,23 @@ export const CanvasNode = React.memo(function CanvasNode({
                 onCommit={commitTitle}
                 onCancel={() => { setTitleDraft(data.title); setIsEditingTitle(false); }}
             />
+            {!readOnly && data.type !== CanvasNodeType.Config ? (
+                <NodeHoverActions
+                    node={data}
+                    theme={theme}
+                    scale={scale}
+                    hovered={hovered}
+                    batchPrimary={batchPrimary}
+                    persistence={isSelected ? "selected" : "hover-only"}
+                    onHoverChange={setHovered}
+                    onDownload={() => downloadNode?.(data)}
+                    onDuplicate={() => duplicateNode?.(data)}
+                    onDelete={() => deleteNode?.(data)}
+                    onViewImage={() => onViewImage?.(data)}
+                    onSetPrimary={() => onSetBatchPrimary?.(data)}
+                    onRetry={() => onRetry?.(data)}
+                />
+            ) : null}
             <div
                 className="canvas-node-shell relative h-full w-full overflow-visible rounded-[var(--node-radius)]"
                 data-node-state={nodeState}
