@@ -5,6 +5,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router";
 import { loadAssetsForUse } from "@/services/user-data-sync";
 import { canvasAssetHandoffIds } from "@/lib/canvas/canvas-asset-handoff";
+import { Brush, Scissors, SquareSplitHorizontal, ZoomIn } from "lucide-react";
+import { applyCanvasConnectionPromptSync, getContextResourceNodes, normalizeCanvasNodeMentionTokens, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
+import { CanvasConnectionCreateMenu, CanvasNodePanelOverlay, type PendingConnectionCreate } from "@/components/canvas/canvas-workspace-overlays";
+import { ObjectHudPanel, type ObjectHudAction } from "@/components/canvas/primitives/object-hud-panel";
 import { useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { uploadMediaFile } from "@/services/file-storage";
 import { createCanvasGenerationLiveProjectAdapter, registerCanvasGenerationLiveProject } from "@/services/canvas-generation-consumer";
@@ -86,7 +90,7 @@ import {
     type CanvasResourceReference,
 } from "@/lib/canvas/canvas-resource-references";
 import { CanvasConnectionCreateMenu, CanvasNodePanelOverlay, type PendingConnectionCreate } from "@/components/canvas/canvas-workspace-overlays";
-import { ObjectHudPanel } from "@/components/canvas/primitives/object-hud-panel";
+import { ObjectHudPanel, type ObjectHudAction } from "@/components/canvas/primitives/object-hud-panel";
 import { CanvasOverlayLayerContainer, CanvasOverlayLayerProvider } from "@/components/canvas/canvas-overlay-layer";
 import { CanvasLeaferGraphicsLayer } from "@/components/canvas/canvas-leafer-graphics-layer";
 import { CanvasFreeformEmptyState, CanvasLinkedProjectEmptyState, CanvasShortDramaEmptyState, CanvasShortDramaGuide, CanvasStoryInputNodeContent, CanvasStylePlaceholderNodeContent } from "@/components/canvas/canvas-short-drama-entry";
@@ -2579,7 +2583,17 @@ function InfiniteCanvasPage() {
                         </CanvasNodePanelOverlay>
                     ) : null}
 
-                    <ObjectHudPanel node={toolbarNode} onViewImage={(node) => setPreviewNodeId(node.id)} />
+                    <ObjectHudPanel
+                        node={toolbarNode}
+                        rightInset={assistantMounted ? `calc(var(--canvas-inset-x) + ${assistantWidth}px + var(--space-3))` : undefined}
+                        onViewImage={(node) => setPreviewNodeId(node.id)}
+                        actions={toolbarNode?.type === "image" ? ([
+                            { label: "裁切", icon: <Scissors className="size-3.5" />, onClick: () => setCropNodeId(toolbarNode.id) },
+                            { label: "分割", icon: <SquareSplitHorizontal className="size-3.5" />, onClick: () => setSplitNodeId(toolbarNode.id) },
+                            { label: "超分", icon: <ZoomIn className="size-3.5" />, onClick: () => setUpscaleNodeId(toolbarNode.id) },
+                            { label: "局部编辑", icon: <Brush className="size-3.5" />, onClick: () => setMaskEditNodeId(toolbarNode.id) },
+                        ] as ObjectHudAction[]) : undefined}
+                    />
 
                     {pendingConnectionCreate ? (
                         <CanvasConnectionCreateMenu

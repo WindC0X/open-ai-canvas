@@ -1,21 +1,30 @@
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Maximize2 } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
+import { modelOptionName } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 
 /**
- * Object HUD 事实面板(B-lite-1;DESIGN.md 归属面契约:Object HUD owns selected-object facts)。
+ * Object HUD 事实面板(B-lite-1;DESIGN.md 归属面契约:Object HUD owns selected-object facts + concise actions)。
  *
- * 浮层式:锚定屏幕右缘,不占布局、不缩画布、不随节点飞。
- * 出现条件:选中"有内容"的媒体节点;取消选中即收;切换节点内容原地换(80ms debounce 合并,不收不闪)。
- * 动效:入场 250ms 滑入 12px(base);退场 150ms(fast);揭示行错峰 30ms;全程可打断,reduced-motion 降级。
- * 只读:唯一动作"查看大图";零参数编辑(负面约束)。
+ * 浮层式:锚定画布右缘(assistant 面板打开时自动让位,复用 2197 行避让公式),不占布局、不缩画布。
+ * 出现条件:选中"有内容"的媒体节点;取消选中即收;切换节点内容原地换(80ms 合并)。
+ * 只读 + 简洁动作(flora 语法:Inspector 持有 concise actions;完整动作仍在右键/工具条,不迁移不删减)。
  */
+export type ObjectHudAction = {
+    label: string;
+    icon: ReactNode;
+    onClick: () => void;
+};
+
 export type ObjectHudPanelProps = {
     node: CanvasNodeData | null;
+    /** Agent 等右侧停靠面打开时的让位 CSS right 值;缺省 16px */
+    rightInset?: string;
+    actions?: ObjectHudAction[];
     onViewImage?: (node: CanvasNodeData) => void;
     onClose?: () => void;
     className?: string;
@@ -28,39 +37,11 @@ function formatBytes(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function resolveFormat(node: CanvasNodeData): string | null {
-    if (node.type === CanvasNodeType.Image) return "PNG";
-    if (node.type === CanvasNodeType.Video) return "MP4";
-    if (node.type === CanvasNodeType.Audio) return "MP3";
-    if (node.type === CanvasNodeType.Text) return "TXT";
-    return null;
-}
-
 function hasContent(node: CanvasNodeData): boolean {
     return (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) && Boolean(node.metadata?.content);
 }
 
-export function useObjectHudSelection(selectedNode: CanvasNodeData | null): CanvasNodeData | null {
-    // 切换节点不收不闪:保留上一节点 80ms 合并快速连选;内容节点才显示
-    const [hudNode, setHudNode] = useState<CanvasNodeData | null>(null);
-    const timer = useRef<number | null>(null);
-    useEffect(() => {
-        const next = selectedNode && hasContent(selectedNode) ? selectedNode : null;
-        if (timer.current !== null) window.clearTimeout(timer.current);
-        if (next || !hudNode) {
-            setHudNode(next);
-        } else {
-            timer.current = window.setTimeout(() => setHudNode(null), 80);
-        }
-        return () => {
-            if (timer.current !== null) window.clearTimeout(timer.current);
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNode?.id, selectedNode?.metadata?.content]);
-    return hudNode;
-}
-
-export function ObjectHudPanel({ node, onViewImage, onClose, className }: ObjectHudPanelProps) {
+export function ObjectHudPanel({ node, rightInset, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const mountedRef = useRef(false);
     const [revealed, setRevealed] = useState(false);
@@ -93,8 +74,10 @@ export function ObjectHudPanel({ node, onViewImage, onClose, className }: Object
     const format = node.type === CanvasNodeType.Image ? "PNG" : node.type === CanvasNodeType.Video ? "MP4" : null;
     const bytes = node.metadata?.content?.startsWith("data:") ? Math.round(node.metadata.content.length * 0.75) : null;
     const createdAt = node.createdAt ? new Date(node.createdAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
+    // 负面约束:不显示渠道内部 ID;modelOptionName 解码出友好模型名
+    const friendlyModel = node.metadata?.model ? modelOptionName(node.metadata.model) : null;
     const facts: Array<[string, string | null]> = [
-        ["模型", node.metadata?.model ?? null],
+        ["模型", friendlyModel],
         ["格式", format],
         ["大小", bytes === null ? null : formatBytes(bytes)],
         ["分辨率", resolution],
@@ -104,14 +87,14 @@ export function ObjectHudPanel({ node, onViewImage, onClose, className }: Object
 
     const shellStyle: CSSProperties = {
         position: "fixed",
-        right: 16,
+        right: rightInset ?? 16,
         top: 88,
-        width: 280,
+        width: 288,
         maxHeight: "calc(100vh - 176px)",
         overflowY: "auto",
         background: theme.toolbar.panel,
         border: `1px solid ${theme.toolbar.border}`,
-        borderRadius: 12,
+        borderRadius: 14,
         zIndex: "var(--z-modal-overlay)" as unknown as number,
         opacity: revealed ? 1 : 0,
         transform: revealed ? "translateX(0)" : "translateX(12px)",
@@ -121,57 +104,76 @@ export function ObjectHudPanel({ node, onViewImage, onClose, className }: Object
         pointerEvents: revealed ? "auto" : "none",
     };
 
+    const rowStyle = (index: number): CSSProperties => ({
+        opacity: revealed ? 1 : 0,
+        transform: revealed ? "translateY(0)" : "translateY(4px)",
+        transition: `opacity var(--motion-dur-fast) var(--motion-ease-out) ${index * 30}ms, transform var(--motion-dur-fast) var(--motion-ease-out) ${index * 30}ms`,
+    });
+
     return (
         <aside className={className} style={shellStyle} data-object-hud-panel="" aria-label="对象信息面板" onKeyDown={(event) => { if (event.key === "Escape") onClose?.(); }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px 8px", borderBottom: `1px solid ${theme.toolbar.border}` }}>
-                <span style={{ color: theme.node.muted, fontSize: 11, fontWeight: 500 }}>对象信息</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 14px 10px" }}>
+                <span style={{ color: theme.node.text, fontSize: 14, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{node.title}</span>
                 {hasContent(node) && node.type === CanvasNodeType.Image && onViewImage ? (
                     <button
                         type="button"
                         aria-label="查看大图"
                         title="查看大图"
-                        style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "transparent", border: "none", cursor: "pointer", color: theme.toolbar.item, fontSize: 11, padding: "2px 4px", borderRadius: 6 }}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, background: "transparent", border: "none", cursor: "pointer", color: theme.toolbar.item, fontSize: 11, padding: "2px 4px", borderRadius: 6 }}
                         onClick={(event) => { event.stopPropagation(); onViewImage(node); }}
                         onMouseDown={(event) => event.stopPropagation()}
                         onPointerDown={(event) => event.stopPropagation()}
                     >
                         <Maximize2 className="size-3" />
-                        大图
                     </button>
                 ) : null}
             </div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 px-3 py-2.5" style={{ margin: 0 }}>
+            <dl className="grid gap-y-1.5 px-3.5 pb-3" style={{ margin: 0 }}>
                 {visibleFacts.map(([label, value], index) => (
-                    <div key={label} className="contents">
-                        <dt
-                            style={{
-                                color: theme.node.faint,
-                                fontSize: 11,
-                                lineHeight: "18px",
-                                opacity: revealed ? 1 : 0,
-                                transform: revealed ? "translateY(0)" : "translateY(4px)",
-                                transition: `opacity var(--motion-dur-fast) var(--motion-ease-out) ${index * 30}ms, transform var(--motion-dur-fast) var(--motion-ease-out) ${index * 30}ms`,
-                            }}
-                        >
-                            {label}
-                        </dt>
-                        <dd
-                            style={{
-                                margin: 0,
-                                color: theme.node.text,
-                                fontSize: 11,
-                                lineHeight: "18px",
-                                fontVariantNumeric: "tabular-nums",
-                                opacity: revealed ? 1 : 0,
-                                transform: revealed ? "translateY(0)" : "translateY(4px)",
-                                transition: `opacity var(--motion-dur-fast) var(--motion-ease-out) ${index * 30 + 20}ms, transform var(--motion-dur-fast) var(--motion-ease-out) ${index * 30 + 20}ms`,
-                            }}
-                        >
-                            {value}
-                        </dd>
+                    <div
+                        key={label}
+                        className="flex items-baseline justify-between gap-3"
+                        style={{ ...rowStyle(index), borderBottom: index < visibleFacts.length - 1 ? `1px solid ${theme.toolbar.border}` : "none", padding: "3px 0" }}
+                    >
+                        <dt style={{ color: theme.node.faint, fontSize: 11 }}>{label}</dt>
+                        <dd style={{ margin: 0, color: theme.node.text, fontSize: 11, fontVariantNumeric: "tabular-nums", textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>{value}</dd>
                     </div>
                 ))}
             </dl>
+            {actions.length ? (
+                <div
+                    className="flex items-center gap-1 px-3 pb-3"
+                    style={{ ...rowStyle(visibleFacts.length), borderTop: `1px solid ${theme.toolbar.border}`, paddingTop: 8 }}
+                    role="toolbar"
+                    aria-label="对象快捷操作"
+                >
+                    {actions.map((action) => (
+                        <button
+                            key={action.label}
+                            type="button"
+                            aria-label={action.label}
+                            title={action.label}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: 28,
+                                height: 28,
+                                borderRadius: 8,
+                                border: "none",
+                                cursor: "pointer",
+                                background: "transparent",
+                                color: theme.node.text,
+                            }}
+                            onClick={(event) => { event.stopPropagation(); action.onClick(); }}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
+                        >
+                            {action.icon}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
         </aside>
     );
 }
