@@ -305,7 +305,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 onCancel={() => { setTitleDraft(data.title); setIsEditingTitle(false); }}
             />
             <div
-                className="canvas-node-shell relative h-full w-full overflow-visible rounded-[var(--node-radius)]"
+                className={`canvas-node-shell relative h-full w-full overflow-visible rounded-[var(--node-radius)] ${isActive ? "node-generating-border" : ""}`}
                 data-node-state={nodeState}
                 data-connection-tilt={connectionTilt ? "true" : undefined}
                 data-state={data.metadata?.status || (isActive ? "active" : isRelated ? "related" : "idle")}
@@ -314,9 +314,9 @@ export const CanvasNode = React.memo(function CanvasNode({
                 style={{
                     background: hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
                     // 固定占位；选中以描边表达（原语语义对齐），避免边框宽度变化造成白边跳动。
-                    border: isComposerNode ? "0" : `1px solid ${isSelected ? theme.node.activeStroke : theme.node.stroke}`,
-                    // 安静化（DESIGN.md 表面补录）：阴影保持常规档，hover 才升到 hoverShadow。
-                    boxShadow: isComposerNode ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,
+                    border: isComposerNode || isActive ? "0" : `1px solid ${isSelected ? theme.node.activeStroke : theme.node.stroke}`,
+                    // 安静化（DESIGN.md 表面补录）：阴影保持常规档，hover 才升到 hoverShadow。生成中边框让位给旋转渐变环。
+                    boxShadow: isComposerNode || isActive ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,
                     "--connection-tilt-x": `${connectionTilt?.rotateX || 0}deg`,
                     "--connection-tilt-y": `${connectionTilt?.rotateY || 0}deg`,
                     transformOrigin: connectionTilt?.origin,

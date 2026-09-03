@@ -193,33 +193,19 @@ function LoadingContent({ node, theme, onOpenTaskDetails }: Pick<CanvasNodeConte
     const stageLabel = taskId ? generationTaskStageLabel(displayTask) : "正在创建任务";
     const elapsed = useTaskElapsed(node.metadata?.taskCreatedAt);
     return (
-        <div className="relative flex h-full w-full flex-col items-center justify-center gap-2.5 px-5 text-center" style={{ color: theme.node.activeStroke }}>
-            <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(circle at 50% 45%, ${theme.node.activeStroke}0f, transparent 70%)` }}></div>
-            <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
-                <div className="absolute inset-y-0 -left-1/2 w-1/2 motion-safe:animate-[flora-ambient-sweep_1.8s_var(--motion-ease-in-out)_infinite]" style={{ background: `linear-gradient(90deg, transparent, ${theme.node.activeStroke}2e, transparent)` }}></div>
-            </div>
-            <div className="relative flex flex-col items-center gap-2.5">
-            {submissionUncertain ? <AlertCircle className="size-10" /> : <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />}
-            <span className="text-[var(--fs-tiny)] font-semibold">{stageLabel}</span>
-            {taskId ? (
-                <div className="flex w-full max-w-[210px] flex-col items-center gap-1.5">
-                    <div className="max-w-full truncate text-[var(--fs-label)] font-medium" style={{ color: theme.node.text }}>
-                        {statusLabel}
-                        {progress !== null ? ` · ${progress}%` : ""}
-                    </div>
-                    {progress !== null ? (
-                        <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: theme.node.stroke }}>
-                            <div className="h-full rounded-full transition-[width]" style={{ width: `${progress}%`, background: theme.node.activeStroke }} />
-                        </div>
-                    ) : null}
-                    <div className="max-w-full truncate text-[var(--fs-tiny)] tabular-nums" style={{ color: theme.node.muted }}>
-                        <Clock3 className="mr-1 inline size-3" />{elapsed} · {shortTaskId(taskId)}
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-1.5">
-                        <button type="button" className="inline-flex h-7 items-center gap-1 rounded-[var(--r-sm)] px-2 text-[var(--fs-tiny)] font-medium transition-colors" style={{ background: theme.toolbar.itemHover, color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onOpenTaskDetails?.(node); }}><FileText className="size-3" />详情</button>
-                    </div>
-                </div>
-            ) : null}
+        <div className="relative h-full w-full">
+            {/* flora 语法(phase43 实证): 媒体区骨架脉动, 无居中转圈卡 */}
+            <div className="absolute inset-0 animate-pulse" style={{ background: theme.toolbar.itemHover, borderRadius: "inherit" }}></div>
+            {/* 底部安静状态行: 状态 · 进度 · 耗时 · 详情(no-loss: 任务号入详情) */}
+            <div className="absolute inset-x-0 bottom-0 z-[1] flex items-center justify-between gap-2 px-2.5 pb-2 text-[var(--fs-tiny)]" style={{ color: theme.node.muted, background: "linear-gradient(transparent, rgba(0,0,0,.4))" }}>
+                <span className="inline-flex min-w-0 items-center gap-1 truncate">
+                    {submissionUncertain ? <AlertCircle className="size-3 shrink-0" style={{ color: theme.accent.danger }} /> : null}
+                    <span className="truncate">{statusLabel}{progress !== null ? ` · ${progress}%` : ""}</span>
+                </span>
+                <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums">
+                    <Clock3 className="inline size-3" />{elapsed}
+                    <button type="button" aria-label="任务详情" title="任务详情" className="inline-flex h-6 items-center rounded-[var(--r-sm)] px-1.5 font-medium transition-colors" style={{ background: theme.toolbar.itemHover, color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onOpenTaskDetails?.(node); }}><FileText className="size-3" /></button>
+                </span>
             </div>
         </div>
     );
