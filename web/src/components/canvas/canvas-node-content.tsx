@@ -194,9 +194,12 @@ function LoadingContent({ node, theme, onOpenTaskDetails }: Pick<CanvasNodeConte
     const elapsed = useTaskElapsed(node.metadata?.taskCreatedAt);
     return (
         <div className="relative flex h-full w-full flex-col items-center justify-center gap-2.5 px-5 text-center" style={{ color: theme.node.activeStroke }}>
-            <div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] motion-safe:animate-[flora-ambient-pulse_2.4s_var(--motion-ease-in-out)_infinite_alternate]" style={{ background: `radial-gradient(circle at 50% 45%, ${theme.node.activeStroke}, transparent 70%)` }}></div>
+            <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(circle at 50% 45%, ${theme.node.activeStroke}0f, transparent 70%)` }}></div>
+            <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+                <div className="absolute inset-y-0 -left-1/2 w-1/2 motion-safe:animate-[flora-ambient-sweep_1.8s_var(--motion-ease-in-out)_infinite]" style={{ background: `linear-gradient(90deg, transparent, ${theme.node.activeStroke}2e, transparent)` }}></div>
+            </div>
             <div className="relative flex flex-col items-center gap-2.5">
-            {submissionUncertain ? <AlertCircle className="size-10 motion-reduce:animate-none" /> : <div className="size-10 animate-spin rounded-full border-2 motion-reduce:animate-none" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />}
+            {submissionUncertain ? <AlertCircle className="size-10" /> : <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />}
             <span className="text-[var(--fs-tiny)] font-semibold">{stageLabel}</span>
             {taskId ? (
                 <div className="flex w-full max-w-[210px] flex-col items-center gap-1.5">
