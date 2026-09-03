@@ -86,6 +86,7 @@ import {
     type CanvasResourceReference,
 } from "@/lib/canvas/canvas-resource-references";
 import { CanvasConnectionCreateMenu, CanvasNodePanelOverlay, type PendingConnectionCreate } from "@/components/canvas/canvas-workspace-overlays";
+import { ObjectHudPanel } from "@/components/canvas/primitives/object-hud-panel";
 import { CanvasOverlayLayerContainer, CanvasOverlayLayerProvider } from "@/components/canvas/canvas-overlay-layer";
 import { CanvasLeaferGraphicsLayer } from "@/components/canvas/canvas-leafer-graphics-layer";
 import { CanvasFreeformEmptyState, CanvasLinkedProjectEmptyState, CanvasShortDramaEmptyState, CanvasShortDramaGuide, CanvasStoryInputNodeContent, CanvasStylePlaceholderNodeContent } from "@/components/canvas/canvas-short-drama-entry";
@@ -2559,10 +2560,55 @@ function InfiniteCanvasPage() {
                                 ) : null}
                             </div>
 
+
                             <CanvasCloudAgentPanel canvasId={projectId} domainProjectId={currentProject?.projectId} nodeCount={nodes.length} references={agentMentionReferences} open={assistantOpen} onOpen={openAgent} onCollapse={closeAgent} onFocusNode={(nodeId) => {
                                 if (!nodesRef.current.some((node) => node.id === nodeId)) { message.info("该节点已删除或尚未同步到画布"); return; }
                                 focusCanvasNode(nodeId);
                             }} />
+
+{dialogNode && !isCanvasImageSourceNode(dialogNode) && !dialogNode.metadata?.fileUpload && dialogNode.type !== CanvasNodeType.Script && dialogNode.type !== CanvasNodeType.Drawing && dialogNode.type !== CanvasNodeType.Panorama && !selectionBox && !isCanvasNodeMoving ? (
+                        <CanvasNodePanelOverlay
+                            node={dialogNode}
+                            viewport={viewport}
+                            containerRef={containerRef}
+                            allowOverflow={dialogNode.type !== CanvasNodeType.Config}
+                            dragOffset={dragPreview?.nodeIds.has(dialogNode.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
+                            isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(dialogNode.id))}
+                        >
+                            {renderCanvasNodePanel(dialogNode)}
+                        </CanvasNodePanelOverlay>
+                    ) : null}
+
+                    <ObjectHudPanel node={toolbarNode} onViewImage={(node) => setPreviewNodeId(node.id)} />
+
+                    {pendingConnectionCreate ? (
+                        <CanvasConnectionCreateMenu
+                            pending={pendingConnectionCreate}
+                            viewport={viewport}
+                            viewportSize={size}
+                            containerRef={containerRef}
+                            canCreateDrawing={canCreateDrawingFromConnection}
+                            getDisabledReason={(type) => getConnectionCreateDisabledReason(type, pendingConnectionCreate)}
+                            onCreate={(type) => void createConnectedNode(type, pendingConnectionCreate)}
+                            onClose={cancelPendingConnectionCreate}
+                        />
+                    ) : null}
+
+                    {connectionReplaceHover ? (
+                        <div
+                            className="pointer-events-none fixed z-[var(--z-dialog-popover)] flex select-none items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white/90 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur-md transition-all"
+                            style={{
+                                left: connectionReplaceHover.clientX + 14,
+                                top: connectionReplaceHover.clientY + 14,
+                                transform: "translateY(-50%)",
+                            }}
+                        >
+                            <ArrowLeftRight className="size-3 text-blue-400" />
+                            <span>松开替换</span>
+                            <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold text-blue-200">
+                                @{connectionReplaceHover.referenceLabel}
+                            </span>
+f (feat(canvas): 对象信息面板 - B-lite-1 只读事实浮层(选中跟随/错峰揭示/退出同步))
                         </div>
 
                         {angleNode?.metadata?.content ? (
