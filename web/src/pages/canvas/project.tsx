@@ -2591,6 +2591,7 @@ function InfiniteCanvasPage() {
                         return (
                     <ObjectHudPanel
                         node={toolbarNode}
+                        config={effectiveConfig}
                         consumptionText={hudConsumption}
                         rightInset={assistantMounted ? `calc(var(--canvas-inset-x) + ${assistantWidth}px + var(--space-3))` : undefined}
                         onViewImage={(node) => setPreviewNodeId(node.id)}

@@ -4,7 +4,7 @@ import { Maximize2 } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { modelOptionName } from "@/stores/use-config-store";
+import { modelDisplayName, type AiConfig } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 
 /**
@@ -22,6 +22,8 @@ export type ObjectHudAction = {
 
 export type ObjectHudPanelProps = {
     node: CanvasNodeData | null;
+    /** 生效配置(解析模型显示名:区分后端渠道/前台模型两种情况) */
+    config?: AiConfig | null;
     /** 该节点关联生成任务的计费文案(冻结/已结算);无关联任务时不显示 */
     consumptionText?: string | null;
     /** Agent 等右侧停靠面打开时的让位 CSS right 值;缺省 16px */
@@ -43,7 +45,7 @@ function hasContent(node: CanvasNodeData): boolean {
     return (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) && Boolean(node.metadata?.content);
 }
 
-export function ObjectHudPanel({ node, consumptionText, rightInset, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
+export function ObjectHudPanel({ node, config, consumptionText, rightInset, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const mountedRef = useRef(false);
     const [revealed, setRevealed] = useState(false);
@@ -77,8 +79,8 @@ export function ObjectHudPanel({ node, consumptionText, rightInset, actions = []
     const storedBytes = node.metadata?.bytes;
     const bytes = Number.isFinite(storedBytes) && storedBytes ? storedBytes : node.metadata?.content?.startsWith("data:") ? Math.round(node.metadata.content.length * 0.75) : null;
     const createdAt = node.createdAt ? new Date(node.createdAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
-    // 负面约束:不显示渠道内部 ID;modelOptionName 解码出友好模型名
-    const friendlyModel = node.metadata?.model ? modelOptionName(node.metadata.model) : null;
+    // 负面约束:不显示渠道内部 ID;modelDisplayName 区分后端渠道(displayName/系统模型)与前台模型两种情况
+    const friendlyModel = node.metadata?.model ? (config ? modelDisplayName(config, node.metadata.model) : node.metadata.model.split("::").pop() || null) : null;
     const facts: Array<[string, string | null]> = [
         ["模型", friendlyModel],
         ["格式", format],
