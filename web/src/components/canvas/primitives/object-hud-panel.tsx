@@ -26,7 +26,6 @@ export type ObjectHudPanelProps = {
     /** 生效配置(解析模型显示名:区分后端渠道/前台模型两种情况) */
     config?: AiConfig | null;
     /** 该节点关联生成任务的计费文案(冻结/已结算);无关联任务时不显示 */
-    consumptionText?: string | null;
     /** Agent 等右侧停靠面打开时的让位 CSS right 值;缺省 16px */
     rightInset?: string;
     actions?: ObjectHudAction[];
