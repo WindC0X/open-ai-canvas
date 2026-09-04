@@ -289,6 +289,7 @@ function completedTaskMetadata(task: GenerationTask): CanvasNodeMetadata {
         taskDurationMs: task.startedAt && task.completedAt ? Math.max(0, Date.parse(task.completedAt) - Date.parse(task.startedAt)) : undefined,
         taskCreatedAt: task.createdAt || task.created_at,
         taskUpdatedAt: task.updatedAt || task.updated_at,
+        taskBilling: task.billing ? { amountMicrocredits: task.billing.amountMicrocredits, status: task.billing.status } : undefined,
         errorDetails: undefined,
         generationErrorCode: undefined,
         failedPromptFingerprint: undefined,

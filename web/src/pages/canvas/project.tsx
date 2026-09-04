@@ -9,7 +9,6 @@ import { Brush, Scissors, SquareSplitHorizontal, ZoomIn } from "lucide-react";
 import { applyCanvasConnectionPromptSync, getContextResourceNodes, normalizeCanvasNodeMentionTokens, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { CanvasConnectionCreateMenu, CanvasNodePanelOverlay, type PendingConnectionCreate } from "@/components/canvas/canvas-workspace-overlays";
 import { ObjectHudPanel, type ObjectHudAction } from "@/components/canvas/primitives/object-hud-panel";
-import { formatCredits } from "@/constant/credits";
 import { useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { uploadMediaFile } from "@/services/file-storage";
 import { createCanvasGenerationLiveProjectAdapter, registerCanvasGenerationLiveProject } from "@/services/canvas-generation-consumer";
@@ -2590,15 +2589,9 @@ function InfiniteCanvasPage() {
                         </CanvasNodePanelOverlay>
                     ) : null}
 
-                    {(() => {
-                        const hudTask = toolbarNode?.metadata?.taskId ? activeTasks.find((task) => task.id === toolbarNode.metadata?.taskId) : undefined;
-                        const hudBillingStatus = hudTask?.billing?.status;
-                        const hudConsumption = hudTask?.billing ? `${formatCredits(hudTask.billing.amountMicrocredits)} 积分${hudBillingStatus === "settled" ? "" : " · 冻结中"}` : null;
-                        return (
                     <ObjectHudPanel
                         node={toolbarNode}
                         config={effectiveConfig}
-                        consumptionText={hudConsumption}
                         rightInset={assistantMounted ? `calc(var(--canvas-inset-x) + ${assistantWidth}px + var(--space-3))` : undefined}
                         onViewImage={(node) => setPreviewNodeId(node.id)}
                         actions={toolbarNode?.type === "image" ? ([
@@ -2608,8 +2601,6 @@ function InfiniteCanvasPage() {
                             { label: "局部编辑", icon: <Brush className="size-3.5" />, onClick: () => setMaskEditNodeId(toolbarNode.id) },
                         ] as ObjectHudAction[]) : undefined}
                     />
-                        );
-                    })()}
 
                     {pendingConnectionCreate ? (
                         <CanvasConnectionCreateMenu
