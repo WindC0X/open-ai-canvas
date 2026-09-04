@@ -2067,6 +2067,38 @@
     @media (prefers-reduced-motion: reduce) {
         .node-generating-border::before { animation: none; }
     }
+    /* 生成中媒体区进度填充(S04, flora BlockLoadingState 对齐):
+       三态 = 真实进度(内联 --loading-target-scale + transition) / fallback 5% 小条 / 回跳 correction 桥接。
+       填充色走 canvas-theme node.loadingFill(明暗各一值),不走硬编码。 */
+    .canvas-node-loading-fill {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+    .canvas-node-loading-fill-bar {
+        position: absolute;
+        inset: 0;
+        transform-origin: left center;
+        transform: scaleX(var(--loading-target-scale, 0));
+    }
+    .canvas-node-loading-fill-bar[data-phase="fallback"] {
+        animation: canvas-loading-fill-fallback 0.3s var(--motion-ease-out) forwards;
+    }
+    .canvas-node-loading-fill-bar[data-phase="correction"] {
+        animation: canvas-loading-fill-correction 0.3s var(--motion-ease-out) forwards;
+    }
+    @keyframes canvas-loading-fill-fallback {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(0.05); }
+    }
+    @keyframes canvas-loading-fill-correction {
+        from { transform: scaleX(var(--loading-from-scale, 0)); }
+        to { transform: scaleX(var(--loading-to-scale, 0)); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-loading-fill-bar[data-phase] { animation: none; }
+    }
     @keyframes loader-surface-enter {
         from { opacity: 0; }
         to { opacity: 1; }

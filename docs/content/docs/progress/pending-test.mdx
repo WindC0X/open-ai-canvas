@@ -1908,4 +1908,18 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 0 (docs(progress): 视觉安静化与画布原语第一批登记待测)
 
 - 更正(2026-09-03):初版曾同时实现"媒体节点悬浮动作条"与"对象信息 HUD 折叠段",经用户评审指出与既有右键菜单/标题头重复、事实面板硬塞 composer,已整体 revert(1b4347a/a6ff26b)。原语本体保留于 primitives/(仅 /dev/primitives 可见)。教训已录入 DESIGN.md"归属面去重纪律":动作/信息的归属先决策、新面必须替换而非叠加,实现一律先过闸门。
+
 3 (docs(progress): 更正被撤销的悬浮动作条与对象信息HUD登记)
+
+## S04 v5：生成中媒体区进度填充(BlockLoadingState 对齐, flora/quiet 分支)
+
+- 背景:S04 v4 裁决"首次空白生成媒体区安静"被用户实机观察推翻;flora 真实实现为 block-loading-fill 三态进度填充(066 chunk JS + 001 CSS 已定案)。
+- 实现:新组件 `CanvasNodeLoadingFill`(canvas-node-loading-fill.tsx)挂载于 Image/Video 节点首次空白生成分支;`metadata.taskProgress` 数值 → 内联 scaleX + 0.3s ease-out;无进度 → 5% fallback 小条(一次性);retry 回跳 → correction 桥接;退出缓冲 400ms。填充色走 `node.loadingFill` 明暗两 token(dark rgba(255,255,255,.10)=flora 原值 / light rgba(17,24,39,.07))。
+- 保留:标题 ETA token、底部安静状态行、首次空白 `node-generating-border` 旋转环;重生成路径媒体面保持静止(phase43 不回归)。
+- 验证:tsc 零错误;vite build 通过;yingce-floraization implement 闸门 PASS(证据包 flora-evidence-kit/.workflow/scratch/20260903-floraization-image-node-grammar)。
+- 待浏览器验证(用户在场时):
+  - [ ] 首次空白生成:填充条随 taskProgress 推进;无进度任务显示 5% 静条;完成与媒体上屏同帧卸载(400ms 缓冲)。
+  - [ ] retry:进度回跳触发 correction 桥接一次,不闪白。
+  - [ ] 重生成路径:已有媒体面保持静止(无填充)。
+  - [ ] 明/暗主题填充条对比度可感知;reduced-motion 下动画禁用、静态刻度/5% 条可见。
+8 (feat(canvas): 生成中媒体区进度填充 - S04 v5 对齐 flora BlockLoadingState 三态语义)

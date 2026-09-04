@@ -24,6 +24,8 @@ export const canvasThemes = {
             text: "#111827",
             muted: "#6b7280",
             faint: "#9ca3af",
+            // 生成中媒体区进度填充(S04, flora BlockLoadingState bg-white/10 对应物):明底取暗色同族 alpha 保持可感知
+            loadingFill: "rgba(17,24,39,.07)",
         },
         frame: {
             fill: "rgba(17,24,39,.025)",
@@ -93,6 +95,8 @@ export const canvasThemes = {
             text: "#ededed",
             muted: "#a3a3a3",
             faint: "#666666",
+            // 生成中媒体区进度填充(S04):flora 原值 bg-white/10
+            loadingFill: "rgba(255,255,255,.10)",
         },
         frame: {
             fill: "rgba(255,255,255,.025)",

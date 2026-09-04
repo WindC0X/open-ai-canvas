@@ -14,6 +14,7 @@ import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-refer
 import { ART_CRITIQUE_NODE_TYPE } from "@/lib/art-critique/contracts";
 import { getNodeDefinition, getNodeMinSize, shouldKeepAspectRatio } from "@/lib/canvas/node-registry";
 import { CanvasNodeContent, CanvasNodeImageInfo } from "./canvas-node-content";
+import { CanvasNodeLoadingFill } from "./canvas-node-loading-fill";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
@@ -367,6 +368,10 @@ const isGenerating = data.metadata?.status === "loading";
                         } as React.CSSProperties
                     }
                 >
+                    {/* 生成中媒体区进度填充（S04，flora BlockLoadingState）：仅首次空白生成分支，DOM 最先 ⇒ 在徽章/内容之下 */}
+                    {data.metadata?.status === "loading" && !hasImageContent && !hasVideoContent && (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video) ? (
+                        <CanvasNodeLoadingFill node={data} theme={theme} />
+                    ) : null}
                     {/* 节点状态徽章（对应 #97 决策2：左上角 loading/success/error，近距离确认信号）*/}
                     {data.metadata?.status && data.metadata.status !== "idle" && data.type !== CanvasNodeType.Frame ? (
                         <NodeStatusBadge status={data.metadata.status} />
