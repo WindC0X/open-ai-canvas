@@ -2083,7 +2083,8 @@
         transform: scaleX(var(--loading-target-scale, 0));
     }
     .canvas-node-loading-fill-bar[data-phase="fallback"] {
-        animation: canvas-loading-fill-fallback 0.3s var(--motion-ease-out) forwards;
+        /* flora 066 chunk 原文: durationMs 6e4 linear fromScale 0 toScale .05 —— 无精确进度时 60s 缓爬表达"进行中" */
+        animation: canvas-loading-fill-fallback 60s linear forwards;
     }
     .canvas-node-loading-fill-bar[data-phase="correction"] {
         animation: canvas-loading-fill-correction 0.3s var(--motion-ease-out) forwards;

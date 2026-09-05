@@ -9,6 +9,16 @@ type LoadingFillPhase = "fallback" | "correction" | "real";
 
 const EXIT_BUFFER_MS = 400;
 
+/**
+ * flora 066 chunk 契约（.flora-capture/static/066-0l6-ok9_srnk1.js.js 原文）：
+ * - fallback：`loading-fill-fallback",durationMs:6e4,timingFunction:"linear",fromScale:0,toScale:.05`
+ *   —— 无精确进度时 60s 线性缓爬 0→5%，全程微动表达"进行中"；
+ * - 后端里程碑（排队 5 / 接单 0）不是上游真实百分比（task_worker.go 注释），归入无精确进度区。
+ */
+const MILESTONE_PRECISION_FLOOR = 5;
+/** flora fallback 封顶 5%；首个精确值到达时从该封顶近似桥接，避免视觉回跳。 */
+const FALLBACK_CAP_SCALE = 0.05;
+
 export type LoadingFillPhaseInput = {
     taskId: string | undefined;
     taskProgress: number | undefined;
@@ -18,7 +28,7 @@ export type LoadingFillPhaseInput = {
 
 export type LoadingFillPhaseResult = {
     phase: LoadingFillPhase;
-    /** 内联 --loading-target-scale；fallback 为 null（走 keyframe）。 */
+    /** 内联 --loading-target-scale；fallback 为 null（走 60s keyframe 缓爬）。 */
     scale: number | null;
     fromScale?: number;
     toScale?: number;
@@ -27,12 +37,10 @@ export type LoadingFillPhaseResult = {
 /**
  * S04 填充层三态推导（纯函数，便于单测）。
  *
- * 数据源契约（backend task_worker.go）：图片/视频的百分比只能来自供应商状态响应；
- * 后端里程碑 = 创建 5%(排队) → worker 接单 0(正在连接上游，"0=无可报，不冒充") → 完成 100。
- * 因此展示层语义：
- * - 0 视为"未知"而非真实 0%：已有刻度则保持，无刻度则 fallback 5% 小条；
- * - 同一任务内刻度不因 0 回缩；真实回落（上游自报变低，>0）仍走 correction 桥接（flora 语义）；
- * - retry/重提交产生新 taskId：刻度归零，从 fallback 重新开始。
+ * - 无精确进度（数值缺失或 ≤5 里程碑区）：已有刻度则保持（flora g(e,t) 无 ETA 时 update(t)）；
+ *   无刻度则 fallback 60s 线性缓爬；
+ * - 精确进度（>5）：同任务内单调不回缩；真实回落（>0 上游自报变低）走 correction 桥接；
+ * - retry/重提交产生新 taskId：刻度归零重新缓爬。
  */
 export function resolveLoadingFillPhase(input: LoadingFillPhaseInput): LoadingFillPhaseResult {
     const isNewTask = input.lastTaskId !== null && input.lastTaskId !== input.taskId;
@@ -40,22 +48,18 @@ export function resolveLoadingFillPhase(input: LoadingFillPhaseInput): LoadingFi
 
     const raw = input.taskProgress;
     const numeric = typeof raw === "number" && Number.isFinite(raw) ? Math.max(0, Math.min(100, Math.round(raw))) : null;
-    if (numeric === null) {
-        return { phase: "fallback", scale: null };
-    }
 
-    const target = numeric / 100;
-    if (target <= 0) {
-        if (lastScale !== null && lastScale > 0) {
+    if (numeric === null || numeric <= MILESTONE_PRECISION_FLOOR) {
+        if (lastScale !== null && lastScale > FALLBACK_CAP_SCALE) {
             return { phase: "real", scale: lastScale };
         }
         return { phase: "fallback", scale: null };
     }
-    if (lastScale === null) {
-        return { phase: "correction", fromScale: 0, toScale: target, scale: target };
-    }
-    if (target < lastScale) {
-        return { phase: "correction", fromScale: lastScale, toScale: target, scale: target };
+
+    const target = numeric / 100;
+    const fromScale = lastScale ?? FALLBACK_CAP_SCALE;
+    if (target < fromScale) {
+        return { phase: "correction", fromScale, toScale: target, scale: target };
     }
     return { phase: "real", scale: target };
 }
@@ -70,11 +74,11 @@ type CanvasNodeLoadingFillProps = {
  *
  * 仅挂载于 Image/Video 节点首次空白生成路径（status=loading 且无媒体内容），
  * 由 canvas-node.tsx 的挂载条件控制；本组件只负责三态与退出缓冲：
- * - 真实进度：内联 --loading-target-scale + transform transition（compositor 路径）；
- * - 无进度（0=未知 / queued 无刻度 / running 无数值）：fallback 5% 小条一次性动画；
- * - 回跳（retry 重建 / 上游自报回落）：correction 桥接动画；
+ * - 精确进度：内联 --loading-target-scale + transform transition（compositor 路径）；
+ * - 无进度：fallback 60s 线性缓爬 0→5%（flora 6e4 常量），reduced-motion 静态 5%；
+ * - 回跳（上游自报回落 / retry 重建）：correction 桥接动画；
  * - 退出：status 离开 loading 后保留 400ms（flora o(g,400) 同款语义），
- *   防 retry 抖动（loading→error→loading）闪条；success 后由挂载条件与媒体上屏同帧卸载。
+ *   success 后由挂载条件与媒体上屏同帧卸载。
  */
 export function CanvasNodeLoadingFill({ node, theme }: CanvasNodeLoadingFillProps) {
     const isLoading = node.metadata?.status === "loading";
@@ -122,7 +126,8 @@ export function CanvasNodeLoadingFill({ node, theme }: CanvasNodeLoadingFillProp
 
     let barStyle: React.CSSProperties;
     if (resolved.phase === "fallback") {
-        barStyle = { backgroundColor: theme.node.loadingFill };
+        // 内联封顶值仅供 reduced-motion(animation:none) 静态可见；动画播放期由 keyframe 覆盖。
+        barStyle = { "--loading-target-scale": FALLBACK_CAP_SCALE, backgroundColor: theme.node.loadingFill } as React.CSSProperties;
     } else if (resolved.phase === "correction") {
         barStyle = {
             "--loading-from-scale": resolved.fromScale,
