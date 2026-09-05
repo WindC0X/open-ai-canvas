@@ -40,6 +40,7 @@
 - 其它 cmd（`cdp`/`tabs`/`status`/`batch`）**静默返回字符串 'ok' 假成功**——结果不会执行。不要再用它们做 reload/navigate/createTarget。
 - `get_all_sessions` 枚举 chrome.tabs 全量（含 💤 冻结标签）；`execute_js` 需要标签内容脚本活着（💤 标签 ACK 不回结果）。
 - 注入失败两态：`No response data (ACK received)` = 内容脚本收到但页面冻结/忙；`CDP fallback failed: Another debugger` = 该标签被其它 debugger 占用（DevTools/助手扩展）。
+- **先查调用方再怀疑桥**：2026-09-06 实录——自写 helper /tmp/tmw.py 用 `script` 字段发码，而服务端读 `data.get('code')`（TMWebDriver.py:100），导致每次实际发出 `code:null`→空脚本→CDP fallback 风暴，被误诊成“桥卡死/MV3 锁死”。判定方法：同一个标签上用直接 heredoc `code` 字段发一针短探针，通则问题在调用方。另外服务端在会话未连接时会**静默回退到其它活动标签**（TMWebDriver.py:202-206）——每次注入前必须带 `location.href` 守卫断言目标标签身份。
 - MV3 service worker 的 CDP 串行锁可能卡死（症状：所有标签都报 Another debugger）→ 让用户在 chrome://extensions 重载 tmwd 扩展。
 
 ### 影策生成链路测试要点
