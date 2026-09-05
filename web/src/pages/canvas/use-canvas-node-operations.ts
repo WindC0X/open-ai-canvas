@@ -9,11 +9,16 @@ import { alignCanvasNodes, layoutCanvasAuto, layoutCanvasFlow, layoutCanvasNodes
 import { applyCanvasConnectionPromptSync } from "@/lib/canvas/canvas-resource-references";
 import { createCanvasNode, isHiddenBatchChild, removeCanvasNodes } from "@/lib/canvas/canvas-project-domain";
 import { isolateCopiedNodeMetadata, nextCopiedNodeTitle } from "@/lib/canvas/canvas-node-copy";
+import { nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
+import { resolveCanvasGenerationModel } from "@/lib/canvas/canvas-project-generation";
+import { defaultImageParamsForModel } from "@/lib/model-selection";
 import { CanvasNodeType, type CanvasConnection, type CanvasFolderStyle, type CanvasFolderTheme, type CanvasNodeData, type CanvasNodeMetadata, type CanvasNodeTypeId, type ContextMenuState, type Position } from "@/types/canvas";
 import { cloneCanvasDrawing } from "@/lib/canvas/canvas-drawing-storage";
 import { isDrawingEngineAvailable, type CanvasDrawingEngine } from "@/lib/canvas/canvas-drawing-engine";
 import { useUserStore } from "@/stores/use-user-store";
-import { useEffectiveConfig } from "@/stores/use-config-store";
+import { defaultConfig, useEffectiveConfig } from "@/stores/use-config-store";
+import { createDefaultPortraitClearanceState, PORTRAIT_CLEARANCE_NODE_TYPE } from "@/lib/portrait-clearance/contracts";
+065e9a94 (fix(canvas): 节点框几何 - 空图片节点跟随渠道模型默认比例, 同比例媒体生成前后不跳变)
 import { workflowProviderPluginEnabled } from "@/lib/plugins/builtin/workflows";
 import { usePluginStore } from "@/stores/use-plugin-store";
 
@@ -148,6 +153,18 @@ export function useCanvasNodeOperations({
                 : undefined;
         const node = createCanvasNode(type, position || getCanvasCenter(), metadata);
         if (workflowTitle) node.title = workflowTitle;
+        if (type === CanvasNodeType.Image) {
+            // 空图片节点跟随渠道模型设置的默认比例（composer 芯片同源：profile.size.default），
+            // 而非固定 720×405；用户在 composer 改比例时仍由 applyNodeConfigPatch 同步改框。
+            const model = resolveCanvasGenerationModel(effectiveConfig, effectiveConfig.imageModel || defaultConfig.imageModel, "image");
+            const ratio = model ? defaultImageParamsForModel(effectiveConfig, model).size : "";
+            const size = ratio ? nodeSizeFromRatio(ratio, NODE_DEFAULT_SIZE[CanvasNodeType.Image].width, NODE_DEFAULT_SIZE[CanvasNodeType.Image].height) : null;
+            if (size) {
+                node.width = size.width;
+                node.height = size.height;
+                node.position = { x: (position || getCanvasCenter()).x - size.width / 2, y: (position || getCanvasCenter()).y - size.height / 2 };
+            }
+        }
         commitNodes([...nodesRef.current, node]);
         selectNodes(new Set([node.id]));
         if (type !== CanvasNodeType.Text && type !== CanvasNodeType.Script && type !== CanvasNodeType.BatchTable && type !== CanvasNodeType.Audio && type !== CanvasNodeType.Frame && type !== CanvasNodeType.Drawing && type !== CanvasNodeType.MediaConversion) setDialogNodeId(node.id);
