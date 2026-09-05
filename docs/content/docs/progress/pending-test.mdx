@@ -1917,6 +1917,11 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 - 实现:新组件 `CanvasNodeLoadingFill`(canvas-node-loading-fill.tsx)挂载于 Image/Video 节点首次空白生成分支;`metadata.taskProgress` 数值 → 内联 scaleX + 0.3s ease-out;无进度 → 5% fallback 小条(一次性);retry 回跳 → correction 桥接;退出缓冲 400ms。填充色走 `node.loadingFill` 明暗两 token(dark rgba(255,255,255,.10)=flora 原值 / light rgba(17,24,39,.07))。
 - 保留:标题 ETA token、底部安静状态行、首次空白 `node-generating-border` 旋转环;重生成路径媒体面保持静止(phase43 不回归)。
 - 验证:tsc 零错误;vite build 通过;yingce-floraization implement 闸门 PASS(证据包 flora-evidence-kit/.workflow/scratch/20260903-floraization-image-node-grammar)。
+- 实测记录(2026-09-05, dev 实机):
+  - [x] 组件测试 7/7 通过(web/test/canvas-node-loading-fill.test.tsx;曾逮住 queued=0 误走 real 分支的 bug,已修)。
+  - [x] 真实首次空白生成(grok 渠道):生成中节点 data-node-phase=running,`.canvas-node-loading-fill-bar` 挂载,transform=scaleX(0.05) 实时跟随 taskProgress=5%,animation:none(flora 真进度路径)。
+  - [x] 完成:节点翻 generated,填充层与媒体上屏同帧卸载;积分 100→99.998(两笔),图片 blob 正常。
+  - [x] 非目标路径回归:empty/generated 节点全程无填充层(挂载条件正确)。
 - 待浏览器验证(用户在场时):
   - [ ] 首次空白生成:填充条随 taskProgress 推进;无进度任务显示 5% 静条;完成与媒体上屏同帧卸载(400ms 缓冲)。
   - [ ] retry:进度回跳触发 correction 桥接一次,不闪白。

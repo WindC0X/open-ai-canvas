@@ -71,20 +71,24 @@ export function CanvasNodeLoadingFill({ node, theme }: CanvasNodeLoadingFillProp
         const targetScale = numericProgress / 100;
         const lastScale = lastScaleRef.current;
 
-        if (lastScale !== null && targetScale < lastScale) {
-            // 进度回跳（retry 重建元数据）：correction 桥接一次性动画。
+        if (lastScale === null && targetScale <= 0) {
+            // queued（0 不可见，尚无任何刻度）：fallback 静条表达"已接受、等待中"（design §4）。
+            phase = "fallback";
+            barStyle = { backgroundColor: theme.node.loadingFill };
+        } else if (lastScale === null) {
+            // fallback/空 → 首个真实值：correction 桥接，避免从 0 瞬跳。
             phase = "correction";
             barStyle = {
-                "--loading-from-scale": lastScale,
+                "--loading-from-scale": 0,
                 "--loading-to-scale": targetScale,
                 "--loading-target-scale": targetScale,
                 backgroundColor: theme.node.loadingFill,
             } as React.CSSProperties;
-        } else if (lastScale === null && targetScale > 0) {
-            // fallback/空 → 首个真实值：同样桥接，避免从 0 瞬跳。
+        } else if (targetScale < lastScale) {
+            // 进度回跳（retry 重建元数据）：correction 桥接一次性动画（含回落到 0）。
             phase = "correction";
             barStyle = {
-                "--loading-from-scale": 0,
+                "--loading-from-scale": lastScale,
                 "--loading-to-scale": targetScale,
                 "--loading-target-scale": targetScale,
                 backgroundColor: theme.node.loadingFill,
