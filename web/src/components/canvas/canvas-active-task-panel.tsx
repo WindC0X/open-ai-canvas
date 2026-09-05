@@ -37,28 +37,22 @@ export function CanvasActiveTaskPanel({ tasks, align = "right", topInset = "var(
     }, [tasks.length, onHeightChange]);
 
     // 高度上报：ResizeObserver 覆盖折叠/展开/任务增减全部高度变化；卸载时归零让 HUD 复位。
-    // 值变化才上报 + rAF 合帧，避免 layout 动画期间观测→渲染→观测的 ResizeObserver loop 噪音。
+    // 不用 rAF 合帧：后台标签页 rAF 不触发会导致高度永不上报（同 ObjectHudPanel 的教训）；
+    // RO 回调本身按帧合批，这里只做值去重挡住 layout 动画期间的重复 setState。
     useEffect(() => {
         if (!onHeightChange) return;
         const section = sectionRef.current;
         if (!section) return;
-        let raf = 0;
         let last = -1;
         const observer = new ResizeObserver((entries) => {
-            cancelAnimationFrame(raf);
-            raf = requestAnimationFrame(() => {
-                const height = entries[0]?.borderBoxSize?.[0]?.blockSize ?? section.getBoundingClientRect().height;
-                if (Number.isFinite(height) && height > 0 && Math.abs(height - last) > 0.5) {
-                    last = height;
-                    onHeightChange(height);
-                }
-            });
+            const height = entries[0]?.borderBoxSize?.[0]?.blockSize ?? section.getBoundingClientRect().height;
+            if (Number.isFinite(height) && height > 0 && Math.abs(height - last) > 0.5) {
+                last = height;
+                onHeightChange(height);
+            }
         });
         observer.observe(section);
-        return () => {
-            cancelAnimationFrame(raf);
-            observer.disconnect();
-        };
+        return () => observer.disconnect();
     }, [onHeightChange, tasks.length]);
 
     if (!tasks.length) return null;
