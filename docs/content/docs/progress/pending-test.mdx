@@ -1948,14 +1948,13 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 
 - 现象：生成任务队列（top 72 / right 12 / 宽 332）与对象信息 HUD（top 88 / right 16 / 宽 288）同锚重叠，HUD z 更高压在队列上。
 - 修复：CanvasActiveTaskPanel 新增 onHeightChange（ResizeObserver + rAF 合帧 + 值去重；tasks 清空卸载时显式归零复位）；ObjectHudPanel 新增 topInset prop；project.tsx 把任务面板实测高度接到 HUD topInset（calc(topbar-offset + 高度 + space-3)，专注模式回落 88px）。任务展开/收起、任务增减、全部完成卸载，HUD 均平滑跟随。
-<<<<<<< HEAD
+
 - 待眼验（bridge 断线期间本地 dev 标签不在线，未能数值验证）：生成中选中媒体节点 → HUD 应出现在任务面板下方不重叠；展开队列 → HUD 下移；全部完成 → HUD 回到原位；无任务时 HUD 位置与旧版一致。
 8 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度动态让位, 卸载归零复位)
-=======
+
 - **人眼签收（2026-09-05，用户口头确认）**：用户重载 tmwd 扩展后就当前画布肉眼验收通过——生成任务面板与对象 HUD 不再重叠。数值探针因桥的注入链路故障（ACK 不回/CDP 互斥误报）未能补测，以用户签收为准。
-<<<<<<< HEAD
->>>>>>> 6237bf75 (docs(pending-test): S06/S05 浮层与框几何 - 用户人眼签收记录)
-=======
+
+5 (docs(pending-test): S06/S05 浮层与框几何 - 用户人眼签收记录)
 
 ## S07 Video 节点几何补齐
 
@@ -1967,7 +1966,16 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 - `tsc --noEmit` 0 错、`bun run build` ✓。
 - dev 实验夹具：`grok-imagine-video`（MODEL_000012）已经 admin API 上架 video 能力（ratios 1:1/16:9/9:16，defaultRatio=1:1，xai-video 协议，enabled）。**验证完记得恢复**（PATCH 回 capability="" 或删除该测试模型）。
 
+
 **待浏览器实测**（目标标签休眠/内容脚本断连，桥无法稳定注入）：
 - 添加节点 → 视频：空框应为 1:1 ≈405×405 级（非旧 720×405 宽扁）。
 - 真实视频生成（需 video 渠道）：完成后同比例不跳变、位置不动。
->>>>>>> 04c1c618 (test(canvas): S07 Video 几何 - 纯函数守卫5例/渠道默认比例链路/待浏览器实测清单)
+8 (test(canvas): S07 Video 几何 - 纯函数守卫5例/渠道默认比例链路/待浏览器实测清单)
+
+**浏览器实测记录**（2026-09-06，tmwd 桥修复后实测）：
+- ✅ Video 空节点跟随渠道默认比例：`grok-imagine-video`（xai-video 协议，渠道默认 1:1）→ 空框 **420×420 正方形**（含 420 最小宽度地板，与单测期望一致）；对照渠道 `gpt-image-2`（ch3 默认 16:9）→ 空框 **720×405**——两条链路各随各的渠道默认，交叉验证通过。
+- ✅ metadata.size 未写（composer 同源派生，符合设计）。
+- ✅ 无模型回退：页面目录未含 video 模型时空框保持 720×405 兜底（resync 前实测）。
+- ⏳ 完成同比例不跳变（Fix 2）：**无法端到端实测**——xai-video 协议需要真实 xAI 视频上游，本地 grok2api 渠道是 openai 图像格式无法跑通完成路径。守卫逻辑由 `videoCompletionSize` 纯函数 5 例单测 + task-sync 集成点代码核验覆盖，待用户在真实视频渠道上验收。
+- 测试遗留：验证画布上新建了 video-1788651601/image-1788651663 两个空节点可手动删除；`grok-imagine-video`（MODEL_000012）测试模型暂保留（available 已打通：需带 priceTiers priceConfigured=true 才 available），不需要时可在管理后台禁用。
+0 (test(canvas): S07 浏览器实测 - Video空框420x420/图像720x405交叉实证, Fix2留待真实视频上游)
