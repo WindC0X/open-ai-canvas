@@ -1961,6 +1961,8 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 
 **已落地**（代码层验证闭环）：空 Video 节点创建跟随视频渠道模型默认比例（`resolveModelGenerationDefaults` video 分支 → `profile.defaultRatio`，渠道能力优先于全局 legacy 值）；完成路径同比例守卫（`videoCompletionSize` 纯函数，相对差 <2% 保持现框不动，仅比例真不同才 refit 720×520，locked 分支不受影响）。createNode 依赖数组改用整 `effectiveConfig` 防渠道切换后闭包过期。
 
+**纯函数级验证闭环**（3d75393）：Image/Video 创建分支收敛为导出纯函数 `mediaNodeInitialSize(config, nodeType)`（canvas-project-generation.ts），bun 单测 5 例：1:1→420×420（含 420 最小宽度地板，与 S05 实测一致）、16:9→720×405、9:16 竖版比例正确、无渠道→null 保持默认、image 链路回归。加上 `videoCompletionSize` 5 例，S07 全部逻辑分支均有代码级覆盖。
+
 - 单测 `web/test/canvas-video-completion-size.test.ts` 5/5：同比例保持（420×420+960×960）、异比例 refit、容差边界（1.9% 保持 / 2.1% refit）、媒体缺失回退逐字对齐旧逻辑、零尺寸节点直接 fit。
 - `tsc --noEmit` 0 错、`bun run build` ✓。
 - dev 实验夹具：`grok-imagine-video`（MODEL_000012）已经 admin API 上架 video 能力（ratios 1:1/16:9/9:16，defaultRatio=1:1，xai-video 协议，enabled）。**验证完记得恢复**（PATCH 回 capability="" 或删除该测试模型）。
