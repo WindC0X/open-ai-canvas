@@ -4,6 +4,10 @@ import { CanvasNodeType, isBuiltinCanvasNodeType, type CanvasNodeData } from "@/
 export const MEDIA_NODE_MIN_SIZE = { width: 420, height: 236 } as const;
 export const VIDEO_NODE_MAX_SIZE = { width: 720, height: 520 } as const;
 
+// 媒体完成时与节点当前宽高比的容差（相对差）。同比例保持节点现框（flora 原位显现语义），
+// S05 图片守卫与 S07 视频完成守卫共用同一个定义。
+export const MEDIA_SAME_RATIO_TOLERANCE = 0.02;
+
 export function fitNodeSize(width: number, height: number, maxWidth = 720, maxHeight = 520, minWidth = MEDIA_NODE_MIN_SIZE.width, minHeight = MEDIA_NODE_MIN_SIZE.height) {
     const w = Math.max(1, width);
     const h = Math.max(1, height);
@@ -104,4 +108,26 @@ export function ensureMediaNodeMinimumSize(node: CanvasNodeData) {
         width,
         height,
     };
+}
+
+// S07 视频完成几何：媒体宽高比与节点当前框一致（相对差 < MEDIA_SAME_RATIO_TOLERANCE）时
+// 保持现框（flora 原位显现语义，与 S05 图片 fitToImage 守卫同源）；仅比例真不同才 refit。
+// 视频没有 img onLoad 式二次写入点，task-sync 完成路径是唯一几何写入点，守卫在此单点生效。
+export function videoCompletionSize(
+    node: Pick<CanvasNodeData, "width" | "height">,
+    media: { width?: number; height?: number },
+    maxSize: { width: number; height: number } = VIDEO_NODE_MAX_SIZE,
+) {
+    const mediaWidth = media.width || 0;
+    const mediaHeight = media.height || 0;
+    if (mediaWidth > 0 && mediaHeight > 0 && node.width > 0 && node.height > 0) {
+        const mediaRatio = mediaWidth / mediaHeight;
+        const nodeRatio = node.width / node.height;
+        if (Math.abs(mediaRatio - nodeRatio) / mediaRatio < MEDIA_SAME_RATIO_TOLERANCE) {
+            return { width: node.width, height: node.height, keepPosition: true };
+        }
+    }
+    // 与旧逻辑逐字节同义：媒体尺寸缺失时退回节点现框再 fit（保持 fitNodeSize 的下限上浮行为）。
+    const fitted = fitNodeSize(mediaWidth || node.width || maxSize.width, mediaHeight || node.height || maxSize.height, maxSize.width, maxSize.height);
+    return { width: fitted.width, height: fitted.height, keepPosition: false };
 }

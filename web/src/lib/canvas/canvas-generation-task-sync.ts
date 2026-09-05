@@ -1,5 +1,5 @@
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
-import { fitNodeSize, nodeSizeFromRatio, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
+import { fitNodeSize, nodeSizeFromRatio, videoCompletionSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { compositeEmotionImage } from "@/lib/canvas/canvas-emotion";
 import { storeGeneratedAudio } from "@/services/api/audio";
 import { storeGeneratedVideo } from "@/services/api/video";
@@ -160,13 +160,17 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
                   mimeType: result.video.mimeType || "video/mp4",
               }
             : await storeGeneratedVideo({ url: result.video.dataUrl, mimeType: result.video.mimeType || "video/mp4" });
-        const videoSize = fitNodeSize(video.width || node.width || VIDEO_NODE_MAX_SIZE.width, video.height || node.height || VIDEO_NODE_MAX_SIZE.height, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
+        // S07 同比例守卫：媒体与现框比例一致时保持现框（flora 原位显现），位置不动；
+        // 仅比例真不同才 refit（对齐 S05 图片 fitToImage 守卫语义，locked 分支不受影响）。
+        const videoSize = videoCompletionSize(node, video, VIDEO_NODE_MAX_SIZE);
         const geometry = node.metadata?.locked
             ? {}
             : {
                   width: videoSize.width,
                   height: videoSize.height,
-                  position: { x: node.position.x + node.width / 2 - videoSize.width / 2, y: node.position.y + node.height / 2 - videoSize.height / 2 },
+                  position: videoSize.keepPosition
+                      ? { x: node.position.x, y: node.position.y }
+                      : { x: node.position.x + node.width / 2 - videoSize.width / 2, y: node.position.y + node.height / 2 - videoSize.height / 2 },
               };
         return {
             ...node,
