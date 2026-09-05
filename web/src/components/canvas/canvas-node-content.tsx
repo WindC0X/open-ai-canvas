@@ -606,6 +606,14 @@ function ImageContent({ node, theme, isBatchRoot, batchCount, batchPreviewNodes,
             if (current.metadata?.freeResize || current.metadata?.manualSize) {
                 return needsMetadata ? { ...current, metadata: { ...metadata, naturalWidth, naturalHeight } } : current;
             }
+            // 同比例（±2%）时保持现尺寸原位揭示：提交框已按任务比例建立（空节点默认比例
+            // / applyNodeConfigPatch / 提交执行器同源），媒体宽高比一致时 fitNodeSize 的全局
+            // 边界只会把框撑大（如 1:1 任务 420→520），造成生成前后尺寸跳变。
+            const naturalRatio = naturalWidth / naturalHeight;
+            const boxRatio = current.width / current.height;
+            if (Math.abs(naturalRatio - boxRatio) / naturalRatio < 0.02) {
+                return needsMetadata ? { ...current, metadata: { ...metadata, naturalWidth, naturalHeight } } : current;
+            }
             const size = fitNodeSize(naturalWidth, naturalHeight);
             const needsResize = Math.abs(size.width - current.width) >= 1 || Math.abs(size.height - current.height) >= 1;
             if (!needsMetadata && !needsResize) return current;
