@@ -1953,4 +1953,19 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 8 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度动态让位, 卸载归零复位)
 =======
 - **人眼签收（2026-09-05，用户口头确认）**：用户重载 tmwd 扩展后就当前画布肉眼验收通过——生成任务面板与对象 HUD 不再重叠。数值探针因桥的注入链路故障（ACK 不回/CDP 互斥误报）未能补测，以用户签收为准。
+<<<<<<< HEAD
 >>>>>>> 6237bf75 (docs(pending-test): S06/S05 浮层与框几何 - 用户人眼签收记录)
+=======
+
+## S07 Video 节点几何补齐
+
+**已落地**（代码层验证闭环）：空 Video 节点创建跟随视频渠道模型默认比例（`resolveModelGenerationDefaults` video 分支 → `profile.defaultRatio`，渠道能力优先于全局 legacy 值）；完成路径同比例守卫（`videoCompletionSize` 纯函数，相对差 <2% 保持现框不动，仅比例真不同才 refit 720×520，locked 分支不受影响）。createNode 依赖数组改用整 `effectiveConfig` 防渠道切换后闭包过期。
+
+- 单测 `web/test/canvas-video-completion-size.test.ts` 5/5：同比例保持（420×420+960×960）、异比例 refit、容差边界（1.9% 保持 / 2.1% refit）、媒体缺失回退逐字对齐旧逻辑、零尺寸节点直接 fit。
+- `tsc --noEmit` 0 错、`bun run build` ✓。
+- dev 实验夹具：`grok-imagine-video`（MODEL_000012）已经 admin API 上架 video 能力（ratios 1:1/16:9/9:16，defaultRatio=1:1，xai-video 协议，enabled）。**验证完记得恢复**（PATCH 回 capability="" 或删除该测试模型）。
+
+**待浏览器实测**（目标标签休眠/内容脚本断连，桥无法稳定注入）：
+- 添加节点 → 视频：空框应为 1:1 ≈405×405 级（非旧 720×405 宽扁）。
+- 真实视频生成（需 video 渠道）：完成后同比例不跳变、位置不动。
+>>>>>>> 04c1c618 (test(canvas): S07 Video 几何 - 纯函数守卫5例/渠道默认比例链路/待浏览器实测清单)
