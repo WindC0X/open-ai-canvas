@@ -9,9 +9,7 @@ import { alignCanvasNodes, layoutCanvasAuto, layoutCanvasFlow, layoutCanvasNodes
 import { applyCanvasConnectionPromptSync } from "@/lib/canvas/canvas-resource-references";
 import { createCanvasNode, isHiddenBatchChild, removeCanvasNodes } from "@/lib/canvas/canvas-project-domain";
 import { isolateCopiedNodeMetadata, nextCopiedNodeTitle } from "@/lib/canvas/canvas-node-copy";
-import { nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
-import { resolveCanvasGenerationModel } from "@/lib/canvas/canvas-project-generation";
-import { defaultImageParamsForModel } from "@/lib/model-selection";
+import { mediaNodeInitialSize } from "@/lib/canvas/canvas-project-generation";
 import { CanvasNodeType, type CanvasConnection, type CanvasFolderStyle, type CanvasFolderTheme, type CanvasNodeData, type CanvasNodeMetadata, type CanvasNodeTypeId, type ContextMenuState, type Position } from "@/types/canvas";
 import { cloneCanvasDrawing } from "@/lib/canvas/canvas-drawing-storage";
 import { isDrawingEngineAvailable, type CanvasDrawingEngine } from "@/lib/canvas/canvas-drawing-engine";
@@ -153,22 +151,18 @@ export function useCanvasNodeOperations({
                 : undefined;
         const node = createCanvasNode(type, position || getCanvasCenter(), metadata);
         if (workflowTitle) node.title = workflowTitle;
-        if (type === CanvasNodeType.Image) {
-            // 空图片节点跟随渠道模型设置的默认比例（composer 芯片同源：profile.size.default），
-            // 而非固定 720×405；用户在 composer 改比例时仍由 applyNodeConfigPatch 同步改框。
-            const model = resolveCanvasGenerationModel(effectiveConfig, effectiveConfig.imageModel || defaultConfig.imageModel, "image");
-            const ratio = model ? defaultImageParamsForModel(effectiveConfig, model).size : "";
-            const size = ratio ? nodeSizeFromRatio(ratio, NODE_DEFAULT_SIZE[CanvasNodeType.Image].width, NODE_DEFAULT_SIZE[CanvasNodeType.Image].height) : null;
-            if (size) {
-                node.width = size.width;
-                node.height = size.height;
-                node.position = { x: (position || getCanvasCenter()).x - size.width / 2, y: (position || getCanvasCenter()).y - size.height / 2 };
-            }
+        // S05/S07：空图片/视频节点跟随渠道模型默认比例（composer 同源）；无模型/无 profile/auto 保持默认框。
+        const initialSize = type === CanvasNodeType.Image || type === CanvasNodeType.Video ? mediaNodeInitialSize(effectiveConfig, type) : null;
+        if (initialSize) {
+            node.width = initialSize.width;
+            node.height = initialSize.height;
+            node.position = { x: (position || getCanvasCenter()).x - initialSize.width / 2, y: (position || getCanvasCenter()).y - initialSize.height / 2 };
         }
         commitNodes([...nodesRef.current, node]);
         selectNodes(new Set([node.id]));
-        if (type !== CanvasNodeType.Text && type !== CanvasNodeType.Script && type !== CanvasNodeType.BatchTable && type !== CanvasNodeType.Audio && type !== CanvasNodeType.Frame && type !== CanvasNodeType.Drawing && type !== CanvasNodeType.MediaConversion) setDialogNodeId(node.id);
-    }, [commitNodes, defaultDrawingEngine, effectiveConfig.runningHub.enabled, effectiveConfig.runningHub.workflows.length, getCanvasCenter, message, nodesRef, runtimeStatuses, selectNodes, setDialogNodeId, tldrawLicenseKey]);
+if (type !== CanvasNodeType.Text && type !== CanvasNodeType.Script && type !== CanvasNodeType.BatchTable && type !== CanvasNodeType.Audio && type !== CanvasNodeType.Frame && type !== CanvasNodeType.Drawing && type !== CanvasNodeType.MediaConversion && type !== PORTRAIT_CLEARANCE_NODE_TYPE) setDialogNodeId(node.id);
+    }, [commitNodes, defaultDrawingEngine, effectiveConfig, getCanvasCenter, message, nodesRef, runtimeStatuses, selectNodes, setDialogNodeId, tldrawLicenseKey]);
+8a24c872 (refactor(canvas): S07 创建几何 - Image/Video 分支收敛为纯函数 mediaNodeInitialSize(渠道默认比例链路完整单测), 依赖改整 effectiveConfig 防闭包过期)
 
     const createFolder = useCallback((position?: Position, linked?: { id: string; projectId: string; title: string; style: CanvasFolderStyle; theme: CanvasFolderTheme; createdAt: string }) => {
         const folder = createCanvasNode(CanvasNodeType.Frame, position || getCanvasCenter(), {

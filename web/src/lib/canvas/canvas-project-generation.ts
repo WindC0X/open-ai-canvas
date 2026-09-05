@@ -8,13 +8,13 @@ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { normalizeVideoDuration, normalizeVideoResolution } from "@/lib/video-generation-options";
 import { isSeedanceVideoConfig } from "@/lib/seedance-video";
 import { modelCapabilityConfigFor, workflowFieldCurrentValue, workflowFieldHasStoredValue, workflowFieldKey, workflowFieldRandomKey, workflowFieldSubmissionValue, workflowOutputSizeValue, workflowVideoFieldsFromJson } from "@/lib/model-capabilities";
-import { modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, resolveVideoOperation, type ModelGenerationDefaults, type ModelRequirements } from "@/lib/model-selection";
+import { modelRequestOptions, defaultImageParamsForModel, resolveCompatibleModel, resolveModelGenerationDefaults, resolveVideoOperation, type ModelGenerationDefaults, type ModelRequirements } from "@/lib/model-selection";
 import { imageMetadata } from "@/lib/canvas/canvas-generation-task-sync";
-import { ensureMediaNodeMinimumSize } from "@/lib/canvas/canvas-node-size";
+import { ensureMediaNodeMinimumSize, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
 import { interruptFileUpload } from "@/lib/canvas/canvas-file-upload";
 import { isCanvasWorkflowProvider, resolveCanvasWorkflowProvider } from "@/lib/canvas/canvas-workflow";
 import type { CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-prompt-panel";
-import { CanvasNodeType, type CanvasAssistantSession, type CanvasConnection, type CanvasImageGenerationType, type CanvasNodeData, type CanvasNodeMetadata, type CanvasVideoEditOperation } from "@/types/canvas";
+import { CanvasNodeType, type CanvasAssistantSession, type CanvasNodeTypeId, type CanvasConnection, type CanvasImageGenerationType, type CanvasNodeData, type CanvasNodeMetadata, type CanvasVideoEditOperation } from "@/types/canvas";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
@@ -522,6 +522,24 @@ export function resolveCanvasGenerationModel(config: AiConfig, model: string | u
     const normalized = normalizeModelOptionValue(model, config.channels);
     if (!normalized) return "";
     return configuredModelMatchesCapability(config, normalized, mode) ? normalized : "";
+}
+
+// S07/S05：空媒体节点的初始框跟随渠道模型配置的默认比例（与 composer 芯片同源），
+// 而非固定 16:9 默认值；无模型/无能力 profile/"auto" 返回 null 保持 NODE_DEFAULT_SIZE。
+// metadata.size 刻意不写：节点几何与 composer 都从同一渠道 profile 派生，避免双源漂移。
+export function mediaNodeInitialSize(config: AiConfig, nodeType: CanvasNodeTypeId): { width: number; height: number } | null {
+    const type = nodeType === CanvasNodeType.Image ? "image" : nodeType === CanvasNodeType.Video ? "video" : null;
+    if (!type) return null;
+    const spec = NODE_DEFAULT_SIZE[nodeType as CanvasNodeType];
+    const fallbackModel = type === "image" ? defaultConfig.imageModel : defaultConfig.videoModel;
+    const preferred = type === "image" ? config.imageModel || fallbackModel : config.videoModel || fallbackModel;
+    const model = resolveCanvasGenerationModel(config, preferred, type);
+    if (!model) return null;
+    const ratio = type === "image"
+        ? defaultImageParamsForModel(config, model).size
+        : resolveModelGenerationDefaults(config, model, type).size;
+    if (!ratio || ratio === "auto") return null;
+    return nodeSizeFromRatio(ratio, spec.width, spec.height);
 }
 
 function applyWorkflowParameterValues(fields: WorkflowFieldMapping[] | undefined, values: Record<string, unknown>) {
