@@ -1049,7 +1049,7 @@ func TestPersistGeneratedMediaAppliesStoredFileQuota(t *testing.T) {
 	}
 
 	_, err := svc.persistGeneratedMediaResult("user-1", map[string]interface{}{
-		"image": map[string]interface{}{"dataUrl": "data:image/png;base64,YQ=="},
+		"image": map[string]interface{}{"dataUrl": testGeminiReferenceImageDataURL},
 	})
 	if err == nil || !strings.Contains(err.Error(), "20GB 上限") {
 		t.Fatalf("persistGeneratedMediaResult() error = %v", err)

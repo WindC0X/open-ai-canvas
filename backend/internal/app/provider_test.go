@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1114,7 +1115,11 @@ func TestVolcengineArkImageBodyUpscalesPresetBelowMinimumPixels(t *testing.T) {
 
 func TestVolcengineArkImageDataURLsDownloadsRemoteResult(t *testing.T) {
 	t.Setenv("CANVAS_ALLOW_PRIVATE_UPSTREAMS", "true")
-	imageBytes := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00}
+	// b37e522 入库魔数校验要求可解码图像: 夹具从假 PNG 签名升级为真实 1x1 PNG。
+	imageBytes, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(testGeminiReferenceImageDataURL, "data:image/png;base64,"))
+	if err != nil {
+		t.Fatalf("decode fixture png: %v", err)
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
 		_, _ = w.Write(imageBytes)
