@@ -1940,4 +1940,12 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 - 实测闭环(2026-09-05 dev 实机, 重启 vite 后): 新建空图片节点 420×420(1:1) ✓ → 提交生成 → 完成即回填 420×420 ✓(fitToImage 守卫生效, 修复前该节点被改写成 520×520)。历史 8 个旧节点保留 520×520 存量(不回写)。守卫逻辑补 5 例单测(canvas-node-fit-ratio.test.ts)。
 - 同比例生成前后尺寸跳变修复：`fitToImage` 在媒体宽高比与节点框一致（±2%）时保持现尺寸（原位揭示），仅比例真不同才按全局边界校正。修复链：提交框 420×420 → 回填 420×420 → **fitToImage 曾用全局边界改写成 520×520**（跳变源），现保持 420×420。
 - 待眼验：不同默认比例渠道（16:9/竖版）下空框与生成前后一致性；手动拉过框（manualSize/freeResize）节点不受影响；上传路径竖图自适应行为不变。
+
 4 (fix(canvas): 节点框几何 - 空图片节点跟随渠道模型默认比例, 同比例媒体生成前后不跳变)
+
+## S06 右上浮层重叠：生成任务面板 × 对象 HUD（2026-09-05，用户截图）
+
+- 现象：生成任务队列（top 72 / right 12 / 宽 332）与对象信息 HUD（top 88 / right 16 / 宽 288）同锚重叠，HUD z 更高压在队列上。
+- 修复：CanvasActiveTaskPanel 新增 onHeightChange（ResizeObserver + rAF 合帧 + 值去重；tasks 清空卸载时显式归零复位）；ObjectHudPanel 新增 topInset prop；project.tsx 把任务面板实测高度接到 HUD topInset（calc(topbar-offset + 高度 + space-3)，专注模式回落 88px）。任务展开/收起、任务增减、全部完成卸载，HUD 均平滑跟随。
+- 待眼验（bridge 断线期间本地 dev 标签不在线，未能数值验证）：生成中选中媒体节点 → HUD 应出现在任务面板下方不重叠；展开队列 → HUD 下移；全部完成 → HUD 回到原位；无任务时 HUD 位置与旧版一致。
+8 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度动态让位, 卸载归零复位)

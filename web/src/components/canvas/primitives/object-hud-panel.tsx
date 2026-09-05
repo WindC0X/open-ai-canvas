@@ -28,6 +28,8 @@ export type ObjectHudPanelProps = {
     /** 该节点关联生成任务的计费文案(冻结/已结算);无关联任务时不显示 */
     /** Agent 等右侧停靠面打开时的让位 CSS right 值;缺省 16px */
     rightInset?: string;
+    /** 顶部让位 CSS 值;缺省 88px。生成任务面板出现时宿主传入其下方位置,避免同锚重叠 */
+    topInset?: string | number;
     actions?: ObjectHudAction[];
     onViewImage?: (node: CanvasNodeData) => void;
     onClose?: () => void;
@@ -45,7 +47,7 @@ function hasContent(node: CanvasNodeData): boolean {
     return (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) && Boolean(node.metadata?.content);
 }
 
-export function ObjectHudPanel({ node, config, rightInset, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
+export function ObjectHudPanel({ node, config, rightInset, topInset = 88, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const mountedRef = useRef(false);
     const [revealed, setRevealed] = useState(false);
@@ -94,7 +96,7 @@ export function ObjectHudPanel({ node, config, rightInset, actions = [], onViewI
     const shellStyle: CSSProperties = {
         position: "fixed",
         right: rightInset ?? 16,
-        top: 88,
+        top: topInset,
         width: 288,
         maxHeight: "calc(100vh - 176px)",
         overflowY: "auto",

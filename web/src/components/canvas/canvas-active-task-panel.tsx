@@ -1,6 +1,6 @@
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { ChevronDown, ChevronUp, Clock3, Coins, ListTodo, LoaderCircle, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { formatCredits } from "@/constant/credits";
 import { aceternityMotion } from "@/lib/aceternity-motion";
@@ -11,13 +11,15 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 
 // 顶栏是绝对定位浮层，面板必须按调用方传入的 topInset 避让；专注模式隐藏顶栏时传小间距。
-export function CanvasActiveTaskPanel({ tasks, align = "right", topInset = "var(--canvas-topbar-offset)", onCancelTask }: { tasks: GenerationTask[]; align?: "left" | "right"; topInset?: string; onCancelTask?: (task: GenerationTask) => void }) {
+// onHeightChange：向宿主上报自身实测高度（含展开态），右侧同锚浮层（对象 HUD）用它动态让位，避免重叠。
+export function CanvasActiveTaskPanel({ tasks, align = "right", topInset = "var(--canvas-topbar-offset)", onCancelTask, onHeightChange }: { tasks: GenerationTask[]; align?: "left" | "right"; topInset?: string; onCancelTask?: (task: GenerationTask) => void; onHeightChange?: (height: number) => void }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const reducedMotion = useReducedMotion();
     const [now, setNow] = useState(() => Date.now());
     const [open, setOpen] = useState(false);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+    const sectionRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
         if (!tasks.length) return;
@@ -28,6 +30,36 @@ export function CanvasActiveTaskPanel({ tasks, align = "right", topInset = "var(
     useEffect(() => {
         if (expandedTaskId && !tasks.some((task) => task.id === expandedTaskId)) setExpandedTaskId(null);
     }, [expandedTaskId, tasks]);
+
+    // tasks 清空后面板整体卸载、observer 随 section 消失，必须在这里显式归零让 HUD 复位。
+    useEffect(() => {
+        if (!tasks.length) onHeightChange?.(0);
+    }, [tasks.length, onHeightChange]);
+
+    // 高度上报：ResizeObserver 覆盖折叠/展开/任务增减全部高度变化；卸载时归零让 HUD 复位。
+    // 值变化才上报 + rAF 合帧，避免 layout 动画期间观测→渲染→观测的 ResizeObserver loop 噪音。
+    useEffect(() => {
+        if (!onHeightChange) return;
+        const section = sectionRef.current;
+        if (!section) return;
+        let raf = 0;
+        let last = -1;
+        const observer = new ResizeObserver((entries) => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => {
+                const height = entries[0]?.borderBoxSize?.[0]?.blockSize ?? section.getBoundingClientRect().height;
+                if (Number.isFinite(height) && height > 0 && Math.abs(height - last) > 0.5) {
+                    last = height;
+                    onHeightChange(height);
+                }
+            });
+        });
+        observer.observe(section);
+        return () => {
+            cancelAnimationFrame(raf);
+            observer.disconnect();
+        };
+    }, [onHeightChange, tasks.length]);
 
     if (!tasks.length) return null;
 
@@ -47,6 +79,7 @@ export function CanvasActiveTaskPanel({ tasks, align = "right", topInset = "var(
             >
                 <LayoutGroup id="canvas-active-tasks">
                     <motion.section
+                        ref={sectionRef}
                         layout
                         className="pointer-events-auto overflow-hidden rounded-[var(--panel-radius)] border backdrop-blur-2xl"
                         style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text, boxShadow: `0 24px 72px ${theme.spatial.shadow}` }}

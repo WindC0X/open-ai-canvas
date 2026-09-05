@@ -309,6 +309,8 @@ function InfiniteCanvasPage() {
     const [tapNowImportOpen, setTapNowImportOpen] = useState(false);
     const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
     const [toolbarNodeId, setToolbarNodeId] = useState<string | null>(null);
+    // 活动任务面板实测高度(含展开态):右侧同锚的对象 HUD 用它动态下移,避免两浮层重叠(S06)。
+    const [activeTaskPanelHeight, setActiveTaskPanelHeight] = useState(0);
     const [arkPrivateAssetUploadNodeId, setArkPrivateAssetUploadNodeId] = useState<string | null>(null);
     const [nodeImageSettingsOpen, setNodeImageSettingsOpen] = useState(false);
     const [dialogNodeId, setDialogNodeId] = useState<string | null>(null);
@@ -2357,9 +2359,195 @@ function InfiniteCanvasPage() {
                                           }
                                         : undefined
                                 }
-                                onEnterFocusMode={enterFocusMode}
-                                shortDramaGuide={shortDramaGuide}
-                            />
+onViewportChange={handleViewportChange}
+                                onViewportPreviewChange={handleViewportPreviewChange}
+                                onCanvasMouseDown={handleCanvasMouseDown}
+                                boxSelectEnabled={canvasTool === "box-select"}
+                                onCanvasDoubleClick={handleCanvasDoubleClick}
+                                onCanvasDeselect={deselectCanvas}
+                                onContextMenu={handleCanvasContextMenu}
+                                onDrop={handleDrop}
+                                onFileDragEnter={handleFileDragEnter}
+                                onFileDragLeave={handleFileDragLeave}
+                                onFileDragOver={handleFileDragOver}
+                            >
+                                <CanvasNodeActionContext.Provider value={canvasNodeActions}>
+                                <CanvasNodeGraphContext.Provider value={nodeGraphContext}>
+                                <CanvasProjectWorldLayers
+                                    connectionApproach={connectionApproach}
+                                    projectId={projectId}
+                                    viewportScale={viewport.k}
+                                    connectionLayerBounds={connectionLayerBounds}
+                                    displayConnections={displayConnections}
+                                    selectedConnectionId={selectedConnectionId}
+                                    relatedConnectionIds={relatedHighlight.connectionIds}
+                                    scriptScrollTopById={scriptScrollTopById}
+                                    connectingParams={connectingParams}
+                                    mouseWorld={mouseWorld}
+                                    connectionTargetNodeId={connectionTargetNodeId}
+                                    nodeById={nodeById}
+                                    visibleNodes={visibleNodes}
+                                    nodeStackOrder={nodeStackOrder}
+                                    frameChildrenById={frameChildrenById}
+                                    linkedFolderPreviewNodesById={linkedFolderPreviewNodesById}
+                                    dragPreview={dragPreview}
+                                    selectedNodeIds={selectedNodeIds}
+                                    frameDropTargetId={frameDropTargetId}
+                                    relatedNodeIds={relatedHighlight.nodeIds}
+                                    activeNodeId={activeNodeId}
+                                    selectionBox={selectionBox}
+                                    batchChildCountById={batchChildCountById}
+                                    collapsingBatchIds={collapsingBatchIds}
+                                    openingBatchIds={openingBatchIds}
+                                    batchMotionById={batchMotionById}
+                                    showImageInfo={showImageInfo}
+                                    reduceMediaEffects={reduceMediaEffects}
+                                    resourceReferenceByNodeId={resourceReferenceByNodeId}
+                                    mentionReferencesByNodeId={mentionReferencesByNodeId}
+                                    mediaEffectsDisabledNodeId={emotionNodeId}
+                                    selectedNodeBounds={selectedNodeBounds}
+                                    batchSourceNodeIds={batchSourceNodeIds}
+                                    batchConnectionPreview={batchConnectionPreview}
+                                    isNodeDragging={isNodeDragging}
+                                    selectionBoundsElementRef={selectionBoundsElementRef}
+                                    renderCanvasNodeContent={renderCanvasNodeContent}
+                                    onConnectionSelect={(connectionId) => {
+                                        setSelectedConnectionId(connectionId);
+                                        setSelectedNodeIds(new Set());
+                                        setContextMenu(null);
+                                    }}
+                                    onConnectionContextMenu={(event, connectionId) => {
+                                        setSelectedConnectionId(connectionId);
+                                        setSelectedNodeIds(new Set());
+                                        closeConnectionCreateMenu();
+                                        setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId });
+                                    }}
+                                    onNodeMouseDown={handleNodeMouseDown}
+                                    onNodeHoverStart={handleCanvasNodeHoverStart}
+                                    onNodeHoverEnd={handleCanvasNodeHoverEnd}
+                                    onConnectStart={handleConnectStart}
+                                    onNodeResize={handleNodeResize}
+                                    onToggleFrame={handleFrameToggle}
+                                    onFolderStyleChange={handleFolderStyleChange}
+                                    onFolderThemeChange={handleFolderThemeChange}
+                                    onNodeTitleChange={handleNodeTitleChange}
+                                    onNodeContextMenu={handleNodeContextMenu}
+                                    onNodeContentChange={handleNodeContentChange}
+                                    onToggleBatch={toggleBatchExpanded}
+                                    onSetBatchPrimary={setBatchPrimary}
+                                    onRetry={retryCanvasNode}
+                                    onReloadResource={reloadCanvasNodeResource}
+                                    onOpenTaskDetails={openCanvasNodeTaskDetails}
+                                    onOpenVersions={openCanvasNodeVersions}
+                                     onViewImage={viewCanvasNodeImage}
+                                     onReplaceMedia={replaceCanvasNodeMedia}
+                                     onOpenTextEditor={openTextNodeEditor}
+                                    onOpenDirector={editCanvasDirector}
+                                    onOpenDrawing={openDrawingNode}
+                                    onStartBatchConnection={startBatchConnection}
+                                />
+                                </CanvasNodeGraphContext.Provider>
+                                </CanvasNodeActionContext.Provider>
+                            </InfiniteCanvas>
+
+                            <CanvasActiveTaskPanel tasks={activeTasks} onCancelTask={cancelCanvasTask} topInset={focusMode ? "var(--space-3)" : "var(--canvas-topbar-offset)"} onHeightChange={setActiveTaskPanelHeight} />
+
+                            {focusMode ? (
+                                <CanvasFocusModeBar
+                                    dockRevealed={focusDockRevealed}
+                                    agentOpen={assistantOpen}
+                                    zoomPercent={viewport.k}
+                                    onToggleDock={() => setFocusDockRevealed((value) => !value)}
+                                    onToggleAgent={() => (assistantOpen ? closeAgent() : openAgent())}
+                                    onExit={exitFocusMode}
+                                    onZoomIn={zoomCanvasIn}
+                                    onZoomOut={zoomCanvasOut}
+                                    onFit={fitCanvasContent}
+                                />
+                            ) : null}
+
+                            <CanvasFileDropOverlay active={fileDropActive} theme={theme} />
+
+                            {emptyCanvasState}
+
+                            {!focusMode || focusDockRevealed ? (
+                                <CanvasToolbar
+                                    selectedCount={selectedNodeIds.size}
+                                    workspaceMode={workspaceMode}
+                                    canvasTool={canvasTool}
+                                    onToolChange={setCanvasTool}
+                                    isProjectLinked={Boolean(shortDramaEnabled && currentProject?.projectId)}
+                                    canUndo={historyState.canUndo}
+                                    canRedo={historyState.canRedo}
+                                    appearance={canvasAppearance}
+                                    backgroundMode={backgroundMode}
+                                    showImageInfo={showImageInfo}
+                                    onAddImage={() => createNode(CanvasNodeType.Image)}
+                                    onAddVideo={() => createNode(CanvasNodeType.Video)}
+                                    onAddAudio={() => createNode(CanvasNodeType.Audio)}
+                                    onAddText={() => createNode(CanvasNodeType.Text)}
+                                    onChooseStyle={() => setStylePickerOpen(true)}
+                                    onAddScript={() => createNode(CanvasNodeType.Script)}
+                                    onAddFrame={() => createNode(CanvasNodeType.Frame)}
+                                    onAddFolder={createFolder}
+                                    onAddDrawing={() => createNode(CanvasNodeType.Drawing)}
+                                    onAddExtensionNode={(type) => createNode(type)}
+                                    onAddWorkflow={() => createNode(CanvasNodeType.Config)}
+                                    onOpenDirector={() => setDirectorTemplateRequest({})}
+                                    onUndo={undoCanvas}
+                                    onRedo={redoCanvas}
+                                    onUpload={() => handleUploadRequest()}
+                                    onDelete={() => deleteNodes(new Set(selectedNodeIds))}
+                                    onClear={() => setClearConfirmOpen(true)}
+                                    onDeselect={deselectCanvas}
+                                    onAppearanceChange={applyCanvasAppearance}
+                                    onSaveAppearanceDefault={saveCanvasAppearanceDefault}
+                                    onBackgroundModeChange={setBackgroundMode}
+                                    onShowImageInfoChange={setShowImageInfo}
+                                    onOpenMyAssets={() => {
+                                        openCanvasAssetLibrary();
+                                    }}
+                                    onOpenProjectCharacters={() => openProjectAssets("character")}
+                                />
+                            ) : null}
+                        </div>
+
+                        {assistantMounted ? (
+                                    <AssistantPanelColumn width={assistantWidth} closing={assistantClosing} topInset="0px" onWidthChange={setAssistantWidth}>
+                                {(resizing) => (
+                                    <CanvasAssistantPanel
+                                        nodes={nodes}
+                                        selectedNodeIds={selectedNodeIds}
+                                        snapshot={agentSnapshot}
+                                        projectId={projectId}
+                                        sessions={chatSessions}
+                                        activeSessionId={activeChatId}
+                                        onSelectNodeIds={setSelectedNodeIds}
+                                        onSessionsChange={handleAssistantSessionsChange}
+                                        onApplyOps={applyAgentOps}
+                                        onApplyStyle={applyCanvasStyleAsync}
+                                        onGenerateStoryboard={generateScriptRows}
+                                        onStartArtCritique={(nodeId, restart) => {
+                                            if (artCritiqueRunningRef.current) throw new Error("已有审美分析正在进行，请先完成或停止当前分析");
+                                            setArtCritiqueStartRequest({ nodeId, id: nanoid(), restart });
+                                            setArtCritiqueNodeId(nodeId);
+                                        }}
+                                        canUndoOps={canUndoAgentOps}
+                                        undoOpsCount={agentUndoCount}
+                                        onUndoOps={undoAgentOps}
+                                        onPasteImage={pasteAssistantImage}
+                                        agentMode={agentMode}
+                                        onAgentModeChange={setAgentMode}
+                                        autoConnectLocal={codexAutoConnect}
+                                        closing={assistantClosing}
+                                        onCollapse={closeAgent}
+                                        cinematicEntry={cinematicAgentEntry}
+                                        onCinematicEntryConsumed={() => setCinematicAgentEntry(false)}
+                                        resizing={resizing}
+                                    />
+                                )}
+                            </AssistantPanelColumn>
+beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度动态让位, 卸载归零复位)
                         ) : null}
 
                         <CanvasNodeSearchModal
@@ -2593,6 +2781,7 @@ function InfiniteCanvasPage() {
                         node={toolbarNode}
                         config={effectiveConfig}
                         rightInset={assistantMounted ? `calc(var(--canvas-inset-x) + ${assistantWidth}px + var(--space-3))` : undefined}
+                        topInset={activeTaskPanelHeight > 0 && !focusMode ? `calc(var(--canvas-topbar-offset) + ${Math.round(activeTaskPanelHeight)}px + var(--space-3))` : 88}
                         onViewImage={(node) => setPreviewNodeId(node.id)}
                         actions={toolbarNode?.type === "image" ? ([
                             { label: "裁切", icon: <Scissors className="size-3.5" />, onClick: () => setCropNodeId(toolbarNode.id) },
