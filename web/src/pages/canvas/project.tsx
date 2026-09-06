@@ -1065,60 +1065,63 @@ function InfiniteCanvasPage() {
         if (selectionModifier) setDialogNodeId(null);
     }, []);
 
-    const handleSelectedNodeClick = useCallback(
-        (node: CanvasNodeData) => {
-            // Selection is transient, but the LibTV-style paint order survives
-            // deselection so a clicked lower node stays above its neighbours.
-            if (node.type !== CanvasNodeType.Frame) bringNodeToFront(node.id);
-            if (node.type === CanvasNodeType.Drawing) {
-                setDialogNodeId(null);
-                setDrawingNodeId(node.id);
-            } else if (node.type === CanvasNodeType.Script) {
-                setDialogNodeId(null);
-            } else if (node.type === CanvasNodeType.Text) {
-                setDialogNodeId(node.id);
-            } else if (node.type === CanvasNodeType.Frame) {
-                setDialogNodeId((current) => (current === node.id ? current : null));
-            } else if (node.type === ART_CRITIQUE_NODE_TYPE) {
-                setDialogNodeId(null);
-                setArtCritiqueNodeId(node.id);
-            } else if (node.type === CanvasNodeType.Panorama) {
-                // 全景节点是纯查看器，没有可编辑提示词，不弹提示词面板。
-                setDialogNodeId(null);
-            } else {
-                // 选择参考媒体时保留当前工作流配置面板，避免点击图片后配置“返回/消失”。
-                // 没有工作流配置面板时，媒体节点仍按原逻辑打开自己的面板。
-                setDialogNodeId((current) => {
-                    const currentNode = current ? nodesRef.current.find((item) => item.id === current) : undefined;
-                    return currentNode?.type === CanvasNodeType.Config ? current : node.id;
-                });
-            }
-        },
-        [bringNodeToFront, nodesRef],
-    );
+const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
+        // Selection is transient, but the LibTV-style paint order survives
+        // deselection so a clicked lower node stays above its neighbours.
+        if (node.type !== CanvasNodeType.Frame) bringNodeToFront(node.id);
+        if (node.type === CanvasNodeType.Drawing) {
+            setDialogNodeId(null);
+            setDrawingNodeId(node.id);
+        } else if (node.type === CanvasNodeType.Script) {
+            setDialogNodeId(null);
+        } else if (node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Frame) {
+            // 与节点工具栏「文本生成」按钮(onToggleDialog)同语义的真 toggle：
+            // 单击节点唤出提示词面板，再次单击收起。旧写法 (current === id ? current : null)
+            // 永远不会打开面板，导致单击只出工具栏（S08 用户实测缺陷）。
+            setDialogNodeId((current) => (current === node.id ? null : node.id));
+        } else if (node.type === PORTRAIT_CLEARANCE_NODE_TYPE) {
+            setDialogNodeId(null);
+            setPortraitClearanceNodeId(node.id);
+        } else if (node.type === ART_CRITIQUE_NODE_TYPE) {
+            setDialogNodeId(null);
+            setArtCritiqueNodeId(node.id);
+        } else if (node.type === CanvasNodeType.MediaConversion) {
+            setDialogNodeId(null);
+        } else if (node.type === CanvasNodeType.Panorama) {
+            // 全景节点是纯查看器，没有可编辑提示词，不弹提示词面板。
+            setDialogNodeId(null);
+        } else {
+            // 选择参考媒体时保留当前工作流配置面板，避免点击图片后配置“返回/消失”。
+            // 没有工作流配置面板时，媒体节点仍按原逻辑打开自己的面板。
+            setDialogNodeId((current) => {
+                const currentNode = current ? nodesRef.current.find((item) => item.id === current) : undefined;
+                return currentNode?.type === CanvasNodeType.Config ? current : node.id;
+            });
+        }
+    }, [bringNodeToFront, nodesRef]);
 
-    const handleNodeBringToFront = useCallback(
-        (nodeId: string) => {
-            const node = nodesRef.current.find((item) => item.id === nodeId);
-            if (node && node.type !== CanvasNodeType.Frame) bringNodeToFront(nodeId);
-        },
-        [bringNodeToFront, nodesRef],
-    );
+    const handleNodeBringToFront = useCallback((nodeId: string) => {
+        const node = nodesRef.current.find((item) => item.id === nodeId);
+        if (node && node.type !== CanvasNodeType.Frame) bringNodeToFront(nodeId);
+    }, [bringNodeToFront, nodesRef]);
 
-    const handleNodeDragEnd = useCallback(
-        (nodeId: string) => {
-            const node = nodesRef.current.find((item) => item.id === nodeId);
-            if (!node || node.type === CanvasNodeType.Script || node.type === CanvasNodeType.Drawing || node.type === CanvasNodeType.Panorama || node.type === ART_CRITIQUE_NODE_TYPE) {
-                setDialogNodeId(null);
-                return;
-            }
-            // A drag selects a new node even though it is not a click. Keep the
-            // generation editor bound to the node most recently moved so a stale
-            // panel from the previous node cannot reappear after mouse-up.
-            setDialogNodeId(node.id);
-        },
-        [nodesRef],
-    );
+    const handleNodeDragEnd = useCallback((nodeId: string) => {
+        const node = nodesRef.current.find((item) => item.id === nodeId);
+        if (!node || node.type === CanvasNodeType.Script || node.type === CanvasNodeType.Drawing || node.type === CanvasNodeType.MediaConversion || node.type === CanvasNodeType.Panorama || node.type === PORTRAIT_CLEARANCE_NODE_TYPE || node.type === ART_CRITIQUE_NODE_TYPE) {
+            setDialogNodeId(null);
+            return;
+        }
+        if (node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Frame) {
+            // 拖动=移动几何，不为文本/画框节点强制唤出提示词面板（单击是唯一唤出入口，工具栏按钮保留）；
+            // 面板已开着则保持（浮层跟随节点位置）。
+            return;
+        }
+        // A drag selects a new node even though it is not a click. Keep the
+        // generation editor bound to the node most recently moved so a stale
+        // panel from the previous node cannot reappear after mouse-up.
+        setDialogNodeId(node.id);
+    }, [nodesRef]);
+6a8bd6b1 (fix(canvas): S08 文本节点唤出语义 - 单击真toggle唤出提示词面板, 拖动只移动不强开面板(修current===id?current:null永不打开的缺陷))
 
     const handleCanvasDeselect = useCallback(() => {
         setContextMenu(null);
