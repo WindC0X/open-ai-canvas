@@ -2014,4 +2014,14 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 - 文本区/composer **分离语法**成立(8 竞品样本一致;flora 共享区是其底部空间前提的产物)——S08c"共享区双态"提案撤销;
 - textCount 常驻**保留**(影策 composer 空间充足,与 flora 底部紧凑前提不同;负面约束"数量不得常驻"按前提区分适用);遗留跨模式不一致:image 数量在设置弹层、text 份数裸在工具行,composer 统一轮再议;
 - composer 唤出形态(选中伴随浮层 vs 工具栏按钮,竞品为选中即现)待 spec 轮;flora 状态轴实测值(node-hover 92 原子挂 composer+工具条/800ms 回缩/promptFocus·generateHover 独立轴/拖拽双抑制)已提取为 spec 输入。
+
 1 (fix(canvas): S08 文本节点交互 - 移除非编辑态 mousedown 拦截恢复 body 拖拽与面板唤出(竞品语料+flora 语法对齐))
+
+## 排障记录 · merge 后 /canvas "nodes is not iterable"(2026-09-06)
+
+**现象**:merge e41522c 后打开 /canvas 画布列表页报"页面运行异常 nodes is not iterable"。
+**根因**(前后端版本错位,非数据损坏):上游 58f01d1 新引入分页接口 `backend/internal/service/user_data_page.go`(`/api/canvas-projects` 带 `previewNodes`);本地后端进程是 09-05 18:53 起的旧二进制,响应无 `previewNodes` → 前端新列表页 `for (const node of nodes)` 迭代 undefined(canvas-project-card.tsx:225)。
+**诊断路径**:页面错误钩子 0 捕获(React 边界吞错)→ indexedDB 数据形态核验(STRING 文档为该 store 正常格式,排除损坏)→ in-page fetch /api/canvas-projects 抓到 `previewNodes: undefined` → git log 定位接口引入提交与进程启动时间差。
+**修复**:重启后端至 merge 后代码(previewNodes 恢复数组);页面 reload 后列表页正常。
+**教训**:大 merge 后**前后端必须同批重启**;persist 文档为字符串是 canvas store 正常协议,勿误判为双重序列化。
+7 (docs(pending-test): merge后画布列表页异常排障记录 - 前后端版本错位(新分页接口旧后端进程), 后端需同批重启)
