@@ -2050,4 +2050,15 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 - **retry 语义**：错误节点点「重新生成」→ 新任务重提交、填充层+生成环回归、状态行重置、再失败仍可继续 retry（循环可用）✅。
 - **Image/Video 回归**：画布全部存量节点（image/text/video ×6）非 loading 态均无填充层/生成环残留 ✅。
 - 遗留：画布测试节点（video-1788653804656、text-1788720577227、text-1788728834211、text-1788729026213、image-1788626612850）待手动删除；错误节点 text-1788729026213 保留供人眼复核错误态样式（明暗主题）。
+
 0 (docs(pending-test): S08 文本生成全生命周期实测闭环(running填充环/完成回填/双错误路径/retry循环/媒体回归))
+
+## S08 composer 形态落地（2026-09-07，194129c）
+
+用户两项拍板：工具栏收起宽限用 flora exit 档 220ms；份数控件三模式统一进设置气泡且气泡质感需优化。
+
+- **文本设置气泡**（新 `canvas-text-settings-popover.tsx`）：text 模式常驻 InputNumber 换为与 image/video 同构的「文本设置：N 份」pill 按钮 + portal 气泡（快捷 1/2/3/4 pill + 自定义输入，1..15 归一逻辑与旧行为一致，纯函数 `normalizeTextCount` 有单测）；三模式 composer 右侧现在都是「设置气泡 + 生成按钮」同构布局。
+- **气泡质感收敛**：image/video 气泡去内联 `0 24px 72px` 重阴影（其覆盖了类上安静化 `--elevation-overlay`，属 aciternity 面板违例），radius 10 → `var(--r-lg)` 统一；video 类名从复用 `canvas-image-settings-popover` 改为专属 `canvas-video-settings-popover`；三个气泡 + 节点工具栏 + 浮层面板统一挂 `canvas-panel-in` fast 档挂载动画（motion-scale/reduced-motion 自动跟随既有机制）。
+- **工具栏时序**：`hideNodeToolbar` 宽限 120 → 220ms（flora phase53 exit 档，节点↔工具栏跨间隙移动不闪退）；浮现动画已有（canvas-panel-in fast 档）未改。
+- **验证状态**：SSR 单测 5/5（含越界/非法值归一）、tsc 0、build 40.86s 三绿；浏览器像素复核（text 气泡打开态/三气泡质感/220ms 无闪烁）因 Chrome 窗口在后台（visibilityState hidden，CDP 点击被吞）未完成，待窗口前台后补：打开文本 composer → 点「N 份」pill 气泡 → 改份数 → 提交链路；顺手过一遍 image/video 气泡阴影是否安静化。
+9 (docs(pending-test): S08 composer形态登记 - 文本设置气泡/质感收敛/220ms宽限, 像素复核待窗口前台)
