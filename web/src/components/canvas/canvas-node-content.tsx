@@ -297,6 +297,8 @@ function UnknownNodeContent({ theme }: Pick<CanvasNodeContentProps, "theme">) {
 }
 
 function TextContent({ node, theme, isEditingContent, textareaRef, mentionReferences, onContentChange, onStopEditing }: CanvasNodeContentProps) {
+    // S08 交互语法（竞品 8 样本 + flora phase85 一致）：节点 body = 拖拽面 + 单击选中（唤出提示词面板），双击才进编辑。
+    // 非编辑分支不得拦截 onMouseDown（曾致内部无法拖动/无法唤出面板）；编辑态 textarea 拦截保留（文本选择语义）；wheel 拦截保留（节点内滚动≠画布缩放）。
     const fontSize = node.metadata?.fontSize || 14;
     const textStyle = { fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.65)}px`, color: theme.node.text, boxSizing: "border-box" } as CSSProperties;
     const richTextHTML = useMemo(() => canvasRichTextHTML(node.metadata?.richText), [node.metadata?.richText]);

@@ -1996,4 +1996,22 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 - [ ] Image/Video 回归：填充层挂载条件扩展后行为不变（抽查一次生图）。
 
 **S08 剩余改动面**（本增量未含，待设计决策）：生成前 composer 对照 flora text-generation-form 解剖（悬停挂载微控件/submit 原子/数量 reveal）；文本节点几何 340×240 → flora 384×384 决策（含存量兼容）。
+
 0 (feat(canvas): S08 文本生成中反馈 - 填充层/生成环覆盖 Text 节点(错误重试与完成回填核验零改动))
+
+## S08 文本节点交互修复 · 拖拽/唤出面(2026-09-06)
+
+**缺陷**(用户实测报告):非编辑态按住节点**内部**无法拖动(必须按边缘),且单击节点无法唤出底部提示词面板。
+**根因**(同一处):`TextContent` 非编辑分支容器 `onMouseDown={stopPropagation}`(canvas-node-content.tsx)掐断了 node 级 mousedown 入口 → 拖拽/选中/`onNodeClick`(打开提示词面板)整链失效。
+**修复**:非编辑两分支(richText/纯文本)移除 onMouseDown 拦截(body=拖拽面,竞品 8 样本 + flora phase85 一致语法);编辑态 textarea 拦截保留(文本选择);wheel 拦截保留(节点内滚动≠画布缩放)。tsc 0 / build ✓。
+**待浏览器实测**:
+- [ ] 非编辑态按住文本节点内部可拖动;
+- [ ] 单击文本节点 → 选中 + 提示词面板唤出(toggle 语义不变);
+- [ ] 双击仍进入内联编辑,textarea 内可选文本/ESC/失焦退出;
+- [ ] 节点内滚动不缩放画布;富文本内链接点击不误触发拖动(低频,观感)。
+
+**设计登记**(2026-09-06,用户定调):
+- 文本区/composer **分离语法**成立(8 竞品样本一致;flora 共享区是其底部空间前提的产物)——S08c"共享区双态"提案撤销;
+- textCount 常驻**保留**(影策 composer 空间充足,与 flora 底部紧凑前提不同;负面约束"数量不得常驻"按前提区分适用);遗留跨模式不一致:image 数量在设置弹层、text 份数裸在工具行,composer 统一轮再议;
+- composer 唤出形态(选中伴随浮层 vs 工具栏按钮,竞品为选中即现)待 spec 轮;flora 状态轴实测值(node-hover 92 原子挂 composer+工具条/800ms 回缩/promptFocus·generateHover 独立轴/拖拽双抑制)已提取为 spec 输入。
+1 (fix(canvas): S08 文本节点交互 - 移除非编辑态 mousedown 拦截恢复 body 拖拽与面板唤出(竞品语料+flora 语法对齐))
