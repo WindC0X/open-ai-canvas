@@ -7567,7 +7567,10 @@
 
     .canvas-floating-dock,
     .canvas-floating-panel,
-    .canvas-node-toolbar {
+    .canvas-node-toolbar,
+    .canvas-image-settings-popover,
+    .canvas-video-settings-popover,
+    .canvas-text-settings-popover {
         animation: canvas-panel-in var(--motion-dur-fast-calc) var(--motion-ease-out) both;
     }
 

@@ -1165,10 +1165,11 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
 
     const hideNodeToolbar = useCallback(() => {
         if (toolbarHideTimerRef.current) clearTimeout(toolbarHideTimerRef.current);
+        // flora exit 档 220ms：鼠标在节点与工具栏之间的空隙移动时保持不闪退（旧 120ms 会闪烁）。
         toolbarHideTimerRef.current = setTimeout(() => {
             setToolbarNodeId(null);
             toolbarHideTimerRef.current = null;
-        }, 120);
+        }, 220);
     }, []);
 
     const {

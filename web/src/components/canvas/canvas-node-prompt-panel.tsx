@@ -16,6 +16,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { CanvasCameraControlPopover } from "./canvas-camera-control-popover";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
+import { CanvasTextSettingsPopover } from "./canvas-text-settings-popover";
 import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasVideoSettingsPopover } from "./canvas-video-settings-popover";
@@ -388,17 +389,12 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                         compact={!expanded}
                     />
                     {mode === "text" ? (
-                        <Tooltip title={`文本生成份数（默认 1，可在生成配置中调整）`}>
-                            <InputNumber
-                                size="small"
-                                min={1}
-                                max={15}
-                                value={Math.max(1, Math.min(15, Math.floor(Math.abs(Number(node.metadata?.textCount) || 1))))}
-                                onChange={(value) => onConfigChange(node.id, { textCount: Math.max(1, Math.min(15, Math.floor(Math.abs(Number(value)) || 1))) })}
-                                aria-label="文本生成份数"
-                                className="!w-14 !h-7 [&_.ant-input-number-input]:!text-[var(--fs-tiny)]"
-                            />
-                        </Tooltip>
+                        <CanvasTextSettingsPopover
+                            value={Math.max(1, Math.min(15, Math.floor(Math.abs(Number(node.metadata?.textCount) || 1))))}
+                            onChange={(value) => onConfigChange(node.id, { textCount: value })}
+                            placement={expanded ? "topRight" : "topLeft"}
+                            buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
+                        />
                     ) : mode === "image" ? (
                         // 图片模式下，显示相机配置与镜头配置
                         <>
