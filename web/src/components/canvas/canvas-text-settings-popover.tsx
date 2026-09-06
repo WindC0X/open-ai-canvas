@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
+import { usePopoverExit } from "./use-popover-exit";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { CanvasTheme } from "@/lib/canvas-theme";
@@ -28,10 +29,11 @@ export function CanvasTextSettingsPopover({ value, onChange, placement = "topLef
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
+    const { shouldRender, closing } = usePopoverExit(open);
     const count = normalizeTextCount(value);
 
     useEffect(() => {
-        if (!open) return;
+        if (!shouldRender) return;
         const syncPosition = () => setButtonRect(buttonRef.current?.getBoundingClientRect() || null);
         const closeOnOutsidePointer = (event: PointerEvent) => {
             const target = event.target;
@@ -49,9 +51,9 @@ export function CanvasTextSettingsPopover({ value, onChange, placement = "topLef
             window.removeEventListener("scroll", syncPosition, true);
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
         };
-    }, [open]);
+    }, [shouldRender]);
 
-    const panel = open && buttonRect ? <TextSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} value={count} onChange={onChange} /> : null;
+    const panel = shouldRender && buttonRect ? <TextSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} value={count} onChange={onChange} closing={closing} /> : null;
 
     return (
         <>
@@ -72,6 +74,7 @@ function TextSettingsPortal({
     theme,
     value,
     onChange,
+    closing,
 }: {
     buttonRect: DOMRect;
     panelRef: RefObject<HTMLDivElement | null>;
@@ -79,6 +82,7 @@ function TextSettingsPortal({
     theme: CanvasTheme;
     value: number;
     onChange: (value: number) => void;
+    closing: boolean;
 }) {
     const gap = 8;
     const margin = 12;
@@ -104,7 +108,7 @@ function TextSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
-            className="canvas-text-settings-popover aceternity-floating-panel backdrop-blur-2xl"
+            className={`canvas-text-settings-popover aceternity-floating-panel backdrop-blur-2xl${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
@@ -112,17 +116,17 @@ function TextSettingsPortal({
         >
             <div className="space-y-2">
                 <div className="text-[var(--fs-tiny)] font-medium opacity-60">生成份数</div>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-5 gap-1.5">
                     {[1, 2, 3, 4].map((pill) => (
                         <button
                             key={pill}
                             type="button"
                             aria-label={`${pill} 份`}
                             aria-pressed={value === pill}
-                            className="h-8 rounded-full text-xs transition-colors"
+                            className="canvas-settings-option h-8 rounded-full text-xs transition-colors"
                             style={{
-                                background: value === pill ? theme.accent.primary : theme.toolbar.itemHover,
-                                color: value === pill ? theme.accent.onPrimary : theme.node.text,
+                                background: value === pill ? theme.toolbar.activeBg : theme.toolbar.itemHover,
+                                borderColor: value === pill ? theme.node.activeStroke : theme.toolbar.border,
                             }}
                             onClick={() => onChange(pill)}
                         >
@@ -131,7 +135,6 @@ function TextSettingsPortal({
                     ))}
                     <TextCountInput value={value} max={TEXT_COUNT_MAX} theme={theme} onChange={onChange} />
                 </div>
-                <div className="text-[var(--fs-tiny)] opacity-50">同一提示词独立生成多份结果</div>
             </div>
         </div>,
         document.body,
@@ -146,22 +149,20 @@ function TextCountInput({ value, max, theme, onChange }: { value: number; max: n
         onChange(next);
     };
     return (
-        <label className="flex h-8 overflow-hidden rounded-full text-xs" style={{ background: theme.toolbar.itemHover ?? "rgba(127,127,127,.16)", color: theme.node.text }}>
-            <input
-                key={isCustom ? `custom-${value}` : "quick"}
-                type="number"
-                min={1}
-                max={max}
-                aria-label="自定义生成份数"
-                placeholder="输入"
-                className="min-w-0 flex-1 bg-transparent px-2 text-center outline-none placeholder:text-current placeholder:opacity-55 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                style={{ color: theme.node.text, WebkitTextFillColor: theme.node.text }}
-                defaultValue={isCustom ? value : ""}
-                onBlur={(event) => commit(event.currentTarget)}
-                onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
-                }}
-            />
-        </label>
+        <input
+            key={isCustom ? `custom-${value}` : "quick"}
+            type="number"
+            min={1}
+            max={max}
+            aria-label="自定义生成份数"
+            placeholder="输入"
+            className="canvas-settings-option h-8 min-w-0 rounded-full text-center text-xs outline-none placeholder:text-current placeholder:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            style={{ background: theme.toolbar.itemHover, borderColor: theme.toolbar.border, color: theme.node.text }}
+            defaultValue={isCustom ? value : ""}
+            onBlur={(event) => commit(event.currentTarget)}
+            onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+            }}
+        />
     );
 }

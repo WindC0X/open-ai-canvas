@@ -105,7 +105,52 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         />
                     </span>
                 </div> : null}
-                {showSize ? <ImageSizePicker profile={profile} size={activeSize} quality={quality} onChange={(size, nextQuality) => applyImageSizeSelection(onConfigChange, size, nextQuality)} /> : null}
+                {resolutionChoices.length ? <div className="space-y-2">
+                    <SettingTitle color={theme.node.muted}>分辨率</SettingTitle>
+                    <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : resolutionChoices.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
+                        {resolutionChoices.map((choice) => (
+                            <OptionPill key={choice} selected={choice === "auto" ? activeSize === "auto" : activeResolution?.tier === choice} theme={theme} onClick={() => selectResolution(choice)}>
+                                {choice === "auto" ? "自动" : choice.toUpperCase()}
+                            </OptionPill>
+                        ))}
+                    </div>
+                </div> : null}
+                {profile.size.allowCustom ? <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                        <SettingTitle color={theme.node.muted}>尺寸</SettingTitle>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium" style={{ color: theme.node.muted }}>
+                                16倍数对齐
+                            </span>
+                            <span title="输入完成后自动向上补成 16 的倍数" onMouseDown={(event) => event.stopPropagation()}>
+                                <Switch size="small" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
+                            </span>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                        <DimensionInput prefix="W" value={dimensions.width} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("width", value)} />
+                        <span className="text-sm opacity-45">↔</span>
+                        <DimensionInput prefix="H" value={dimensions.height} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("height", value)} />
+                    </div>
+                </div> : null}
+                {availableAspects.length ? <div className="space-y-2">
+                    <SettingTitle color={theme.node.muted}>尺寸或比例</SettingTitle>
+                    <div className="grid grid-cols-4 gap-1.5 min-[380px]:grid-cols-5">
+                        {availableAspects.map((item) => (
+                            <button
+                                key={item.value}
+                                type="button"
+                                className="canvas-settings-option flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                style={{ background: selectedAspect?.value === item.value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selectedAspect?.value === item.value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={() => selectAspect(item.value)}
+                            >
+                                <AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} />
+                                <span className="whitespace-nowrap">{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div> : null}
                 {showCount && effectiveMaxCount > 1 ? (
                     <div className="space-y-2">
                         <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
@@ -174,8 +219,8 @@ function OptionPill({ selected, disabled = false, theme, onClick, children }: { 
     return (
         <button
             type="button"
-			className="h-8 cursor-pointer rounded-full px-2 text-xs transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-40"
-			style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: theme.node.text, outlineColor: theme.node.muted }}
+			className="canvas-settings-option h-8 cursor-pointer rounded-full px-2 text-xs transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-40"
+			style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
 			disabled={disabled}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}

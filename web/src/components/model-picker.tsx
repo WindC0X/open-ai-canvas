@@ -28,6 +28,8 @@ type ModelPickerProps = {
     variant?: "default" | "creation";
     requirements?: ModelRequirements;
     showConfiguredModelName?: boolean;
+    /** 弹出方向;画布 composer 统一向上(topLeft),默认保持 bottomLeft 兼容既有调用。 */
+    placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
 };
 
 export function ModelPicker({
@@ -43,6 +45,7 @@ export function ModelPicker({
     showSelectedPrice = true,
     showOptionPrices = showSelectedPrice,
     variant = "default",
+    placement: placementProp,
     requirements,
     showConfiguredModelName = false,
 }: ModelPickerProps) {
@@ -252,7 +255,7 @@ export function ModelPicker({
                 open={open}
                 onOpenChange={setPickerOpen}
                 trigger="click"
-                placement="bottomLeft"
+                placement={placementProp ?? "bottomLeft"}
                 arrow={false}
                 content={content}
                 classNames={{

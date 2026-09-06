@@ -367,6 +367,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     <ModelPicker
                         className="!h-7 !w-full !min-w-0 !text-[var(--fs-tiny)] !font-normal [&_img]:!size-3 [&_.lucide]:!size-3"
                         fullWidth
+                        placement="topLeft"
                         config={config}
                         value={config.model}
                         onChange={(model) => onConfigChange(node.id, mode === "image" ? { model, ...defaultImageParamsForModel(config, model) } : { model })}

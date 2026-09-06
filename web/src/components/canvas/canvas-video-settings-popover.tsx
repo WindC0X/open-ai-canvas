@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
+import { usePopoverExit } from "./use-popover-exit";
 
 import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -22,6 +23,7 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
+    const { shouldRender, closing } = usePopoverExit(open);
     const videoProfile = modelCapabilityConfigFor(config, config.model).video;
     const resolutionSupported = Boolean(videoProfile?.resolutions.length);
     const sizeSupported = Boolean(videoProfile?.ratios.length);
@@ -34,7 +36,7 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
     ].join(" · ");
 
     useEffect(() => {
-        if (!open) return;
+        if (!shouldRender) return;
         const syncPosition = () => setButtonRect(buttonRef.current?.getBoundingClientRect() || null);
         const closeOnOutsidePointer = (event: PointerEvent) => {
             const target = event.target;
@@ -52,9 +54,9 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
             window.removeEventListener("scroll", syncPosition, true);
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
         };
-    }, [open]);
+    }, [shouldRender]);
 
-    const panel = open && buttonRect ? <VideoSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} /> : null;
+    const panel = shouldRender && buttonRect ? <VideoSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} closing={closing} /> : null;
 
     return (
         <>
@@ -75,6 +77,7 @@ function VideoSettingsPortal({
     theme,
     config,
     onConfigChange,
+    closing,
 }: {
     buttonRect: DOMRect;
     panelRef: RefObject<HTMLDivElement | null>;
@@ -82,6 +85,7 @@ function VideoSettingsPortal({
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
     config: AiConfig;
     onConfigChange: (key: keyof AiConfig, value: string) => void;
+    closing: boolean;
 }) {
     const gap = 8;
     const margin = 12;
@@ -89,17 +93,16 @@ function VideoSettingsPortal({
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - width / 2 : alignRight ? buttonRect.right - width : buttonRect.left;
-    const topPlacement = placement?.startsWith("top");
-    const estimatedHeight = 370;
-    const topSpace = buttonRect.top - gap - margin;
-    const bottomSpace = window.innerHeight - buttonRect.bottom - gap - margin;
-    const placeAbove = topPlacement ? topSpace >= estimatedHeight || topSpace >= bottomSpace : bottomSpace < estimatedHeight && topSpace > bottomSpace;
+    // 方向纪律:统一向上展开;高度封顶 420px 内部滚动;上方空间不足时降级向下。
+    const aboveTop = buttonRect.top - gap;
+    const preferAbove = aboveTop >= 240;
     const style = {
         position: "fixed",
         zIndex: "var(--z-dialog-popover)",
         width,
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
-        ...(placeAbove ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, topSpace) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, bottomSpace) }),
+        ...(preferAbove ? { bottom: window.innerHeight - aboveTop } : { top: buttonRect.bottom + gap }),
+        maxHeight: Math.min(420, Math.max(260, preferAbove ? aboveTop : window.innerHeight - buttonRect.bottom - margin * 2)),
         background: theme.canvas.background,
         border: `1px solid ${theme.toolbar.border}`,
         borderRadius: "var(--r-lg)",
@@ -111,7 +114,7 @@ function VideoSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
-            className="canvas-video-settings-popover aceternity-floating-panel backdrop-blur-2xl"
+            className={`canvas-video-settings-popover aceternity-floating-panel backdrop-blur-2xl thin-scrollbar${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}

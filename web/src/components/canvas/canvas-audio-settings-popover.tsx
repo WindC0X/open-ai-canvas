@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
+import { usePopoverExit } from "./use-popover-exit";
 
 import { AudioSettingsPanel } from "@/components/audio-settings-panel";
 import { audioFormatLabel, audioSpeedLabel, audioVoiceLabel } from "@/lib/audio-generation";
@@ -24,10 +25,11 @@ export function CanvasAudioSettingsPopover({ config, onConfigChange, buttonClass
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
+    const { shouldRender, closing } = usePopoverExit(open);
     const summary = `${audioVoiceLabel(config.audioVoice)} · ${audioFormatLabel(config.audioFormat)} · ${audioSpeedLabel(config.audioSpeed)}`;
 
     useEffect(() => {
-        if (!open) return;
+        if (!shouldRender) return;
         const syncPosition = () => setButtonRect(buttonRef.current?.getBoundingClientRect() || null);
         const closeOnOutsidePointer = (event: PointerEvent) => {
             const target = event.target;
@@ -45,9 +47,9 @@ export function CanvasAudioSettingsPopover({ config, onConfigChange, buttonClass
             window.removeEventListener("scroll", syncPosition, true);
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
         };
-    }, [open]);
+    }, [shouldRender]);
 
-    const panel = open && buttonRect ? <AudioSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} /> : null;
+    const panel = shouldRender && buttonRect ? <AudioSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} closing={closing} /> : null;
 
     return (
         <>
@@ -68,6 +70,7 @@ function AudioSettingsPortal({
     theme,
     config,
     onConfigChange,
+    closing,
 }: {
     buttonRect: DOMRect;
     panelRef: RefObject<HTMLDivElement | null>;
@@ -75,6 +78,7 @@ function AudioSettingsPortal({
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
     config: AiConfig;
     onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
+    closing: boolean;
 }) {
     const width = 356;
     const gap = 8;
@@ -82,17 +86,20 @@ function AudioSettingsPortal({
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - width / 2 : alignRight ? buttonRect.right - width : buttonRect.left;
-    const topPlacement = placement?.startsWith("top");
+    // 方向纪律:统一向上展开;高度封顶 420px;质感与 image/video 气泡同一收敛。
+    const aboveTop = buttonRect.top - gap;
+    const preferAbove = aboveTop >= 240;
     const style = {
         position: "fixed",
         zIndex: "var(--z-dialog-popover)",
         width,
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
-        ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2) }),
-        background: theme.spatial.elevated,
+        ...(preferAbove ? { bottom: window.innerHeight - aboveTop } : { top: buttonRect.bottom + gap }),
+        maxHeight: Math.min(420, Math.max(260, preferAbove ? aboveTop : window.innerHeight - buttonRect.bottom - margin * 2)),
+        // 方向纪律:统一向上展开;高度封顶 420px;质感与 image/video 气泡同一收敛(theme.canvas.background + 安静化 elevation)。
+        background: theme.canvas.background,
         border: `1px solid ${theme.toolbar.border}`,
-        borderRadius: 10,
-        boxShadow: `0 24px 72px ${theme.spatial.shadow}, inset 0 1px 0 rgba(255,255,255,.08)`,
+        borderRadius: "var(--r-lg)",
         padding: 12,
         overflowY: "auto",
         color: theme.node.text,
@@ -101,7 +108,7 @@ function AudioSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
-            className="canvas-image-settings-popover aceternity-floating-panel backdrop-blur-2xl"
+            className={`canvas-audio-settings-popover aceternity-floating-panel backdrop-blur-2xl thin-scrollbar${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}

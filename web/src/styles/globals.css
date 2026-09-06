@@ -7570,8 +7570,44 @@
     .canvas-node-toolbar,
     .canvas-image-settings-popover,
     .canvas-video-settings-popover,
-    .canvas-text-settings-popover {
+    .canvas-text-settings-popover,
+    .canvas-audio-settings-popover {
         animation: canvas-panel-in var(--motion-dur-fast-calc) var(--motion-ease-out) both;
+    }
+
+    /* 设置气泡统一关闭动画: open=false 后 150ms exit 窗口内加 .canvas-settings-popover-closing (usePopoverExit)。 */
+    .canvas-settings-popover-closing {
+        animation: canvas-panel-out var(--motion-dur-fast-calc) var(--motion-ease-out) both;
+    }
+
+    @keyframes canvas-panel-out {
+        from {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        to {
+            opacity: 0;
+            transform: translateY(6px) scale(0.97);
+        }
+    }
+
+    /* 选项单元统一纪律:可见边界(bg + 描边)避免无边界裸选项;选中态主色描边;统一 h-8 round。 */
+    .canvas-settings-option {
+        border: 1px solid var(--workspace-border, rgba(127, 127, 127, 0.24));
+        cursor: pointer;
+        transition: background-color var(--motion-dur-fast-calc) var(--motion-ease-out), border-color var(--motion-dur-fast-calc) var(--motion-ease-out);
+    }
+
+    .canvas-settings-option:hover {
+        filter: brightness(1.1);
+    }
+
+    .canvas-settings-option[aria-pressed="true"],
+    .canvas-settings-option[aria-checked="true"],
+    .canvas-settings-option.is-selected {
+        /* 选中描边由各面板内联 theme.node.activeStroke 覆盖;此处仅保底中性描边。 */
+        border-color: var(--workspace-border-strong, rgba(127, 127, 127, 0.4));
+        filter: none;
     }
 
     .canvas-node-toolbar::after {

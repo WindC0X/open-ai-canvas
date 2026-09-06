@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
+import { usePopoverExit } from "./use-popover-exit";
 
 import { ImageSettingsPanel, imageQualityLabel, imageSizeLabel } from "@/components/image-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -27,6 +28,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
+    const { shouldRender, closing } = usePopoverExit(open);
     const profile = modelCapabilityConfigFor(config, config.model || config.imageModel).image!;
     const normalized = normalizeImageValue(profile, config);
     const summaryParts = [
@@ -43,7 +45,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
     };
 
     useEffect(() => {
-        if (!open) return;
+        if (!shouldRender) return;
         const syncPosition = () => setButtonRect(buttonRef.current?.getBoundingClientRect() || null);
         const closeOnOutsidePointer = (event: PointerEvent) => {
             const target = event.target;
@@ -63,9 +65,9 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
             window.removeEventListener("scroll", syncPosition, true);
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
         };
-    }, [onOpenChange, open]);
+    }, [onOpenChange, shouldRender]);
 
-    const panel = open && buttonRect ? <ImageSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} showCount={showCount} onConfigChange={onConfigChange} /> : null;
+    const panel = shouldRender && buttonRect ? <ImageSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} showCount={showCount} onConfigChange={onConfigChange} closing={closing} /> : null;
 
     if (!hasSettings) return null;
 
@@ -89,6 +91,7 @@ function ImageSettingsPortal({
     config,
     showCount,
     onConfigChange,
+    closing,
 }: {
     buttonRect: DOMRect;
     panelRef: RefObject<HTMLDivElement | null>;
@@ -97,6 +100,7 @@ function ImageSettingsPortal({
     config: AiConfig;
     showCount: boolean;
     onConfigChange: (key: keyof AiConfig, value: string) => void;
+    closing: boolean;
 }) {
     const gap = 8;
     const margin = 12;
@@ -104,13 +108,16 @@ function ImageSettingsPortal({
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - width / 2 : alignRight ? buttonRect.right - width : buttonRect.left;
-    const topPlacement = placement?.startsWith("top");
+    // 方向纪律:统一向上展开(与图像节点 composer 行为一致);高度封顶 420px,长列表内部滚动;上方空间不足时降级向下。
+    const aboveTop = buttonRect.top - gap;
+    const preferAbove = aboveTop >= 240;
     const style = {
         position: "fixed",
         zIndex: "var(--z-dialog-popover)",
         width,
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
-        ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2) }),
+        ...(preferAbove ? { bottom: window.innerHeight - aboveTop } : { top: buttonRect.bottom + gap }),
+        maxHeight: Math.min(420, Math.max(260, preferAbove ? aboveTop : window.innerHeight - buttonRect.bottom - margin * 2)),
         background: theme.canvas.background,
         border: `1px solid ${theme.toolbar.border}`,
         borderRadius: "var(--r-lg)",
@@ -122,7 +129,7 @@ function ImageSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
-            className="canvas-image-settings-popover aceternity-floating-panel backdrop-blur-2xl"
+            className={`canvas-image-settings-popover aceternity-floating-panel backdrop-blur-2xl thin-scrollbar${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
