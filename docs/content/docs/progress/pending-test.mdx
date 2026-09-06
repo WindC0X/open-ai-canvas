@@ -1978,4 +1978,22 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 - ✅ 无模型回退：页面目录未含 video 模型时空框保持 720×405 兜底（resync 前实测）。
 - ⏳ 完成同比例不跳变（Fix 2）：**无法端到端实测**——xai-video 协议需要真实 xAI 视频上游，本地 grok2api 渠道是 openai 图像格式无法跑通完成路径。守卫逻辑由 `videoCompletionSize` 纯函数 5 例单测 + task-sync 集成点代码核验覆盖，待用户在真实视频渠道上验收。
 - 测试遗留：验证画布上新建了 video-1788651601/image-1788651663 两个空节点可手动删除；`grok-imagine-video`（MODEL_000012）测试模型暂保留（available 已打通：需带 priceTiers priceConfigured=true 才 available），不需要时可在管理后台禁用。
+
 0 (test(canvas): S07 浏览器实测 - Video空框420x420/图像720x405交叉实证, Fix2留待真实视频上游)
+
+## S08 文本生成生命周期 · 第一增量（2026-09-06）
+
+**已落地**（代码层验证闭环）：
+- 生成中反馈：S04 填充层挂载条件扩展 Text 节点（仅首次空白：`!metadata.content` 守卫防重生成面被遮）。Text loading 节点现为 flora 同构形态 = 填充面（fallback 60s 缓爬 / 0-里程碑未知语义 / retry 按 taskId 重置）+ 底部安静状态行（LoadingContent 共享分派，既有）+ 旋转生成环（`:305` 条件无 type 门，核实已天然覆盖）。
+- 错误/重试（核实零改动）：`CanvasNodeContent` 共享分派（content.tsx:75）使 Text status=error 直达 ErrorContent（retry/内容审核/资源重载分支齐全）；text 完成回填（task-sync）只写 metadata 不改宽高，同比例语义天然成立。
+- 单测：`canvas-node-loading-fill.test.tsx` 新增 Text 形状类型无关性断言（fill-bar 渲染 + 40% 内联刻度）；全量 35/35（fill/visual-contrast/fit-ratio/video-completion/media-initial-size 五文件）；tsc 0 错、build ✓。
+
+**核验记录**（inline 代码核验，非运行时）：生成环 border/boxShadow（canvas-node.tsx:313-315）与环 class（:305）条件 `isGenerating && !hasImageContent && !hasVideoContent` 无 type 门；`data-node-phase` Text loading → "running"（:308）。
+
+**待浏览器实测**（dev 实机，需文本渠道）：
+- [ ] 空文本节点提交生成：填充条 + 底部状态行 + 旋转环同时呈现；完成回填内容后填充层同帧卸载。
+- [ ] 文本生成失败：ErrorContent 呈现（错误信息/retry 按钮），retry 走 0-里程碑已知语义。
+- [ ] Image/Video 回归：填充层挂载条件扩展后行为不变（抽查一次生图）。
+
+**S08 剩余改动面**（本增量未含，待设计决策）：生成前 composer 对照 flora text-generation-form 解剖（悬停挂载微控件/submit 原子/数量 reveal）；文本节点几何 340×240 → flora 384×384 决策（含存量兼容）。
+0 (feat(canvas): S08 文本生成中反馈 - 填充层/生成环覆盖 Text 节点(错误重试与完成回填核验零改动))

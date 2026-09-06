@@ -365,6 +365,11 @@ export const CanvasNode = React.memo(function CanvasNode({
                         } as React.CSSProperties
                     }
                 >
+{/* 生成中媒体区进度填充（S04，flora BlockLoadingState；S08 扩展 Text）：仅首次空白生成分支，DOM 最先 ⇒ 在徽章/内容之下。Text 生成路径只在空节点上置 loading（executor 子节点/直接空目标/失败 retry 均无 content），content 守卫防重生成面被遮 */}
+                    {data.metadata?.status === "loading" && !hasImageContent && !hasVideoContent && (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video || (data.type === CanvasNodeType.Text && !data.metadata?.content)) ? (
+                        <CanvasNodeLoadingFill node={data} theme={theme} />
+                    ) : null}
+593ffea0 (feat(canvas): S08 文本生成中反馈 - 填充层/生成环覆盖 Text 节点(错误重试与完成回填核验零改动))
                     {/* 节点状态徽章（对应 #97 决策2：左上角 loading/success/error，近距离确认信号）*/}
                     {data.metadata?.status && data.metadata.status !== "idle" && data.type !== CanvasNodeType.Frame ? (
                         <NodeStatusBadge status={data.metadata.status} />

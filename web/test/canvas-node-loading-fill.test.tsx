@@ -114,4 +114,11 @@ describe("CanvasNodeLoadingFill 渲染(S04 v5.1)", () => {
     test("aria-hidden: 纯视觉层不进无障碍树", () => {
         expect(render(loadingNode())).toContain('aria-hidden="true"');
     });
+
+    test("S08: Text 节点形状同样渲染(组件类型无关, 挂载门在 canvas-node.tsx)", () => {
+        const textNode = { ...loadingNode({ taskProgress: 40 }), type: CanvasNodeType.Text } as unknown as CanvasNodeData;
+        const html = render(textNode);
+        expect(html).toContain("canvas-node-loading-fill-bar");
+        expect(html).toContain("--loading-target-scale:0.4");
+    });
 });
