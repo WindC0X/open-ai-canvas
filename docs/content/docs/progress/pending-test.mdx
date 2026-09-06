@@ -2065,4 +2065,18 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 9 (docs(pending-test): S08 composer形态登记 - 文本设置气泡/质感收敛/220ms宽限, 像素复核待窗口前台)
 
 **像素复核补全（2026-09-07 窗口前台后）**：CDP 真实点击实测——文本 composer「文本设置：N 份」pill 打开气泡（快捷 1/2/3/4 + 自定义），点「4 份」→ 触发器摘要变「文本设置：4 份」→ 恢复 1 份（双缓冲 fiber 确认 metadata 已写 1）；气泡质感实测 radius 12px、阴影=安静化 elevation token（dark `0 8px 24px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.28)`，不再是被覆盖的 0 24px 72px 重阴影）、`canvas-panel-in` 挂载动画生效、backdrop-blur 40px；视频设置气泡同规格实测（专属类名/12px/安静化阴影/动画）；Esc 关闭气泡与面板正常。S08 composer 形态全部闭环。
+
 f (docs(pending-test): S08 composer形态像素复核闭环 - 文本设置气泡改值链路/三气泡安静化质感/220ms时序实测)
+
+## S08 设置气泡纪律收敛（2026-09-07，689ae19）
+
+用户截图对照竞品后四项指正，全数落地：
+
+1. **移除冗余说明文本**：文本气泡的「同一提示词独立生成多份结果」整行删除。
+2. **选项单元可见边界（纪律感）**：新增 `.canvas-settings-option` 通用类——常态 `toolbar.itemHover` 底 + `toolbar.border` 描边，选中态 `activeBg` 底 + `activeStroke` 描边（与参考竞品的描边选项卡语法一致）；应用于 image 面板（OptionPill + 比例格）、video 面板（OptionPill + 两处比例格）、audio 面板（OptionPill）、文本气泡（快捷 pill + 自定义输入框）。
+3. **高度封顶 + 内部滚动**：image/video/audio/text 四气泡统一 `maxHeight: min(420, 可用空间)`，长列表（图像 30+ 规格格）内部滚动，不再整幅撑高。
+4. **方向统一向上**：video/audio 气泡去掉「空间不足向下翻转」逻辑，统一向上展开（上方空间不足时才降级向下）；`ModelPicker` 新增 `placement` prop，画布 composer 传 `topLeft`，其余调用点默认 `bottomLeft` 行为不变。
+5. **开合动画统一**：新增 `usePopoverExit` hook（open=false 后 150ms exit 窗口），四气泡统一 `canvas-panel-in`（开）/`canvas-panel-out`（关）动画；模型列表走 antd Popover 自带动效，同为有开合动画。
+
+验证：tsc 0、build 38.51s、文本气泡 SSR 单测 5/5；浏览器像素复核（边界描边观感、420 滚动、向上弹出、开合动画）待窗口前台补做——本轮 Chrome 窗口在后台（visibilityState hidden，CDP 点击被吞），已用 reload 后节点清单确认页面加载新模块。
+6 (docs(pending-test): S08 设置气泡纪律收敛登记 - 边界/滚动/方向/动画四项, 像素复核待窗口前台)
