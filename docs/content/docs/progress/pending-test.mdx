@@ -2061,4 +2061,8 @@ SSE 现在按 revision 变化发送紧凑快照，无变化只 heartbeat；客�
 - **气泡质感收敛**：image/video 气泡去内联 `0 24px 72px` 重阴影（其覆盖了类上安静化 `--elevation-overlay`，属 aciternity 面板违例），radius 10 → `var(--r-lg)` 统一；video 类名从复用 `canvas-image-settings-popover` 改为专属 `canvas-video-settings-popover`；三个气泡 + 节点工具栏 + 浮层面板统一挂 `canvas-panel-in` fast 档挂载动画（motion-scale/reduced-motion 自动跟随既有机制）。
 - **工具栏时序**：`hideNodeToolbar` 宽限 120 → 220ms（flora phase53 exit 档，节点↔工具栏跨间隙移动不闪退）；浮现动画已有（canvas-panel-in fast 档）未改。
 - **验证状态**：SSR 单测 5/5（含越界/非法值归一）、tsc 0、build 40.86s 三绿；浏览器像素复核（text 气泡打开态/三气泡质感/220ms 无闪烁）因 Chrome 窗口在后台（visibilityState hidden，CDP 点击被吞）未完成，待窗口前台后补：打开文本 composer → 点「N 份」pill 气泡 → 改份数 → 提交链路；顺手过一遍 image/video 气泡阴影是否安静化。
+
 9 (docs(pending-test): S08 composer形态登记 - 文本设置气泡/质感收敛/220ms宽限, 像素复核待窗口前台)
+
+**像素复核补全（2026-09-07 窗口前台后）**：CDP 真实点击实测——文本 composer「文本设置：N 份」pill 打开气泡（快捷 1/2/3/4 + 自定义），点「4 份」→ 触发器摘要变「文本设置：4 份」→ 恢复 1 份（双缓冲 fiber 确认 metadata 已写 1）；气泡质感实测 radius 12px、阴影=安静化 elevation token（dark `0 8px 24px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.28)`，不再是被覆盖的 0 24px 72px 重阴影）、`canvas-panel-in` 挂载动画生效、backdrop-blur 40px；视频设置气泡同规格实测（专属类名/12px/安静化阴影/动画）；Esc 关闭气泡与面板正常。S08 composer 形态全部闭环。
+f (docs(pending-test): S08 composer形态像素复核闭环 - 文本设置气泡改值链路/三气泡安静化质感/220ms时序实测)
