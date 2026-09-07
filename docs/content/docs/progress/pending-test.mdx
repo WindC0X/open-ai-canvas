@@ -2130,7 +2130,7 @@ f (docs(pending-test): S08 composer形态像素复核闭环 - 文本设置气泡
 
 **模型列表（flora 实测值）**：菜单根 radius 16；搜索行 pl-4 py-3 图标 14px；组标题 12px/400 muted；模型行 min-height 53（两行结构）radius 12，行背景透明、hover 中性 alpha；logo 24px 圆形容器；名 14px/weight 350；描述 12px muted；徽章 18px 高 bg 白.1；菜单内衬 5px。creation 变体（前台）对齐同数值（384 宽）。已验：create 页分组 Grok/Agnes、行 53px/12px radius、logo 24px 圆、无金色徽章。
 
-**漂移 bug 修复**：模型列表与四个设置气泡新增画布 wheel 手势打断关闭（`closeOnCanvasWheel` capture+passive）；修了一个 `contains(window)` TypeError（target 非 Node 时短路的条件写反导致 listener 静默崩溃）。浏览器实测 wheel 后浮层关闭 ✓（需页面真实 reload 后验证，serve/页面内存模块一致性已核）。
+**漂移 bug 修复**：模型列表与四个设置气泡新增画布 wheel 手势打断关闭（`closeOnCanvasWheel` capture+passive）；修了一个 `contains(window)` TypeError（target 非 Node 时短路的条件写反导致 listener 静默崩溃）。浏览器实测 wheel 后浮层关闭 ✓（wheelCloses:true，1.3s 后卸载；前几轮 false 为 exit 动画期采样竞态，非缺陷）。
 
 **大标题移除**：画布内 image/video/audio 设置面板 `showTitle={false}`（触发器已说明上下文，面板不再重复"图像设置/视频设置/音频设置"标题）。
 
