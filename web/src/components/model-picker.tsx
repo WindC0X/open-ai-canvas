@@ -1,5 +1,6 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { Check, ChevronDown, Coins, Search } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Check, ChevronDown, ChevronRight, Coins, Image as ImageIcon, ListMusic, Pin, Search, Type as TypeIcon, Video as VideoIcon } from "lucide-react";
 import { Popover } from "antd";
 
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
@@ -11,7 +12,19 @@ import { logicalModelFamilyOf, modelDisplayName, modelIcon, modelOptionName, PUB
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { ModelLogo } from "@/components/model-logo";
-import { quoteLogicalModel, type LogicalModelQuote } from "@/services/api/logical-models";
+import { quoteLogicalModel, type CapabilitySpec, type LogicalModelQuote } from "@/services/api/logical-models";
+
+// flora 语法: 模型置顶(Pinned models 组)。影策无账号级收藏服务, 前端 localStorage 持久化(按浏览器/用户代理隔离)。
+const MODEL_PICKER_PINNED_KEY = "canvas-model-picker-pinned";
+function loadPinnedModels(): string[] {
+    try {
+        const raw = localStorage.getItem(MODEL_PICKER_PINNED_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+    } catch {
+        return [];
+    }
+}
 
 type ModelPickerProps = {
     config: AiConfig;
@@ -61,6 +74,43 @@ export function ModelPicker({
     const rawTheme = useThemeStore((state) => state.theme);
     const theme = (canvasThemes[rawTheme as keyof typeof canvasThemes] ?? canvasThemes.dark) as CanvasTheme;
     const [open, setOpen] = useState(false);
+    const [pinnedModels, setPinnedModels] = useState<string[]>(loadPinnedModels);
+    const togglePinned = (model: string) => {
+        setPinnedModels((prev) => {
+            const next = prev.includes(model) ? prev.filter((item) => item !== model) : [model, ...prev];
+            try {
+                localStorage.setItem(MODEL_PICKER_PINNED_KEY, JSON.stringify(next));
+            } catch {
+                // localStorage 不可用时置顶仅本次会话生效
+            }
+            return next;
+        });
+    };
+    // flora Providers 语法: 分组行 hover 右侧悬浮展开该组模型(flyout)
+    const [flyoutGroup, setFlyoutGroup] = useState<string | null>(null);
+    const [flyoutPos, setFlyoutPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const flyoutCloseTimer = useRef<number | null>(null);
+    const openFlyout = (groupKey: string, anchor: HTMLElement) => {
+        if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);
+        const rect = anchor.getBoundingClientRect();
+        const flyoutWidth = 340;
+        const x = rect.right + 8 + flyoutWidth > window.innerWidth - 12 ? rect.left - flyoutWidth - 8 : rect.right + 8;
+        setFlyoutPos({ x: Math.max(12, x), y: Math.min(Math.max(12, rect.top - 8), window.innerHeight - 120) });
+        setFlyoutGroup(groupKey);
+    };
+    const scheduleFlyoutClose = () => {
+        if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);
+        flyoutCloseTimer.current = window.setTimeout(() => setFlyoutGroup(null), 160);
+    };
+    const cancelFlyoutClose = () => {
+        if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);
+        flyoutCloseTimer.current = null;
+    };
+    useEffect(() => {
+        if (!open) {
+            setFlyoutGroup(null);
+        }
+    }, [open]);
     // flora Providers 二级语法: L1=渠道/产商行钻取, L2=该组模型列表; 单组直接 L2, 搜索态展开全部
     const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -81,18 +131,28 @@ export function ModelPicker({
                 .map(([label, models]) => ({ key: label, label, scope: "", models: groupModelsByDisplayName(config, models) }))
                 .filter((group) => group.models.length);
         }
+        const groupedChannels = new Map<string, string>();
+        for (const model of options) {
+            groupedChannels.set(model, resolveModelChannel(config, model).id);
+        }
         const channelGroups = config.channels
             .map((channel) => ({
                 key: channel.id,
                 label: channel.name || "未命名渠道",
-                scope: channel.id === PUBLIC_MODEL_CATALOG_ID ? "" : channel.scope === "system" ? "平台服务" : "我的模型",
+                scope: "",
                 models: groupModelsByDisplayName(
                     config,
-                    options.filter((model) => resolveModelChannel(config, model).id === channel.id),
+                    options.filter((model) => groupedChannels.get(model) === channel.id),
                 ),
             }))
             .filter((group) => group.models.length);
-        return channelGroups;
+        // flora: 未归属任何渠道分组的模型沉底为通用 Models 组, 不静默丢弃(按同一渠道解析口径判定)
+        const ungrouped = groupModelsByDisplayName(
+            config,
+            options.filter((model) => !channelGroups.some((group) => group.key === groupedChannels.get(model))),
+        );
+        const tail = ungrouped.length ? [{ key: "__ungrouped", label: "Models", scope: "", models: ungrouped }] : [];
+        return [...channelGroups, ...tail];
     }, [config, grouping, options]);
     const storedCurrent = value?.trim() || "";
     // 参数档位会在选中模型后由调用方归一到其能力配置，不能因为旧模型留下的参数而禁止切换。
@@ -223,49 +283,120 @@ export function ModelPicker({
         const model = compatibleModelInGroup(config, modelGroup.models, selectionRequirements, selected ? current : undefined);
         const displayModel = model || (selected ? current : modelGroup.models[0]);
         const disabledReason = model ? "" : modelCompatibilityError(config, modelGroup.models[0], selectionRequirements) || "当前输入不符合该模型能力";
+        const pinned = pinnedModels.includes(displayModel);
         return (
-            <button
-                key={groupLabel + ":" + modelGroup.key}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                aria-disabled={Boolean(disabledReason)}
-                disabled={Boolean(disabledReason)}
-                title={disabledReason || pickerModelOptionLabel(config, displayModel, showConfiguredModelName)}
-                className="canvas-model-picker-option disabled:cursor-not-allowed disabled:opacity-45"
-                style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: theme.node.text }}
-                onClick={() => {
-                    if (!model) return;
-                    onChange(model);
-                    setOpen(false);
-                    window.requestAnimationFrame(() => triggerRef.current?.focus());
-                }}
-            >
-                <ModelLabel
-                    config={config}
-                    model={displayModel}
-                    capability={capability}
-                    theme={theme}
-                    creationVariant={creationVariant}
-                    showConfiguredModelName={showConfiguredModelName}
-                    showPrice={showOptionPrices && creditsEnabled}
-                    disabledReason={disabledReason}
-                />
-                {selected ? <Check className="canvas-model-picker-option-check" style={{ color: theme.node.activeStroke }} /> : null}
-            </button>
+            <div key={groupLabel + ":" + modelGroup.key} className="canvas-model-picker-rowgroup">
+                <button
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    aria-disabled={Boolean(disabledReason)}
+                    disabled={Boolean(disabledReason)}
+                    title={disabledReason || pickerModelOptionLabel(config, displayModel, showConfiguredModelName)}
+                    className="canvas-model-picker-option disabled:cursor-not-allowed disabled:opacity-45"
+                    style={{ color: theme.node.text }}
+                    onClick={() => {
+                        if (!model) return;
+                        onChange(model);
+                        setOpen(false);
+                        window.requestAnimationFrame(() => triggerRef.current?.focus());
+                    }}
+                >
+                    <ModelLabel
+                        config={config}
+                        model={displayModel}
+                        capability={capability}
+                        theme={theme}
+                        creationVariant={creationVariant}
+                        showConfiguredModelName={showConfiguredModelName}
+                        showPrice={showOptionPrices && creditsEnabled}
+                        disabledReason={disabledReason}
+                    />
+                    {selected ? <Check className="canvas-model-picker-option-check" style={{ color: theme.node.activeStroke }} /> : null}
+                </button>
+                <button
+                    type="button"
+                    className={cn("canvas-model-picker-pin", pinned && "is-pinned")}
+                    aria-label={pinned ? "取消置顶" : "置顶模型"}
+                    aria-pressed={pinned}
+                    title={pinned ? "取消置顶" : "置顶模型"}
+                    style={{ color: pinned ? theme.node.activeStroke : theme.node.muted }}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        togglePinned(displayModel);
+                    }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                >
+                    <Pin className="size-3.5" />
+                </button>
+            </div>
         );
     };
-    const MenuLevelTwo = () => (
+    const pinnedGroups = useMemo(() => {
+        const rows: { key: string; models: (typeof optionGroups)[number]["models"] }[] = [];
+        for (const group of optionGroups) {
+            const models = group.models.filter((modelGroup) => modelGroup.models.some((model) => pinnedModels.includes(model)));
+            if (models.length) rows.push({ key: group.key, models });
+        }
+        return rows;
+    }, [optionGroups, pinnedModels]);
+
+    // 模型行序列: pinned 组置顶 → 渠道分组; 搜索态平铺全部匹配
+    const bodyGroups = normalizedSearch
+        ? visibleGroups
+              .map((group) => {
+                  const models = group.models.filter((modelGroup) => modelGroup.models.some((model) => pinnedModels.includes(model)));
+                  const rest = group.models.filter((modelGroup) => !models.includes(modelGroup));
+                  return { group, models: [...models, ...rest] };
+              })
+              .filter((item) => item.models.length)
+        : null;
+
+    const MenuBody = () => (
         <>
-            {optionGroups
-                .map((group) => (
-                    <section key={group.key} className="canvas-model-picker-group min-w-0 overflow-hidden">
-                        <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
-                            <span className="truncate">{group.label}</span>
-                        </div>
-                        <div className="grid min-w-0 gap-1">{group.models.map((modelGroup) => renderModelRow(modelGroup, group.label))}</div>
-                    </section>
-                ))}
+            {pinnedGroups.length && !normalizedSearch ? (
+                <section className="canvas-model-picker-group min-w-0 overflow-hidden">
+                    <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
+                        <span className="truncate">Pinned models</span>
+                    </div>
+                    <div className="grid min-w-0 gap-0.5">{pinnedGroups.flatMap((item) => item.models.map((modelGroup) => renderModelRow(modelGroup, "pinned")))}</div>
+                </section>
+            ) : null}
+            {!pinnedGroups.length && !normalizedSearch ? (
+                <div className="canvas-model-picker-group-label canvas-model-picker-pinned-empty" style={{ color: theme.node.muted }}>
+                    收藏的模型会显示在这里
+                </div>
+            ) : null}
+            {bodyGroups
+                ? bodyGroups.map((item) => (
+                      <div key={item.group.key} className="grid min-w-0 gap-0.5">
+                          {item.models.map((modelGroup) => renderModelRow(modelGroup, item.group.label))}
+                      </div>
+                  ))
+                : optionGroups.map((group) =>
+                      group.key === "__ungrouped" ? (
+                          <section key={group.key} className="canvas-model-picker-group min-w-0 overflow-hidden">
+                              <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
+                                  <span className="truncate">Models</span>
+                              </div>
+                              <div className="grid min-w-0 gap-0.5">{group.models.map((modelGroup) => renderModelRow(modelGroup, group.label))}</div>
+                          </section>
+                      ) : (
+                          <div
+                              key={group.key}
+                              className="canvas-model-picker-provider-row"
+                              onMouseEnter={(event) => openFlyout(group.key, event.currentTarget)}
+                              onMouseLeave={scheduleFlyoutClose}
+                              onFocus={(event) => openFlyout(group.key, event.currentTarget)}
+                          >
+                              <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
+                                  <ModelIcon config={config} model={group.models[0]?.models[0] || ""} />
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-[var(--fs-body)]">{group.label}</span>
+                              <ChevronRight className="size-4 shrink-0 opacity-45" aria-hidden="true" />
+                          </div>
+                      ),
+                  )}
         </>
     );
 
@@ -286,6 +417,7 @@ export function ModelPicker({
             onKeyDown={handleMenuKeyDown}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
+            onMouseLeave={scheduleFlyoutClose}
         >
             {searchable ? (
                 <div className="canvas-model-picker-search" onMouseDown={(event) => event.stopPropagation()}>
@@ -316,7 +448,27 @@ export function ModelPicker({
                     {current ? <strong>{pickerModelDisplayName(config, current, showConfiguredModelName)}</strong> : null}
                 </div>
             ) : null}
-            <MenuLevelTwo />
+            <MenuBody />
+            {createPortal(
+                flyoutGroup && open ? (
+                    <div
+                        className="canvas-model-picker-flyout"
+                        style={{ left: flyoutPos.x, top: flyoutPos.y }}
+                        onMouseEnter={cancelFlyoutClose}
+                        onMouseLeave={scheduleFlyoutClose}
+                        role="listbox"
+                    >
+                        {optionGroups
+                            .filter((group) => group.key === flyoutGroup)
+                            .map((group) => (
+                                <div key={group.key} className="grid min-w-0 gap-0.5">
+                                    {group.models.map((modelGroup) => renderModelRow(modelGroup, group.label))}
+                                </div>
+                            ))}
+                    </div>
+                ) : null,
+                document.body,
+            )}
             {drillMode === "flat" && !visibleGroups.length ? (
                 <div className="canvas-model-picker-empty" style={{ color: theme.node.muted }}>
                     {emptyModelLabel(config, capability)}
@@ -414,8 +566,9 @@ function ModelLabel({
         disabledReason ||
         logicalCost?.description?.trim() ||
         (logicalSpec ? logicalCapabilitySummary(logicalSpec) : videoProfile ? `${formatDurationSummary(videoProfile)} · ${videoProfile.resolutions.map((item) => item.toUpperCase()).join("/")}` : meta.description);
-    // flora P51-030 权威: logo 24x24 radius8 白.1 容器, 名 14px/350, 能力徽章 18px pill(bg 白.1/12px/500), 描述 12px/350 #b4b4b4
-    const chips = capability === "video" ? videoCapabilityChips(config, model) : capability === "image" ? imageCapabilityChips(config, model) : [];
+    // flora 权威行: logo 圆 24, 名 14px/350; 徽章串=消耗+媒体类型(spec 诚实, 无能力不造); 描述 12px muted
+    const mediaTypes = modelMediaTypes(config, model, capability);
+    const priceForChip = modelMenuPrice(config, model, capability, true);
     return (
         <span className="flex w-full min-w-0 items-center gap-2 overflow-hidden py-0">
             <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
@@ -424,21 +577,42 @@ function ModelLabel({
             <span className="min-w-0 flex-1 overflow-hidden">
                 <span className="flex min-w-0 items-center gap-1.5">
                     <span className="min-w-0 truncate text-[var(--fs-body)] font-normal leading-none">{pickerModelDisplayName(config, model, showConfiguredModelName)}</span>
-                    <span className="flex shrink-0 items-center gap-0.5">
-                        {chips.map((chip) => (
-                            <span key={chip} className="canvas-model-picker-chip">
-                                {chip}
-                            </span>
-                        ))}
-                    </span>
                 </span>
                 <span className="mt-1 block truncate text-[var(--fs-tiny)] font-normal" style={{ color: theme.node.muted }} title={capabilitySummary}>
                     {capabilitySummary}
                 </span>
             </span>
-            {showPrice ? <ModelPrice price={modelMenuPrice(config, model, capability, true)} chip /> : null}
+            <span className="flex shrink-0 items-center gap-0.5">
+                {priceForChip ? <ModelPrice price={priceForChip} chip /> : null}
+                {mediaTypes.map((item) => (
+                    <span key={item.kind} className="canvas-model-picker-chip canvas-model-picker-chip-icon" title={item.label}>
+                        {item.icon}
+                    </span>
+                ))}
+            </span>
         </span>
     );
+}
+
+// flora 媒体类型徽章: 依据模型逻辑能力声明(spec.capability + inputs)诚实展示; 无 spec 时按 picker capability 兜底
+function modelMediaTypes(config: AiConfig, model: string, capability?: ModelCapability): { kind: string; label: string; icon: ReactNode }[] {
+    const channel = resolveModelChannel(config, model);
+    const cost = channel.modelCosts?.find((item) => item.model === modelOptionName(model));
+    const spec = cost?.logicalCapabilitySpec;
+    const entries: { kind: string; label: string; icon: ReactNode }[] = [];
+    const push = (kind: string, label: string, icon: ReactNode) => {
+        if (!entries.some((item) => item.kind === kind)) entries.push({ kind, label, icon });
+    };
+    const kinds: CapabilitySpec["capability"][] = ["text", "image", "video", "audio"];
+    for (const kind of kinds) {
+        const accepts = spec ? spec.capability === kind || Object.keys(spec.inputs || {}).some((input) => input === kind) : capability === kind;
+        if (!accepts) continue;
+        if (kind === "text") push("text", "可输入文本", <TypeIcon className="size-3" />);
+        if (kind === "image") push("image", "可输入图像", <ImageIcon className="size-3" />);
+        if (kind === "video") push("video", "可输入视频", <VideoIcon className="size-3" />);
+        if (kind === "audio") push("audio", "可输入音频", <ListMusic className="size-3" />);
+    }
+    return entries;
 }
 
 function logicalCapabilitySummary(spec: NonNullable<NonNullable<AiConfig["channels"][number]["modelCosts"]>[number]["logicalCapabilitySpec"]>) {

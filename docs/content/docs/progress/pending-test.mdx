@@ -2171,4 +2171,19 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 5. **分组标纯净**：去掉"·平台服务"scope 后缀（flora 分组标无后缀）。
 
 浏览器复核（served 模块 grep + DOM 读数 + 截图）：平铺 6 模型行 53px 直呈、surface rgb(24,24,24) 实心 radius16、透明化消失（节点/面板恢复实心）、logo 圆形、grok2api/小白鼠/Agnes 纯净分组标。tsc 0、build ✓、定向测试 4/0。
+
 5 (fix(canvas): S08 模型列表结构纠偏 - 删渠道钻取首层恒平铺(用户 flora 对照), 圆logo/实心surface/分组标纯净, 回滚node.fill透明化回归)
+
+### S08 模型列表 flora 全结构批（2026-09-07 三轮打回后重做）
+
+用户给全 7 张 flora 语义标注截图，按权威解剖重做结构（不再是参数微调）：
+
+1. **Pinned models 置顶组**：行 hover 显示图钉按钮（渐进披露，pin 常显高亮），点击置顶/取消；无账号收藏服务，localStorage 持久化（登记偏离：flora 是账号级）。空态文案"收藏的模型会显示在这里"。
+2. **渠道分组行 + flyout**：分组不再是内嵌展开，而是渠道行（圆 logo + 名 + ›）hover 右侧 340px 悬浮面板展开该组模型（flora Providers 语法）；菜单 mouseleave/160ms 延迟关闭防抖。
+3. **Models 沉底组**：无法归属渠道分组的模型不再静默丢弃，沉底为 Models 通用组（修复与 flyout 重复的 key 不一致 bug）。
+4. **徽章串语义对齐**：模型行右侧 = 消耗徽章（复用 ModelPrice chip）+ **可接受媒体类型**图标徽章（text/image/video/audio，依据 logicalCapabilitySpec.capability+inputs 诚实判定，无声明按 picker capability 兜底）；耗时徽章按用户指示不做（影策无此数据）。
+5. **溢出修复**：option 宽度 100%/overflow hidden、徽章行 nowrap、描述 truncate——不再横向溢出撑破面板。
+6. 保留：实心 surface radius16、搜索框、384 定宽。
+
+浏览器实测（served grep + DOM 读数 + 截图 /tmp/shot-v5-pinned.png）：Pinned models 组随 pin 即时出现、flyout 340px 含该渠道模型行、localStorage 写入 ✓、溢出 overflowX=false。tsc 0、build ✓、定向测试 4/0。待 eyeball：真实 hover 流畅性（合成事件只能验证触发链）、未分组渠道场景的 Models 沉底、亮色主题。
+7 (feat(canvas): S08 模型列表 flora 全结构 - Pinned置顶组/渠道flyout悬浮/Models沉底/媒体类型徽章/溢出修复)
