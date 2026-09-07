@@ -146,8 +146,17 @@ export function ModelPicker({
             if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
             setOpen(false);
         };
+        // 画布 wheel 缩放/平移移动触发器锚点, antd Popover 不跟随 transform —— 手势打断直接关(修漂移)。
+        const closeOnCanvasWheel = (event: WheelEvent) => {
+            if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
+            setOpen(false);
+        };
         window.addEventListener("pointerdown", closeOnOutsidePointer, true);
-        return () => window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+        window.addEventListener("wheel", closeOnCanvasWheel, { capture: true, passive: true });
+        return () => {
+            window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+            window.removeEventListener("wheel", closeOnCanvasWheel, { capture: true });
+        };
     }, [open]);
 
     const searchRef = useRef<HTMLInputElement>(null);

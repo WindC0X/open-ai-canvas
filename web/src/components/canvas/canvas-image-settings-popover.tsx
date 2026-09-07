@@ -60,10 +60,17 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
         window.addEventListener("resize", syncPosition);
         window.addEventListener("scroll", syncPosition, true);
         window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+        // 画布 wheel 缩放/平移使触发器位移, fixed 浮层不跟随 —— 手势打断直接关(修漂移)。
+        const closeOnCanvasWheel = (event: WheelEvent) => {
+            if (event.target instanceof Node && panelRef.current?.contains(event.target)) return;
+            setOpen(false);
+        };
+        window.addEventListener("wheel", closeOnCanvasWheel, { capture: true, passive: true });
         return () => {
             window.removeEventListener("resize", syncPosition);
             window.removeEventListener("scroll", syncPosition, true);
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+            window.removeEventListener("wheel", closeOnCanvasWheel, { capture: true });
         };
     }, [onOpenChange, shouldRender]);
 
@@ -135,7 +142,7 @@ function ImageSettingsPortal({
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showCount={showCount} quickCount={3} className="space-y-3" />
+            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} showCount={showCount} quickCount={3} className="space-y-3" />
         </div>,
         document.body,
     );

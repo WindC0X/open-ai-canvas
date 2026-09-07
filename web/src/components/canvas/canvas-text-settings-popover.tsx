@@ -46,10 +46,17 @@ export function CanvasTextSettingsPopover({ value, onChange, placement = "topLef
         window.addEventListener("resize", syncPosition);
         window.addEventListener("scroll", syncPosition, true);
         window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+        // 画布 wheel 缩放/平移使触发器位移, fixed 浮层不跟随 —— 手势打断直接关(修漂移)。
+        const closeOnCanvasWheel = (event: WheelEvent) => {
+            if (event.target instanceof Node && panelRef.current?.contains(event.target)) return;
+            setOpen(false);
+        };
+        window.addEventListener("wheel", closeOnCanvasWheel, { capture: true, passive: true });
         return () => {
             window.removeEventListener("resize", syncPosition);
             window.removeEventListener("scroll", syncPosition, true);
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+            window.removeEventListener("wheel", closeOnCanvasWheel, { capture: true });
         };
     }, [shouldRender]);
 
@@ -86,7 +93,9 @@ function TextSettingsPortal({
 }) {
     const gap = 8;
     const margin = 12;
-    const width = 240;
+    const width = 96;
+    const ROW = 36;
+    const listMax = Math.min(9, TEXT_COUNT_MAX) * ROW + 8;
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - width / 2 : alignRight ? buttonRect.right - width : buttonRect.left;
@@ -96,73 +105,52 @@ function TextSettingsPortal({
         zIndex: "var(--z-dialog-popover)",
         width,
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
-        ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(220, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(220, window.innerHeight - buttonRect.bottom - margin * 2) }),
+        ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(160, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(160, window.innerHeight - buttonRect.bottom - margin * 2) }),
         background: theme.canvas.background,
         border: `1px solid ${theme.toolbar.border}`,
         borderRadius: "var(--r-lg)",
-        padding: 12,
+        padding: 5,
         overflowY: "auto",
         color: theme.node.text,
     } as const;
+    const counts = Array.from({ length: TEXT_COUNT_MAX }, (_, index) => index + 1);
+    const listRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        // 打开时滚动到当前值可见
+        const row = listRef.current?.querySelector(`[data-count="${value}"]`);
+        row?.scrollIntoView({ block: "nearest" });
+    }, [value]);
 
     return createPortal(
         <div
             ref={panelRef}
-            className={`canvas-text-settings-popover aceternity-floating-panel backdrop-blur-2xl${closing ? " canvas-settings-popover-closing" : ""}`}
+            className={`canvas-text-settings-popover canvas-settings-roll aceternity-floating-panel backdrop-blur-2xl${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <div className="space-y-2">
-                <div className="text-[var(--fs-tiny)] font-medium opacity-60">生成份数</div>
-                <div className="grid grid-cols-5 gap-1.5">
-                    {[1, 2, 3, 4].map((pill) => (
-                        <button
-                            key={pill}
-                            type="button"
-                            aria-label={`${pill} 份`}
-                            aria-pressed={value === pill}
-                            className="canvas-settings-option h-8 rounded-lg text-xs transition-colors"
-                            style={{
-                                background: value === pill ? theme.toolbar.activeBg : theme.toolbar.itemHover,
-                                borderColor: value === pill ? theme.node.activeStroke : theme.toolbar.border,
-                            }}
-                            onClick={() => onChange(pill)}
-                        >
-                            {pill}
-                        </button>
-                    ))}
-                    <TextCountInput value={value} max={TEXT_COUNT_MAX} theme={theme} onChange={onChange} />
-                </div>
+            <div ref={listRef} className="flex flex-col" style={{ maxHeight: listMax }}>
+                {counts.map((count) => (
+                    <button
+                        key={count}
+                        type="button"
+                        data-count={count}
+                        aria-pressed={value === count}
+                        aria-label={`${count} 份`}
+                        className="canvas-settings-option canvas-settings-roll-row"
+                        style={{
+                            background: value === count ? theme.toolbar.activeBg : "transparent",
+                            borderColor: value === count ? theme.node.activeStroke : "transparent",
+                            color: theme.node.text,
+                        }}
+                        onClick={() => onChange(count)}
+                    >
+                        {count}
+                    </button>
+                ))}
             </div>
         </div>,
         document.body,
-    );
-}
-
-function TextCountInput({ value, max, theme, onChange }: { value: number; max: number; theme: CanvasTheme; onChange: (value: number) => void }) {
-    const isCustom = value > 4;
-    const commit = (input: HTMLInputElement) => {
-        const next = normalizeTextCount(input.value);
-        input.value = String(next);
-        onChange(next);
-    };
-    return (
-        <input
-            key={isCustom ? `custom-${value}` : "quick"}
-            type="number"
-            min={1}
-            max={max}
-            aria-label="自定义生成份数"
-            placeholder="输入"
-            className="canvas-settings-option h-8 min-w-0 rounded-lg text-center text-xs outline-none placeholder:text-current placeholder:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            style={{ background: theme.toolbar.itemHover, borderColor: theme.toolbar.border, color: theme.node.text }}
-            defaultValue={isCustom ? value : ""}
-            onBlur={(event) => commit(event.currentTarget)}
-            onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-            }}
-        />
     );
 }

@@ -3253,8 +3253,8 @@
     }
 
     .creation-model-picker-menu .canvas-model-picker-group-label {
-        padding: 7px 8px 6px;
-        font-size: 11px;
+        padding: 10px 10px 6px;
+        font-size: 12px;
     }
 
     .creation-model-picker-heading {
@@ -3285,14 +3285,14 @@
     }
 
     .creation-model-picker-menu .canvas-model-picker-option {
-        min-height: 52px;
-        border-radius: 9px;
-        padding: 7px 9px;
-        transition: background-color 150ms ease, transform 120ms ease;
+        min-height: 53px;
+        border-radius: 12px;
+        padding: 8px 10px;
+        transition: background-color 150ms ease;
     }
 
     .creation-model-picker-menu .canvas-model-picker-option:hover {
-        transform: translateY(-1px);
+        background: color-mix(in srgb, var(--workspace-foreground) 7%, transparent);
     }
 
     .creation-model-picker-menu .canvas-model-picker-option > span:first-child {
@@ -7298,26 +7298,62 @@
     .canvas-model-picker-group-label {
         align-items: center;
         display: flex;
-        font-size: 10px;
-        font-weight: 600;
+        font-size: 12px;
+        font-weight: 400;
         gap: 6px;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.01em;
         min-width: 0;
-        padding: 5px 7px 4px;
+        padding: 10px 10px 6px;
     }
 
+    /* 份数竖向滚动列表(窄列数字, 细滚动条) */
+    .canvas-settings-roll-row {
+        display: grid;
+        place-items: center;
+        height: 36px;
+        flex: 0 0 auto;
+        border: 1px solid transparent;
+        border-radius: var(--r-md);
+        font-size: var(--fs-label);
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color var(--motion-dur-fast-calc) var(--motion-ease-out), border-color var(--motion-dur-fast-calc) var(--motion-ease-out);
+    }
+
+    .canvas-settings-roll-row:hover {
+        background: color-mix(in srgb, var(--workspace-foreground) 8%, transparent);
+    }
+
+    .canvas-settings-roll-row[aria-pressed="true"] {
+        filter: none;
+    }
+
+    .canvas-settings-roll.thin-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--workspace-foreground) 22%, transparent) transparent;
+    }
+
+    .canvas-settings-roll::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .canvas-settings-roll::-webkit-scrollbar-thumb {
+        border-radius: 4px;
+        background: color-mix(in srgb, var(--workspace-foreground) 22%, transparent);
+    }
+
+    /* flora 模型菜单语法(P51-030 实测): 根 radius16/rgba(32,32,32,.9), 搜索行 pl-4 py-3, 组标题 12px #7b7b7b, 行 53px radius12, 徽章 18px 白.1 */
     .canvas-model-picker-search {
         display: flex;
         align-items: center;
-        gap: 6px;
-        margin: 0 0 6px;
-        padding: 0 8px;
-        border-bottom: 1px solid color-mix(in srgb, var(--workspace-border) 70%, transparent);
+        gap: 10px;
+        padding: 12px 16px;
+        border-bottom: 1px solid color-mix(in srgb, var(--workspace-border) 55%, transparent);
     }
 
     .canvas-model-picker-search-icon {
-        width: 13px;
-        height: 13px;
+        width: 14px;
+        height: 14px;
         flex: 0 0 auto;
         opacity: 0.45;
     }
@@ -7325,11 +7361,11 @@
     .canvas-model-picker-search input {
         min-width: 0;
         flex: 1 1 auto;
-        height: 32px;
         border: 0;
         background: transparent;
         color: inherit;
-        font-size: var(--fs-label);
+        font-size: var(--fs-body);
+        line-height: 24px;
         outline: none;
     }
 
@@ -7340,7 +7376,7 @@
     .canvas-model-picker-option {
         align-items: center;
         border: 0;
-        border-radius: 7px;
+        border-radius: 12px;
         cursor: pointer;
         display: flex;
         gap: 8px;
@@ -7349,15 +7385,50 @@
         min-width: 0;
         outline: none;
         overflow: hidden;
-        padding: 6px 7px;
+        padding: 6px 8px;
         text-align: left;
         transition: background-color var(--motion-instant) ease-out;
         width: 100%;
     }
 
-    .canvas-model-picker-option .grid.size-6,
-    .canvas-model-picker-option > span:last-child > span[style*="tabular-nums"] {
-        border: 1px solid color-mix(in srgb, var(--workspace-border) 80%, transparent);
+    /* 两行模型行(flora 53px: 名行+描述行) */
+    .canvas-model-picker-option.has-description {
+        padding: 8px 10px;
+    }
+
+    .canvas-model-picker-option[aria-selected="true"] {
+        background: color-mix(in srgb, var(--workspace-accent) 7%, transparent) !important;
+    }
+
+    .canvas-model-picker-option:focus-visible {
+        background: color-mix(in srgb, var(--workspace-accent) 13%, transparent) !important;
+        outline: none;
+    }
+
+    .canvas-model-picker-option > span:first-child {
+        flex: 1 1 auto;
+    }
+
+    .canvas-model-picker-group-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 12px 14px 6px;
+        font-size: var(--fs-tiny);
+        font-weight: 400;
+    }
+
+    .canvas-model-picker-group-label .canvas-model-picker-group-scope {
+        opacity: 0.55;
+        font-weight: 400;
+    }
+
+    .canvas-model-picker-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        max-height: min(420px, 384px);
+        overflow-y: auto;
     }
 
     .canvas-model-picker-option:hover {
@@ -10758,14 +10829,25 @@ html:not(.dark) .creation-chat-control[aria-pressed="true"] > svg { color: #0e74
 
 .creation-model-picker-menu { width: min(332px, calc(100vw - 24px)) !important; max-height: min(420px, calc(100vh - 24px)); padding: 7px !important; background: transparent !important; color: #f0f1f2 !important; }
 .creation-model-picker-heading { display: flex; align-items: center; gap: 6px; padding: 4px 7px 7px; color: #8e949d; font-size: 10px; }
+.creation-mode-picker-menu { width: 158px; padding: 5px; color: #f0f1f2; }
+.creation-mode-picker-menu button { display: flex; width: 100%; height: 34px; align-items: center; gap: 8px; border: 0; border-radius: 6px; background: transparent; color: inherit; padding: 0 7px; font-size: 11px; text-align: left; }
+.creation-mode-picker-menu button:hover { background: var(--control-selected-bg); }
+.creation-mode-picker-menu button.is-selected { background: var(--control-selected-bg); color: var(--control-selected-fg); }
+.creation-mode-picker-menu button > svg { width: 13px; height: 13px; margin-left: auto; }
+.creation-menu-icon { display: grid; width: 19px; height: 19px; place-items: center; border: 0; border-radius: 5px; background: rgba(255, 255, 255, .07); }
+.creation-menu-icon svg { width: 12px; height: 12px; }
+
+/* flora 覆盖(P51-030 实测): 菜单 384 radius16; 行53 radius12; logo 24 圆; 名14/350; desc 12 #b4b4b4 */
+.creation-model-picker-menu { width: min(384px, calc(100vw - 24px)) !important; max-height: min(420px, calc(100vh - 24px)); padding: 5px !important; background: transparent !important; color: #f0f1f2 !important; }
+.creation-model-picker-heading { display: flex; align-items: center; gap: 6px; padding: 4px 10px 7px; color: #8e949d; font-size: 12px; }
 .creation-model-picker-heading strong { color: #e6e8eb; font-weight: 500; }
-.creation-model-picker-menu .canvas-model-picker-group-label { padding: 6px 7px 5px; font-size: 10px; }
-.creation-model-picker-menu .canvas-model-picker-option { min-height: 43px; border-radius: 6px; padding: 5px 7px; }
-.creation-model-picker-menu .canvas-model-picker-option:hover { transform: none; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child { gap: 8px; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child { width: 26px; height: 26px; border: 0; border-radius: 5px; background: rgba(255, 255, 255, .07) !important; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:first-child { font-size: 11px; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:nth-child(2) { margin-top: 3px; font-size: 9px; }
+.creation-model-picker-menu .canvas-model-picker-group-label { padding: 10px 10px 6px; font-size: 12px; }
+.creation-model-picker-menu .canvas-model-picker-option { min-height: 53px; border-radius: 12px; padding: 8px 10px; }
+.creation-model-picker-menu .canvas-model-picker-option:hover { transform: none; background: color-mix(in srgb, var(--workspace-foreground) 7%, transparent); }
+.creation-model-picker-menu .canvas-model-picker-option > span:first-child { gap: 10px; }
+.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child { width: 24px; height: 24px; border: 0; border-radius: 9999px; background: rgba(255, 255, 255, .09) !important; }
+.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:first-child { font-size: 14px; font-weight: 350; }
+.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:nth-child(2) { margin-top: 2px; font-size: 12px; opacity: .72; }
 
 .creation-thread-stage { width: min(820px, calc(100% - 48px)); padding: 44px 0 22px; }
 .creation-thread-composer { width: min(820px, calc(100% - 48px)); padding: 8px 0 16px; }

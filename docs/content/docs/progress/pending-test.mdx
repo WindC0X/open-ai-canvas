@@ -2121,4 +2121,22 @@ f (docs(pending-test): S08 composer形态像素复核闭环 - 文本设置气泡
 7. **撤销节点尺寸过渡**：用户实测 250ms 拖尾"感觉不太好"，回退 width/height transition 与 isResizingNow state；测试改为锚定"无过渡"契约（canvas-node-size-transition.test.tsx 3 pass）。
 
 验证：bunx tsc 0、bun run build ✓（27.18s）、定向测试 3/3。浏览器已验：family 分组标签、圆形图标、heading 隐藏；金色徽章清除与 pill 形态经 served 模块 grep 验证（浏览器复验时 tab 处于用户使用中/hydrate 抖动窗口，留待下次画布会话 eyeball）。
+
 8 (fix(canvas): S08 纠正批 - family分组/金色徽章清除/圆形logo/pill圆角矩形/删冗余文案/撤销尺寸过渡)
+
+### S08 flora 菜单权威对齐批（2026-09-07，P51-030 语料实测值落地）
+
+按用户指正改从 og-canvas-flora-study 语料（P51-030 generative-controls DOM/CSS 实测 computed）取权威值，不再凭截图目测：
+
+**模型列表（flora 实测值）**：菜单根 radius 16；搜索行 pl-4 py-3 图标 14px；组标题 12px/400 muted；模型行 min-height 53（两行结构）radius 12，行背景透明、hover 中性 alpha；logo 24px 圆形容器；名 14px/weight 350；描述 12px muted；徽章 18px 高 bg 白.1；菜单内衬 5px。creation 变体（前台）对齐同数值（384 宽）。已验：create 页分组 Grok/Agnes、行 53px/12px radius、logo 24px 圆、无金色徽章。
+
+**漂移 bug 修复**：模型列表与四个设置气泡新增画布 wheel 手势打断关闭（`closeOnCanvasWheel` capture+passive）；修了一个 `contains(window)` TypeError（target 非 Node 时短路的条件写反导致 listener 静默崩溃）。浏览器实测 wheel 后浮层关闭 ✓（需页面真实 reload 后验证，serve/页面内存模块一致性已核）。
+
+**大标题移除**：画布内 image/video/audio 设置面板 `showTitle={false}`（触发器已说明上下文，面板不再重复"图像设置/视频设置/音频设置"标题）。
+
+**份数列表重做**：从 1×4 pill+输入框改为竖向数字滚动列表（1..15，行高 36，宽 96，选中高亮描边，细滚动条 4px，打开自动滚到当前值）。实测 15 行/36px/8px radius/选中白.1 底。
+
+**图像面板微调**：分辨率档 grid 统一（≤2 双列 / 3+ 三列）。
+
+**验证**：tsc 0、build ✓（28.61s）、transition 契约测试 3/3。排障：又一轮 vite watcher 失效 + 页面 reload 未生效导致验证假失败（performance.timeOrigin 确认页面年龄后强刷复测通过）。
+9 (feat(canvas): S08 flora菜单权威对齐 - P51-030实测值(53行/12radius/24圆logo/18徽章), wheel手势打断关闭, 份数竖向滚动列表, 面板去大标题)

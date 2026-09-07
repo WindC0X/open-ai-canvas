@@ -104,7 +104,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 </div> : null}
                 {resolutionChoices.length ? <div className="space-y-2">
                     <SettingTitle color={theme.node.muted}>分辨率</SettingTitle>
-                    <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : resolutionChoices.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
+                    <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                         {resolutionChoices.map((choice) => (
                             <OptionPill key={choice} selected={choice === "auto" ? activeSize === "auto" : activeResolution?.tier === choice} theme={theme} onClick={() => selectResolution(choice)}>
                                 {choice === "auto" ? "自动" : choice.toUpperCase()}
