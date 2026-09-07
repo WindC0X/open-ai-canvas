@@ -773,6 +773,39 @@ export function modelDisplayName(config: AiConfig, value: string) {
     return channel.scope === "system" ? "系统模型" : model;
 }
 
+// 模型家族聚类: 从模型显示名提取产商/家族词(flora Providers 分组的数据诚实版——
+// 平台目录不透出渠道内部名, 家族词取自模型名自身, 无映射的回落"其他模型")。
+export function logicalModelFamilyOf(config: AiConfig, model: string): string {
+    const name = (modelDisplayName(config, model) || modelOptionName(model)).toLowerCase();
+    const families: Array<[string, string]> = [
+        ["grok", "Grok"],
+        ["nano banana", "Nano Banana"],
+        ["nanobanana", "Nano Banana"],
+        ["imagen", "Imagen"],
+        ["gemini", "Gemini"],
+        ["gpt", "GPT Image"],
+        ["dall", "DALL·E"],
+        ["seedream", "Seedream"],
+        ["seedance", "Seedance"],
+        ["jimeng", "即梦"],
+        ["veo", "Veo"],
+        ["claude", "Claude"],
+        ["deepseek", "DeepSeek"],
+        ["qwen", "Qwen"],
+        ["kimi", "Kimi"],
+        ["flux", "FLUX"],
+        ["sora", "Sora"],
+        ["wan", "Wan"],
+        ["agnes", "Agnes"],
+        ["tts", "TTS"],
+        ["whisper", "Whisper"],
+    ];
+    for (const [needle, label] of families) {
+        if (name.includes(needle)) return label;
+    }
+    return "其他模型";
+}
+
 export function modelIcon(config: AiConfig, value: string) {
     const model = modelOptionName(value);
     return resolveModelChannel(config, value).modelCosts?.find((item) => item.model === model)?.icon || "";

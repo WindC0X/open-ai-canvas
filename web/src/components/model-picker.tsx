@@ -7,7 +7,7 @@ import { modelCapabilityConfigFor, videoDurationOptions } from "@/lib/model-capa
 import { formatPriceRange, modelQuoteRequest, normalizeTierResolution, priceTierSummaryLabel, priceTiersForCurrentSelection } from "@/lib/model-pricing";
 import { compatibleModelInGroup, configuredModelDisplayName, groupModelsByDisplayName, modelCompatibilityError, resolveCompatibleModel, type ModelRequirements } from "@/lib/model-selection";
 import { cn } from "@/lib/utils";
-import { modelDisplayName, modelIcon, modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+import { logicalModelFamilyOf, modelDisplayName, modelIcon, modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { ModelLogo } from "@/components/model-logo";
@@ -32,6 +32,8 @@ type ModelPickerProps = {
     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
     /** flora 语法:模型列表顶部搜索过滤;默认关闭保持既有轻量列表。 */
     searchable?: boolean;
+    /** 分组语法: family=按模型家族(前台创作页), channel=按渠道(画布, 默认)。 */
+    grouping?: "channel" | "family";
 };
 
 export function ModelPicker({
@@ -51,6 +53,7 @@ export function ModelPicker({
     requirements,
     showConfiguredModelName = false,
     searchable = false,
+    grouping = "channel",
 }: ModelPickerProps) {
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const pickerId = useId();
@@ -63,6 +66,20 @@ export function ModelPicker({
     const triggerRef = useRef<HTMLButtonElement>(null);
     const options = useMemo(() => Array.from(new Set(selectableModelsByCapability(config, capability).filter(Boolean))), [capability, config]);
     const optionGroups = useMemo(() => {
+        // 分组语法: 前台(创作页)按模型家族聚(产商族, flora Providers 结构的数据诚实版);
+        // 画布系统模型按渠道分组。options 已由当前有效渠道重建, 无法解析渠道的旧值直接丢弃。
+        if (grouping === "family") {
+            const groups = new Map<string, string[]>();
+            for (const model of options) {
+                const label = logicalModelFamilyOf(config, model);
+                const bucket = groups.get(label);
+                if (bucket) bucket.push(model);
+                else groups.set(label, [model]);
+            }
+            return Array.from(groups.entries())
+                .map(([label, models]) => ({ key: label, label, scope: "", models: groupModelsByDisplayName(config, models) }))
+                .filter((group) => group.models.length);
+        }
         const channelGroups = config.channels
             .map((channel) => ({
                 key: channel.id,
@@ -74,10 +91,8 @@ export function ModelPicker({
                 ),
             }))
             .filter((group) => group.models.length);
-        // options 已由当前有效渠道重建；任何无法解析渠道的旧值都直接丢弃，
-        // 不再显示“其他模型 / 未指定渠道”这种不可用入口。
         return channelGroups;
-    }, [config, options]);
+    }, [config, grouping, options]);
     const storedCurrent = value?.trim() || "";
     // 参数档位会在选中模型后由调用方归一到其能力配置，不能因为旧模型留下的参数而禁止切换。
     const selectionRequirements = requirements ? { ...requirements, videoSeconds: undefined, imageSize: undefined, options: undefined } : undefined;
@@ -230,7 +245,7 @@ export function ModelPicker({
                     />
                 </div>
             ) : null}
-            {creationVariant ? (
+            {creationVariant && !searchable ? (
                 <div className="creation-model-picker-heading">
                     <span>选择模型</span>
                     {current ? <strong>{pickerModelDisplayName(config, current, showConfiguredModelName)}</strong> : null}
@@ -371,7 +386,7 @@ function ModelLabel({
         (logicalSpec ? logicalCapabilitySummary(logicalSpec) : videoProfile ? `${formatDurationSummary(videoProfile)} · ${videoProfile.resolutions.map((item) => item.toUpperCase()).join("/")}` : meta.description);
     return (
         <span className="flex w-full min-w-0 items-center gap-1.5 overflow-hidden py-0">
-            <span className="grid size-6 shrink-0 place-items-center rounded-md" style={{ background: theme.toolbar.itemHover }}>
+            <span className="grid size-6 shrink-0 place-items-center rounded-full" style={{ background: theme.toolbar.itemHover }}>
                 <ModelIcon config={config} model={model} />
             </span>
             <span className="min-w-0 flex-1 overflow-hidden">
@@ -524,7 +539,7 @@ function ModelPrice({ price, quote, compact = false }: { price: ModelMenuPrice |
         const amount = (quote.amountMicrocredits / 1_000_000).toLocaleString("zh-CN", { maximumFractionDigits: 3 });
         const label = quote.estimated ? `预计 ${amount}` : `${amount}`;
         return (
-            <span className="inline-flex shrink-0 items-center gap-0.5 text-[var(--fs-tiny)] font-bold tabular-nums text-amber-600 dark:text-amber-300" title={`${quote.estimated ? "预计" : "本次"}消耗 ${amount} 积分`}>
+            <span className="inline-flex shrink-0 items-center gap-0.5 text-[var(--fs-tiny)] font-medium tabular-nums opacity-60" title={`${quote.estimated ? "预计" : "本次"}消耗 ${amount} 积分`}>
                 <Coins className="size-3" />
                 {compact ? label : `${label} 积分`}
             </span>
@@ -534,17 +549,17 @@ function ModelPrice({ price, quote, compact = false }: { price: ModelMenuPrice |
     if (price === null) return compact ? null : <span className="shrink-0 text-[var(--fs-tiny)] text-foreground/40">未配置</span>;
     if (price.kind === "tiers") {
         return (
-            <span className="inline-flex shrink-0 items-center gap-0.5 text-[var(--fs-tiny)] font-bold tabular-nums text-amber-600 dark:text-amber-300" title={price.title}>
+            <span className="inline-flex shrink-0 items-center gap-0.5 text-[var(--fs-tiny)] font-medium tabular-nums opacity-60" title={price.title}>
                 <Coins className="size-3" />
                 {compact ? price.compactLabel : price.label}
             </span>
         );
     }
     if (price.kind === "estimate") {
-        return <span className="shrink-0 text-[var(--fs-tiny)] font-medium text-amber-600 dark:text-amber-300">按量预估</span>;
+        return <span className="shrink-0 text-[var(--fs-tiny)] font-medium opacity-60">按量预估</span>;
     }
     return (
-        <span className="inline-flex shrink-0 items-center gap-0.5 text-[var(--fs-tiny)] font-bold tabular-nums text-amber-600 dark:text-amber-300" title={`每${price.unit}消耗 ${price.value.toLocaleString("zh-CN", { maximumFractionDigits: 6 })} 积分`}>
+        <span className="inline-flex shrink-0 items-center gap-0.5 text-[var(--fs-tiny)] font-medium tabular-nums opacity-60" title={`每${price.unit}消耗 ${price.value.toLocaleString("zh-CN", { maximumFractionDigits: 6 })} 积分`}>
             <Coins className="size-3" />
             {price.value.toLocaleString("zh-CN", { maximumFractionDigits: compact ? 3 : 6 })}/{price.unit}
         </span>

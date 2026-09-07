@@ -123,7 +123,7 @@ function TextSettingsPortal({
                             type="button"
                             aria-label={`${pill} 份`}
                             aria-pressed={value === pill}
-                            className="canvas-settings-option h-8 rounded-full text-xs transition-colors"
+                            className="canvas-settings-option h-8 rounded-lg text-xs transition-colors"
                             style={{
                                 background: value === pill ? theme.toolbar.activeBg : theme.toolbar.itemHover,
                                 borderColor: value === pill ? theme.node.activeStroke : theme.toolbar.border,
@@ -156,7 +156,7 @@ function TextCountInput({ value, max, theme, onChange }: { value: number; max: n
             max={max}
             aria-label="自定义生成份数"
             placeholder="输入"
-            className="canvas-settings-option h-8 min-w-0 rounded-full text-center text-xs outline-none placeholder:text-current placeholder:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            className="canvas-settings-option h-8 min-w-0 rounded-lg text-center text-xs outline-none placeholder:text-current placeholder:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             style={{ background: theme.toolbar.itemHover, borderColor: theme.toolbar.border, color: theme.node.text }}
             defaultValue={isCustom ? value : ""}
             onBlur={(event) => commit(event.currentTarget)}

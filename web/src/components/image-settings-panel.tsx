@@ -93,9 +93,6 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 {showTransparent && profile.transparentBackground.supported ? <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                         <SettingTitle color={theme.node.muted}>透明背景</SettingTitle>
-                        <div className="mt-1 text-[var(--fs-label)]" style={{ color: theme.node.muted }}>
-                            请求模型输出保留 Alpha 通道的 PNG
-                        </div>
                     </div>
                     <span title="是否支持透明背景由当前模型接口决定" onMouseDown={(event) => event.stopPropagation()}>
                         <Switch
@@ -219,7 +216,7 @@ function OptionPill({ selected, disabled = false, theme, onClick, children }: { 
     return (
         <button
             type="button"
-			className="canvas-settings-option h-8 cursor-pointer rounded-full px-2 text-xs transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-40"
+			className="canvas-settings-option h-8 cursor-pointer rounded-lg px-2.5 text-xs transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-40"
 			style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
 			disabled={disabled}
             onMouseDown={(event) => event.stopPropagation()}
@@ -237,7 +234,7 @@ function CountInput({ value, quickCount, max, theme, onChange }: { value: number
         onChange(next);
     };
     return (
-        <label className="flex h-8 overflow-hidden rounded-full text-xs" style={{ background: theme.toolbar.itemHover, color: theme.node.text }}>
+        <label className="flex h-8 overflow-hidden rounded-lg text-xs" style={{ background: theme.toolbar.itemHover, color: theme.node.text }}>
             <input
                 key={value > quickCount ? `custom-${value}` : "quick"}
                 type="number"

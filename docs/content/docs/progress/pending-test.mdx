@@ -2105,4 +2105,20 @@ f (docs(pending-test): S08 composer形态像素复核闭环 - 文本设置气泡
 **验证**：bunx tsc 0 错误；bun run build ✓（39.33s）；定向测试 26 pass（media-node-initial-size/loading-fill/video-completion-size）+ 新增 canvas-node-size-transition.test.tsx 4 pass（过渡契约+384 几何源码快照）。浏览器后台实测全绿（合成事件路径）。
 
 **排障记录**：双 vite 实例复发（1526503 持 :3000 旧模块 + 3827227 无端口）→ 全杀重启单实例（显式 `VITE_API_PROXY_TARGET=http://127.0.0.1:8081`，curl /api/auth/settings 200 确认代理）；serve 模块新鲜度以 curl grep "width: 384" 验证。tmwd bridge 中途掉线（status: NOT running）→ 从 GenericAgent 目录重启 run_tmwd_bridge.py 恢复。长脚本注入在 hydrate 窗口会 ACK 无返回——sleep 后重试即可，bridge 与页面本身健康。
+
 1 (feat(canvas): S08 列表质感统一 + 触发自适应 + 节点尺寸过渡 + Text 384x384)
+
+### S08 像素纪律轮·纠正批（2026-09-07，用户截图复核后）
+
+用户对照 flora 原图逐项打回：分组错了（应产商族/渠道分）、金色徽章乱入、胶囊 pill 与 flora 圆角矩形词汇不符、重心文案冗余、尺寸过渡拖尾难看。纠正：
+
+1. **分组修正**：`ModelPicker` 新增 `grouping` prop——`family`（前台创作页，`logicalModelFamilyOf` 按模型名家族词聚类：Grok/Nano Banana/Gemini/Seedance…无映射回落"其他模型"）与 `channel`（画布默认，维持渠道分组）。create 页传 `family`；画布保持渠道分组。实测 create 页分组标签 `["Grok","Agnes"]`（平台目录不透出渠道内部名，family 是数据诚实版）。
+2. **金色积分徽章清除**：ModelPrice 三分支 `text-amber-600` → `font-medium opacity-60` 中性徽章（flora 徽章语法：价格是次要元数据）。served 模块验证 amber-600 = 0。
+3. **圆形 logo**：选项图标容器 `rounded-md` → `rounded-full`（flora 圆形 provider logo），实测 circular ✓。
+4. **heading 去重**：searchable 时隐藏 `选择模型 + 当前名` heading（触发器已展示，双重重心）。实测 headingVisible:false ✓。
+5. **pill 形态统一 flora 圆角矩形**：四面板全部 `rounded-full → rounded-lg`（image 质量/张数 pill、video 选项 pill、audio 声音/格式/语速 pill、text 份数 pill）+ 相关输入壳 `rounded-lg`；比例卡维持 rounded-lg。flora 无胶囊词汇。
+6. **删除透明背景说明行**（"请求模型输出保留 Alpha 通道的 PNG"）。
+7. **撤销节点尺寸过渡**：用户实测 250ms 拖尾"感觉不太好"，回退 width/height transition 与 isResizingNow state；测试改为锚定"无过渡"契约（canvas-node-size-transition.test.tsx 3 pass）。
+
+验证：bunx tsc 0、bun run build ✓（27.18s）、定向测试 3/3。浏览器已验：family 分组标签、圆形图标、heading 隐藏；金色徽章清除与 pill 形态经 served 模块 grep 验证（浏览器复验时 tab 处于用户使用中/hydrate 抖动窗口，留待下次画布会话 eyeball）。
+8 (fix(canvas): S08 纠正批 - family分组/金色徽章清除/圆形logo/pill圆角矩形/删冗余文案/撤销尺寸过渡)

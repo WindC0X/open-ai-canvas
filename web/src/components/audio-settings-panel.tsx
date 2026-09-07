@@ -58,7 +58,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         min={0.25}
                         max={4}
                         step={0.05}
-                        className="h-8 w-full rounded-full border bg-transparent px-3 text-center text-xs outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        className="h-8 w-full rounded-lg border bg-transparent px-3 text-center text-xs outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         style={{ borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text }}
                         value={config.audioSpeed || "1"}
                         onChange={(event) => onConfigChange("audioSpeed", event.target.value)}
@@ -85,7 +85,7 @@ function OptionPill({ selected, theme, onClick, children }: { selected: boolean;
     return (
         <button
             type="button"
-            className="canvas-settings-option h-8 cursor-pointer rounded-full px-2 text-[var(--fs-label)] transition-colors"
+            className="canvas-settings-option h-8 cursor-pointer rounded-lg px-2.5 text-[var(--fs-label)] transition-colors"
             style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}

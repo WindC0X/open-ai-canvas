@@ -1,6 +1,6 @@
 /**
- * S08 像素纪律轮: 节点几何过渡 + Text 384×384 契约
- * - canvas-node.tsx 源码快照: 程序性改尺寸带 base 档过渡, 拖拽/缩放时禁用(rAF-free, 后台安全)
+ * S08 像素纪律轮: 节点几何契约
+ * - 尺寸变化无过渡: 用户实测 250ms 拖尾"感觉不太好", 撤销过渡(拖拽跟手优先)
  * - NODE_DEFAULT_SIZE.Text = 384×384 (flora 文本族)
  */
 import { describe, expect, test } from "bun:test";
@@ -11,20 +11,14 @@ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 
 const nodeSource = readFileSync(join(import.meta.dir, "../src/components/canvas/canvas-node.tsx"), "utf-8");
 
-describe("canvas-node 尺寸过渡契约", () => {
-    test("node-element 样式含 width/height 过渡声明", () => {
-        expect(nodeSource.includes("width var(--motion-dur-base)")).toBe(true);
-        expect(nodeSource.includes("height var(--motion-dur-base)")).toBe(true);
+describe("canvas-node 几何契约", () => {
+    test("尺寸变化无 width/height 过渡(撤销 250ms 拖尾; 其余 transition 为工具条/徽章 hover, 允许)", () => {
+        expect(nodeSource.includes("width var(--motion-dur-base)")).toBe(false);
+        expect(nodeSource.includes('transition: isResizingNow')).toBe(false);
     });
 
-    test("拖拽或缩放时过渡禁用(transition: none)", () => {
-        expect(nodeSource.includes('isResizingNow || dragOffset ? "none"')).toBe(true);
-    });
-
-    test("isResizingNow 由 state 驱动(后台标签安全, 非rAF)", () => {
-        expect(nodeSource.includes("useState(false)")).toBe(true);
-        expect(nodeSource.includes("setIsResizingNow(true)")).toBe(true);
-        expect(nodeSource.includes("setIsResizingNow(false)")).toBe(true);
+    test("resize 无 rAF 依赖(后台标签安全)", () => {
+        expect(nodeSource.includes("requestAnimationFrame")).toBe(false);
     });
 });
 
