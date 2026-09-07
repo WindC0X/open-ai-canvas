@@ -988,7 +988,7 @@
     --canvas-composer-control-surface: color-mix(in srgb, var(--foreground) 5%, transparent);
     --canvas-composer-control-hover: color-mix(in srgb, var(--foreground) 8%, transparent);
     --canvas-composer-shadow: var(--elevation-card);
-    --canvas-composer-settings-width: 138px;
+    --canvas-composer-settings-max-width: 168px;
     --canvas-mention-menu-max-height: 320px;
     --canvas-mention-search-height: 38px;
     --canvas-mention-item-height: 38px;
@@ -7306,6 +7306,37 @@
         padding: 5px 7px 4px;
     }
 
+    .canvas-model-picker-search {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0 0 6px;
+        padding: 0 8px;
+        border-bottom: 1px solid color-mix(in srgb, var(--workspace-border) 70%, transparent);
+    }
+
+    .canvas-model-picker-search-icon {
+        width: 13px;
+        height: 13px;
+        flex: 0 0 auto;
+        opacity: 0.45;
+    }
+
+    .canvas-model-picker-search input {
+        min-width: 0;
+        flex: 1 1 auto;
+        height: 32px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font-size: var(--fs-label);
+        outline: none;
+    }
+
+    .canvas-model-picker-search input::placeholder {
+        opacity: 0.4;
+    }
+
     .canvas-model-picker-option {
         align-items: center;
         border: 0;
@@ -7322,6 +7353,11 @@
         text-align: left;
         transition: background-color var(--motion-instant) ease-out;
         width: 100%;
+    }
+
+    .canvas-model-picker-option .grid.size-6,
+    .canvas-model-picker-option > span:last-child > span[style*="tabular-nums"] {
+        border: 1px solid color-mix(in srgb, var(--workspace-border) 80%, transparent);
     }
 
     .canvas-model-picker-option:hover {
@@ -9608,7 +9644,9 @@
 
     .canvas-node-composer-settings-trigger {
         height: 28px !important;
-        width: var(--canvas-composer-settings-width) !important;
+        /* 自适应宽度: 内容(图标+摘要)撑开, 封顶防溢出; 不再固定 138px 留空带 */
+        width: auto !important;
+        max-width: var(--canvas-composer-settings-max-width) !important;
         justify-content: flex-start !important;
         border: 0 !important;
         border-radius: var(--r-md) !important;

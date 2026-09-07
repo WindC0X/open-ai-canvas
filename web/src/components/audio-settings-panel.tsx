@@ -25,9 +25,9 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
     return (
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
-                {showTitle ? <div className="text-lg font-semibold">音频设置</div> : null}
+                {showTitle ? <div className="text-sm font-semibold">音频设置</div> : null}
                 <SettingGroup title="声音" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-3 gap-1.5">
                         {audioVoiceOptions.map((item) => (
                             <OptionPill key={item.value} selected={voice === item.value} theme={theme} onClick={() => onConfigChange("audioVoice", item.value)}>
                                 {item.label}
@@ -36,7 +36,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     </div>
                 </SettingGroup>
                 <SettingGroup title="格式" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-3 gap-1.5">
                         {audioFormatOptions.map((item) => (
                             <OptionPill key={item.value} selected={format === item.value} theme={theme} onClick={() => onConfigChange("audioFormat", item.value)}>
                                 {item.label}
@@ -45,7 +45,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     </div>
                 </SettingGroup>
                 <SettingGroup title="语速" color={theme.node.muted}>
-                    <div className="grid grid-cols-4 gap-2.5">
+                    <div className="grid grid-cols-4 gap-1.5">
                         {speedOptions.map((value) => (
                             <OptionPill key={value} selected={speed === value} theme={theme} onClick={() => onConfigChange("audioSpeed", value)}>
                                 {audioSpeedLabel(value)}
@@ -54,10 +54,11 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     </div>
                     <input
                         type="number"
+                        aria-label="自定义语速"
                         min={0.25}
                         max={4}
                         step={0.05}
-                        className="h-9 w-full rounded-full border bg-transparent px-3 text-center text-sm outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        className="h-8 w-full rounded-full border bg-transparent px-3 text-center text-xs outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         style={{ borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text }}
                         value={config.audioSpeed || "1"}
                         onChange={(event) => onConfigChange("audioSpeed", event.target.value)}
@@ -84,7 +85,7 @@ function OptionPill({ selected, theme, onClick, children }: { selected: boolean;
     return (
         <button
             type="button"
-            className="canvas-settings-option h-9 cursor-pointer rounded-full border px-2 text-sm transition"
+            className="canvas-settings-option h-8 cursor-pointer rounded-full px-2 text-[var(--fs-label)] transition-colors"
             style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}

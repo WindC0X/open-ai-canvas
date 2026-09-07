@@ -134,6 +134,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     const assetTags = data.metadata?.assetTags?.filter((tag) => tag.trim()) || [];
     const scriptMinHeight = data.type === CanvasNodeType.Script ? storyboardMinNodeHeight(data.metadata?.storyboardComposerHeight) : null;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [isResizingNow, setIsResizingNow] = useState(false);
     const resizeRef = useRef({
         isResizing: false,
         corner: "bottom-right" as ResizeCorner,
@@ -222,11 +223,12 @@ export const CanvasNode = React.memo(function CanvasNode({
                 y: fromTop ? startBottom - height : resizeRef.current.startTop,
             });
         },
-        [data.id, data.type, onResize, scale, scriptMinHeight],
+        [data.id, data.type, onResize, scale, scriptMinHeight, isResizingNow],
     );
 
     const handleResizeUp = useCallback(() => {
         resizeRef.current.isResizing = false;
+        setIsResizingNow(false);
         window.removeEventListener("mousemove", handleResizeMove);
         window.removeEventListener("mouseup", handleResizeUp);
     }, [handleResizeMove]);
@@ -234,6 +236,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     const handleResizeMouseDown = (event: React.MouseEvent, corner: ResizeCorner) => {
         event.stopPropagation();
         event.preventDefault();
+        setIsResizingNow(true);
         resizeRef.current = {
             isResizing: true,
             corner,
@@ -279,6 +282,9 @@ export const CanvasNode = React.memo(function CanvasNode({
                 width: data.width,
                 height: data.height,
                 contain: "layout style",
+                // 程序性改尺寸(composer 参数联动/生成完成回填)走 base 档过渡;
+                // 用户拖拽/缩放经 transition-none 覆盖, 避免 1:1 跟手被 250ms 拖尾。
+                transition: isResizingNow || dragOffset ? "none" : `width var(--motion-dur-base) var(--motion-ease-out), height var(--motion-dur-base) var(--motion-ease-out)`,
             }}
             onMouseEnter={() => {
                 setHovered(true);

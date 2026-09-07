@@ -378,6 +378,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                         showOptionPrices={creditsEnabled}
                         variant="creation"
                         showConfiguredModelName
+                        searchable
                     />
                 </div>
                 <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1">

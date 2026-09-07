@@ -10,7 +10,7 @@ type CanvasNodeSpec = {
 
 export const NODE_DEFAULT_SIZE = {
     [CanvasNodeType.Image]: { width: 720, height: 405, title: "图片" },
-    [CanvasNodeType.Text]: { width: 340, height: 240, title: "Note" },
+    [CanvasNodeType.Text]: { width: 384, height: 384, title: "Note" }, // flora 文本族 384×384: 与媒体族同视觉档(S08 改动面③)
     [CanvasNodeType.Drawing]: { width: 440, height: 300, title: "绘图" },
     [CanvasNodeType.Script]: { width: 920, height: 360, title: "分镜脚本" },
     [CanvasNodeType.Skill]: { width: 360, height: 220, title: "技能" },

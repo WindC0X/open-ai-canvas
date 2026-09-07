@@ -2083,4 +2083,26 @@ f (docs(pending-test): S08 composer形态像素复核闭环 - 文本设置气泡
 6 (docs(pending-test): S08 设置气泡纪律收敛登记 - 边界/滚动/方向/动画四项, 像素复核待窗口前台)
 
 **像素复核补全（2026-09-07 后台标签完成，合成事件 + 计算样式读取）**：澄清纪律——execute_js 注入后台完全可用（此前误等前台），仅 CDP trusted 鼠标事件后台会丢。实测全绿：①文本气泡说明文本已删；②选项边界生效（选中 `1px activeStroke + activeBg`，未选 `1px toolbar.border + itemHover`，video 气泡 3 抽样同）；③改值链路：点「4 份」→触发器变「文本设置：4 份」；④方向统一向上：text/video 气泡 `aboveTrigger=true + bottom 锚定`，ModelPicker(topLeft) 列表在触发器上方；⑤关闭动画：`canvas-settings-popover-closing` → `canvas-panel-out` 播放后卸载；⑥滚动纪律：model-picker 菜单 `max-height 420px + overflowY auto`，四气泡同。S08 设置气泡纪律收敛全部闭环。
+
 7 (docs(pending-test): 设置气泡纪律收敛后台实测闭环 - 边界/方向/动画/滚动/改值链路全绿)
+
+## S08 像素纪律轮：列表质感统一 + 触发自适应 + 节点几何（2026-09-07）
+
+用户三组指正（对照 flora 模型列表截图 + 竞品组件图）：四列表质感/联动、触发按钮空带、文本节点过小。落地与实测：
+
+**① 触发按钮自适应**：`.canvas-node-composer-settings-trigger` 固定 `width:138px` 改 `width:auto + max-width:168px`。实测「文本设置：1 份」触发器 138px→54px，短摘要不再留空带；模型选择器容器（min-width:148/flex）保持吃满剩余空间不动。
+
+**② 模型列表 flora 化**：新增 `searchable` prop（composer 传 `searchable`），顶部搜索框（搜索图标+32px 输入行+底部分隔线），按模型名/显示名/渠道名过滤；实测输入 "grok" 3 行滤至 1 行（grok-chat-fast），清空恢复 3 行。徽章（图标格/时长）加 1px 中性描边补齐卡片词汇。选项保持两行结构（粗体名+徽章行 / muted 描述行）≈flora。
+
+**③ 面板质感收敛**：视频 OptionPill `rounded-md→rounded-full`（与图像质量/份数 pill 同词汇）、ratio 卡 `rounded-md→rounded-lg`（与图像比例卡同）；音频面板密度对齐（`space-y-4→3`、gap 2.5→1.5、h-9→h-8、text-sm→xs、标题 text-lg→sm），语速输入补 `aria-label="自定义语速"`。
+
+**④ 参数联动（音频）**：核查确认 `resetGenerationParamsOnModelSwitch`（canvas-project-domain.ts）已覆盖 audioVoice/audioFormat/audioSpeed/audioInstructions——换音频模型时旧参数清空回落默认，代码无缺口（修正此前汇报的"音频联动缺失"误判）。
+
+**⑤ 节点尺寸过渡**：`node-element` 外层样式加 `width/height var(--motion-dur-base)(250ms) ease-out` 过渡；用户拖拽/缩放时（isResizingNow state || dragOffset）`transition:none` 保 1:1 跟手。isResizingNow 用 state 非 rAF（后台标签安全纪律）。实测空 image 节点 inline transition 生效。
+
+**⑥ Text 默认几何 384×384**：`NODE_DEFAULT_SIZE.Text` 340×240→384×384（flora 文本族与媒体族同视觉档）。实测新建 Text 节点 384×384，存量节点保持 340×240 不回写。注册表 minSize 220×160/自由缩放不变。
+
+**验证**：bunx tsc 0 错误；bun run build ✓（39.33s）；定向测试 26 pass（media-node-initial-size/loading-fill/video-completion-size）+ 新增 canvas-node-size-transition.test.tsx 4 pass（过渡契约+384 几何源码快照）。浏览器后台实测全绿（合成事件路径）。
+
+**排障记录**：双 vite 实例复发（1526503 持 :3000 旧模块 + 3827227 无端口）→ 全杀重启单实例（显式 `VITE_API_PROXY_TARGET=http://127.0.0.1:8081`，curl /api/auth/settings 200 确认代理）；serve 模块新鲜度以 curl grep "width: 384" 验证。tmwd bridge 中途掉线（status: NOT running）→ 从 GenericAgent 目录重启 run_tmwd_bridge.py 恢复。长脚本注入在 hydrate 窗口会 ACK 无返回——sleep 后重试即可，bridge 与页面本身健康。
+1 (feat(canvas): S08 列表质感统一 + 触发自适应 + 节点尺寸过渡 + Text 384x384)

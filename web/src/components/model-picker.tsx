@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { Check, ChevronDown, Coins } from "lucide-react";
+import { Check, ChevronDown, Coins, Search } from "lucide-react";
 import { Popover } from "antd";
 
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
@@ -30,6 +30,8 @@ type ModelPickerProps = {
     showConfiguredModelName?: boolean;
     /** 弹出方向;画布 composer 统一向上(topLeft),默认保持 bottomLeft 兼容既有调用。 */
     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
+    /** flora 语法:模型列表顶部搜索过滤;默认关闭保持既有轻量列表。 */
+    searchable?: boolean;
 };
 
 export function ModelPicker({
@@ -48,6 +50,7 @@ export function ModelPicker({
     placement: placementProp,
     requirements,
     showConfiguredModelName = false,
+    searchable = false,
 }: ModelPickerProps) {
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const pickerId = useId();
@@ -132,6 +135,12 @@ export function ModelPicker({
         return () => window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
     }, [open]);
 
+    const searchRef = useRef<HTMLInputElement>(null);
+    const [searchText, setSearchText] = useState("");
+    useEffect(() => {
+        if (!open) setSearchText("");
+        else if (searchable) window.requestAnimationFrame(() => searchRef.current?.focus());
+    }, [open, searchable]);
     const setPickerOpen = (nextOpen: boolean) => {
         if (nextOpen && !options.length) onMissingConfig?.();
         if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
@@ -165,6 +174,21 @@ export function ModelPicker({
         const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : event.key === "ArrowUp" ? Math.max(0, activeIndex - 1) : Math.min(buttons.length - 1, activeIndex + 1);
         buttons[nextIndex]?.focus();
     };
+    const normalizedSearch = searchText.trim().toLowerCase();
+    const visibleGroups = normalizedSearch
+        ? optionGroups
+              .map((group) => ({
+                  ...group,
+                  models: group.models.filter((modelGroup) =>
+                      modelGroup.models.some((model) => {
+                          const label = pickerModelDisplayName(config, model, showConfiguredModelName);
+                          const channelName = resolveModelChannel(config, model).name || "";
+                          return label.toLowerCase().includes(normalizedSearch) || model.toLowerCase().includes(normalizedSearch) || channelName.toLowerCase().includes(normalizedSearch);
+                      }),
+                  ),
+              }))
+              .filter((group) => group.models.length)
+        : optionGroups;
     const content = (
         <div
             ref={menuRef}
@@ -183,14 +207,37 @@ export function ModelPicker({
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
         >
+            {searchable ? (
+                <div className="canvas-model-picker-search" onMouseDown={(event) => event.stopPropagation()}>
+                    <Search className="canvas-model-picker-search-icon" aria-hidden="true" />
+                    <input
+                        ref={searchRef}
+                        type="text"
+                        role="searchbox"
+                        aria-label="搜索模型"
+                        placeholder="搜索兼容模型"
+                        value={searchText}
+                        onChange={(event) => setSearchText(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setOpen(false);
+                                triggerRef.current?.focus();
+                            }
+                            event.stopPropagation();
+                        }}
+                    />
+                </div>
+            ) : null}
             {creationVariant ? (
                 <div className="creation-model-picker-heading">
                     <span>选择模型</span>
                     {current ? <strong>{pickerModelDisplayName(config, current, showConfiguredModelName)}</strong> : null}
                 </div>
             ) : null}
-            {optionGroups.length ? (
-                optionGroups.map((group) => (
+            {visibleGroups.length ? (
+                visibleGroups.map((group) => (
                     <section key={group.key} className="canvas-model-picker-group min-w-0 overflow-hidden">
                         <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
                             <span className="truncate">{group.label}</span>
