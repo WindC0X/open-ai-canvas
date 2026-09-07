@@ -2079,4 +2079,8 @@ f (docs(pending-test): S08 composer形态像素复核闭环 - 文本设置气泡
 5. **开合动画统一**：新增 `usePopoverExit` hook（open=false 后 150ms exit 窗口），四气泡统一 `canvas-panel-in`（开）/`canvas-panel-out`（关）动画；模型列表走 antd Popover 自带动效，同为有开合动画。
 
 验证：tsc 0、build 38.51s、文本气泡 SSR 单测 5/5；浏览器像素复核（边界描边观感、420 滚动、向上弹出、开合动画）待窗口前台补做——本轮 Chrome 窗口在后台（visibilityState hidden，CDP 点击被吞），已用 reload 后节点清单确认页面加载新模块。
+
 6 (docs(pending-test): S08 设置气泡纪律收敛登记 - 边界/滚动/方向/动画四项, 像素复核待窗口前台)
+
+**像素复核补全（2026-09-07 后台标签完成，合成事件 + 计算样式读取）**：澄清纪律——execute_js 注入后台完全可用（此前误等前台），仅 CDP trusted 鼠标事件后台会丢。实测全绿：①文本气泡说明文本已删；②选项边界生效（选中 `1px activeStroke + activeBg`，未选 `1px toolbar.border + itemHover`，video 气泡 3 抽样同）；③改值链路：点「4 份」→触发器变「文本设置：4 份」；④方向统一向上：text/video 气泡 `aboveTrigger=true + bottom 锚定`，ModelPicker(topLeft) 列表在触发器上方；⑤关闭动画：`canvas-settings-popover-closing` → `canvas-panel-out` 播放后卸载；⑥滚动纪律：model-picker 菜单 `max-height 420px + overflowY auto`，四气泡同。S08 设置气泡纪律收敛全部闭环。
+7 (docs(pending-test): 设置气泡纪律收敛后台实测闭环 - 边界/方向/动画/滚动/改值链路全绿)
