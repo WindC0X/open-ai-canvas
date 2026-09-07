@@ -82,8 +82,8 @@ export const canvasThemes = {
         },
         node: {
             label: "#a3a3a3",
-            agentUserMessage: "#182b40",
-            fill: "#181818",
+    fill: "rgba(255,255,255,.07)",
+            agentUserMessage: "#182b40",34976079 (feat(canvas): S08 模型菜单 L1/L2 钻取与 flora surface 权威值(radius16/384定宽/渠道行语法), wheel打断修复与份数列表)
             panel: "#141414",
             stroke: "rgba(255,255,255,.12)",
             edge: "rgba(255,255,255,.18)",

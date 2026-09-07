@@ -572,8 +572,10 @@ function MediaLoadingState({ icon, label }: { icon: ReactNode; label: string }) 
     return <div role="status" className="flex size-full flex-col items-center justify-center gap-2 rounded-[var(--node-radius)] bg-black text-white/75"><span className="grid size-10 place-items-center rounded-full bg-white/10">{icon}</span><span className="text-xs font-medium">{label}</span></div>;
 }
 
-function EmptyMediaContent({ icon, label, color }: { icon: ReactNode; label: string; color: string }) {
-    return <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color }}>{icon}<span className="text-sm">{label}</span></div>;
+function EmptyMediaContent({ icon: _icon, label, color }: { icon: ReactNode; label: string; color: string }) {
+    // flora 空节点语法(P51-030): 空面是安静的表面, 无居中图标瓷砖; 仅细弱标签保留可发现性
+    void _icon;
+    return <div className="flex h-full w-full items-center justify-center" style={{ color }}><span className="text-[var(--fs-tiny)] opacity-45">{label}</span></div>;
 }
 
 function ImageContent({ node, theme, isBatchRoot, batchCount, batchPreviewNodes, batchExpanded, batchOpening, batchRecovering, onToggleBatch }: Pick<CanvasNodeContentProps, "node" | "theme" | "isBatchRoot" | "batchCount" | "batchPreviewNodes" | "batchExpanded" | "batchOpening" | "batchRecovering" | "onToggleBatch">) {

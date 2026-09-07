@@ -2139,4 +2139,18 @@ f (docs(pending-test): S08 composer形态像素复核闭环 - 文本设置气泡
 **图像面板微调**：分辨率档 grid 统一（≤2 双列 / 3+ 三列）。
 
 **验证**：tsc 0、build ✓（28.61s）、transition 契约测试 3/3。排障：又一轮 vite watcher 失效 + 页面 reload 未生效导致验证假失败（performance.timeOrigin 确认页面年龄后强刷复测通过）。
+
 9 (feat(canvas): S08 flora菜单权威对齐 - P51-030实测值(53行/12radius/24圆logo/18徽章), wheel手势打断关闭, 份数竖向滚动列表, 面板去大标题)
+
+### S08 L1/L2 钻取与 surface 权威值复核批（2026-09-07 续）
+
+**surface 权威化（P51-030 实测 dark 值）**：模型菜单专用 surface 类 `.canvas-model-picker-popover`——radius 16、背景 rgba(32,32,32,.9)+blur(18px)saturate(140%)（light 主题 rgba(255,255,255,.94)）、根定宽 `min(384px, 100vw-24px)`（原 max-content 被内容压到 218-327px，不符 flora 权威）。antd root 与 container 类分层兼容（同层/后代双选择器）。
+
+**L1 渠道行钻取语法**：channel 分组改为 provider-row（圆形 logo 24 + 渠道名 14px + 右侧"平台服务"副标+chevron），点击钻入 L2 模型行（带描述两行结构）；保留返回导航。浏览器实测：L1 三渠道行渲染正确、点击进 L2 出 grok-imagine-image-2.0/edit 两行模型（radius 12、53px 行高读数命中）、选择模型标题与搜索框常驻。
+
+**触发器自适应复核**：底部行 gpt-image-2 pill、"3:4·自动·1张"、"◎0.001" 均紧凑无空占（width auto + max-width 168 生效，截图确认）。
+
+**后台 tab 截图方法论**：antd/rc-motion 弹层入场动画依赖 rAF，后台 tab 永不执行 → 弹层 DOM 存在但 opacity 停在动画首帧（截图不可见）；antd popper 定位同样依赖 rAF（rect 0×0）。解法：注入 `animation/transition-duration:0s` 强制 rc-motion 立即完成后再截图。L2 深层视觉截图受此环境限制未完成（DOM 读数已验），留前台 eyeball。
+
+**验证**：bunx tsc 0、bun run build ✓（28.22s）、workflow-model-picker-style 5/0。截图证据：/tmp/shot-L1-p.png（L1 完整）、computed 读数（menu w=378/radius16/rgba(32,32,32,.9)、surfRad 16）。
+9 (feat(canvas): S08 模型菜单 L1/L2 钻取与 flora surface 权威值(radius16/384定宽/渠道行语法), wheel打断修复与份数列表)

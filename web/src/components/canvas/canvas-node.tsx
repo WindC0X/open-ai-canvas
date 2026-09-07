@@ -134,6 +134,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     const assetTags = data.metadata?.assetTags?.filter((tag) => tag.trim()) || [];
     const scriptMinHeight = data.type === CanvasNodeType.Script ? storyboardMinNodeHeight(data.metadata?.storyboardComposerHeight) : null;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [resizeActive, setResizeActive] = useState(false);
     const resizeRef = useRef({
         isResizing: false,
         corner: "bottom-right" as ResizeCorner,
@@ -227,6 +228,7 @@ export const CanvasNode = React.memo(function CanvasNode({
 
     const handleResizeUp = useCallback(() => {
         resizeRef.current.isResizing = false;
+        setResizeActive(false);
         window.removeEventListener("mousemove", handleResizeMove);
         window.removeEventListener("mouseup", handleResizeUp);
     }, [handleResizeMove]);
@@ -234,6 +236,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     const handleResizeMouseDown = (event: React.MouseEvent, corner: ResizeCorner) => {
         event.stopPropagation();
         event.preventDefault();
+        setResizeActive(true);
         resizeRef.current = {
             isResizing: true,
             corner,
@@ -279,6 +282,9 @@ export const CanvasNode = React.memo(function CanvasNode({
                 width: data.width,
                 height: data.height,
                 contain: "layout style",
+                // 几何过渡(flora SIZE_TRANSITION 300ms 语法): 参数联动/完成回填等程序性变化平滑;
+                // 用户手拖手缩(resizeActive/dragOffset)即时跟手。拖拽只动 transform, width 不变, 无需排除。
+                transition: resizeActive ? "none" : "width 300ms cubic-bezier(0.22, 1, 0.36, 1), height 300ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}
             onMouseEnter={() => {
                 setHovered(true);

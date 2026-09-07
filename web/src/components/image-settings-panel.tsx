@@ -65,8 +65,46 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const effectiveMaxCount = Math.min(maxCount, profile.maxOutputs);
     const count = Math.max(1, Math.min(effectiveMaxCount, Number(normalized.count)));
     const activeSize = normalized.size;
-    const activeQualityOptions = profile.quality.values.map((value) => qualityOptions.find((item) => item.value === value) || { value, label: value });
-    const priceTiers = imageModelPriceTiers(config);
+    const pixelSizeValues = profile.size.values.filter((value) => value.trim().toLowerCase() !== "auto");
+    const hasResolutionPresets = supportsImageResolutionPresets(profile.size);
+    const resolutionOptions = hasResolutionPresets ? buildImageResolutionOptions(pixelSizeValues) : [];
+    // 自定义尺寸(W/H)收进"尺寸或比例"网格末尾的"自定义"档, 点开才展开编辑器(参考竞品语法), 不再常驻占高
+    const [customSizeOpen, setCustomSizeOpen] = useState(false);
+    const activeResolution = activeSize === "auto" ? undefined : imageResolutionOption(resolutionOptions, activeSize);
+    const activeRatio = activeResolution?.ratio || imageRatioForSize(activeSize);
+    const resolutionChoices = hasResolutionPresets ? imageResolutionChoices(profile.size.values) : [];
+    // 只有一个分辨率层级时，分辨率切换器没有实际选择意义；更重要的是不能因此把比例列表裁剪成当前层级的 3 个像素尺寸。
+    // 例如历史 `*` 配置恢复为标准值后，虽然包含 1024x1024/1536x1024/1024x1536，实际仍应展示完整的比例和尺寸选项。
+    const usesResolutionPicker = resolutionChoices.length > 1;
+    const availableAspects: AspectOption[] = usesResolutionPicker && activeSize === "auto"
+        ? []
+        : usesResolutionPicker && activeResolution
+        ? resolutionOptions.filter((item) => item.tier === activeResolution.tier).map((item) => ({ value: item.ratio, label: item.ratio, size: item.size, width: item.width, height: item.height, icon: item.width === item.height ? "square" : item.width > item.height ? "landscape" : "portrait" }))
+        : imageAspectOptions(profile);
+    const selectedAspect = availableAspects.find((item) => imageOptionValue(profile, item) === activeSize || item.value === activeSize) || availableAspects.find((item) => item.label === activeRatio);
+    const isCustomSize = profile.size.allowCustom && activeSize !== "auto" && !selectedAspect;
+    const dimensions = readSizeDimensions(activeSize, selectedAspect || aspectOptions[0]);
+	const activeQualityOptions = profile.quality.values.map((value) => qualityOptions.find((item) => item.value === value) || { value, label: value });
+	const priceTiers = imageModelPriceTiers(config);
+    const selectAspect = (value: string) => {
+        const option = availableAspects.find((item) => item.value === value);
+        onConfigChange("size", option ? imageOptionValue(profile, option) : "auto");
+    };
+    const selectResolution = (choice: ImageResolutionChoice) => {
+        if (choice === "auto") {
+            onConfigChange("size", "auto");
+            return;
+        }
+        const ratio = activeRatio || availableAspects[0]?.label;
+        const size = imageSizeForResolution(resolutionOptions, choice, ratio) || resolutionOptions.find((item) => item.tier === choice)?.size;
+        if (size) onConfigChange("size", size);
+    };
+    const updateDimension = (key: "width" | "height", value: number | null) => {
+        const next = Math.max(1, Math.floor(value || dimensions[key] || 1024));
+        const width = key === "width" ? next : dimensions.width;
+        const height = key === "height" ? next : dimensions.height;
+        onConfigChange("size", `${alignDimension(width, snapDimensionToStep)}x${alignDimension(height, snapDimensionToStep)}`);
+    };
 
     return (
         <ImageSettingsTheme theme={theme}>
@@ -104,30 +142,12 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 </div> : null}
                 {resolutionChoices.length ? <div className="space-y-2">
                     <SettingTitle color={theme.node.muted}>分辨率</SettingTitle>
-                    <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                    <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : resolutionChoices.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
                         {resolutionChoices.map((choice) => (
                             <OptionPill key={choice} selected={choice === "auto" ? activeSize === "auto" : activeResolution?.tier === choice} theme={theme} onClick={() => selectResolution(choice)}>
                                 {choice === "auto" ? "自动" : choice.toUpperCase()}
                             </OptionPill>
                         ))}
-                    </div>
-                </div> : null}
-                {profile.size.allowCustom ? <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                        <SettingTitle color={theme.node.muted}>尺寸</SettingTitle>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium" style={{ color: theme.node.muted }}>
-                                16倍数对齐
-                            </span>
-                            <span title="输入完成后自动向上补成 16 的倍数" onMouseDown={(event) => event.stopPropagation()}>
-                                <Switch size="small" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
-                            </span>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-                        <DimensionInput prefix="W" value={dimensions.width} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("width", value)} />
-                        <span className="text-sm opacity-45">↔</span>
-                        <DimensionInput prefix="H" value={dimensions.height} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("height", value)} />
                     </div>
                 </div> : null}
                 {availableAspects.length ? <div className="space-y-2">
@@ -146,19 +166,42 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 <span className="whitespace-nowrap">{item.label}</span>
                             </button>
                         ))}
+                        {profile.size.allowCustom ? (
+                            <button
+                                type="button"
+                                aria-pressed={isCustomSize}
+                                className="canvas-settings-option flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                style={{ background: isCustomSize || customSizeOpen ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: isCustomSize || customSizeOpen ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={() => setCustomSizeOpen((open) => !open)}
+                            >
+                                <span className="whitespace-nowrap">自定义</span>
+                            </button>
+                        ) : null}
+                    </div>
+                </div> : null}
+                {profile.size.allowCustom && customSizeOpen ? <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                        <SettingTitle color={theme.node.muted}>自定义尺寸</SettingTitle>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium" style={{ color: theme.node.muted }}>
+                                16倍数对齐
+                            </span>
+                            <span title="输入完成后自动向上补成 16 的倍数" onMouseDown={(event) => event.stopPropagation()}>
+                                <Switch size="small" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
+                            </span>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                        <DimensionInput prefix="W" value={dimensions.width} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("width", value)} />
+                        <span className="text-sm opacity-45">↔</span>
+                        <DimensionInput prefix="H" value={dimensions.height} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("height", value)} />
                     </div>
                 </div> : null}
                 {showCount && effectiveMaxCount > 1 ? (
                     <div className="space-y-2">
                         <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
-                        <div className="grid grid-cols-4 gap-1.5">
-                            {Array.from({ length: Math.min(quickCount, effectiveMaxCount) }, (_, index) => index + 1).map((value) => (
-                                <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
-                                    {value}
-                                </OptionPill>
-                            ))}
-                            <CountInput value={count} quickCount={quickCount} max={effectiveMaxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
-                        </div>
+                        <CountRoll value={count} max={effectiveMaxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value))} />
                     </div>
                 ) : null}
             </div>
@@ -224,6 +267,67 @@ function OptionPill({ selected, disabled = false, theme, onClick, children }: { 
         >
             {children}
         </button>
+    );
+}
+
+function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange }: { prefix: string; value: number; disabled: boolean; theme: CanvasTheme; alignToStep: boolean; onChange: (value: number | null) => void }) {
+    const commit = (input: HTMLInputElement) => {
+        const next = alignDimension(Math.max(1, Math.floor(Number(input.value) || value || 1024)), alignToStep);
+        input.value = String(next);
+        onChange(next);
+    };
+
+    return (
+        <label className="flex h-8 overflow-hidden rounded-lg text-xs" style={{ background: theme.toolbar.itemHover, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
+            <span className="grid w-8 place-items-center" style={{ color: theme.node.muted }}>
+                {prefix}
+            </span>
+            <input
+                type="number"
+                min={1}
+                disabled={disabled}
+                className="min-w-0 flex-1 bg-transparent px-2 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                defaultValue={value || ""}
+                key={`${prefix}-${value}`}
+                onBlur={(event) => commit(event.currentTarget)}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                }}
+                onMouseDown={(event) => event.stopPropagation()}
+            />
+        </label>
+    );
+}
+
+// 份数竖向滚动列表(与文本份数气泡同词汇: 窄列数字/行高36/细滚动条/选中高亮)
+function CountRoll({ value, max, theme, onChange }: { value: number; max: number; theme: CanvasTheme; onChange: (value: number) => void }) {
+    const counts = Array.from({ length: Math.min(max, 15) }, (_, index) => index + 1);
+    return (
+        <div
+            className="canvas-settings-roll thin-scrollbar flex flex-col overflow-y-auto rounded-lg"
+            style={{ maxHeight: Math.min(counts.length, 9) * 36 + 8 }}
+            onMouseDown={(event) => event.stopPropagation()}
+        >
+            {counts.map((item) => (
+                <button
+                    key={item}
+                    type="button"
+                    data-count={item}
+                    aria-pressed={value === item}
+                    aria-label={`${item} 张`}
+                    className="canvas-settings-option canvas-settings-roll-row"
+                    style={{
+                        background: value === item ? theme.toolbar.activeBg : "transparent",
+                        borderColor: value === item ? theme.node.activeStroke : "transparent",
+                        color: theme.node.text,
+                    }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={() => onChange(item)}
+                >
+                    {item}
+                </button>
+            ))}
+        </div>
     );
 }
 
