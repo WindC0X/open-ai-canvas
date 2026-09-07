@@ -2157,4 +2157,18 @@ f (docs(pending-test): S08 composer形态像素复核闭环 - 文本设置气泡
 9 (feat(canvas): S08 模型菜单 L1/L2 钻取与 flora surface 权威值(radius16/384定宽/渠道行语法), wheel打断修复与份数列表)
 
 **尺寸过渡语义（本轮定版，待 eyeball）**：width/height 300ms cubic-bezier(0.22,1,0.36,1) 过渡恢复，但新增 resizeActive 豁免——手动缩放拖拽期间 transition:"none" 即时跟手（直接回应"拖尾感觉不太好"），程序性变化（参数联动改比例/完成回填）平滑；拖拽位移走 transform 不受影响。canvas-node-size-transition.test.tsx 3 pass（锚定无 rAF 与旧实现字符串移除）。该"程序性平滑/手动即时"双轨语义需用户实际改比例与手动缩放各验一次。
+
 e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑/手动缩放即时跟手)
+
+### S08 模型列表结构纠偏（2026-09-07 续，用户 flora 对照图打回）
+
+用户以两张 flora 对照截图指出上一批结构性错误，全部返工：
+
+1. **透明化回归修复（严重）**：上一批把 dark `node.fill` 从 #181818 误改为 rgba(255,255,255,.07)（flora 某 overlay 采样值被误当主题基础填充），20+ 消费点（HUD 面板/节点体/Agent tab/素材托盘）全部近乎透明。已回滚 #181818。
+2. **层级纠正**：删除渠道钻取首层（L1 渠道行→L2 模型的"平台服务›"语法是我自创，flora 无此层）。flora 权威 = L1 恒平铺模型行（搜索框 → 渠道名 muted 分组标 → 模型行），点击即选。MenuLevelOne/drillMode drill/back 按钮全部移除。
+3. **模型 logo 圆形化**：rounded-lg → rounded-full（flora 圆 logo）。
+4. **surface 实心化**：模型菜单面板去掉 rgba(32,32,32,.9)+blur(18px) 玻璃感（在亮内容上发透），回 workspace-surface-strong 实心；light 分支冗余删除。
+5. **分组标纯净**：去掉"·平台服务"scope 后缀（flora 分组标无后缀）。
+
+浏览器复核（served 模块 grep + DOM 读数 + 截图）：平铺 6 模型行 53px 直呈、surface rgb(24,24,24) 实心 radius16、透明化消失（节点/面板恢复实心）、logo 圆形、grok2api/小白鼠/Agnes 纯净分组标。tsc 0、build ✓、定向测试 4/0。
+5 (fix(canvas): S08 模型列表结构纠偏 - 删渠道钻取首层恒平铺(用户 flora 对照), 圆logo/实心surface/分组标纯净, 回滚node.fill透明化回归)

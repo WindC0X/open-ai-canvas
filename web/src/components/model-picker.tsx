@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Coins, Search } from "lucide-react";
+import { Check, ChevronDown, Coins, Search } from "lucide-react";
 import { Popover } from "antd";
 
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
@@ -62,7 +62,6 @@ export function ModelPicker({
     const theme = (canvasThemes[rawTheme as keyof typeof canvasThemes] ?? canvasThemes.dark) as CanvasTheme;
     const [open, setOpen] = useState(false);
     // flora Providers 二级语法: L1=渠道/产商行钻取, L2=该组模型列表; 单组直接 L2, 搜索态展开全部
-    const [drilledGroup, setDrilledGroup] = useState<string | null>(null);
     const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -166,7 +165,6 @@ export function ModelPicker({
     useEffect(() => {
         if (!open) {
             setSearchText("");
-            setDrilledGroup(null);
         }
         else if (searchable) window.requestAnimationFrame(() => searchRef.current?.focus());
     }, [open, searchable]);
@@ -218,9 +216,8 @@ export function ModelPicker({
               }))
               .filter((group) => group.models.length)
         : optionGroups;
-    // 二级形态: 搜索=平铺全部; 单组=直接L2; 多组且可搜索=钻取(flora Providers 语法); 其余平铺
-    const drillMode: "flat" | "drill" | "single" | "search" = normalizedSearch ? "search" : !searchable ? "flat" : optionGroups.length > 1 ? (drilledGroup ? "single" : "drill") : "single";
-    const activeGroup = optionGroups.find((group) => group.key === drilledGroup);
+    // flora 权威: L1 恒平铺模型行(分组标=渠道), 无渠道钻取首层; 搜索=过滤平铺
+    const drillMode: "flat" | "search" = normalizedSearch ? "search" : "flat";
     const renderModelRow = (modelGroup: (typeof optionGroups)[number]["models"][number], groupLabel: string) => {
         const selected = modelGroup.models.includes(current);
         const model = compatibleModelInGroup(config, modelGroup.models, selectionRequirements, selected ? current : undefined);
@@ -258,45 +255,13 @@ export function ModelPicker({
             </button>
         );
     };
-    const MenuLevelOne = () => (
-        <>
-            {optionGroups.map((group) => (
-                <button
-                    key={group.key}
-                    type="button"
-                    role="option"
-                    aria-selected={current && group.models.some((modelGroup) => modelGroup.models.includes(current)) ? true : undefined}
-                    className="canvas-model-picker-option canvas-model-picker-provider-row"
-                    style={{ color: theme.node.text }}
-                    onClick={() => setDrilledGroup(group.key)}
-                >
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full" style={{ background: theme.toolbar.itemHover }}>
-                        <ModelIcon config={config} model={group.models[0]?.models[0] || ""} />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[var(--fs-label)] font-medium">{group.label}</span>
-                    {group.scope ? (
-                        <span className="shrink-0 text-[var(--fs-tiny)]" style={{ color: theme.node.muted }}>
-                            {group.scope}
-                        </span>
-                    ) : null}
-                    <ChevronRight className="size-4 shrink-0 opacity-45" aria-hidden="true" />
-                </button>
-            ))}
-        </>
-    );
     const MenuLevelTwo = () => (
         <>
             {optionGroups
-                .filter((group) => !drilledGroup || group.key === drilledGroup)
                 .map((group) => (
                     <section key={group.key} className="canvas-model-picker-group min-w-0 overflow-hidden">
                         <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
                             <span className="truncate">{group.label}</span>
-                            {group.scope ? (
-                                <span className="shrink-0" style={{ color: theme.node.muted }}>
-                                    {group.scope}
-                                </span>
-                            ) : null}
                         </div>
                         <div className="grid min-w-0 gap-1">{group.models.map((modelGroup) => renderModelRow(modelGroup, group.label))}</div>
                     </section>
@@ -351,24 +316,7 @@ export function ModelPicker({
                     {current ? <strong>{pickerModelDisplayName(config, current, showConfiguredModelName)}</strong> : null}
                 </div>
             ) : null}
-            {drillMode === "drill" ? (
-                <>
-                    <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
-                        <span className="truncate">{placeholder}</span>
-                    </div>
-                    <MenuLevelOne />
-                </>
-            ) : (
-                <>
-                    {drillMode === "single" && optionGroups.length > 1 ? (
-                        <button type="button" className="canvas-model-picker-back" onMouseDown={(event) => event.stopPropagation()} onClick={() => setDrilledGroup(null)}>
-                            <ArrowLeft className="size-3.5" aria-hidden="true" />
-                            <span>全部模型</span>
-                        </button>
-                    ) : null}
-                    <MenuLevelTwo />
-                </>
-            )}
+            <MenuLevelTwo />
             {drillMode === "flat" && !visibleGroups.length ? (
                 <div className="canvas-model-picker-empty" style={{ color: theme.node.muted }}>
                     {emptyModelLabel(config, capability)}
@@ -470,7 +418,7 @@ function ModelLabel({
     const chips = capability === "video" ? videoCapabilityChips(config, model) : capability === "image" ? imageCapabilityChips(config, model) : [];
     return (
         <span className="flex w-full min-w-0 items-center gap-2 overflow-hidden py-0">
-            <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-lg" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
+            <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
                 <ModelIcon config={config} model={model} />
             </span>
             <span className="min-w-0 flex-1 overflow-hidden">
