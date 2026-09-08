@@ -93,7 +93,7 @@ export function ModelPicker({
     const openFlyout = (groupKey: string, anchor: HTMLElement) => {
         if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);
         const rect = anchor.getBoundingClientRect();
-        const flyoutWidth = 340;
+        const flyoutWidth = 384;
         const x = rect.right + 8 + flyoutWidth > window.innerWidth - 12 ? rect.left - flyoutWidth - 8 : rect.right + 8;
         setFlyoutPos({ x: Math.max(12, x), y: Math.min(Math.max(12, rect.top - 8), window.innerHeight - 120) });
         setFlyoutGroup(groupKey);
@@ -228,8 +228,13 @@ export function ModelPicker({
         }
         else if (searchable) window.requestAnimationFrame(() => searchRef.current?.focus());
     }, [open, searchable]);
+    // flyout 行 mousedown 的时间戳: 该时间窗内忽略 antd 的"外部点击关闭"。
+    // 否则 mousedown 关菜单→行卸载→落空 click 掉到触发器→菜单重开(选择后残留)。
+    const lastFlyoutMouseDownRef = useRef(0);
     const setPickerOpen = (nextOpen: boolean) => {
-        if (nextOpen && !options.length) onMissingConfig?.();
+        if (!nextOpen && Date.now() - lastFlyoutMouseDownRef.current < 400) return;
+        if (nextOpen && !options.length && config.channelMode === "local") onMissingConfig?.();
+7e1a15f6 (fix(canvas): S08 模型菜单 flora live 值对齐 - .9玻璃/徽章白.1/媒体描边圆/黑上黑根因(var顺序)/flyout选择残留修复)
         if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
         setOpen(nextOpen);
     };
@@ -295,6 +300,14 @@ export function ModelPicker({
                     title={disabledReason || pickerModelOptionLabel(config, displayModel, showConfiguredModelName)}
                     className="canvas-model-picker-option disabled:cursor-not-allowed disabled:opacity-45"
                     style={{ color: theme.node.text }}
+                    onMouseDown={() => {
+                        // flora 语义: mousedown 即选中。antd 在 document 监听 mousedown 判"外部点击",
+                        // 而 flyout 是 body portal —— 若此刻关菜单, 行卸载后落空 click 会掉到触发器重开菜单。
+                        // 因此这里只选择, 关闭延迟到 click(setPickerOpen 在时间窗内忽略 antd 的提前关闭)。
+                        lastFlyoutMouseDownRef.current = Date.now();
+                        if (!model) return;
+                        onChange(model);
+                    }}
                     onClick={() => {
                         if (!model) return;
                         onChange(model);
@@ -391,7 +404,7 @@ export function ModelPicker({
                                               onMouseLeave={scheduleFlyoutClose}
                                               onFocus={(event) => openFlyout(group.key, event.currentTarget)}
                                           >
-                                              <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
+                                              <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-[8px]" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
                                                   <ModelIcon config={config} model={group.models[0]?.models[0] || ""} />
                                               </span>
                                               <span className="min-w-0 flex-1 truncate text-[var(--fs-body)]">{group.label}</span>
@@ -586,14 +599,14 @@ function ModelLabel({
     const priceForChip = modelMenuPrice(config, model, capability, true);
     return (
         <span className="flex w-full min-w-0 items-center gap-2 overflow-hidden py-0">
-            <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
+            <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-[8px]" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
                 <ModelIcon config={config} model={model} />
             </span>
             <span className="min-w-0 flex-1 overflow-hidden">
                 <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="min-w-0 truncate text-[var(--fs-body)] font-normal leading-none">{pickerModelDisplayName(config, model, showConfiguredModelName)}</span>
+                    <span className="min-w-0 truncate text-[var(--fs-body)] font-[350] leading-none" style={{ color: theme.node.text }}>{pickerModelDisplayName(config, model, showConfiguredModelName)}</span>
                 </span>
-                <span className="mt-1 block truncate text-[var(--fs-tiny)] font-normal" style={{ color: theme.node.muted }} title={capabilitySummary}>
+                <span className="mt-1 block truncate text-xs font-[350]" style={{ color: theme.node.muted }} title={capabilitySummary}>
                     {capabilitySummary}
                 </span>
             </span>

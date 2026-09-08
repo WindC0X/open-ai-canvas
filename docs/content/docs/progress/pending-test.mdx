@@ -2196,4 +2196,20 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 1. **Providers 组标**：渠道区上方补 flora 同款组标（影策语义=系统渠道分组，对应用户"系统模型按渠道分"），结构变为 搜索框 → Pinned models → Providers(渠道行›) → Models(沉底)；DOM 读数 + 截图双确认。
 2. **误读更正**：此前原生识图误报"媒体类型徽章未渲染"——gemini 复核 + DOM 读数(chips=[0.001积分, icon-only]) 确认媒体徽章一直在渲染。
 3. 与 flora 图3 结构已同构；仍缺 flora 的 Auto select model / Use multiple models 开关行与 Featured models 组（影策无对应功能语义，维持登记不做）。
+
 8 (feat(canvas): S08 模型列表补 Providers 组标 - 真视觉handoff复核批)
+
+### S08 模型列表 flora live 值对齐批（2026-09-07 第 4 轮，现场抓值）
+
+**证据升级**：不再从截图猜值——用户 flora 登录页现场抓 computed-style（tmwd CDP），并确认证据链冲突根因：9263e82 的"flora 实心"结论违反 corpus flora-canvas-analysis.md:233（"black/dark alpha panels with backdrop blur"），已纠正。
+
+**按 flora live 值实施**：
+1. 菜单 surface：`rgba(32,32,32,.9)` + `blur(16px)` + border `白.05` + radius16 + **无阴影**（flora live 抓取值；上一轮"实心化"回滚）。
+2. 徽章：`白.1` 底 / `白.72` 字 / 12px/500 / h18 / pad 0 4px（黑上黑根因=Component 层 `:root` 块源码顺序覆盖 `.dark` 同名变量，已用"块后补 .dark 覆盖"修复；light-dark() 不可用因全库无 color-scheme）。
+3. 媒体类型徽章：18×18 透明底 + 1px 描边圆（foreground 17%），长手属性绕 preflight @layer base 的 `*{border:0}`。
+4. 行：padding 8 / radius 12 / h53；组标 12px/500/-0.01em；标题 14px-350；副标题 12px-350。
+5. logo 容器：24×24 / radius 8 / 白.1 底（squircle，非圆形）。
+6. flyout 宽 384；行 mousedown 即选中 + 400ms 时间窗内忽略 antd 外部关闭（修"选择后菜单残留"：mousedown 关菜单→行卸载→落空 click 掉到触发器重开）。
+
+**computed 实测通过**：panelBg/blur/border/shadow/chipBg/chipColor/chipFs 全命中。**待人工 2 秒验证**：①flyout 选完模型菜单是否关闭（合成事件在 portal 上语义失真，远程探针结果矛盾）；②玻璃感需 flyout 压在亮图上才可见（暗底上 0.9 alpha 本就近实心，flora 同）。
+6 (fix(canvas): S08 模型菜单 flora live 值对齐 - .9玻璃/徽章白.1/媒体描边圆/黑上黑根因(var顺序)/flyout选择残留修复)
