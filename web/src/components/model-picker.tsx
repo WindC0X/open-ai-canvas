@@ -313,6 +313,9 @@ export function ModelPicker({
                         if (!model) return;
                         onChange(model);
                         setOpen(false);
+                        // 即时隐藏保险丝(同帧生效, 不依赖 React effect/rc-motion 动画帧): rAF 停摆的
+                        // 窗口(后台 tab/非聚焦)里 leave 链冻结会留下可见残留(2026-09-08 实测)。
+                        document.querySelector('.canvas-model-picker-popover')?.classList.add('ant-popover-hidden');
                         window.requestAnimationFrame(() => triggerRef.current?.focus());
                     }}
                     onClick={() => {
@@ -499,7 +502,12 @@ export function ModelPicker({
             {createPortal(
                 flyoutGroup && open ? (
                     <div
-                        className="canvas-model-picker-flyout canvas-model-picker-menu"
+                        className={cn(
+                            "canvas-model-picker-flyout canvas-model-picker-menu",
+                            // 与 L1 同源: 画布 composer 传 variant=creation 时 L1 菜单挂 creation 类,
+                            // flyout 也必须同挂, 否则两套容器/行外观(padding/gap/字号) → L1/L2 不一致(2026-09-08 实测)
+                            creationVariant && "creation-model-picker-menu creation-model-picker-flyout",
+                        )}
                         style={{ left: flyoutPos.x, top: flyoutPos.y }}
                         onMouseEnter={cancelFlyoutClose}
                         onMouseLeave={scheduleFlyoutClose}
@@ -524,6 +532,23 @@ export function ModelPicker({
         </div>
     );
 
+    /* 关闭时的显示层保险丝: rc-motion 的 leave 链(prepare→start→active→transitionend/deadline)在
+       rAF 停摆的窗口(后台 tab / 非聚焦窗口)会冻结, antd6 Popover 又不接受 motion 布尔开关(被
+       { motionName } 重置)。此 effect 在 open=false 时直接把弹层根 display:none — 不依赖任何
+       动画帧, 用户感知上即点即收; open=true 时清除, 让 antd 正常控制显隐。 */
+    useEffect(() => {
+        const root = document.querySelector(".canvas-model-picker-popover");
+        if (!open && root) {
+            root.classList.add("ant-popover-hidden");
+        } else if (open && root) {
+            root.classList.remove("ant-popover-hidden");
+        }
+        return () => {
+            const root = document.querySelector(".canvas-model-picker-popover");
+            if (root) root.classList.remove("ant-popover-hidden");
+        };
+    }, [open]);
+
     return (
         <div className={cn(fullWidth ? "w-full min-w-0" : "w-fit max-w-full")} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
             <Popover
@@ -532,6 +557,11 @@ export function ModelPicker({
                 trigger="click"
                 placement={placementProp ?? "bottomLeft"}
                 arrow={false}
+                /* 关闭即卸载(不走 leave 动画): rc-motion 的 leave 依赖 rAF/transitionend, 在后台 tab
+                   会冻结成 "选行后菜单残留直到下一次外部点击" 的肉眼 bug(2026-09-08 实测);
+                   antd6 Popover 会用 { motionName: zoom-big } 重置传入的 motion 布尔开关(动画禁不掉),
+                   destroyOnHidden 走 Portal autoDestroy 卸载链, 与动画帧完全无关。 */
+                destroyOnHidden
                 content={content}
                 classNames={{
                     root: cn("canvas-model-picker-popover", creationVariant && "creation-model-picker-popover", popoverClassName),
