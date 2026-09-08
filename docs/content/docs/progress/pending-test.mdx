@@ -2213,7 +2213,17 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 
 **computed 实测通过**：panelBg/blur/border/shadow/chipBg/chipColor/chipFs 全命中。**待人工 2 秒验证**：①flyout 选完模型菜单是否关闭（合成事件在 portal 上语义失真，远程探针结果矛盾）；②玻璃感需 flyout 压在亮图上才可见（暗底上 0.9 alpha 本就近实心，flora 同）。
 
+
 6 (fix(canvas): S08 模型菜单 flora live 值对齐 - .9玻璃/徽章白.1/媒体描边圆/黑上黑根因(var顺序)/flyout选择残留修复)
+
+### 模型菜单四轮修正批（925d338）
+
+**真根因闭环（选行后残留）**：上一轮 mousedown 同步给 Popover root 加 `ant-popover-hidden` 的 DOM 副作用保险丝，被 **rc-motion 启动 leave 时的 className 整体重算抹掉**（后台 tab rAF 冻结 → leave 冻在 leave-start → 残留复活）。四轮改为 **props 注入**（`classNames.root` 带 `!open && "ant-popover-hidden"`），rc-motion 重算以 props 为准，任何动画阶段都抹不掉。浏览器实测：选行后 150ms 内 `display:none`（点击即关，非 2 秒延迟），随后 Portal 卸载干净；Esc/外部点击关闭路径回归正常。
+
+**L1/L2 外观不一致收敛**（computed 实测驱动）：行字号（L2 flyout portal 挂 body 继承 16px vs L1 13px）、容器 padding（`.creation-model-picker-menu` 存在 3242/10778 双 `!important` 声明 8px vs 5px 打架 + flyout 块 4px 第三源）、backdrop-filter（blur16 无 saturate vs blur18+saturate1.2）。收敛结果：padding 唯一源 8px、font-size 显式 13px、玻璃 blur(18px)+saturate(1.2) 两层同源；实测 L1/L2 menu/surface 全项一致（行高 52.8/53.6 为亚像素舍入，不可见）。
+
+**教训**：① rc-motion 管辖的节点（Popover root）上不能做 DOM 副作用改类——React 渲染路径的类必须走 props；② 同名选择器多块 `!important` padding 声明（3242 vs 10778）是"看起来改了但被另一处覆盖"的典型源，改样式前先 grep 同名选择器全部声明。
+0 (docs(pending-test): S08 模型菜单四轮批 - props注入保险丝根因 + L1/L2收敛唯一源教训)
 
 ### S08 模型菜单第二轮修正批（2026-09-07，用户 5 图反馈）
 **反馈 → 修正对照**
