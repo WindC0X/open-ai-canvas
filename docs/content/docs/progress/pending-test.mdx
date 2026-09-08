@@ -2212,4 +2212,19 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 6. flyout 宽 384；行 mousedown 即选中 + 400ms 时间窗内忽略 antd 外部关闭（修"选择后菜单残留"：mousedown 关菜单→行卸载→落空 click 掉到触发器重开）。
 
 **computed 实测通过**：panelBg/blur/border/shadow/chipBg/chipColor/chipFs 全命中。**待人工 2 秒验证**：①flyout 选完模型菜单是否关闭（合成事件在 portal 上语义失真，远程探针结果矛盾）；②玻璃感需 flyout 压在亮图上才可见（暗底上 0.9 alpha 本就近实心，flora 同）。
+
 6 (fix(canvas): S08 模型菜单 flora live 值对齐 - .9玻璃/徽章白.1/媒体描边圆/黑上黑根因(var顺序)/flyout选择残留修复)
+
+### S08 模型菜单第二轮修正批（2026-09-07，用户 5 图反馈）
+**反馈 → 修正对照**
+1. 亮色图片背景上"不透" → 根因=内容层自刷背景（creation 变体 rgba(25,27,32,.7) + menu content 内联 `theme.node.panel` 实色）把容器层玻璃糊死；两层全改透，玻璃唯一归属 `.canvas-composer-popover-surface`（rgba(32,32,32,.9)+blur16）。
+2. 选择后残留 → 实测定案：选择会引发行重排 detach，原"mousedown 只选、click 关闭"设计中 click 落在已分离节点 → setOpen(false) 永不执行。改为 mousedown 即选中+收起；guard 改双向（400ms 内挡 antd 开/关请求，拦落空 click 的镜像重开）。语义层三重证明（插桩日志 afterSetOpen-false 无异常、全库无重开源、fiber state 唯一路径）；DOM 卸载验证受后台 tab rc-motion rAF 冻结干扰不可测，待用户前台终验。
+3. L1/L2 行结构密度不一致 → flyout 容器并挂 `canvas-model-picker-menu` 类共用行样式；字号降 13px、行高密度对齐。
+4. hover 把 pin 隔离在外 → hover/selected 背景移到 rowgroup 整行容器，pin 同框。
+5. 模型名降部截断 → 行高 leading-none→1.4。
+6. 徽章去"积分"字样 → chip 徽章只显数值（非 chip 场景保留单位）。
+7. 徽章/媒体类型与模型名同行 → inlineBadges 并入标题行（名字右侧）。
+8. 描述溢出 hover 滚动 → subtitle marquee（9s 线性、prefers-reduced-motion 静态）。
+**影响面**：ModelPicker 消费面 10 处（admin×2/create/projects×4/settings/canvas×2）；creation 变体两套 nth-child 结构选择器已改类选择器（logo/title/subtitle）。
+**教训登记**：改共享组件必须先枚举消费面 + 全库排查引用旧 DOM 结构的 CSS 选择器；验收清单必须覆盖所有消费面截图，不是本轮改动点。
+5 (fix(canvas): S08 模型菜单二轮 - 玻璃唯一归属/行结构统一/徽章同行去积分/pin整行hover/marquee/选择即收(重排detach根因), creation结构选择器改类钩子)

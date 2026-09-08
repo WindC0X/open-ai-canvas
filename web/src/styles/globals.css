@@ -3255,13 +3255,18 @@
         width: min(384px, calc(100vw - 24px)) !important;
         max-height: min(460px, calc(100vh - 24px));
         padding: 8px !important;
-        background: rgba(255, 255, 255, .7) !important;
+        background: transparent !important;
         color: #17191d !important;
     }
 
     .dark .creation-model-picker-menu {
-        background: rgba(25, 27, 32, .7) !important;
+        /* 内容层不再刷背景: 玻璃在容器层(.canvas-composer-popover-surface rgba(32,32,32,.9)+blur16),
+           内容层再刷色会把毛玻璃糊死(亮底上"不透"的根因)。 */
         color: #f2f4f6 !important;
+    }
+
+    :root:not(.dark) .creation-model-picker-menu {
+        color: #17191d;
     }
 
     .creation-model-picker-menu .canvas-model-picker-group-label {
@@ -3307,11 +3312,11 @@
         background: color-mix(in srgb, var(--workspace-foreground) 7%, transparent);
     }
 
-    .creation-model-picker-menu .canvas-model-picker-option > span:first-child {
+    .creation-model-picker-menu .canvas-model-picker-option-body {
         gap: 12px;
     }
 
-    .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child {
+    .creation-model-picker-menu .canvas-model-picker-logo {
         width: 34px;
         height: 34px;
         border: 1px solid #e6e8eb;
@@ -3319,16 +3324,16 @@
         background: rgba(255, 255, 255, .66) !important;
     }
 
-    .dark .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child {
+    .dark .creation-model-picker-menu .canvas-model-picker-logo {
         border-color: #30343b;
         background: rgba(35, 38, 44, .72) !important;
     }
 
-    .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:first-child {
+    .creation-model-picker-menu .canvas-model-picker-title {
         font-size: 13px;
     }
 
-    .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:nth-child(2) {
+    .creation-model-picker-menu .canvas-model-picker-subtitle {
         margin-top: 5px;
         font-size: 10px;
     }
@@ -7477,10 +7482,6 @@
         outline: none;
     }
 
-    .canvas-model-picker-option > span:first-child {
-        flex: 1 1 auto;
-    }
-
     .canvas-model-picker-group-label {
         display: flex;
         align-items: center;
@@ -7503,11 +7504,12 @@
         overflow-y: auto;
     }
 
-    .canvas-model-picker-option:hover {
+    /* hover 背景挂整行容器(rowgroup): pin 在 hover 色块内, 不再被"隔离"出胶囊外 */
+    .canvas-model-picker-rowgroup:hover .canvas-model-picker-option {
         background: color-mix(in srgb, var(--workspace-accent) 9%, transparent) !important;
     }
 
-    .canvas-model-picker-option[aria-selected="true"] {
+    .canvas-model-picker-rowgroup:has(.canvas-model-picker-option[aria-selected="true"]) .canvas-model-picker-option {
         background: color-mix(in srgb, var(--workspace-accent) 6%, transparent) !important;
     }
 
@@ -7516,21 +7518,14 @@
         outline: none;
     }
 
-    .canvas-model-picker-option > span:first-child {
+    /* option-body: option 内唯一弹性主体(logo + 文本列 + ✓), 旧 nth-child 结构选择器已废 */
+    .canvas-model-picker-option-body {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         flex: 1 1 auto;
         min-width: 0;
         overflow: hidden;
-    }
-
-    .canvas-model-picker-popover .canvas-model-picker-option > span:first-child > span:nth-child(2) {
-        flex: 0 0 auto;
-        min-width: max-content;
-        overflow: visible;
-    }
-
-    .canvas-model-picker-popover .canvas-model-picker-option > span:first-child > span:nth-child(2) > span {
-        overflow: visible;
-        text-overflow: clip;
     }
 
     /* ---- S08 模型列表 flora 结构批(溢出修复/pin/flyout/媒体徽章) ---- */
@@ -7545,16 +7540,36 @@
         padding: 8px;
         width: 100%;
         overflow: hidden;
+        background: transparent;
     }
 
-    .canvas-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) {
-        min-width: 0;
-        flex: 1 1 auto;
+    /* subtitle hover 溢出滚动(flora marquee 语法) */
+    .canvas-model-picker-subtitle {
+        position: relative;
         overflow: hidden;
     }
 
-    .canvas-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:first-child {
-        flex-wrap: nowrap;
+    .canvas-model-picker-subtitle.is-overflow .canvas-model-picker-subtitle-inner {
+        display: inline-block;
+        min-width: 100%;
+    }
+
+    .canvas-model-picker-subtitle.is-overflow:hover .canvas-model-picker-subtitle-inner {
+        animation: canvas-model-picker-subtitle-scroll 9s linear 0.6s infinite;
+    }
+
+    @keyframes canvas-model-picker-subtitle-scroll {
+        0% { transform: translateX(0); }
+        45% { transform: translateX(calc(-100% + 0px)); }
+        50% { transform: translateX(calc(-100% + 0px)); }
+        95% { transform: translateX(0); }
+        100% { transform: translateX(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-model-picker-subtitle.is-overflow:hover .canvas-model-picker-subtitle-inner {
+            animation: none;
+        }
     }
 
     /* 行组: 主行 + pin 兄弟(hover 整显, flora 渐进披露) */
@@ -7563,6 +7578,17 @@
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
         min-width: 0;
+        border-radius: 12px;
+        padding: 0 2px 0 0;
+        transition: background-color var(--motion-instant) ease-out;
+    }
+
+    .canvas-model-picker-rowgroup:hover {
+        background: color-mix(in srgb, var(--workspace-accent) 9%, transparent);
+    }
+
+    .canvas-model-picker-rowgroup:has(.canvas-model-picker-option[aria-selected="true"]) {
+        background: color-mix(in srgb, var(--workspace-accent) 6%, transparent);
     }
 
     .canvas-model-picker-rowgroup .canvas-model-picker-pin {
@@ -7607,7 +7633,8 @@
         background: color-mix(in srgb, var(--workspace-foreground) 7%, transparent);
     }
 
-    /* 悬浮展开面板(Providers flyout): 与主菜单同材质(flora live: .9 玻璃) */
+    /* 悬浮展开面板(Providers flyout): 与主菜单同材质(flora live: .9 玻璃);
+       行结构/密度与 L1 一致: 容器同时挂 canvas-model-picker-menu 类(TSX), 共用行样式 */
     .canvas-model-picker-flyout {
         position: fixed;
         z-index: 1200;
@@ -11024,10 +11051,10 @@ html:not(.dark) .creation-chat-control[aria-pressed="true"] > svg { color: #0e74
 .creation-model-picker-menu .canvas-model-picker-group-label { padding: 10px 10px 6px; font-size: 12px; }
 .creation-model-picker-menu .canvas-model-picker-option { min-height: 53px; border-radius: 12px; padding: 8px 10px; }
 .creation-model-picker-menu .canvas-model-picker-option:hover { transform: none; background: color-mix(in srgb, var(--workspace-foreground) 7%, transparent); }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child { gap: 10px; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child { width: 24px; height: 24px; border: 0; border-radius: 9999px; background: rgba(255, 255, 255, .09) !important; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:first-child { font-size: 14px; font-weight: 350; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:nth-child(2) { margin-top: 2px; font-size: 12px; opacity: .72; }
+.creation-model-picker-menu .canvas-model-picker-option-body { gap: 10px; }
+.creation-model-picker-menu .canvas-model-picker-logo { width: 24px; height: 24px; border: 0; border-radius: 9999px; background: rgba(255, 255, 255, .09) !important; }
+.creation-model-picker-menu .canvas-model-picker-title { font-size: 14px; font-weight: 350; }
+.creation-model-picker-menu .canvas-model-picker-subtitle { margin-top: 2px; font-size: 12px; opacity: .72; }
 
 .creation-thread-stage { width: min(820px, calc(100% - 48px)); padding: 44px 0 22px; }
 .creation-thread-composer { width: min(820px, calc(100% - 48px)); padding: 8px 0 16px; }
@@ -11050,6 +11077,8 @@ html:not(.dark) .creation-choice-grid button:hover { background: rgba(28, 32, 37
 html:not(.dark) .creation-duration-menu strong,
 html:not(.dark) .creation-model-picker-heading strong { color: #20242a; }
 html:not(.dark) .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child { background: rgba(28, 32, 37, .06) !important; }
+html:not(.dark) .creation-mode-picker-menu button:hover,
+html:not(.dark) .creation-model-picker-menu .canvas-model-picker-logo { background: rgba(28, 32, 37, .06) !important; }
 
 @keyframes creation-composer-arrive {
     from { opacity: 0; transform: translateY(8px); }

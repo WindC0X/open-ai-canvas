@@ -232,7 +232,10 @@ export function ModelPicker({
     // 否则 mousedown 关菜单→行卸载→落空 click 掉到触发器→菜单重开(选择后残留)。
     const lastFlyoutMouseDownRef = useRef(0);
     const setPickerOpen = (nextOpen: boolean) => {
-        if (!nextOpen && Date.now() - lastFlyoutMouseDownRef.current < 400) return;
+        // 行 mousedown 后的时间窗内忽略 antd 的开/关切换:
+        // mousedown 即选择+关菜单 → 行因选中/置顶重排被 detach → 落空 click 掉到触发器
+        // 会请求 reopen(true) 造成"选择后残留"的镜像缺陷, 双向都挡。
+        if (Date.now() - lastFlyoutMouseDownRef.current < 400) return;
         if (nextOpen && !options.length && config.channelMode === "local") onMissingConfig?.();
 7e1a15f6 (fix(canvas): S08 模型菜单 flora live 值对齐 - .9玻璃/徽章白.1/媒体描边圆/黑上黑根因(var顺序)/flyout选择残留修复)
         if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
@@ -289,6 +292,8 @@ export function ModelPicker({
         const displayModel = model || (selected ? current : modelGroup.models[0]);
         const disabledReason = model ? "" : modelCompatibilityError(config, modelGroup.models[0], selectionRequirements) || "当前输入不符合该模型能力";
         const pinned = pinnedModels.includes(displayModel);
+        const mediaTypes = modelMediaTypes(config, displayModel, capability);
+        const priceForChip = showOptionPrices && creditsEnabled ? modelMenuPrice(config, displayModel, capability, true) : null;
         return (
             <div key={groupLabel + ":" + modelGroup.key} className="canvas-model-picker-rowgroup">
                 <button
@@ -301,31 +306,45 @@ export function ModelPicker({
                     className="canvas-model-picker-option disabled:cursor-not-allowed disabled:opacity-45"
                     style={{ color: theme.node.text }}
                     onMouseDown={() => {
-                        // flora 语义: mousedown 即选中。antd 在 document 监听 mousedown 判"外部点击",
-                        // 而 flyout 是 body portal —— 若此刻关菜单, 行卸载后落空 click 会掉到触发器重开菜单。
-                        // 因此这里只选择, 关闭延迟到 click(setPickerOpen 在时间窗内忽略 antd 的提前关闭)。
+                        // flora 语义: mousedown 即选中并收起(2026-09-07 实测定案: 选择会触发行重排 detach,
+                        // 等到 click 再关的话 click 落在已分离节点上 → setOpen(false) 永不执行 → 残留)。
+                        // 落空 click 掉到触发器的重开请求由 setPickerOpen 时间窗双向拦截。
                         lastFlyoutMouseDownRef.current = Date.now();
-                        if (!model) return;
-                        onChange(model);
-                    }}
-                    onClick={() => {
                         if (!model) return;
                         onChange(model);
                         setOpen(false);
                         window.requestAnimationFrame(() => triggerRef.current?.focus());
                     }}
+                    onClick={() => {
+                        // 键盘 Enter 路径(click 事件): 与 mousedown 幂等
+                        if (!model) return;
+                        onChange(model);
+                        setOpen(false);
+                    }}
                 >
-                    <ModelLabel
-                        config={config}
-                        model={displayModel}
-                        capability={capability}
-                        theme={theme}
-                        creationVariant={creationVariant}
-                        showConfiguredModelName={showConfiguredModelName}
-                        showPrice={showOptionPrices && creditsEnabled}
-                        disabledReason={disabledReason}
-                    />
-                    {selected ? <Check className="canvas-model-picker-option-check" style={{ color: theme.node.activeStroke }} /> : null}
+                    <span className="canvas-model-picker-option-body">
+                        <ModelLabel
+                            config={config}
+                            model={displayModel}
+                            capability={capability}
+                            theme={theme}
+                            creationVariant={creationVariant}
+                            showConfiguredModelName={showConfiguredModelName}
+                            showPrice={false}
+                            disabledReason={disabledReason}
+                            inlineBadges={(
+                                <>
+                                    {priceForChip ? <ModelPrice price={priceForChip} chip /> : null}
+                                    {mediaTypes.map((item) => (
+                                        <span key={item.kind} className="canvas-model-picker-chip canvas-model-picker-chip-icon" title={item.label}>
+                                            {item.icon}
+                                        </span>
+                                    ))}
+                                </>
+                            )}
+                        />
+                        {selected ? <Check className="canvas-model-picker-option-check" style={{ color: theme.node.activeStroke }} /> : null}
+                    </span>
                 </button>
                 <button
                     type="button"
@@ -435,7 +454,7 @@ export function ModelPicker({
             className={cn("canvas-model-picker-menu max-w-[calc(100vw-24px)]", creationVariant ? "creation-model-picker-menu w-[360px]" : "w-[var(--panel-width-compact)]")}
             style={
                 {
-                    background: theme.node.panel,
+                    /* 背景不在此层: 容器层(surface)承载 flora .9 玻璃, 内容层实色会把毛玻璃糊死(亮底不透的根因之一) */
                     color: theme.node.text,
                     "--canvas-model-picker-trigger-width": triggerWidth ? String(triggerWidth) + "px" : undefined,
                 } as CSSProperties
@@ -480,7 +499,7 @@ export function ModelPicker({
             {createPortal(
                 flyoutGroup && open ? (
                     <div
-                        className="canvas-model-picker-flyout"
+                        className="canvas-model-picker-flyout canvas-model-picker-menu"
                         style={{ left: flyoutPos.x, top: flyoutPos.y }}
                         onMouseEnter={cancelFlyoutClose}
                         onMouseLeave={scheduleFlyoutClose}
@@ -575,6 +594,7 @@ function ModelLabel({
     showConfiguredModelName,
     showPrice,
     disabledReason,
+    inlineBadges,
 }: {
     config: AiConfig;
     model: string;
@@ -584,6 +604,7 @@ function ModelLabel({
     showConfiguredModelName: boolean;
     showPrice: boolean;
     disabledReason?: string;
+    inlineBadges?: ReactNode;
 }) {
     const meta = modelMenuMeta(model, capability);
     const channel = resolveModelChannel(config, model);
@@ -594,30 +615,35 @@ function ModelLabel({
         disabledReason ||
         logicalCost?.description?.trim() ||
         (logicalSpec ? logicalCapabilitySummary(logicalSpec) : videoProfile ? `${formatDurationSummary(videoProfile)} · ${videoProfile.resolutions.map((item) => item.toUpperCase()).join("/")}` : meta.description);
-    // flora 权威行: logo 圆 24, 名 14px/350; 徽章串=消耗+媒体类型(spec 诚实, 无能力不造); 描述 12px muted
-    const mediaTypes = modelMediaTypes(config, model, capability);
-    const priceForChip = modelMenuPrice(config, model, capability, true);
+    // flora 权威行: logo squircle24-r8; 第一行=名字+消耗+媒体类型(同行, 名字右侧); 第二行=描述 12px/350
+    // (2026-09-07 用户指令: 徽章在模型名右边同行; 名字降部不得截断; 描述溢出 hover 滚动)
+    const subtitleRef = useRef<HTMLSpanElement | null>(null);
+    const [subtitleOverflow, setSubtitleOverflow] = useState(false);
+    useLayoutEffect(() => {
+        const el = subtitleRef.current;
+        if (!el) return;
+        setSubtitleOverflow(el.scrollWidth > el.clientWidth + 1);
+    }, [capabilitySummary, creationVariant]);
     return (
-        <span className="flex w-full min-w-0 items-center gap-2 overflow-hidden py-0">
-            <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-[8px]" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
+        <span className="flex w-full min-w-0 items-center gap-2 py-0">
+            <span className="canvas-model-picker-logo grid size-6 shrink-0 place-items-center overflow-hidden rounded-[8px]" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
                 <ModelIcon config={config} model={model} />
             </span>
-            <span className="min-w-0 flex-1 overflow-hidden">
+            <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="min-w-0 truncate text-[var(--fs-body)] font-[350] leading-none" style={{ color: theme.node.text }}>{pickerModelDisplayName(config, model, showConfiguredModelName)}</span>
+                    <span className="canvas-model-picker-title min-w-0 truncate text-[var(--fs-body)] font-[350] leading-[1.4]" style={{ color: theme.node.text }}>{pickerModelDisplayName(config, model, showConfiguredModelName)}</span>
+                    {inlineBadges}
                 </span>
-                <span className="mt-1 block truncate text-xs font-[350]" style={{ color: theme.node.muted }} title={capabilitySummary}>
-                    {capabilitySummary}
+                <span
+                    ref={subtitleRef}
+                    className={cn("canvas-model-picker-subtitle mt-0.5 block truncate text-xs font-[350]", subtitleOverflow && "is-overflow")}
+                    style={{ color: theme.node.muted }}
+                    title={capabilitySummary}
+                >
+                    <span className="canvas-model-picker-subtitle-inner">{capabilitySummary}</span>
                 </span>
             </span>
-            <span className="flex shrink-0 items-center gap-0.5">
-                {priceForChip ? <ModelPrice price={priceForChip} chip /> : null}
-                {mediaTypes.map((item) => (
-                    <span key={item.kind} className="canvas-model-picker-chip canvas-model-picker-chip-icon" title={item.label}>
-                        {item.icon}
-                    </span>
-                ))}
-            </span>
+            {showPrice ? <ModelPrice price={modelMenuPrice(config, model, capability, true)} chip /> : null}
         </span>
     );
 }
@@ -703,7 +729,7 @@ function formatDurationSummary(profile: NonNullable<ReturnType<typeof modelCapab
     return `${profile.duration.min || values[0]}-${profile.duration.max || values[values.length - 1]}s`;
 }
 
-type ModelMenuPrice = { kind: "tiers"; label: string; compactLabel: string; title: string } | { kind: "estimate" } | { kind: "fixed"; value: number; unit: "次" | "秒" | "百万 Token" };
+type ModelMenuPrice = { kind: "tiers"; label: string; compactLabel: string; chipLabel?: string; title: string } | { kind: "estimate" } | { kind: "fixed"; value: number; unit: "次" | "秒" | "百万 Token" };
 
 function modelMenuPrice(config: AiConfig, model: string, capability?: ModelCapability, summary = false, requirements?: ModelRequirements): ModelMenuPrice | null | undefined {
     if (!model) return undefined;
@@ -735,10 +761,13 @@ function channelTierPriceSummary(
     allTiers: NonNullable<NonNullable<AiConfig["channels"][number]["modelCosts"]>[number]["logicalPriceTiers"]>,
 ): Extract<ModelMenuPrice, { kind: "tiers" }> {
     const label = priceTierSummaryLabel(visibleTiers);
+    // chip 徽章只显数值(flora: badge=数字+icon, "积分"字样省略)
+    const chipLabel = label.replace(/积分\/秒$/, "/秒").replace(/积分$/, "").trim();
     return {
         kind: "tiers",
         label,
         compactLabel: label,
+        chipLabel,
         title: `系统规格价格：${allTiers.map((tier) => `${tierSpecificationLabel(tier)} ${tierPriceLabel(tier)}`).join("；")}`,
     };
 }
@@ -769,7 +798,7 @@ function tierSpecificationLabel(tier: NonNullable<NonNullable<AiConfig["channels
 
 function tierPriceLabel(tier: NonNullable<NonNullable<AiConfig["channels"][number]["modelCosts"]>[number]["logicalPriceTiers"]>[number]) {
     if (tier.billingMode === "token") return "按量预估";
-    return `${formatPriceRange([tier.unitPriceMicrocredits / 1_000_000], tier.billingMode === "per_second" ? "积分/秒" : "积分")}`;
+    return formatPriceRange([tier.unitPriceMicrocredits / 1_000_000], tier.billingMode === "per_second" ? "积分/秒" : "积分");
 }
 
 function ModelPrice({ price, quote, compact = false, chip = false }: { price: ModelMenuPrice | null | undefined; quote?: LogicalModelQuote; compact?: boolean; chip?: boolean }) {
@@ -791,7 +820,7 @@ function ModelPrice({ price, quote, compact = false, chip = false }: { price: Mo
     if (price.kind === "tiers") {
         return chip ? (
             <span className="canvas-model-picker-chip tabular-nums" title={price.title}>
-                {price.label}
+                {price.chipLabel ?? price.label}
             </span>
         ) : (
             <span className="inline-flex shrink-0 items-center gap-0.5 text-[var(--fs-tiny)] font-medium tabular-nums opacity-60" title={price.title}>
