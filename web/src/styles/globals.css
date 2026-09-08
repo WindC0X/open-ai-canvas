@@ -7504,18 +7504,31 @@
         overflow-y: auto;
     }
 
-    /* hover 背景挂整行容器(rowgroup): pin 在 hover 色块内, 不再被"隔离"出胶囊外 */
-    .canvas-model-picker-rowgroup:hover .canvas-model-picker-option {
-        background: color-mix(in srgb, var(--workspace-accent) 9%, transparent) !important;
-    }
-
+    /* hover 背景唯一挂 rowgroup 整行容器(pin 同框)。
+       禁止 option 再自带上色: rowgroup 9% + option 9% 叠加会让行主体比 pin 区深一截,
+       视觉上高亮胶囊"止步于 pin 之外"(用户截图实锤的双色带根因)。 */
+    .canvas-model-picker-rowgroup:hover .canvas-model-picker-option,
     .canvas-model-picker-rowgroup:has(.canvas-model-picker-option[aria-selected="true"]) .canvas-model-picker-option {
-        background: color-mix(in srgb, var(--workspace-accent) 6%, transparent) !important;
+        background: transparent !important;
     }
 
     .canvas-model-picker-option:focus-visible {
         background: color-mix(in srgb, var(--workspace-accent) 13%, transparent) !important;
         outline: none;
+    }
+
+    /* 行文本显式字号: title/subtitle 不允许依赖继承——
+       flyout 是 createPortal(body) 挂载, 继承 body 16px; 主菜单继承 panel 14px,
+       两处 L2 行高差 2px 的根因。tailwind 任意值类(text-[var(--fs-body)])在该链路未生成规则。 */
+    .canvas-model-picker-title {
+        font-size: 14px;
+        line-height: 1.4;
+        font-weight: 350;
+    }
+
+    .canvas-model-picker-subtitle {
+        font-size: 12px;
+        line-height: 16px;
     }
 
     /* option-body: option 内唯一弹性主体(logo + 文本列 + ✓), 旧 nth-child 结构选择器已废 */
