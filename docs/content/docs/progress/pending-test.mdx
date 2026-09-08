@@ -2272,5 +2272,25 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 
 **修复方向（已评估未执行，详见 journal）**：A 单渲染路径根治（flyout 并入 Popover content 或两级自研）；B 最小止血（hidden 改 visibility/opacity 解开卸载死锁 + flyout 进白名单/补豁免标记 + 400ms 窗收窄单向）；C CSS 唯一源重构（合并双副本三源、删死类死规则）。
 
+### S08 模型菜单六轮·A 路线根治（2026-09-09，用户批准 A 路线后实施）
+
+**范围**：A 单渲染路径根治 + C CSS 唯一源重构（B 止血项并入：flyout 进关闭器白名单）。实测后勘误存档结论 1：antd6 Tooltip 核心确实硬编码 motionDeadline=1000，rc-motion leave 只等 transitionend/animationend 或 deadline；0s 过渡不派发 transitionend → 每次关闭都等满 1s deadline 才 destroyOnHidden，挂在 Popover content 里的 flyout 陪茻（后台 tab 定时器节流下约 60s）。
+
+**渲染路径（model-picker.tsx +80/−27）**：
+
+1. flyout portal 从 Popover content 内**提到组件根级**（Popover 兄弟、仍挂 body）：卸载由 `flyoutGroup` 单独驱动（不叠加 open），跟随本组件同步 commit，与 rc-motion 动画生命周期解耦；不叠加 open 是为避免 antd useWinClick 捕获阶段先关 L1 时，同 dispatch 内行 fiber 被中途分离导致只关不选。
+2. 自带 window pointerdown/wheel 关闭器把 flyout（挂 body、不在 menuRef 子树）纳入白名单，关闭归属四路补齐。
+3. 键盘 Enter 路径（onClick）补 `setFlyoutGroup(null)`，与 mousedown 幂等。
+4. `MenuBody` 改函数调用内联 `{MenuBody()}`：函数组件标识每 render 新建导致整棵菜单重挂载（丢滚动位置），消除。
+5. 死类 `creation-model-picker-flyout` 不再输出（无任何 CSS）。
+
+**CSS 唯一源（globals.css +24/−80）**：删除 :10783 flora 副本块（其 `background:transparent !important` 源序晚于 flyout 玻璃块，会打掉 creation 变体下 flyout 自身玻璃）与 :3322 旧 title/subtitle/34px 方logo 死值，flora 权威值（384宽/53行/12radius/logo24圆/名14-350/desc12/mt2）全部并入创建域块单一说话；删除 `.has-description` 死规则；**玻璃归一**：L1 `.creation-model-picker-surface`（10719 区 blur18+sat120%、2949 区 blur28+sat140%）与 L2 flyout blur18+sat1.2 → 全部归一 flora live 权威值 **blur16 无 saturate**；`.canvas-model-picker-menu` 钉死应用主排版字体栈+line-height，消除 L1(antd token 栈)/L2(body 内联栈)同 weight 不同真实字体的字重肉眼差。
+
+**浏览器实测（tmwd CDP，tab 1146048766，vite 重启后新模块，2026-09-09）**：①残留闭环：hover Grok 行→CDP 真实点击 flyout 行→ T1(按下后) fly=0+L1 ant-popover-hidden、T2(+400ms) menu 卸载，1.6s CPU 自旋（越过一切 deadline 儿底）后仍 0 残留；②选择闭环：React onChange 直调 AGNES 2.5 Flash ↔ Grok Image 2.0 来回，受控值正确、flyout 同步卸载；③三采样：L1 容器=L2 flyout=rgba(32,32,32,.9)+blur(16px)+radius16，行标题两侧 14px/350 同字体栈。
+
+**验证**：tsc ✓、bun run build ✓（26.15s）、workflow-model-picker-style.test.ts ✓。**遗留待验**：default 变体 6 消费方与亮色主题从未 eyeball（本批仍未覆盖）；键盘 Enter 选行未真机复验；creation 页（create/index.tsx）menu 与 flyout 亮色表现待用户过目。
+
+**教训**：① curl 无 query 读 vite 模块会命 dev server 内部缓存假象，核新鲜度必须带 cache-buster 或 `?raw`；② 前台/后台标签状态要在每次 reload 后重新采样，后台 tab 上合成事件与 rAF 路径全不可信。
+
 **待真机验证（真实浏览器，勿用 CDP 合成事件下结论）**：①前台选行后是否仍有可见残留（或仅剩不可见 DOM 驻留）；②连点/快速切换下 400ms 窗吞合法关闭的命中率；③default 变体与亮色主题下两问题是否复现；④bottomLeft 几何下落空 click 重开是否真实发生；⑤pointerdown→mousedown 时序翻转导致 L2 选行丢失的复现条件。
 d (docs(pending-test): S08 模型菜单五轮修复根因分析存档 - 勘误motionDeadline不存在/卸载未闭环/玻璃未收敛三结论 + 上游归类病灶与真机验证清单)

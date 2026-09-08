@@ -89,6 +89,7 @@ export function ModelPicker({
     // flora Providers 语法: 分组行 hover 右侧悬浮展开该组模型(flyout)
     const [flyoutGroup, setFlyoutGroup] = useState<string | null>(null);
     const [flyoutPos, setFlyoutPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const flyoutRef = useRef<HTMLDivElement>(null);
     const flyoutCloseTimer = useRef<number | null>(null);
     const openFlyout = (groupKey: string, anchor: HTMLElement) => {
         if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);
@@ -204,12 +205,14 @@ export function ModelPicker({
         const closeOnOutsidePointer = (event: PointerEvent) => {
             const target = event.target;
             if (!(target instanceof Node)) return;
-            if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+            // flyout portal 挂在 body(不在 menuRef 子树内), 不纳入判定会被本关闭器当外部点击同步关掉,
+            // 导致 flyout 行 mousedown 在事件派发中途 fiber 分离, 行内 onChange 选择丢失(2026-09-09 实测)。
+            if (triggerRef.current?.contains(target) || menuRef.current?.contains(target) || flyoutRef.current?.contains(target)) return;
             setOpen(false);
         };
         // 画布 wheel 缩放/平移移动触发器锚点, antd Popover 不跟随 transform —— 手势打断直接关(修漂移)。
         const closeOnCanvasWheel = (event: WheelEvent) => {
-            if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
+            if ((event.target instanceof Node && menuRef.current?.contains(event.target)) || (event.target instanceof Node && flyoutRef.current?.contains(event.target))) return;
             setOpen(false);
         };
         window.addEventListener("pointerdown", closeOnOutsidePointer, true);
@@ -324,9 +327,11 @@ export function ModelPicker({
                         triggerRef.current?.focus();
                     }}
                     onClick={() => {
-                        // 键盘 Enter 路径(click 事件): 与 mousedown 幂等
+                        // 键盘 Enter 路径(click 事件): 与 mousedown 幂等。flyout 卸载必须显式:
+                        // 只依赖 !open effect 会在下一帧才清, L2 残留可见一帧以上。
                         if (!model) return;
                         onChange(model);
+                        setFlyoutGroup(null);
                         setOpen(false);
                     }}
                 >
@@ -503,32 +508,9 @@ export function ModelPicker({
                     {current ? <strong>{pickerModelDisplayName(config, current, showConfiguredModelName)}</strong> : null}
                 </div>
             ) : null}
-            <MenuBody />
-            {createPortal(
-                flyoutGroup && open ? (
-                    <div
-                        className={cn(
-                            "canvas-model-picker-flyout canvas-model-picker-menu",
-                            // 与 L1 同源: 画布 composer 传 variant=creation 时 L1 菜单挂 creation 类,
-                            // flyout 也必须同挂, 否则两套容器/行外观(padding/gap/字号) → L1/L2 不一致(2026-09-08 实测)
-                            creationVariant && "creation-model-picker-menu creation-model-picker-flyout",
-                        )}
-                        style={{ left: flyoutPos.x, top: flyoutPos.y }}
-                        onMouseEnter={cancelFlyoutClose}
-                        onMouseLeave={scheduleFlyoutClose}
-                        role="listbox"
-                    >
-                        {optionGroups
-                            .filter((group) => group.key === flyoutGroup)
-                            .map((group) => (
-                                <div key={group.key} className="grid min-w-0 gap-0.5">
-                                    {group.models.map((modelGroup) => renderModelRow(modelGroup, group.label))}
-                                </div>
-                            ))}
-                    </div>
-                ) : null,
-                document.body,
-            )}
+            {/* MenuBody 以函数调用内联: 若写成 <MenuBody />, 组件标识每 render 新建,
+                整棵菜单子树随之重挂载(任意 state 变化丢滚动位置/重置 hover)。 */}
+            {MenuBody()}
             {drillMode === "flat" && !visibleGroups.length ? (
                 <div className="canvas-model-picker-empty" style={{ color: theme.node.muted }}>
                     {emptyModelLabel(config, capability)}
@@ -577,6 +559,46 @@ export function ModelPicker({
                     <ChevronDown className={cn("canvas-model-picker-chevron", open && "is-open")} aria-hidden="true" />
                 </button>
             </Popover>
+            {/* flyout portal 必须挂在组件根级而不是 antd Popover content 内:
+                content 在 open=false 的 leave 期间被 antd 冻结(motion 期间不向 content 下发
+                渲染更新, 后台 tab rAF 停摆时 leave 永不完成 → content 永不销毁), 选行后
+                flyoutGroup=null 的 portal 卸载永远没有渲染机会, DOM 滞留 body(2026-09-09
+                fiber 实测: hooks 已提交 null 而陈旧 flyout 仍 connected)。根级挂载让 portal
+                的卸载跟随本组件自身 commit, 与 antd 动画生命周期解耦。挂载点仍是
+                document.body(position:fixed 定位语义不变)。 */}
+            {createPortal(
+                flyoutGroup ? (
+                    <div
+                        ref={flyoutRef}
+                        className={cn(
+                            "canvas-model-picker-flyout canvas-model-picker-menu",
+                            // 与 L1 同源: 画布 composer 传 variant=creation 时 L1 菜单挂 creation 类,
+                            // flyout 也必须同挂, 否则两套容器/行外观(padding/gap/字号) → L1/L2 不一致(2026-09-08 实测)
+                            creationVariant && "creation-model-picker-menu",
+                        )}
+                        style={{ left: flyoutPos.x, top: flyoutPos.y }}
+                        onMouseEnter={cancelFlyoutClose}
+                        onMouseLeave={scheduleFlyoutClose}
+                        role="listbox"
+                    >
+                        {optionGroups
+                            .filter((group) => group.key === flyoutGroup)
+                            .map((group) => (
+                                <div key={group.key} className="grid min-w-0 gap-0.5">
+                                    {group.models.map((modelGroup) => renderModelRow(modelGroup, group.label))}
+                                </div>
+                            ))}
+                    </div>
+                ) : null,
+                // portal 卸载仅由 flyoutGroup 驱动, 不叠加 open:
+                // antd useWinClick 在 window 捕获阶段收 mousedown, flyout 挂 body 在其 popupEle
+                // 判定外 → 行 mousedown 先被 antd 置 open=false。若渲染条件含 open, 同一 dispatch
+                // 内 flush 会中途卸载 flyout、行 fiber 分离, 行自己的 onMouseDown(onChange 选择)
+                // 被 React 跳过 → 只关不选(2026-09-09 rowHit 实测)。仅由 flyoutGroup 驱动时行
+                // handler 正常跑完: onChange + setFlyoutGroup(null) 主动卸载; Esc/外部点击等
+                // 其它关闭路径由上方 !open effect 清 flyoutGroup 兑底。 */}
+                document.body,
+            )}
         </div>
     );
 }
