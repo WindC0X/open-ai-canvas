@@ -225,6 +225,8 @@ export function ModelPicker({
     useEffect(() => {
         if (!open) {
             setSearchText("");
+            // flyout 残留清理: Esc/外部点击等关闭路径不经过行内 mousedown, 必须在此统一收
+            setFlyoutGroup(null);
         }
         else if (searchable) window.requestAnimationFrame(() => searchRef.current?.focus());
     }, [open, searchable]);
@@ -312,11 +314,14 @@ export function ModelPicker({
                         lastFlyoutMouseDownRef.current = Date.now();
                         if (!model) return;
                         onChange(model);
+                        // L2 flyout 是独立 createPortal, 不受 Popover root 类控制, 必须显式卸载
+                        setFlyoutGroup(null);
                         setOpen(false);
-                        // 即时隐藏保险丝(同帧生效, 不依赖 React effect/rc-motion 动画帧): rAF 停摆的
-                        // 窗口(后台 tab/非聚焦)里 leave 链冻结会留下可见残留(2026-09-08 实测)。
-                        document.querySelector('.canvas-model-picker-popover')?.classList.add('ant-popover-hidden');
-                        window.requestAnimationFrame(() => triggerRef.current?.focus());
+                        // 隐藏走 props 注入(见 classNames.root 的 ant-popover-hidden): rc-motion
+                        // 启动 leave 时会按 props 重算 root className, 任何 DOM 副作用加的类都会被
+                        // 整体抹掉(2026-09-08 实测根因), props 注入则重算后仍在。后台 tab rAF 停摆时
+                        // leave 冻结也只冻在一个 display:none 的节点上, 无可见残留。
+                        triggerRef.current?.focus();
                     }}
                     onClick={() => {
                         // 键盘 Enter 路径(click 事件): 与 mousedown 幂等
@@ -532,23 +537,6 @@ export function ModelPicker({
         </div>
     );
 
-    /* 关闭时的显示层保险丝: rc-motion 的 leave 链(prepare→start→active→transitionend/deadline)在
-       rAF 停摆的窗口(后台 tab / 非聚焦窗口)会冻结, antd6 Popover 又不接受 motion 布尔开关(被
-       { motionName } 重置)。此 effect 在 open=false 时直接把弹层根 display:none — 不依赖任何
-       动画帧, 用户感知上即点即收; open=true 时清除, 让 antd 正常控制显隐。 */
-    useEffect(() => {
-        const root = document.querySelector(".canvas-model-picker-popover");
-        if (!open && root) {
-            root.classList.add("ant-popover-hidden");
-        } else if (open && root) {
-            root.classList.remove("ant-popover-hidden");
-        }
-        return () => {
-            const root = document.querySelector(".canvas-model-picker-popover");
-            if (root) root.classList.remove("ant-popover-hidden");
-        };
-    }, [open]);
-
     return (
         <div className={cn(fullWidth ? "w-full min-w-0" : "w-fit max-w-full")} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
             <Popover
@@ -564,7 +552,7 @@ export function ModelPicker({
                 destroyOnHidden
                 content={content}
                 classNames={{
-                    root: cn("canvas-model-picker-popover", creationVariant && "creation-model-picker-popover", popoverClassName),
+                    root: cn("canvas-model-picker-popover", creationVariant && "creation-model-picker-popover", popoverClassName, !open && "ant-popover-hidden"),
                     container: cn("canvas-composer-popover-surface", creationVariant && "creation-model-picker-surface"),
                     content: "canvas-composer-popover-content",
                 }}
