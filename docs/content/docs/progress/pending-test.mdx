@@ -2247,4 +2247,30 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 2. **L1/L2 不一致真根因**：画布 composer 的 ModelPicker 传 `variant="creation"` → L1 菜单挂 creation 类（容器 padding 8px / 行 padding 8px 10px / gap 12 / logo 34 / title 13px / sub 10px），而 flyout 只挂 canvas 基础类（padding 6px / 行 8px / gap 8 / logo 24 / title 14px）——两套外观并存，实测 L2 内容区宽 370 vs L1 362.5、行高 53.6 vs 52.8。**修复**：flyout 同挂 `creation-model-picker-menu`/`creation-model-picker-flyout`（与 L1 同源），flyout 背景加 `!important` 防 creation `background:transparent !important` 覆盖玻璃。
 3. **合成事件探针的语义失真（登记）**：dispatchEvent 的 MouseEvent 在 antd portal（body 直挂）内的 React 合成委托上**不触发行 handler**（原生监听可达、React 不响应），因此"选行后未关/未变"的远程探针结果不能作为真实用户路径的证据；handler 直接调用验证生效（before false → afterSync true → display:none）。
 **待人工验证**：①前台选行后菜单立即消失（聚焦/失焦两态）；②outside 点击/Esc 关闭同样即时；③画布上下文开 L1+hover Providers 行开 L2，两侧行宽/行高/字号/logo 尺寸一致；④亮暗两主题玻璃感正常。
+
 0 (docs(pending-test): S08 模型菜单三轮收尾批 - 残留=失焦rAF冻结闭环 + L1/L2 creation双外观根因 + 合成事件探针语义失真登记)
+
+### 模型菜单深度根因分析存档（2026-09-09，只存档未修复）
+
+> 独立多智能体深度解析（5 路取证 + 综合 + 双对抗校验，证据链：`.trellis/workspace/WindC0X/journal-1.md` 2026-09-09 节）针对两问题残留现状的复盘，推翻了部分既有结论，登记于此；修复方向未执行，待用户决策。
+
+**勘误（推翻四轮批结论）**：
+
+1. "antd6 源码核实 Popover 用 `{ motionName: zoom-big-fast, motionDeadline: 1000 }`" —— 经 antd 6.5.1 源码逐行核实为**错误**：只有 Tooltip 传 motionDeadline（antd/es/tooltip/index.js），Popover 只传 motionName（antd/es/popover/index.js），无 deadline 兜底。四轮批据此设计的 destroyOnHidden 卸载路径实际走不完。
+2. "props 注入后 Portal 卸载干净" —— 建立在四轮批自认失真的合成事件探针上，不可靠；机制推断：hidden 类（display:none）与 rc-motion leave 同帧生效 → display:none 不运行 CSS 动画 → animationend 永不派发 → 无 deadline 兜底 → leave 永久挂起 → `keepDom` 恒真 → destroyOnHidden **永不卸载**，Popover DOM 以不可见态永久驻留（是否还有前台可见残留待真机确认）。
+3. "玻璃 blur18+saturate1.2 两层同源收敛" —— 925d338 后仍分叉：L1 权威值 blur16 无 saturate vs L2 blur18+saturate1.2；亮色 .94（仅 creation）vs .92；"同源"实为与 creation surface（10713 行区）对齐，与 model-picker surface 权威值（7285 行区）自相矛盾。
+
+**新增机制结论（此前五轮均未覆盖的上游病灶）**：
+
+- L2 flyout 游离于一切关闭归属机制外：pointerdown/wheel 白名单、antd useWinClick、Esc、画布豁免标记四路全不覆盖；L2 选行能工作依赖 React 调度时序巧合，时序翻转即"时好时坏"。
+- 400ms 双向窗吞掉窗内合法关闭；`MenuBody` 为渲染期内联组件，重渲染整树重挂。
+- 感知的 L1/L2 行不一致 = 真实材质分叉 + 钻取层级差异（L1 首屏 44px 渠道行 vs L2 53px 模型行，同类行两侧实为同源 renderModelRow）叠加。
+- creation 菜单类双副本（3242/10780）、surface 玻璃三源靠源序决胜；`creation-model-picker-flyout` 类无 CSS（死类）、`.has-description` 规则 TSX 不输出（死规则）。
+- 五轮验证全部在 creation 变体 + 暗色下进行；default 变体（9 消费方中 6 个）与亮色从未 eyeball。
+
+**系统性模式**：五轮修复全部打在下游（动画/类/卸载端），病灶在上游（flyout 归类错误 + 关闭依赖动画帧的结构问题）；四层关闭机制叠存而非替换；在自认失真的探针证据上宣布闭环，是"修好了→用户复验没修好"循环的直接原因。
+
+**修复方向（已评估未执行，详见 journal）**：A 单渲染路径根治（flyout 并入 Popover content 或两级自研）；B 最小止血（hidden 改 visibility/opacity 解开卸载死锁 + flyout 进白名单/补豁免标记 + 400ms 窗收窄单向）；C CSS 唯一源重构（合并双副本三源、删死类死规则）。
+
+**待真机验证（真实浏览器，勿用 CDP 合成事件下结论）**：①前台选行后是否仍有可见残留（或仅剩不可见 DOM 驻留）；②连点/快速切换下 400ms 窗吞合法关闭的命中率；③default 变体与亮色主题下两问题是否复现；④bottomLeft 几何下落空 click 重开是否真实发生；⑤pointerdown→mousedown 时序翻转导致 L2 选行丢失的复现条件。
+d (docs(pending-test): S08 模型菜单五轮修复根因分析存档 - 勘误motionDeadline不存在/卸载未闭环/玻璃未收敛三结论 + 上游归类病灶与真机验证清单)
