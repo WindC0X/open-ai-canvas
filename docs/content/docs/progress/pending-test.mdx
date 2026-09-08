@@ -2186,4 +2186,14 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 6. 保留：实心 surface radius16、搜索框、384 定宽。
 
 浏览器实测（served grep + DOM 读数 + 截图 /tmp/shot-v5-pinned.png）：Pinned models 组随 pin 即时出现、flyout 340px 含该渠道模型行、localStorage 写入 ✓、溢出 overflowX=false。tsc 0、build ✓、定向测试 4/0。待 eyeball：真实 hover 流畅性（合成事件只能验证触发链）、未分组渠道场景的 Models 沉底、亮色主题。
+
 7 (feat(canvas): S08 模型列表 flora 全结构 - Pinned置顶组/渠道flyout悬浮/Models沉底/媒体类型徽章/溢出修复)
+
+### S08 模型列表视觉核验批（2026-09-07，pi-vision-handoff 真视觉复核）
+
+用户关闭主模型原生识图（误读率高），改用 pi-vision-handoff(gemini-3.8-flash) 代读截图。三张 flora/影策对照图重新核验后补齐：
+
+1. **Providers 组标**：渠道区上方补 flora 同款组标（影策语义=系统渠道分组，对应用户"系统模型按渠道分"），结构变为 搜索框 → Pinned models → Providers(渠道行›) → Models(沉底)；DOM 读数 + 截图双确认。
+2. **误读更正**：此前原生识图误报"媒体类型徽章未渲染"——gemini 复核 + DOM 读数(chips=[0.001积分, icon-only]) 确认媒体徽章一直在渲染。
+3. 与 flora 图3 结构已同构；仍缺 flora 的 Auto select model / Use multiple models 开关行与 Featured models 组（影策无对应功能语义，维持登记不做）。
+8 (feat(canvas): S08 模型列表补 Providers 组标 - 真视觉handoff复核批)

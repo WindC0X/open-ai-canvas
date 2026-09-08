@@ -373,29 +373,44 @@ export function ModelPicker({
                           {item.models.map((modelGroup) => renderModelRow(modelGroup, item.group.label))}
                       </div>
                   ))
-                : optionGroups.map((group) =>
-                      group.key === "__ungrouped" ? (
-                          <section key={group.key} className="canvas-model-picker-group min-w-0 overflow-hidden">
+                : (
+                      <>
+                          {/* flora 权威: 渠道区上方有 Providers 组标(影策语义=系统渠道分组) */}
+                          <section className="canvas-model-picker-group min-w-0 overflow-hidden">
                               <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
-                                  <span className="truncate">Models</span>
+                                  <span className="truncate">Providers</span>
                               </div>
-                              <div className="grid min-w-0 gap-0.5">{group.models.map((modelGroup) => renderModelRow(modelGroup, group.label))}</div>
+                              <div className="grid min-w-0 gap-0.5">
+                                  {optionGroups
+                                      .filter((group) => group.key !== "__ungrouped")
+                                      .map((group) => (
+                                          <div
+                                              key={group.key}
+                                              className="canvas-model-picker-provider-row"
+                                              onMouseEnter={(event) => openFlyout(group.key, event.currentTarget)}
+                                              onMouseLeave={scheduleFlyoutClose}
+                                              onFocus={(event) => openFlyout(group.key, event.currentTarget)}
+                                          >
+                                              <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
+                                                  <ModelIcon config={config} model={group.models[0]?.models[0] || ""} />
+                                              </span>
+                                              <span className="min-w-0 flex-1 truncate text-[var(--fs-body)]">{group.label}</span>
+                                              <ChevronRight className="size-4 shrink-0 opacity-45" aria-hidden="true" />
+                                          </div>
+                                      ))}
+                              </div>
                           </section>
-                      ) : (
-                          <div
-                              key={group.key}
-                              className="canvas-model-picker-provider-row"
-                              onMouseEnter={(event) => openFlyout(group.key, event.currentTarget)}
-                              onMouseLeave={scheduleFlyoutClose}
-                              onFocus={(event) => openFlyout(group.key, event.currentTarget)}
-                          >
-                              <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
-                                  <ModelIcon config={config} model={group.models[0]?.models[0] || ""} />
-                              </span>
-                              <span className="min-w-0 flex-1 truncate text-[var(--fs-body)]">{group.label}</span>
-                              <ChevronRight className="size-4 shrink-0 opacity-45" aria-hidden="true" />
-                          </div>
-                      ),
+                          {optionGroups
+                              .filter((group) => group.key === "__ungrouped")
+                              .map((group) => (
+                                  <section key={group.key} className="canvas-model-picker-group min-w-0 overflow-hidden">
+                                      <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
+                                          <span className="truncate">Models</span>
+                                      </div>
+                                      <div className="grid min-w-0 gap-0.5">{group.models.map((modelGroup) => renderModelRow(modelGroup, group.label))}</div>
+                                  </section>
+                              ))}
+                      </>
                   )}
         </>
     );
