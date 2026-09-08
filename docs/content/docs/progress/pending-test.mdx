@@ -2227,4 +2227,14 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 8. 描述溢出 hover 滚动 → subtitle marquee（9s 线性、prefers-reduced-motion 静态）。
 **影响面**：ModelPicker 消费面 10 处（admin×2/create/projects×4/settings/canvas×2）；creation 变体两套 nth-child 结构选择器已改类选择器（logo/title/subtitle）。
 **教训登记**：改共享组件必须先枚举消费面 + 全库排查引用旧 DOM 结构的 CSS 选择器；验收清单必须覆盖所有消费面截图，不是本轮改动点。
+
 5 (fix(canvas): S08 模型菜单二轮 - 玻璃唯一归属/行结构统一/徽章同行去积分/pin整行hover/marquee/选择即收(重排detach根因), creation结构选择器改类钩子)
+
+### S08 模型菜单三轮收尾批（2026-09-08，b449f84）
+**用户复验残留（"依旧残留，需要取消选择节点才会消失"）+ L1/L2 仍不一致的根因与修复**
+
+1. **选行残留真根因（闭环）**：rc-motion leave 链 `prepare→start→active→transitionend/deadline` 每一步都需 rAF/帧推进；窗口非聚焦（点行后切走/失焦）时帧停摆 → leave 冻结在 leave-start → 菜单可见残留，直到任何后续交互让窗口回焦、动画链走完（"取消选择节点才消失"即回焦交互）。antd6 源码核实：Popover 会用 `{ motionName: zoom-big-fast, motionDeadline: 1000 }` 重置传入的 motion 布尔开关（动画禁不掉），deadline 的 setTimeout 又只在 ACTIVE 步之后启动——ACTIVE 到不了则 deadline 永不兜底。**修复**：行 mousedown handler 里同步给弹层根加 `.ant-popover-hidden`（display:none，本仓唯一样式源），关闭感知与动画帧完全解耦；open effect 兜底其余关闭路径（outside/Esc）；`destroyOnHidden` 保留走 Portal autoDestroy 卸载链。
+2. **L1/L2 不一致真根因**：画布 composer 的 ModelPicker 传 `variant="creation"` → L1 菜单挂 creation 类（容器 padding 8px / 行 padding 8px 10px / gap 12 / logo 34 / title 13px / sub 10px），而 flyout 只挂 canvas 基础类（padding 6px / 行 8px / gap 8 / logo 24 / title 14px）——两套外观并存，实测 L2 内容区宽 370 vs L1 362.5、行高 53.6 vs 52.8。**修复**：flyout 同挂 `creation-model-picker-menu`/`creation-model-picker-flyout`（与 L1 同源），flyout 背景加 `!important` 防 creation `background:transparent !important` 覆盖玻璃。
+3. **合成事件探针的语义失真（登记）**：dispatchEvent 的 MouseEvent 在 antd portal（body 直挂）内的 React 合成委托上**不触发行 handler**（原生监听可达、React 不响应），因此"选行后未关/未变"的远程探针结果不能作为真实用户路径的证据；handler 直接调用验证生效（before false → afterSync true → display:none）。
+**待人工验证**：①前台选行后菜单立即消失（聚焦/失焦两态）；②outside 点击/Esc 关闭同样即时；③画布上下文开 L1+hover Providers 行开 L2，两侧行宽/行高/字号/logo 尺寸一致；④亮暗两主题玻璃感正常。
+0 (docs(pending-test): S08 模型菜单三轮收尾批 - 残留=失焦rAF冻结闭环 + L1/L2 creation双外观根因 + 合成事件探针语义失真登记)
