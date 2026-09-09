@@ -2290,6 +2290,16 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 
 **修复（6a3ca9c）**：高度上限 420→`min(560px, calc(100vh - 132px))`——560 可容纳 search+3pinned+4provider 全量不滚动；视口不足时才滚动（下限留 132px 给触发表与 composer）。验证：tsc ✓、vite 已服出新值（cache-buster 实测）；待用户刷新复验。
 
+### S08 模型菜单十二轮（2026-09-09，滚动条 hover/select 过亮修复）
+
+**用户实测**：十一轮后滚动条出现，但 hover/拖拽态滑块比 flora 亮太多（flora hover ≈ rgba(255,255,255,.40-.48) 中灰，实现呈 #dcdcdc-#e8e8e8 ≈85-90% 白）。
+
+**根因（对照 flora 参考图 + CSSOM 指纹锁定）**：`.canvas-model-picker-menu` 同时写标准 `scrollbar-color` 与 `::-webkit-scrollbar-thumb` 定制 —— Chromium 121+ 标准属性优先，`::-webkit-scrollbar` 伪元素定制整体失效（页面 CSSOM 中根本无该规则实例），滑块落到 Chrome 原生渲染；Chrome 引擎对标准 thumb 的 hover/press 有内置提亮到 ≈85-90% 白，正是用户截图的过亮值。十一轮写的 hover 0.34 从未生效。
+
+**修复（88d8166）**：标准属性（`scrollbar-width/color`）限定 Firefox（`@supports selector(:-moz-full-screen)` 探测）；Chromium 走 `::-webkit-scrollbar` 全定制，hover 提亮 0.34→0.44 对齐 flora 实测区间。浏览器实测（tab 1146048766，CDP 指针移至滑块）：idle 滑块 #595958（flora 0.22 白 ≈#5d5d5d ✓）、hover #888787（flora #7b7b7b-#858585 区间 ✓）。tsc 0 错误。
+
+**待人眼复核**：亮色主题下滑块（rgba(17,24,39,.28)/hover .44）与 L2 flyout 内滚动条外观一致性。
+
 ### S08 模型菜单九轮（2026-09-09，用户复测 L2 pin 仍失效）
 
 **用户实测**：八轮后 L2 flyout 中点击 pin 依旧不进 Pinned 区。代码层面 pin 已是 mousedown 生效（七轮，L1 实测通过），但 L2 真机仍失效 → 证明 mousedown 阶段同样被吞（可能被 antd useWinClick 或 flyout 关闭链在 mousedown 前后同一帧吞掉）。
