@@ -2290,6 +2290,19 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 
 **修复（6a3ca9c）**：高度上限 420→`min(560px, calc(100vh - 132px))`——560 可容纳 search+3pinned+4provider 全量不滚动；视口不足时才滚动（下限留 132px 给触发表与 composer）。验证：tsc ✓、vite 已服出新值（cache-buster 实测）；待用户刷新复验。
 
+### S08 参数列表十五轮（2026-09-09，内部面板排版/字号/比例卡形态收敛）
+
+**背景**：十四轮统一了弹层外壳与触发按钮，本轮收敛内部面板组件间残余分裂（组标题排版、选项字号字重、比例按钮形态）。
+
+**审计发现与修复（以 image 面板为基准）**：
+- video 面板（主/即梦/Seedance 三变体）组标题 `text-[var(--fs-tiny)] font-semibold`+`space-y-1.5` → 对齐 image 的 `text-xs font-medium`+`space-y-2`；
+- video OptionPill `text-[var(--fs-label)] font-medium` → `text-xs`（去 font-medium，与 image/audio 一致）；
+- video 主面板尺寸按钮 h-8 单行 → image 同款 h-52 双行卡（图标行+文字行），即梦/Seedance 比例按钮 h-11 → h-52 双行卡；
+- audio 面板组间距 `space-y-2.5` → `space-y-2`，OptionPill `text-[var(--fs-label)]` → `text-xs`；
+- image OptionPill 补 `aria-pressed`（对齐 video/audio 的 AX 语义）。
+
+**验证**：bunx tsc --noEmit 0 错误；canvas-text-settings-popover 5/5 通过；bun run build ✓。待浏览器肉眼复核四弹层。
+
 ### S08 参数列表十四轮（2026-09-09，四弹层触发按钮/组间距质感收敛）
 
 **背景**：用户 07:03 批次"其他选项列表 UI 参考其他项目优化 + flora 质感同步"——模型菜单已于八至十三轮闭环，本轮收敛四个参数弹层（图像/视频/文本/音频设置）间残余质感分裂。

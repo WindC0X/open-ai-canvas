@@ -82,10 +82,11 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
 }
 
 function OptionPill({ selected, theme, onClick, children }: { selected: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
+    // 字号对齐 image OptionPill(text-xs)。
     return (
         <button
             type="button"
-            className="canvas-settings-option h-8 cursor-pointer rounded-lg px-2.5 text-[var(--fs-label)] transition-colors"
+            className="canvas-settings-option h-8 cursor-pointer rounded-lg px-2.5 text-xs transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
             style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}
@@ -96,8 +97,9 @@ function OptionPill({ selected, theme, onClick, children }: { selected: boolean;
 }
 
 function SettingGroup({ title, color, children }: { title: string; color: string; children: ReactNode }) {
+    // 组间距与 image/video 面板同一收敛(space-y-2)。
     return (
-        <div className="space-y-2.5">
+        <div className="space-y-2">
             <div className="text-xs font-medium" style={{ color }}>
                 {title}
             </div>

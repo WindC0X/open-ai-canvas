@@ -63,18 +63,21 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         <span className="text-xs opacity-45">×</span>
                         <DimensionValue prefix="H" value={dimensions.height} theme={theme} />
                     </div> : null}
+                    {/* 比例按钮统一 image 面板的双行卡形态(h-52: 图标行+文字行)。 */}
                     <div className="grid grid-cols-3 gap-1.5">
                         {profile.ratios.map((value) => (
                             <button
                                 key={value}
                                 type="button"
-                                className="canvas-settings-option flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-1 text-[var(--fs-label)] font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                className="canvas-settings-option flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                 style={{ background: ratio === value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: ratio === value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => onConfigChange("size", value)}
                             >
-                                <SizePreview width={ratioPreview(value).width} height={ratioPreview(value).height} color={theme.node.text} />
-                                <span>{value}</span>
+                                <span className="grid h-6 w-8 place-items-center">
+                                    <SizePreview width={ratioPreview(value).width} height={ratioPreview(value).height} color={theme.node.text} />
+                                </span>
+                                <span className="whitespace-nowrap">{value}</span>
                             </button>
                         ))}
                     </div>
@@ -136,6 +139,7 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                     {isSeedanceFastModel(model) ? <div className="text-[var(--fs-tiny)] leading-4 opacity-55">fast 模型自动使用 720P</div> : null}
                 </SettingGroup> : null}
                 <SettingGroup title="比例" color={theme.node.muted}>
+                    {/* 比例按钮统一 image 面板的双行卡形态(h-52)与 grid-cols-4。 */}
                     <div className="grid grid-cols-4 gap-1.5">
                         {profile.ratios.map((value) => {
                             const item = { value, label: value };
@@ -143,12 +147,12 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                             <button
                                 key={item.value}
                                 type="button"
-                                className="canvas-settings-option flex h-11 min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[var(--fs-tiny)] font-medium leading-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                className="canvas-settings-option flex h-[52px] min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-tiny)] leading-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                 style={{ background: ratio === item.value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: ratio === item.value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => onConfigChange("size", item.value)}
                             >
-                                <span className="grid h-4 place-items-center">
+                                <span className="grid h-6 w-8 place-items-center">
                                     <SizePreview width={ratioPreview(item.value).width} height={ratioPreview(item.value).height} color={theme.node.text} />
                                 </span>
                                 <span className="whitespace-nowrap">{item.label}</span>
@@ -202,18 +206,20 @@ export function normalizeVideoSizeValue(value: string) {
     return ["9:16", "2:3", "3:4"].includes(value) ? "720x1280" : "1280x720";
 }
 
+// 字重/字号与 image/audio OptionPill 同一收敛(text-xs, 不加 font-medium)。
 function OptionPill({ selected, disabled = false, theme, onClick, children }: { selected: boolean; disabled?: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
     return (
-        <button type="button" disabled={disabled} aria-pressed={selected} className="canvas-settings-option h-8 cursor-pointer whitespace-nowrap rounded-lg px-2.5 text-[var(--fs-label)] font-medium leading-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-35" style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }} onMouseDown={(event) => event.stopPropagation()} onClick={onClick}>
+        <button type="button" disabled={disabled} aria-pressed={selected} className="canvas-settings-option h-8 cursor-pointer whitespace-nowrap rounded-lg px-2.5 text-xs leading-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-35" style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }} onMouseDown={(event) => event.stopPropagation()} onClick={onClick}>
             {children}
         </button>
     );
 }
 
+// 组标题排版与 image/audio 面板同一收敛(text-xs font-medium + space-y-2)。
 function SettingGroup({ title, color, children }: { title: string; color: string; children: ReactNode }) {
     return (
-        <div className="space-y-1.5">
-            <div className="text-[var(--fs-tiny)] font-semibold" style={{ color }}>
+        <div className="space-y-2">
+            <div className="text-xs font-medium" style={{ color }}>
                 {title}
             </div>
             {children}
