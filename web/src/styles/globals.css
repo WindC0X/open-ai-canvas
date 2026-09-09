@@ -7340,9 +7340,12 @@
     }
 
     .canvas-model-picker-menu {
-        /* flora P51-030: 菜单根定宽 384(世界), 不随内容/触发器收缩 */
+        /* flora P51-030: 菜单根定宽 384(世界), 不随内容/触发器收缩。
+           高度上限 560(2026-09-09 十轮): 420 在 pinned≥2 时提前内部滚动裁切,
+           第二行拦腰半行 + 底部 provider 被挤出可视区(用户截图三连实锤);
+           560 可容纳 search+3pinned+4provider 全量不滚动, 视口不足仍滚动。 */
         width: min(384px, calc(100vw - 24px)) !important;
-        max-height: min(420px, calc(100vh - 32px));
+        max-height: min(560px, calc(100vh - 132px));
         overflow-x: hidden;
         overflow-y: auto;
         padding: 4px;
