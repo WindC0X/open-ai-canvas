@@ -2272,6 +2272,14 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 
 **修复方向（已评估未执行，详见 journal）**：A 单渲染路径根治（flyout 并入 Popover content 或两级自研）；B 最小止血（hidden 改 visibility/opacity 解开卸载死锁 + flyout 进白名单/补豁免标记 + 400ms 窗收窄单向）；C CSS 唯一源重构（合并双副本三源、删死类死规则）。
 
+### S08 模型菜单七轮（2026-09-09，用户 6 问题批：一漏/二pin/三分组 + 幽灵变量破案）
+
+**用户 6 问题台账**（本轮闭环 5 项，1 项待用户）：①logo 无边界→已修（六轮已删圆形覆盖，本轮实测 r=8px ✓）；②可接受类型图标颜色太亮→**已修**（根因：`--workspace-foreground` 全仓无定义，所有用它的 color-mix 静默失效退化为不透明继承色；定义映射 `var(--foreground)` 两主题生效，实测 chip border alpha .17 / icon alpha .48）；③类型图标语义→已修（前轮：text 恒显+inputs 诚实声明）；④组标缺 ⓘ→**已修**（Pinned/Providers 标签加 Info 图标+antd Tooltip，空态保留“标题+ⓘ+placeholder”三段）；⑤点 pin 不进置顶区→**已修**（根因见下）；⑥前台目录全堆“平台模型”→**已修**（managed 渠道数据源无产商标，按模型配置 logo 分组 + `modelProviderTitleOf` 人读组名，默认 logo 沉底 Models 组；实测 OpenAI (ChatGPT)/Grok (xAI) 两组）。
+
+**pin 静默失效根因（对照实验定性）**：完整事件序列（pointerdown→mousedown→…→click）pin 失效，仅发 click 则写入成功——flyout 挂 body 在 antd useWinClick popupEle 判定外，mousedown 先被 antd 置 open=false；真实用户 mousedown→click 间有 paint 间隔，`!open` effect 清 flyoutGroup 卸载 flyout，click 落在已分离节点，onClick 永不执行。修复：pin 动作提前到 mousedown（与行选择同构，L1/L2 通吃），click 仅兜底 stopPropagation。
+
+**验证**：tsc ✓、build 32.79s、相关测试 17 pass；实测产商分组/info 渲染/chip alpha/pin 全链路（置顶→Pinned 区回显→取消置顶）均过。**遗留待验**：ⓘ Tooltip 悬浮样式人眼过目；creation 页亮色主题下产商分组表现未 eyeball。
+
 ### S08 模型菜单六轮·A 路线根治（2026-09-09，用户批准 A 路线后实施）
 
 **范围**：A 单渲染路径根治 + C CSS 唯一源重构（B 止血项并入：flyout 进关闭器白名单）。实测后勘误存档结论 1：antd6 Tooltip 核心确实硬编码 motionDeadline=1000，rc-motion leave 只等 transitionend/animationend 或 deadline；0s 过渡不派发 transitionend → 每次关闭都等满 1s deadline 才 destroyOnHidden，挂在 Popover content 里的 flyout 陪茻（后台 tab 定时器节流下约 60s）。
