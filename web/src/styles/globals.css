@@ -7586,10 +7586,23 @@
     /* ---- S08 模型列表 flora 结构批(溢出修复/pin/flyout/媒体徽章) ---- */
     /* 溢出修复: 徽章行不换行不撑高; 行描述 truncate */
     .canvas-model-picker-menu {
-        scrollbar-width: thin;
         /* flora 参考图(用户三连 2026-09-09): 滚动条为暗背景上的深色细胶囊, 贴右缘。
-           Firefox: thin + thumb 色即可; Chromium 走下方 ::-webkit-scrollbar 定制。 */
-        scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+           互斥规则(2026-09-09 亮度批): Chromium 121+ 一旦元素带标准 scrollbar-color,
+           ::-webkit-scrollbar 伪元素定制整体失效, 且 Chrome 对标准 thumb 的 hover/press
+           内置提亮到 ≈85-90% 白(用户实现截图 #dcdcdc-#e8e8e8 的根因), 远超 flora
+           hover 实测 0.40-0.48。故标准属性仅限 Firefox(@supports 探测), Chromium
+           走下方 ::-webkit-scrollbar 全定制(含 hover 提亮)。 */
+    }
+
+    @supports selector(:-moz-full-screen) {
+        .canvas-model-picker-menu {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+        }
+
+        :root:not(.dark) .canvas-model-picker-menu {
+            scrollbar-color: rgba(17, 24, 39, 0.28) transparent;
+        }
     }
 
     .canvas-model-picker-menu::-webkit-scrollbar {
@@ -7605,15 +7618,12 @@
     }
 
     .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.34);
+        /* flora 滑块 hover/select 实测 ≈rgba(255,255,255,.40-.48)(用户 flora 参考图 2026-09-09) */
+        background: rgba(255, 255, 255, 0.44);
     }
 
     .canvas-model-picker-menu::-webkit-scrollbar-track {
         background: transparent;
-    }
-
-    :root:not(.dark) .canvas-model-picker-menu {
-        scrollbar-color: rgba(17, 24, 39, 0.28) transparent;
     }
 
     :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb {
@@ -7622,7 +7632,7 @@
     }
 
     :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover {
-        background: rgba(17, 24, 39, 0.4);
+        background: rgba(17, 24, 39, 0.44);
     }
 
     .canvas-model-picker-menu .canvas-model-picker-option {
