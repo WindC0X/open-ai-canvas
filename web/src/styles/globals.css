@@ -7606,7 +7606,8 @@
     }
 
     .canvas-model-picker-menu::-webkit-scrollbar {
-        width: 8px;
+        /* flora 参考图实测滑块仅 2-3px 细条(2026-09-09 十三轮); 6px 轨道 - 2px×2 透明内边距 = 2px 可见 */
+        width: 6px;
         background: transparent;
     }
 
