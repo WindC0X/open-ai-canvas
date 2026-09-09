@@ -2272,6 +2272,18 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 
 **修复方向（已评估未执行，详见 journal）**：A 单渲染路径根治（flyout 并入 Popover content 或两级自研）；B 最小止血（hidden 改 visibility/opacity 解开卸载死锁 + flyout 进白名单/补豁免标记 + 400ms 窗收窄单向）；C CSS 唯一源重构（合并双副本三源、删死类死规则）。
 
+### S08 模型菜单八轮（2026-09-09，用户 3 问题批：L2 pin/tooltip 颜色/空态结构）
+
+**用户反馈 3 问题**：①L2 flyout 中点击 pin 依旧不生效；②tooltip 中文字色太淡；③Pinned models 空态被“收进”独立卡片壳，与 Providers 不平级（flora 截图对照：两者应同构）。
+
+**处置**：
+
+1. ②**已修**（commit 21fdede）：`globals.css:1276` 旧行把 `.ant-tooltip-inner` 拉进 spatial 覆盖列表，背景被强制为 `--workspace-overlay-bg-strong`（亮主题近白底）但 antd 默认白字未覆盖 → 白底白字偏淡。修法：把 tooltip 从该列表移出，另立显式规则钉死前景 `var(--workspace-foreground)` + 暗底 rgba(20,22,26,.94)（亮主题白底 .97），两主题高对比。
+2. ③**已修**（同 commit）：Pinned models 空态从 `canvas-model-picker-pinned-empty` 独立卡片壳改为与 Providers 同构的 `canvas-model-picker-group` section（标题+ⓘ 在上、placeholder 文本在下），删除旧壳 CSS。
+3. ①**未定性，待真机取证**：代码层面 L2 pin 已是 mousedown 生效（七轮修复，与行选择同构），行选择在 L2 是实测可用的，理论上 pin 同链路应可用；但七轮的“对照实验”是 L1 菜单上的合成事件，L2 flyout 上的真实用户点击从未验证过。本轮 tmwd 桥接锁死（全局 Another debugger + ACK 无响应，3 分钟未恢复）无法复现取证。**待用户手测**：开 L1 → hover 进 L2 → 点行尾 pin 图标，若仍失效需提供：pin 图标是否 hover 显示（CSS opacity 0/1）、点击后 localStorage `canvas-model-picker-pinned` 是否写入。
+
+**验证**：tsc ✓、workflow-model-picker-style.test.ts ✓、bun run build 25.29s ✓；浏览器验证未做（桥接锁死），待用户重载 tmwd 扩展后复验 ①。
+
 ### S08 模型菜单七轮（2026-09-09，用户 6 问题批：一漏/二pin/三分组 + 幽灵变量破案）
 
 **用户 6 问题台账**（本轮闭环 5 项，1 项待用户）：①logo 无边界→已修（六轮已删圆形覆盖，本轮实测 r=8px ✓）；②可接受类型图标颜色太亮→**已修**（根因：`--workspace-foreground` 全仓无定义，所有用它的 color-mix 静默失效退化为不透明继承色；定义映射 `var(--foreground)` 两主题生效，实测 chip border alpha .17 / icon alpha .48）；③类型图标语义→已修（前轮：text 恒显+inputs 诚实声明）；④组标缺 ⓘ→**已修**（Pinned/Providers 标签加 Info 图标+antd Tooltip，空态保留“标题+ⓘ+placeholder”三段）；⑤点 pin 不进置顶区→**已修**（根因见下）；⑥前台目录全堆“平台模型”→**已修**（managed 渠道数据源无产商标，按模型配置 logo 分组 + `modelProviderTitleOf` 人读组名，默认 logo 沉底 Models 组；实测 OpenAI (ChatGPT)/Grok (xAI) 两组）。
