@@ -2396,4 +2396,16 @@ d (docs(pending-test): S08 模型菜单五轮修复根因分析存档 - 勘误mo
 **验证**：bunx tsc --noEmit ✓、bun test canvas-text-settings-popover.test.tsx 9 pass（新增 normalizeCount 收敛/张 词汇/max 夹回用例）、bun run build ✓。
 
 **浏览器实测（tmwd，tab 1146048766）**：图像节点 footer 显示 `图像设置：1:1 · 1K`（摘要无份数）+ `生成份数：1 张` 独立 pill；份数气泡选 2 张生效（aria 1 张→2 张）；图像设置弹层内无份数组、关闭正常；text 节点薄包装显示「生成份数：1 份」✓，列表词汇为「份」。**遗留待验**：份数气泡与图像设置气泡同时展开时的层叠/遮挡人眼过目；`maxOutputs>1` 才显示份数 pill 的 gating 在多渠道模型切换时的显隐联动。
+
 1 (docs(pending-test): S08 参数列表十六轮批登记 - 份数独立气泡迁移+浏览器实测记录)
+
+### S08 #17 composer 底部布局轮（2026-09-09，左组参数摘要重排对齐参考截图）
+
+**改动（4 文件）**：①`canvas-node-prompt-panel.tsx` footer 按 #17 参考截图（orca-paste-1788751173509）重排——**左组** = 模型 pill + 1px 分隔线 + 参数摘要（被动文本，能力自适应：grok 无比例概念只显示分辨率档）+ 图标设置触发器；**右组** = 份数 pill（图像"张"/文本"份"，沿用十六轮独立气泡）+ 生成按钮；文本模式隐藏分隔线与摘要（份数 pill 即其唯一参数面）；②`canvas-image-settings-popover.tsx`/`canvas-video-settings-popover.tsx`/`canvas-audio-settings-popover.tsx` 新增 `iconOnly` 触发形态（摘要移出按钮、aria/title 保留完整摘要）并导出纯摘要函数 `imageSettingsSummary`/`videoSettingsSummary`/`audioSettingsSummary`（与面板口径同源）。
+
+**验证**：bunx tsc --noEmit ✓、canvas-text-settings-popover 9/9 ✓、bun run build ✓（30.7s）；全量 bun test 1408 pass / 31 fail，失败集与已知上游基线一致（agent store/诊断缓冲/task-center/settings 等），与本次改动无关。
+
+**浏览器实测（tmwd，tab 1146048766，reload 后新模块）**：①视频节点：左组 `Agnes Video 2.5 Flash` + 分隔线 + `720P · 16:9 · 5s`（aria=视频参数摘要）+ 图标触发器（aria=视频设置：720P · 16:9 · 5s），右组生成按钮 ✓；②文本节点：左组仅模型 pill（分隔线/摘要隐藏），右组「生成份数」pill + 生成 ✓；③图像节点：摘要 `1K`，打开图像设置弹层切 2K 后左组摘要与触发器 aria 实时联动为 `2K`（参数联动核心场景 ✓），恢复 1K 后弹层关闭正常。
+
+**遗留待验**：份数 pill 与摘要同时显示时的左/右组宽度挤压（窄面板 + 16 份时长文案）人眼过目；expanded 弹窗（920px）内同布局复验；亮色主题人眼；audio 模式摘要（本地无音频渠道，仅结构验证）。
+6 (docs(pending-test): S08 #17 composer 底部布局批登记 - 左组摘要重排+浏览器实测)
