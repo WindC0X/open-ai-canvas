@@ -2272,6 +2272,14 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 
 **修复方向（已评估未执行，详见 journal）**：A 单渲染路径根治（flyout 并入 Popover content 或两级自研）；B 最小止血（hidden 改 visibility/opacity 解开卸载死锁 + flyout 进白名单/补豁免标记 + 400ms 窗收窄单向）；C CSS 唯一源重构（合并双副本三源、删死类死规则）。
 
+### S08 模型菜单九轮（2026-09-09，用户复测 L2 pin 仍失效）
+
+**用户实测**：八轮后 L2 flyout 中点击 pin 依旧不进 Pinned 区。代码层面 pin 已是 mousedown 生效（七轮，L1 实测通过），但 L2 真机仍失效 → 证明 mousedown 阶段同样被吞（可能被 antd useWinClick 或 flyout 关闭链在 mousedown 前后同一帧吞掉）。
+
+**修复（763cd28）**：pin 动作从 onMouseDown 提前到 **onPointerDown** —— 事件流顺序 pointerdown → mousedown → mouseup → click，pointerdown 阶段最先派发，必然先于 antd useWinClick（window 捕获层收 mousedown）与一切关闭/卸载渲染；同时 onMouseDown/onClick 保留 stopPropagation 兕底。验证：tsc ✓、测试 ✓、vite 已服出新代码（cache-buster 实测含新 marker）；真机复验待用户（桥接 tmwd 锁死未恢复）。
+
+**若 pointerdown 仍失效的下一步取证**：L2 行内 pin 点击后直接读 localStorage `canvas-model-picker-pinned` 是否写入；若未写入则需在 pin 上挂 capture 阶段监听器取证事件是否到达（当前只能合成事件模拟，背景 tab 事件全不可信）。
+
 ### S08 模型菜单八轮（2026-09-09，用户 3 问题批：L2 pin/tooltip 颜色/空态结构）
 
 **用户反馈 3 问题**：①L2 flyout 中点击 pin 依旧不生效；②tooltip 中文字色太淡；③Pinned models 空态被“收进”独立卡片壳，与 Providers 不平级（flora 截图对照：两者应同构）。
