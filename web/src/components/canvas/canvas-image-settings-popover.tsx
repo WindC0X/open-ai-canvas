@@ -19,11 +19,22 @@ type CanvasImageSettingsPopoverProps = {
     getPopupContainer?: (triggerNode: HTMLElement) => HTMLElement;
     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
     autoAdjustOverflow?: boolean;
-    cameraControl?: CameraControlOptions;
-    onCameraControlChange?: (options: CameraControlOptions) => void;
+    /** 图标触发器: 摘要移出按钮(composer 左组布局), aria/title 保留完整摘要。 */
+    iconOnly?: boolean;
 };
 
-export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChange, buttonClassName, placement = "topLeft" }: CanvasImageSettingsPopoverProps) {
+/** 图像参数摘要(纯函数,composer 左组被动文本与触发器共用,与 ImageSettingsPanel 口径同源)。 */
+export function imageSettingsSummary(config: AiConfig): string {
+    const profile = modelCapabilityConfigFor(config, config.model || config.imageModel).image!;
+    const normalized = normalizeImageValue(profile, config);
+    return [
+        ...(profile.size.parameter !== "none" ? [imageSizeLabel(normalized.size)] : []),
+        ...(profile.quality.supported ? [imageQualityLabel(normalized.quality)] : []),
+        ...(profile.transparentBackground.supported && normalized.transparentBackground === "true" ? ["透明"] : []),
+    ].join(" · ");
+}
+
+export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChange, buttonClassName, placement = "topLeft", iconOnly = false }: CanvasImageSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -32,12 +43,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
     const { shouldRender, closing } = usePopoverExit(open);
     const profile = modelCapabilityConfigFor(config, config.model || config.imageModel).image!;
     const normalized = normalizeImageValue(profile, config);
-    const summaryParts = [
-        ...(profile.size.parameter !== "none" ? [imageSizeLabel(normalized.size)] : []),
-        ...(profile.quality.supported ? [imageQualityLabel(normalized.quality)] : []),
-        ...(profile.transparentBackground.supported && normalized.transparentBackground === "true" ? ["透明"] : []),
-    ];
-    const summary = summaryParts.join(" · ");
+    const summary = imageSettingsSummary(config);
     const hasSettings = profile.size.parameter !== "none" || profile.quality.supported || profile.transparentBackground.supported;
     const updateOpen = (nextOpen: boolean) => {
         setOpen(nextOpen);
@@ -80,11 +86,13 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
 
     return (
         <>
-            <span ref={buttonRef} className="inline-flex min-w-0">
-                <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[168px] !justify-start !rounded-full !px-2.5"}`} style={{ background: theme.node.fill, color: theme.node.text }} icon={<Settings2 className="size-3.5" />} aria-expanded={open} aria-label={`图像设置：${summary}`} title={`图像设置 · ${summary}`} onClick={() => updateOpen(!open)}>
-                    <span className="truncate">{summary}</span>
-                </Button>
-            </span>
+            {hasSettings && (
+                <span ref={buttonRef} className="inline-flex min-w-0">
+                    <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[168px] !justify-start !rounded-full !px-2.5"}`} style={{ background: theme.node.fill, color: theme.node.text }} icon={<Settings2 className="size-3.5" />} aria-expanded={open} aria-label={`图像设置：${summary}`} title={`图像设置 · ${summary}`} onClick={() => updateOpen(!open)}>
+                        {iconOnly ? null : <span className="truncate">{summary}</span>}
+                    </Button>
+                </span>
+            )}
             {panel}
         </>
     );

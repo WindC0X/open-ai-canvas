@@ -6,7 +6,7 @@ import { usePopoverExit } from "./use-popover-exit";
 
 import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
-import { modelCapabilityConfigFor, resolveVideoRatioValue, resolveVideoResolutionValue } from "@/lib/model-capabilities";
+import { modelCapabilityConfigFor, resolveVideoRatioValue, resolveVideoResolutionValue, type VideoCapabilityConfig } from "@/lib/model-capabilities";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { AiConfig } from "@/stores/use-config-store";
 
@@ -15,9 +15,25 @@ type CanvasVideoSettingsPopoverProps = {
     onConfigChange: (key: keyof AiConfig, value: string) => void;
     buttonClassName?: string;
     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
+    /** 图标触发器: 摘要移出按钮(composer 左组布局), aria/title 保留完整摘要。 */
+    iconOnly?: boolean;
 };
 
-export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClassName, placement = "topLeft" }: CanvasVideoSettingsPopoverProps) {
+/** 视频参数摘要(纯函数,composer 左组被动文本与触发器共用)。 */
+export function videoSettingsSummary(config: AiConfig): string {
+    const videoProfile: VideoCapabilityConfig | undefined = modelCapabilityConfigFor(config, config.model).video;
+    const resolutionSupported = Boolean(videoProfile?.resolutions.length);
+    const sizeSupported = Boolean(videoProfile?.ratios.length);
+    const resolution = videoProfile ? resolveVideoResolutionValue(videoProfile, config.vquality) : "";
+    const size = videoProfile ? resolveVideoRatioValue(videoProfile, config.size) : "";
+    return [
+        ...(resolutionSupported ? [videoResolutionLabel(resolution)] : []),
+        ...(sizeSupported ? [videoSizeLabel(size)] : []),
+        videoSecondsLabel(config.videoSeconds),
+    ].join(" · ");
+}
+
+export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClassName, placement = "topLeft", iconOnly = false }: CanvasVideoSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -25,15 +41,7 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const { shouldRender, closing } = usePopoverExit(open);
     const videoProfile = modelCapabilityConfigFor(config, config.model).video;
-    const resolutionSupported = Boolean(videoProfile?.resolutions.length);
-    const sizeSupported = Boolean(videoProfile?.ratios.length);
-    const resolution = videoProfile ? resolveVideoResolutionValue(videoProfile, config.vquality) : "";
-    const size = videoProfile ? resolveVideoRatioValue(videoProfile, config.size) : "";
-    const summary = [
-        ...(resolutionSupported ? [videoResolutionLabel(resolution)] : []),
-        ...(sizeSupported ? [videoSizeLabel(size)] : []),
-        videoSecondsLabel(config.videoSeconds),
-    ].join(" · ");
+    const summary = videoSettingsSummary(config);
 
     useEffect(() => {
         if (!shouldRender) return;
@@ -69,7 +77,7 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
         <>
             <span ref={buttonRef} className="inline-flex min-w-0">
                 <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[168px] !justify-start !rounded-full !px-2.5"}`} style={{ background: theme.node.fill, color: theme.node.text }} icon={<Settings2 className="size-3.5" />} aria-expanded={open} aria-label={`视频设置：${summary}`} title={`视频设置 · ${summary}`} onClick={() => setOpen((current) => !current)}>
-                    <span className="truncate">{summary}</span>
+                    {iconOnly ? null : <span className="truncate">{summary}</span>}
                 </Button>
             </span>
             {panel}

@@ -16,11 +16,12 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { CanvasCameraControlPopover } from "./canvas-camera-control-popover";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
+import { CanvasImageSettingsPopover, imageSettingsSummary } from "./canvas-image-settings-popover";
 import { CanvasCountSettingsPopover } from "./canvas-count-settings-popover";
 import { CanvasTextSettingsPopover } from "./canvas-text-settings-popover";
-import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
+import { CanvasAudioSettingsPopover, audioSettingsSummary, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
-import { CanvasVideoSettingsPopover } from "./canvas-video-settings-popover";
+import { CanvasVideoSettingsPopover, videoSettingsSummary } from "./canvas-video-settings-popover";
 import { CanvasVideoPromptTools } from "./canvas-video-prompt-tools";
 import { CanvasPresetPicker, type CanvasPromptPreset } from "./canvas-preset-picker";
 import { CanvasPortraitTexturePopover } from "./canvas-portrait-texture-popover";
@@ -316,6 +317,14 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     // 图像份数上限(与 ImageSettingsPanel 原有归一同源): 份数 pill 独立于设置弹层(用户拍板), 上限跟随模型 maxOutputs。
     const countProfile = mergedImageCapabilityConfig(config, config.model || config.imageModel);
 
+    // #17 composer 左组参数摘要(竞品参考: 参数左/操作右; 被动文本,弹层交互仍在图标按钮)。兼容包装 1:1 复用 imageSettingsSummary。
+    const summaryForMode = (() => {
+        if (mode === "image") return imageSettingsSummary(config);
+        if (mode === "video") return videoSettingsSummary(config);
+        if (mode === "audio") return audioSettingsSummary(config);
+        return "";
+    })();
+
     const renderSubmitButton = (expanded: boolean) => {
         const showCost = creditsEnabled && credits !== null;
         const formattedCredits = credits?.toLocaleString("zh-CN", { maximumFractionDigits: 6 });
@@ -367,24 +376,69 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
             </div>
         ) : (
             <div className="canvas-node-composer-footer">
-                <div className={expanded ? "min-w-0 flex-1" : "canvas-node-composer-model"}>
-                    <ModelPicker
-                        className="!h-7 !w-full !min-w-0 !text-[var(--fs-tiny)] !font-normal [&_img]:!size-3 [&_.lucide]:!size-3"
-                        fullWidth
-                        placement="topLeft"
-                        config={config}
-                        value={config.model}
-                        onChange={(model) => onConfigChange(node.id, mode === "image" ? { model, ...defaultImageParamsForModel(config, model) } : { model })}
-                        capability={mode}
-                        requirements={resolvedRequirements}
-                        onMissingConfig={() => navigateToSettings({ continueCreation: true })}
-                        showSelectedPrice={false}
-                        showOptionPrices={creditsEnabled}
-                        variant="creation"
-                        showConfiguredModelName
-                        searchable
-                    />
+                {/* 左组: 模型 pill + 分隔线 + 参数摘要(被动文本) + 图标设置按钮 (对应 #17 参考截图布局) */}
+                <div className={expanded ? "min-w-0 flex-1 flex items-center gap-2" : "flex min-w-0 flex-1 items-center gap-2"}>
+                    <div className="canvas-node-composer-model">
+                        <ModelPicker
+                            className="!h-7 !w-full !min-w-0 !text-[var(--fs-tiny)] !font-normal [&_img]:!size-3 [&_.lucide]:!size-3"
+                            fullWidth
+                            placement="topLeft"
+                            config={config}
+                            value={config.model}
+                            onChange={(model) => onConfigChange(node.id, mode === "image" ? { model, ...defaultImageParamsForModel(config, model) } : { model })}
+                            capability={mode}
+                            requirements={resolvedRequirements}
+                            onMissingConfig={() => navigateToSettings({ continueCreation: true })}
+                            showSelectedPrice={false}
+                            showOptionPrices={creditsEnabled}
+                            variant="creation"
+                            showConfiguredModelName
+                            searchable
+                        />
+                    </div>
+                    {mode !== "text" ? (
+                        <>
+                            <span aria-hidden className="h-4 w-px shrink-0" style={{ background: "var(--workspace-border)" }} />
+                            <span
+                                className="min-w-0 flex-1 truncate px-0.5 text-[var(--fs-tiny)]"
+                                style={{ color: theme.node.muted }}
+                                aria-label={mode === "image" ? "图像参数摘要" : mode === "video" ? "视频参数摘要" : "音频参数摘要"}
+                            >
+                                {mode === "image"
+                                    ? imageSettingsSummary(config)
+                                    : mode === "video"
+                                        ? videoSettingsSummary(config)
+                                        : audioSettingsSummary(config)}
+                            </span>
+                        </>
+                    ) : null}
+                    {mode === "image" ? (
+                        <CanvasImageSettingsPopover
+                            config={config}
+                            placement={expanded ? "topRight" : "topLeft"}
+                            iconOnly
+                            buttonClassName="canvas-node-composer-settings-trigger [&_.lucide]:!size-3"
+                            onConfigChange={(key, value) => onConfigChange(node.id, { [key]: value })}
+                            onMissingConfig={() => navigateToSettings({ continueCreation: true })}
+                            onOpenChange={expanded ? undefined : onImageSettingsOpenChange}
+                        />
+                    ) : mode === "video" ? (
+                        <CanvasVideoSettingsPopover
+                            config={config}
+                            iconOnly
+                            buttonClassName="canvas-node-composer-settings-trigger [&_.lucide]:!size-3"
+                            onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))}
+                        />
+                    ) : mode === "audio" ? (
+                        <CanvasAudioSettingsPopover
+                            config={config}
+                            iconOnly
+                            buttonClassName="canvas-node-composer-settings-trigger [&_.lucide]:!size-3"
+                            onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))}
+                        />
+                    ) : null}
                 </div>
+                {/* 右组: 份数 pill + 生成按钮 */}
                 <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1">
                     <ReferenceToolsPopover
                         canAutoMention={canAutoMention}
@@ -433,18 +487,6 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                             ) : null}
                         </>
                     ) : mode === "video" ? (
-                        <CanvasVideoSettingsPopover
-                            config={config}
-                            buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
-                            onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))}
-                        />
-                    ) : mode === "audio" ? (
-                        <CanvasAudioSettingsPopover
-                            config={config}
-                            buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
-                            onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))}
-                        />
-                    ) : null}
                     {renderSubmitButton(expanded)}
                 </div>
             </div>
