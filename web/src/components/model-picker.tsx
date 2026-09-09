@@ -447,8 +447,10 @@ export function ModelPicker({
                 </section>
             ) : null}
             {!pinnedGroups.length && !normalizedSearch ? (
-                <div className="canvas-model-picker-pinned-empty">
-                    {/* flora 空态语法: 标题+ⓘ 仍在, 下方才是 placeholder 文本(2026-09-09 截图) */}
+                /* flora 空态语法(用户截图 2026-09-09): 与 Providers 同构的 group section,
+                   标题+ⓘ 在上, placeholder 文本在下; 不再包独立卡片壳(旧 pinned-empty
+                   的背景+缩进让空态看似被收进一个盒子, 与 Providers 不平级) */
+                <section className="canvas-model-picker-group min-w-0 overflow-hidden">
                     <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
                         <span className="truncate">Pinned models</span>
                         <Tooltip title="收藏的模型会显示在这里" mouseEnterDelay={0.15}>
@@ -458,7 +460,7 @@ export function ModelPicker({
                     <div className="canvas-model-picker-pinned-empty-hint" style={{ color: theme.node.muted }}>
                         收藏的模型会显示在这里
                     </div>
-                </div>
+                </section>
             ) : null}
             {bodyGroups
                 ? bodyGroups.map((item) => (
