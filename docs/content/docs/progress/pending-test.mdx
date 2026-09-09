@@ -2272,6 +2272,16 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 
 **修复方向（已评估未执行，详见 journal）**：A 单渲染路径根治（flyout 并入 Popover content 或两级自研）；B 最小止血（hidden 改 visibility/opacity 解开卸载死锁 + flyout 进白名单/补豁免标记 + 400ms 窗收窄单向）；C CSS 唯一源重构（合并双副本三源、删死类死规则）。
 
+### S08 模型菜单十一轮（2026-09-09，用户 flora 参考图三连：滚动条回归）
+
+**用户反馈**：flora 菜单在内容超高时整体滚动且右缘有可见滚动条（三张 flora 参考图红框标注）；影策实现中依旧溢出裁切且无滚动条。
+
+**根因（十一轮破案）**：`.canvas-model-picker-menu` 是 `flex column + overflow-y:auto` 滚动容器，但 flex 子项默认 `flex-shrink:1` —— 内容超高时各 group section（自带 `overflow-hidden`）先被压缩到 max-height 内，`scrollHeight` 恒等于 `clientHeight`，浏览器判定无溢出 → 永不出滚动条，超出行（pinned 第 5 行半行 / provider 第 4 行）被 section 静默裁掉。十轮以堆高度（420→560）消裁切治标不治本，与 flora “内容超高整体滚动”语法相悖。
+
+**修复（1a4aa48）**：①菜单直接子项 `flex-shrink:0` —— 内容保自然高度，超出才整体滚动；②滚动条对齐 flora：8px 细胶囊贴右缘，暗色 rgba(255,255,255,.22) / 亮色 rgba(17,24,39,.28)，hover 提亮，track 透明。验证：真机 sh=606>ch=560 可滚，滚到底 provider 第 4 行完整可视，webkit 定制生效（探针 15px→窄），tsc 0 错、样式测试 1 pass。
+
+**待用户人眼验收**：pinned≥2 时菜单整体可滚动、右缘滚动条可见（暗/亮双主题）、滚到底底部 provider 完整可视。
+
 ### S08 模型菜单十轮（2026-09-09，用户 pin 复测后 3 截图：裁切/挤出）
 
 **用户实测**：pin 已生效（九轮 pointerdown 修复确认），但 pin≥2 时：①Pinned 第二行拦腰半行裁切；②底部 provider（Agnes）被挤出菜单可视区；③pin 3 个时第三行不可见。
