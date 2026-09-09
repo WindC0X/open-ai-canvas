@@ -660,6 +660,9 @@
     --ring: oklch(0.708 0 0);
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
+    /* 画布/工作区弹层用的文本基色。此前全仓无定义, 所有用它的 color-mix 在计算时失效
+       退化为不透明继承色(2026-09-09 实测 chip 描边/图标变 rgb(237,237,237) 的根因)。 */
+    --workspace-foreground: var(--foreground);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
@@ -694,6 +697,7 @@
     --canvas-model-badge-fg: rgba(255, 255, 255, .72);
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
+    --workspace-foreground: var(--foreground);
     --border: oklch(1 0 0 / 10%);
     --ring: oklch(0.556 0 0);
     --card: #181818;
@@ -3318,18 +3322,6 @@
 
     .creation-model-picker-menu .canvas-model-picker-option-body {
         gap: 10px;
-    }
-
-    .creation-model-picker-menu .canvas-model-picker-logo {
-        width: 24px;
-        height: 24px;
-        border: 0;
-        border-radius: 9999px;
-        background: rgba(255, 255, 255, .09) !important;
-    }
-
-    .dark .creation-model-picker-menu .canvas-model-picker-logo {
-        background: rgba(35, 38, 44, .72) !important;
     }
 
     .creation-model-picker-menu .canvas-model-picker-title {
@@ -7503,6 +7495,15 @@
         font-weight: 400;
     }
 
+    /* flora 组标 ⓘ: 与标签同色系但更淡, hover 提示由 antd Tooltip 承担 */
+    .canvas-model-picker-group-label .canvas-model-picker-group-info {
+        width: 12px;
+        height: 12px;
+        flex: 0 0 auto;
+        opacity: 0.45;
+        cursor: help;
+    }
+
     .canvas-model-picker-group-label .canvas-model-picker-group-scope {
         opacity: 0.55;
         font-weight: 400;
@@ -7649,6 +7650,11 @@
         opacity: 0.7;
     }
 
+    .canvas-model-picker-pinned-empty-hint {
+        padding: 2px 14px 8px;
+        font-size: var(--fs-tiny);
+    }
+
     /* 渠道分组行(flyout 触发行, 单行 44px) */
     .canvas-model-picker-provider-row {
         display: flex;
@@ -7691,7 +7697,8 @@
         border-color: rgba(17, 24, 39, 0.06);
     }
 
-    /* 媒体类型徽章: flora live = 18x18 透明底 + 1px 描边圆(foreground 17%), 非填充 pill。
+    /* 媒体类型徽章: flora live = 18x18 透明底 + 1px 描边圆 + 图标 muted 灰(低对比, 非白亮);
+       flora 实测(2026-09-09 截图): 描边与图标都是暗灰、明显低于正文对比。
        用长手属性: Tailwind preflight 的 * { border: 0 } 在 @layer base, shorthand+嵌套@supports
        在部分构建管线会整体失效, 长手属性声明更稳。 */
     .canvas-model-picker-chip-icon {
@@ -7701,6 +7708,7 @@
         border-width: 1px;
         border-style: solid;
         border-color: color-mix(in srgb, var(--workspace-foreground) 17%, transparent);
+        color: color-mix(in srgb, var(--workspace-foreground) 48%, transparent);
         box-sizing: border-box;
     }
 
@@ -11107,8 +11115,7 @@ html:not(.dark) .creation-choice-grid button:hover { background: rgba(28, 32, 37
 html:not(.dark) .creation-duration-menu strong,
 html:not(.dark) .creation-model-picker-heading strong { color: #20242a; }
 html:not(.dark) .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child { background: rgba(28, 32, 37, .06) !important; }
-html:not(.dark) .creation-mode-picker-menu button:hover,
-html:not(.dark) .creation-model-picker-menu .canvas-model-picker-logo { background: rgba(28, 32, 37, .06) !important; }
+html:not(.dark) .creation-mode-picker-menu button:hover { background: rgba(28, 32, 37, .06); }
 
 @keyframes creation-composer-arrive {
     from { opacity: 0; transform: translateY(8px); }

@@ -23,6 +23,13 @@ const iconOptions = toc
     .map((item) => ({ id: item.id, title: item.fullTitle || item.title }))
     .filter((item) => Boolean(iconLoaders[item.id]));
 
+/** lobehub 图标 id → 产商人读名(如 "openai" → "OpenAI")。未收录返回空串。
+ *  前台目录数据源无产商标字段, 模型列表按所选 logo 分组时用它做组标(2026-09-09 用户指令)。 */
+export function modelProviderTitleOf(icon?: string): string {
+    if (!icon) return "";
+    return iconOptions.find((item) => item.id === icon)?.title || "";
+}
+
 function loadIcon(icon?: string) {
     if (!icon) return Promise.resolve(undefined);
     const cached = iconRegistry.get(icon);

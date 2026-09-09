@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, ChevronRight, Coins, Image as ImageIcon, ListMusic, Pin, Search, Type as TypeIcon, Video as VideoIcon } from "lucide-react";
-import { Popover } from "antd";
+import { Check, ChevronDown, ChevronRight, Coins, Image as ImageIcon, Info, ListMusic, Pin, Search, Type as TypeIcon, Video as VideoIcon } from "lucide-react";
+import { Popover, Tooltip } from "antd";
 
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor, videoDurationOptions } from "@/lib/model-capabilities";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { logicalModelFamilyOf, modelDisplayName, modelIcon, modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
-import { ModelLogo } from "@/components/model-logo";
+import { ModelLogo, modelProviderTitleOf } from "@/components/model-logo";
 import { quoteLogicalModel, type CapabilitySpec, type LogicalModelQuote } from "@/services/api/logical-models";
 
 // flora 语法: 模型置顶(Pinned models 组)。影策无账号级收藏服务, 前端 localStorage 持久化(按浏览器/用户代理隔离)。
@@ -136,6 +136,34 @@ export function ModelPicker({
         for (const model of options) {
             groupedChannels.set(model, resolveModelChannel(config, model).id);
         }
+        // 前台目录(managed 渠道)无产商标字段, 按模型配置的 logo 分组(2026-09-09 用户指令);
+        // logo 同属一个产商即同组, 组名取 lobehub 图标人读名; 未配置 logo(默认)的模型沉底不分组。
+        const isManagedChannel = options.every((model) => groupedChannels.get(model) === PUBLIC_MODEL_CATALOG_ID) && options.length > 0;
+        const managedIconOf = (model: string) => resolveModelChannel(config, model).modelCosts?.find((item) => item.model === modelOptionName(model))?.icon || "";
+        const providerGroups = new Map<string, string[]>();
+        const defaultLogoModels: string[] = [];
+        if (isManagedChannel) {
+            for (const model of options) {
+                const icon = managedIconOf(model);
+                if (!icon) {
+                    defaultLogoModels.push(model);
+                    continue;
+                }
+                const bucket = providerGroups.get(icon);
+                if (bucket) bucket.push(model);
+                else providerGroups.set(icon, [model]);
+            }
+        }
+        const managedProviderGroups = isManagedChannel
+            ? Array.from(providerGroups.entries())
+                  .map(([icon, models]) => ({
+                        key: `provider:${icon}`,
+                        label: modelProviderTitleOf(icon) || icon,
+                        scope: "",
+                        models: groupModelsByDisplayName(config, models),
+                    }))
+                  .filter((group) => group.models.length)
+            : [];
         const channelGroups = config.channels
             .map((channel) => ({
                 key: channel.id,
@@ -146,14 +174,16 @@ export function ModelPicker({
                     options.filter((model) => groupedChannels.get(model) === channel.id),
                 ),
             }))
-            .filter((group) => group.models.length);
+            .filter((group) => group.models.length && group.key !== PUBLIC_MODEL_CATALOG_ID);
         // flora: 未归属任何渠道分组的模型沉底为通用 Models 组, 不静默丢弃(按同一渠道解析口径判定)
         const ungrouped = groupModelsByDisplayName(
             config,
-            options.filter((model) => !channelGroups.some((group) => group.key === groupedChannels.get(model))),
+            isManagedChannel
+                ? defaultLogoModels
+                : options.filter((model) => !channelGroups.some((group) => group.key === groupedChannels.get(model))),
         );
         const tail = ungrouped.length ? [{ key: "__ungrouped", label: "Models", scope: "", models: ungrouped }] : [];
-        return [...channelGroups, ...tail];
+        return [...managedProviderGroups, ...channelGroups, ...tail];
     }, [config, grouping, options]);
     const storedCurrent = value?.trim() || "";
     // 参数档位会在选中模型后由调用方归一到其能力配置，不能因为旧模型留下的参数而禁止切换。
@@ -366,11 +396,16 @@ export function ModelPicker({
                     aria-pressed={pinned}
                     title={pinned ? "取消置顶" : "置顶模型"}
                     style={{ color: pinned ? theme.node.activeStroke : theme.node.muted }}
-                    onClick={(event) => {
+                    onMouseDown={(event) => {
+                        // flora 语义: pin 在 mousedown 即生效(2026-09-09 实测根因: flyout 挂 body 在
+                        // antd useWinClick popupEle 判定外, mousedown 先被 antd 置 open=false;
+                        // 真实点击 mousedown→click 间有 paint 间隔, !open effect 清 flyoutGroup 卸载
+                        // flyout → click 落在已分离节点, onClick 永不执行 → pin 静默失效)。
+                        // 与行选择同构(mousedown 完成动作), click 仅兜底 stopPropagation。
                         event.stopPropagation();
                         togglePinned(displayModel);
                     }}
-                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => event.stopPropagation()}
                 >
                     <Pin className="size-3.5" />
                 </button>
@@ -403,13 +438,26 @@ export function ModelPicker({
                 <section className="canvas-model-picker-group min-w-0 overflow-hidden">
                     <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
                         <span className="truncate">Pinned models</span>
+                        {/* flora 语法: 组标带 ⓘ + tooltip(2026-09-09 用户截图补漏) */}
+                        <Tooltip title="收藏的模型会显示在这里" mouseEnterDelay={0.15}>
+                            <Info className="canvas-model-picker-group-info" aria-label="置顶说明" />
+                        </Tooltip>
                     </div>
                     <div className="grid min-w-0 gap-0.5">{pinnedGroups.flatMap((item) => item.models.map((modelGroup) => renderModelRow(modelGroup, "pinned")))}</div>
                 </section>
             ) : null}
             {!pinnedGroups.length && !normalizedSearch ? (
-                <div className="canvas-model-picker-group-label canvas-model-picker-pinned-empty" style={{ color: theme.node.muted }}>
-                    收藏的模型会显示在这里
+                <div className="canvas-model-picker-pinned-empty">
+                    {/* flora 空态语法: 标题+ⓘ 仍在, 下方才是 placeholder 文本(2026-09-09 截图) */}
+                    <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
+                        <span className="truncate">Pinned models</span>
+                        <Tooltip title="收藏的模型会显示在这里" mouseEnterDelay={0.15}>
+                            <Info className="canvas-model-picker-group-info" aria-label="置顶说明" />
+                        </Tooltip>
+                    </div>
+                    <div className="canvas-model-picker-pinned-empty-hint" style={{ color: theme.node.muted }}>
+                        收藏的模型会显示在这里
+                    </div>
                 </div>
             ) : null}
             {bodyGroups
@@ -420,10 +468,13 @@ export function ModelPicker({
                   ))
                 : (
                       <>
-                          {/* flora 权威: 渠道区上方有 Providers 组标(影策语义=系统渠道分组) */}
+                          {/* flora 权威: 渠道区上方有 Providers 组标(影策语义=系统渠道分组) + ⓘ(2026-09-09 补漏) */}
                           <section className="canvas-model-picker-group min-w-0 overflow-hidden">
                               <div className="canvas-model-picker-group-label" style={{ color: theme.node.muted }}>
                                   <span className="truncate">Providers</span>
+                                  <Tooltip title="模型按产商/渠道分组" mouseEnterDelay={0.15}>
+                                      <Info className="canvas-model-picker-group-info" aria-label="分组说明" />
+                                  </Tooltip>
                               </div>
                               <div className="grid min-w-0 gap-0.5">
                                   {optionGroups
@@ -688,7 +739,10 @@ function ModelLabel({
     );
 }
 
-// flora 媒体类型徽章: 依据模型逻辑能力声明(spec.capability + inputs)诚实展示; 无 spec 时按 picker capability 兜底
+// flora 媒体类型徽章(2026-09-09 用户截图定案): 图标=模型可接受的输入模态, tooltip 形如 "Accepts text input"。
+// flora 实测: Claude(纯文本输出)显示 text+video+image(它接受三种输入), 图像模型显示 text+image →
+// 图标不表达输出类型。text(提示词输入)恒显; image/video/audio 按 spec.inputs 诚实声明(max>0),
+// 声明为空时按 capability 兜底(dev 端 spec.inputs 全空, 全靠声明会只剩 text), 声明了部分则严格按声明。
 function modelMediaTypes(config: AiConfig, model: string, capability?: ModelCapability): { kind: string; label: string; icon: ReactNode }[] {
     const channel = resolveModelChannel(config, model);
     const cost = channel.modelCosts?.find((item) => item.model === modelOptionName(model));
@@ -697,11 +751,12 @@ function modelMediaTypes(config: AiConfig, model: string, capability?: ModelCapa
     const push = (kind: string, label: string, icon: ReactNode) => {
         if (!entries.some((item) => item.kind === kind)) entries.push({ kind, label, icon });
     };
-    const kinds: CapabilitySpec["capability"][] = ["text", "image", "video", "audio"];
-    for (const kind of kinds) {
-        const accepts = spec ? spec.capability === kind || Object.keys(spec.inputs || {}).some((input) => input === kind) : capability === kind;
+    push("text", "可输入文本", <TypeIcon className="size-3" />);
+    const declaredInputs = spec?.inputs && Object.keys(spec.inputs).length > 0 ? spec.inputs : undefined;
+    const inputKinds: Exclude<CapabilitySpec["capability"], "text">[] = ["image", "video", "audio"];
+    for (const kind of inputKinds) {
+        const accepts = declaredInputs ? (declaredInputs[kind]?.max ?? 0) > 0 : capability === kind;
         if (!accepts) continue;
-        if (kind === "text") push("text", "可输入文本", <TypeIcon className="size-3" />);
         if (kind === "image") push("image", "可输入图像", <ImageIcon className="size-3" />);
         if (kind === "video") push("video", "可输入视频", <VideoIcon className="size-3" />);
         if (kind === "audio") push("audio", "可输入音频", <ListMusic className="size-3" />);
