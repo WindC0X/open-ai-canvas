@@ -2386,4 +2386,14 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 **教训**：① curl 无 query 读 vite 模块会命 dev server 内部缓存假象，核新鲜度必须带 cache-buster 或 `?raw`；② 前台/后台标签状态要在每次 reload 后重新采样，后台 tab 上合成事件与 rAF 路径全不可信。
 
 **待真机验证（真实浏览器，勿用 CDP 合成事件下结论）**：①前台选行后是否仍有可见残留（或仅剩不可见 DOM 驻留）；②连点/快速切换下 400ms 窗吞合法关闭的命中率；③default 变体与亮色主题下两问题是否复现；④bottomLeft 几何下落空 click 重开是否真实发生；⑤pointerdown→mousedown 时序翻转导致 L2 选行丢失的复现条件。
+
 d (docs(pending-test): S08 模型菜单五轮修复根因分析存档 - 勘误motionDeadline不存在/卸载未闭环/玻璃未收敛三结论 + 上游归类病灶与真机验证清单)
+
+### S08 参数列表十六轮：份数迁出为独立气泡（图像"张"/文本"份"统一词汇）
+
+**改动**：①图像份数从设置面板与触发摘要中迁出——`ImageSettingsPanel` 删除"生成张数"组与 CountRoll（对应用户此前"生成份数标题+说明冗余"的反馈），`CanvasImageSettingsPopover` 移除 `showCount` 通道，摘要不再含"N 张"；②新增通用 `canvas-count-settings-popover.tsx`（竖滚列表/行高36/细滚动条/选中高亮，量词 `label` 参数化），prompt-panel 图像模式在设置 pill 旁独立挂载份数气泡（`label="张"`，上限 `min(15, maxOutputs)`），文本模式 `CanvasTextSettingsPopover` 退化为薄兼容包装（词汇/滚动行为全部收敛到通用组件，aria 统一为「生成份数：N 份/张」）；③`normalizeCount` 收敛到通用组件，`normalizeTextCount` 保留 @deprecated 兼容导出。
+
+**验证**：bunx tsc --noEmit ✓、bun test canvas-text-settings-popover.test.tsx 9 pass（新增 normalizeCount 收敛/张 词汇/max 夹回用例）、bun run build ✓。
+
+**浏览器实测（tmwd，tab 1146048766）**：图像节点 footer 显示 `图像设置：1:1 · 1K`（摘要无份数）+ `生成份数：1 张` 独立 pill；份数气泡选 2 张生效（aria 1 张→2 张）；图像设置弹层内无份数组、关闭正常；text 节点薄包装显示「生成份数：1 份」✓，列表词汇为「份」。**遗留待验**：份数气泡与图像设置气泡同时展开时的层叠/遮挡人眼过目；`maxOutputs>1` 才显示份数 pill 的 gating 在多渠道模型切换时的显隐联动。
+1 (docs(pending-test): S08 参数列表十六轮批登记 - 份数独立气泡迁移+浏览器实测记录)
