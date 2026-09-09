@@ -2272,6 +2272,14 @@ e (docs(pending-test): S08 尺寸过渡双轨语义登记 - 程序性300ms平滑
 
 **修复方向（已评估未执行，详见 journal）**：A 单渲染路径根治（flyout 并入 Popover content 或两级自研）；B 最小止血（hidden 改 visibility/opacity 解开卸载死锁 + flyout 进白名单/补豁免标记 + 400ms 窗收窄单向）；C CSS 唯一源重构（合并双副本三源、删死类死规则）。
 
+### S08 模型菜单十轮（2026-09-09，用户 pin 复测后 3 截图：裁切/挤出）
+
+**用户实测**：pin 已生效（九轮 pointerdown 修复确认），但 pin≥2 时：①Pinned 第二行拦腰半行裁切；②底部 provider（Agnes）被挤出菜单可视区；③pin 3 个时第三行不可见。
+
+**根因**：L1 菜单 `max-height: min(420px, calc(100vh - 32px))` 在 pinned 区变高后内容超高即内部滚动，但菜单高度不足时呈现"裁切半行+尾部挤出"的破坏性视觉，不像可滚动列表。
+
+**修复（6a3ca9c）**：高度上限 420→`min(560px, calc(100vh - 132px))`——560 可容纳 search+3pinned+4provider 全量不滚动；视口不足时才滚动（下限留 132px 给触发表与 composer）。验证：tsc ✓、vite 已服出新值（cache-buster 实测）；待用户刷新复验。
+
 ### S08 模型菜单九轮（2026-09-09，用户复测 L2 pin 仍失效）
 
 **用户实测**：八轮后 L2 flyout 中点击 pin 依旧不进 Pinned 区。代码层面 pin 已是 mousedown 生效（七轮，L1 实测通过），但 L2 真机仍失效 → 证明 mousedown 阶段同样被吞（可能被 antd useWinClick 或 flyout 关闭链在 mousedown 前后同一帧吞掉）。
