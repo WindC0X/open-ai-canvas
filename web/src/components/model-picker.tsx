@@ -396,15 +396,17 @@ export function ModelPicker({
                     aria-pressed={pinned}
                     title={pinned ? "取消置顶" : "置顶模型"}
                     style={{ color: pinned ? theme.node.activeStroke : theme.node.muted }}
-                    onMouseDown={(event) => {
-                        // flora 语义: pin 在 mousedown 即生效(2026-09-09 实测根因: flyout 挂 body 在
-                        // antd useWinClick popupEle 判定外, mousedown 先被 antd 置 open=false;
-                        // 真实点击 mousedown→click 间有 paint 间隔, !open effect 清 flyoutGroup 卸载
-                        // flyout → click 落在已分离节点, onClick 永不执行 → pin 静默失效)。
-                        // 与行选择同构(mousedown 完成动作), click 仅兜底 stopPropagation。
+                    onPointerDown={(event) => {
+                        // flora 语义: pin 在 pointerdown 即生效(八轮定案): 事件流顺序 pointerdown →
+                        // mousedown → mouseup → click, antd useWinClick 在 window 捕获层收 mousedown
+                        // 先置 open=false, 任意后续关渲染(flyout 卸载/菜单 leave)都会让更晚阶段的
+                        // handler 失效 —— 只有 pointerdown 阶段(最先派发)必然先于一切关闭逻辑执行。
+                        // 七轮用 mousedown 在 L1 实测通过但 L2 真机仍失效(用户 2026-09-09 复测),
+                        // 证明 mousedown 阶段同样会被吞, 提前到 pointerdown。
                         event.stopPropagation();
                         togglePinned(displayModel);
                     }}
+                    onMouseDown={(event) => event.stopPropagation()}
                     onClick={(event) => event.stopPropagation()}
                 >
                     <Pin className="size-3.5" />
