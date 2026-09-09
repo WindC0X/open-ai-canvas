@@ -65,7 +65,7 @@ export function CanvasTextSettingsPopover({ value, onChange, placement = "topLef
     return (
         <>
             <span ref={buttonRef} className="inline-flex min-w-0">
-                <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !justify-start !rounded-full !px-2.5"}`} style={{ background: theme.node.fill, color: theme.node.text }} icon={<Settings2 className="size-3.5" />} aria-expanded={open} aria-label={`文本设置：${count} 份`} title={`文本设置 · ${count} 份`} onClick={() => setOpen(!open)}>
+                <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[168px] !justify-start !rounded-full !px-2.5"}`} style={{ background: theme.node.fill, color: theme.node.text }} icon={<Settings2 className="size-3.5" />} aria-expanded={open} aria-label={`文本设置：${count} 份`} title={`文本设置 · ${count} 份`} onClick={() => setOpen(!open)}>
                     <span className="truncate">{count} 份</span>
                 </Button>
             </span>
