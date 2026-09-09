@@ -7527,8 +7527,17 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
-        max-height: min(420px, 384px);
+        /* 高度唯一源归 :7301 的 560 上限(2026-09-09): 此处曾残留 min(420px,384px)
+           同 specificity 后者胜, 静默顶掉 :7301 的十轮修复 —— 删除以恢复 pinned≥2 全量可视。 */
         overflow-y: auto;
+        /* flora 滚动语法(2026-09-09 用户三连截图): 滚动容器内容不压缩——flex column 子项
+           默认 shrink:1, 超高时各 group section 被压扁且自身 overflow-hidden 静默裁切,
+           scrollHeight 恒等于 clientHeight → 永不出滚动条(用户红框: pinned 第5行半行/
+           provider 第4行消失, 无滚动条)。禁 shrink 让内容保自然高度, 超出才整体滚动,
+           滚动条常显(flora 参考图右缘细滚动条)。 */
+        > * {
+            flex-shrink: 0;
+        }
         /* L1/L2 字体栈唯一源(2026-09-09 实测): L1 经 antd Popover 拿 antd token 栈(-apple-system/Segoe UI),
            flyout portal 挂 body 继承 body 内联 SF Pro 栈 —— 同一 font-weight 350 在两个栈下落到不同
            真实字体(Windows: Segoe UI vs YaHei 拉丁字形), 行标题字重肉眼不一致。钉死同一栈,
@@ -7578,6 +7587,42 @@
     /* 溢出修复: 徽章行不换行不撑高; 行描述 truncate */
     .canvas-model-picker-menu {
         scrollbar-width: thin;
+        /* flora 参考图(用户三连 2026-09-09): 滚动条为暗背景上的深色细胶囊, 贴右缘。
+           Firefox: thin + thumb 色即可; Chromium 走下方 ::-webkit-scrollbar 定制。 */
+        scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+    }
+
+    .canvas-model-picker-menu::-webkit-scrollbar {
+        width: 8px;
+        background: transparent;
+    }
+
+    .canvas-model-picker-menu::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.22);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+
+    .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.34);
+    }
+
+    .canvas-model-picker-menu::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    :root:not(.dark) .canvas-model-picker-menu {
+        scrollbar-color: rgba(17, 24, 39, 0.28) transparent;
+    }
+
+    :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb {
+        background: rgba(17, 24, 39, 0.28);
+        background-clip: padding-box;
+    }
+
+    :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover {
+        background: rgba(17, 24, 39, 0.4);
     }
 
     .canvas-model-picker-menu .canvas-model-picker-option {
