@@ -43,7 +43,7 @@ const aspectOptions: AspectOption[] = [
 
 type ImageSettingsPanelProps = {
     config: AiConfig;
-    onConfigChange: (key: "quality" | "size" | "transparentBackground" | "count", value: string) => void;
+    onConfigChange: (key: "quality" | "size" | "transparentBackground", value: string) => void;
     theme: CanvasTheme;
     showTitle?: boolean;
     showQuality?: boolean;
@@ -58,12 +58,11 @@ type ImageSettingsPanelProps = {
 };
 
 export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 3, bypassPriceGuard = false }: ImageSettingsPanelProps) {
+    const [snapDimensionToStep, setSnapDimensionToStep] = useState(true);
     const profile = mergedImageCapabilityConfig(config, config.model || config.imageModel);
     const normalized = normalizeImageValue(profile, config);
     const quality = normalized.quality;
     const transparentBackground = normalized.transparentBackground === "true";
-    const effectiveMaxCount = Math.min(maxCount, profile.maxOutputs);
-    const count = Math.max(1, Math.min(effectiveMaxCount, Number(normalized.count)));
     const activeSize = normalized.size;
     const pixelSizeValues = profile.size.values.filter((value) => value.trim().toLowerCase() !== "auto");
     const hasResolutionPresets = supportsImageResolutionPresets(profile.size);
@@ -198,12 +197,6 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         <DimensionInput prefix="H" value={dimensions.height} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("height", value)} />
                     </div>
                 </div> : null}
-                {showCount && effectiveMaxCount > 1 ? (
-                    <div className="space-y-2">
-                        <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
-                        <CountRoll value={count} max={effectiveMaxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value))} />
-                    </div>
-                ) : null}
             </div>
         </ImageSettingsTheme>
     );
@@ -357,6 +350,18 @@ function CountInput({ value, quickCount, max, theme, onChange }: { value: number
                 onMouseDown={(event) => event.stopPropagation()}
             />
         </label>
+    );
+}
+
+function AspectIcon({ type, width, height, color }: { type: string; width: number; height: number; color: string }) {
+    if (type === "auto") return null;
+    const ratio = width / Math.max(1, height);
+    const boxWidth = ratio >= 1 ? 22 : Math.max(9, 22 * ratio);
+    const boxHeight = ratio >= 1 ? Math.max(9, 22 / ratio) : 22;
+    return (
+        <span className="grid h-6 w-8 place-items-center">
+            <span className="border-2" style={{ width: boxWidth, height: boxHeight, borderColor: color }} />
+        </span>
     );
 }
 

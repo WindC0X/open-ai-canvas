@@ -19,10 +19,11 @@ type CanvasImageSettingsPopoverProps = {
     getPopupContainer?: (triggerNode: HTMLElement) => HTMLElement;
     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
     autoAdjustOverflow?: boolean;
-    showCount?: boolean;
+    cameraControl?: CameraControlOptions;
+    onCameraControlChange?: (options: CameraControlOptions) => void;
 };
 
-export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChange, buttonClassName, placement = "topLeft", showCount = true }: CanvasImageSettingsPopoverProps) {
+export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChange, buttonClassName, placement = "topLeft" }: CanvasImageSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -34,11 +35,10 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
     const summaryParts = [
         ...(profile.size.parameter !== "none" ? [imageSizeLabel(normalized.size)] : []),
         ...(profile.quality.supported ? [imageQualityLabel(normalized.quality)] : []),
-        ...(showCount && profile.maxOutputs > 1 ? [`${normalized.count} 张`] : []),
         ...(profile.transparentBackground.supported && normalized.transparentBackground === "true" ? ["透明"] : []),
     ];
     const summary = summaryParts.join(" · ");
-    const hasSettings = profile.size.parameter !== "none" || profile.quality.supported || profile.transparentBackground.supported || (showCount && profile.maxOutputs > 1);
+    const hasSettings = profile.size.parameter !== "none" || profile.quality.supported || profile.transparentBackground.supported;
     const updateOpen = (nextOpen: boolean) => {
         setOpen(nextOpen);
         onOpenChange?.(nextOpen);
@@ -74,7 +74,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
         };
     }, [onOpenChange, shouldRender]);
 
-    const panel = shouldRender && buttonRect ? <ImageSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} showCount={showCount} onConfigChange={onConfigChange} closing={closing} /> : null;
+    const panel = shouldRender && buttonRect ? <ImageSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} closing={closing} /> : null;
 
     if (!hasSettings) return null;
 
@@ -96,7 +96,6 @@ function ImageSettingsPortal({
     placement,
     theme,
     config,
-    showCount,
     onConfigChange,
     closing,
 }: {
@@ -105,7 +104,6 @@ function ImageSettingsPortal({
     placement: CanvasImageSettingsPopoverProps["placement"];
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
     config: AiConfig;
-    showCount: boolean;
     onConfigChange: (key: keyof AiConfig, value: string) => void;
     closing: boolean;
 }) {
@@ -142,7 +140,7 @@ function ImageSettingsPortal({
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} showCount={showCount} quickCount={3} className="space-y-3" />
+            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-3" />
         </div>,
         document.body,
     );

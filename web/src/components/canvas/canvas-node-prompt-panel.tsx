@@ -10,12 +10,13 @@ import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelQuoteRequest } from "@/lib/model-pricing";
 import { normalizeVideoDuration, normalizeVideoResolution } from "@/lib/video-generation-options";
-import { modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, defaultImageParamsForModel, type ModelRequirements } from "@/lib/model-selection";
+import { mergedImageCapabilityConfig, modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, defaultImageParamsForModel, type ModelRequirements } from "@/lib/model-selection";
 import { navigateToSettings } from "@/lib/settings-navigation";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { CanvasCameraControlPopover } from "./canvas-camera-control-popover";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
+import { CanvasCountSettingsPopover } from "./canvas-count-settings-popover";
 import { CanvasTextSettingsPopover } from "./canvas-text-settings-popover";
 import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
@@ -312,6 +313,9 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
         </div>
     );
 
+    // 图像份数上限(与 ImageSettingsPanel 原有归一同源): 份数 pill 独立于设置弹层(用户拍板), 上限跟随模型 maxOutputs。
+    const countProfile = mergedImageCapabilityConfig(config, config.model || config.imageModel);
+
     const renderSubmitButton = (expanded: boolean) => {
         const showCost = creditsEnabled && credits !== null;
         const formattedCredits = credits?.toLocaleString("zh-CN", { maximumFractionDigits: 6 });
@@ -414,6 +418,19 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                                 onMissingConfig={() => navigateToSettings({ continueCreation: true })}
                                 onOpenChange={expanded ? undefined : onImageSettingsOpenChange}
                             />
+                                cameraControl={node.metadata?.cameraControl}
+                                onCameraControlChange={(options) => onConfigChange(node.id, { cameraControl: options })}
+                            />
+                            {countProfile.maxOutputs > 1 ? (
+                                <CanvasCountSettingsPopover
+                                    value={Number(config.count) || 1}
+                                    onChange={(value) => onConfigChange(node.id, { count: value })}
+                                    max={Math.min(15, countProfile.maxOutputs)}
+                                    label="张"
+                                    placement={expanded ? "topRight" : "topLeft"}
+                                    buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
+                                />
+                            ) : null}
                         </>
                     ) : mode === "video" ? (
                         <CanvasVideoSettingsPopover
