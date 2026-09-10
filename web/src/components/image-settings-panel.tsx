@@ -407,12 +407,25 @@ function imageAspectOptions(profile: ImageCapabilityConfig): AspectOption[] {
     if (profile.size.parameter === "none") return [];
     const values = profile.size.values.filter((value) => value.trim().toLowerCase() !== "auto");
     if (!values.length) return profile.size.allowCustom ? aspectOptions.filter((item) => item.value !== "auto") : [];
-    return values.map((value) => {
+    // 设计契约(P2 能力裁剪 + 竞品语法): 网格按比例去重而非平铺像素值——
+    // 同一比例的多个像素尺寸由分辨率 tier/换算条表达, 否则 27+ 像素格会把面板炸成 7 行。
+    const seenRatios = new Set<string>();
+    const options: AspectOption[] = [];
+    for (const value of values) {
         const known = aspectOptions.find((item) => (item.size || item.value) === value || item.value === value);
-        if (known) return known;
+        if (known) {
+            if (seenRatios.has(known.label)) continue;
+            seenRatios.add(known.label);
+            options.push(known);
+            continue;
+        }
         const parts = ratioParts(value);
-        return { value, label: value, size: value, width: parts?.width || 0, height: parts?.height || 0, icon: "custom" };
-    });
+        const ratioLabel = parts ? `${parts.width}:${parts.height}` : value;
+        if (seenRatios.has(ratioLabel)) continue;
+        seenRatios.add(ratioLabel);
+        options.push({ value, label: ratioLabel, size: value, width: parts?.width || 0, height: parts?.height || 0, icon: parts && parts.width !== parts.height ? (parts.width > parts.height ? "landscape" : "portrait") : "square" });
+    }
+    return options;
 }
 
 function ratioParts(value: string) {
