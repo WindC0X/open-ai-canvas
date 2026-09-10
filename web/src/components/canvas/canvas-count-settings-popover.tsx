@@ -20,15 +20,15 @@ type CanvasCountSettingsPopoverProps = {
     value: number;
     onChange: (value: number) => void;
     max?: number;
-    /** 量词：文本"份"、图像"张";参与 aria 标签与触发器摘要。 */
+    /** 量词：文本"份"、图像"张"、视频/音频"个";参与 aria 标签与触发器摘要。 */
     label?: string;
     placement?: "topLeft" | "topRight" | "top" | "bottom";
     buttonClassName?: string;
 };
 
 /**
- * 份数独立竖滚气泡(竞品参考: 份数 pill 独立于参数摘要,右侧竖滚列表)。
- * 文本/图像模式共用同一词汇表: 窄列数字/行高36/细滚动条/选中高亮。
+ * 份数独立气泡(A 形态,用户拍板): 快捷档 pill 行 + 竖滚列表 + 自定义输入行。
+ * 文本/图像/视频/音频模式共用,量词随调用方(张/个/份)。
  */
 export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, label = "份", placement = "topLeft", buttonClassName }: CanvasCountSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
@@ -81,6 +81,10 @@ export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, l
     );
 }
 
+const ROW = 36;
+const PANEL_WIDTH = 168;
+const QUICK_TIERS = [1, 2, 3, 4];
+
 function CountSettingsPortal({
     buttonRect,
     panelRef,
@@ -104,44 +108,78 @@ function CountSettingsPortal({
 }) {
     const gap = 8;
     const margin = 12;
-    const width = 96;
-    const ROW = 36;
     const listMax = Math.min(9, max) * ROW + 8;
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
-    const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - width / 2 : alignRight ? buttonRect.right - width : buttonRect.left;
+    const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - PANEL_WIDTH / 2 : alignRight ? buttonRect.right - PANEL_WIDTH : buttonRect.left;
     const topPlacement = placement?.startsWith("top");
     const style = {
         position: "fixed",
         zIndex: "var(--z-dialog-popover)",
-        width,
-        left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
-        ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(160, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(160, window.innerHeight - buttonRect.bottom - margin * 2) }),
+        width: PANEL_WIDTH,
+        left: Math.max(margin, Math.min(window.innerWidth - PANEL_WIDTH - margin, left)),
+        ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(200, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(200, window.innerHeight - buttonRect.bottom - margin * 2) }),
         background: theme.canvas.background,
         border: `1px solid ${theme.toolbar.border}`,
         borderRadius: "var(--r-lg)",
         padding: 5,
-        overflowY: "auto",
         color: theme.node.text,
     } as const;
     const counts = Array.from({ length: max }, (_, index) => index + 1);
+    const quickTiers = QUICK_TIERS.filter((tier) => tier <= max);
     const listRef = useRef<HTMLDivElement>(null);
+    const [customOpen, setCustomOpen] = useState(false);
+    const [customDraft, setCustomDraft] = useState("");
+    const customInputRef = useRef<HTMLInputElement>(null);
+
     useEffect(() => {
         // 打开时滚动到当前值可见
         const row = listRef.current?.querySelector(`[data-count="${value}"]`);
         row?.scrollIntoView({ block: "nearest" });
     }, [value]);
 
+    const openCustom = () => {
+        setCustomDraft(String(value));
+        setCustomOpen(true);
+        requestAnimationFrame(() => customInputRef.current?.select());
+    };
+    const commitCustom = () => {
+        const parsed = normalizeCount(customDraft);
+        onChange(Math.max(1, Math.min(max, parsed)));
+        setCustomOpen(false);
+    };
+
     return createPortal(
         <div
             ref={panelRef}
-            className={`canvas-count-settings-popover canvas-settings-roll aceternity-floating-panel backdrop-blur-2xl${closing ? " canvas-settings-popover-closing" : ""}`}
-            style={style}
+            className={`canvas-count-settings-popover aceternity-floating-panel backdrop-blur-2xl${closing ? " canvas-settings-popover-closing" : ""}`}
+            style={{ ...style, overflowY: "auto" }}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <div ref={listRef} className="flex flex-col" style={{ maxHeight: listMax }}>
+            {quickTiers.length > 1 ? (
+                <div className="mb-1 flex gap-1">
+                    {quickTiers.map((tier) => (
+                        <button
+                            key={tier}
+                            type="button"
+                            aria-pressed={value === tier}
+                            aria-label={`${tier} ${label}`}
+                            className="canvas-settings-option h-7 flex-1 !rounded-[10px] text-[13px] font-medium tabular-nums"
+                            style={{
+                                background: value === tier ? theme.toolbar.activeBg : theme.node.panel,
+                                borderColor: value === tier ? theme.node.activeStroke : "transparent",
+                                color: theme.node.text,
+                            }}
+                            onClick={() => onChange(tier)}
+                        >
+                            {tier}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+            <div ref={listRef} className="flex flex-col" style={{ maxHeight: listMax, overflowY: "auto" }}>
                 {counts.map((count) => (
                     <button
                         key={count}
@@ -161,6 +199,27 @@ function CountSettingsPortal({
                     </button>
                 ))}
             </div>
+            {customOpen ? (
+                <input
+                    ref={customInputRef}
+                    autoFocus
+                    inputMode="numeric"
+                    className="canvas-count-custom-input mt-1 h-8 w-full rounded-[10px] px-2 text-center text-[13px] tabular-nums outline-none"
+                    style={{ background: theme.node.panel, border: `1px solid ${theme.toolbar.border}`, color: theme.node.text }}
+                    value={customDraft}
+                    aria-label={`自定义份数(1-${max} ${label})`}
+                    onChange={(event) => setCustomDraft(event.target.value.replace(/[^\d]/g, ""))}
+                    onBlur={commitCustom}
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter") commitCustom();
+                        if (event.key === "Escape") setCustomOpen(false);
+                    }}
+                />
+            ) : (
+                <button type="button" className="canvas-settings-option canvas-settings-roll-row mt-1 !text-[12px]" style={{ background: "transparent", borderColor: "transparent", color: theme.node.muted }} onClick={openCustom}>
+                    自定义…
+                </button>
+            )}
         </div>,
         document.body,
     );

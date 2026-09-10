@@ -242,6 +242,9 @@ export type CanvasNodeMetadata = {
     transparentBackground?: string;
     count?: number;
     textCount?: number;
+    /** 视频/音频生成份数(UI 先行, 链路后补: count>1 提交暂按单生成)。 */
+    videoGenerationCount?: number;
+    audioGenerationCount?: number;
     seconds?: string;
     vquality?: string;
     generateAudio?: string;

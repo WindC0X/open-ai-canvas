@@ -473,6 +473,16 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                             buttonClassName="canvas-node-composer-settings-trigger [&_.lucide]:!size-3"
                             onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))}
                         />
+                    ) : mode === "video" || mode === "audio" ? (
+                        // UI 先行(用户拍板): video/audio 份数仅存储展示, count>1 提交仍按单生成, 链路后补。
+                        <CanvasCountSettingsPopover
+                            value={Number(node.metadata?.[mode === "video" ? "videoGenerationCount" : "audioGenerationCount"]) || 1}
+                            onChange={(value) => onConfigChange(node.id, mode === "video" ? { videoGenerationCount: value } : { audioGenerationCount: value })}
+                            max={4}
+                            label="个"
+                            placement={expanded ? "topRight" : "topLeft"}
+                            buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
+                        />
                     ) : null}
                     {renderSubmitButton(expanded)}
                 </div>
