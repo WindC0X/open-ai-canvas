@@ -52,19 +52,20 @@
 - **[V] 已修（勿再报）**：`--workspace-foreground` 未定义 12 处 IACVT——已在 :633/:668 定义（注释自记 09-09 实测根因）。
 - [V] 已知外观残余：L1/L2 材质分叉（L1 blur16 无 saturate vs L2 blur18+saturate1.2、亮色 .94 vs .92、default 变体从未 eyeball）——A 路线后未逐一回归，验收时须覆盖。
 
-## 6. 有序下一步（v4：问题二/三已修完，重排）
+## 6. 有序下一步（v5：问题二/三/四已修完，剩问题一+收尾）
 
 1. ~~问题二 模型行可接受类型~~ **已完成+真机验收**（49f626b）：渠道模型媒体徽章按 capabilityConfig.references 诚实声明；回归面①⑤真机过、②③推演级标注、④归入问题一复验。**教训：dev server 在 WSL /mnt 下 watch 失灵——改码后必须 curl dev 模块确认新旧再浏览器验收；端口残留子进程须 pkill -f vite**。
-2. ~~问题三 composer 参数 pill 合一~~ **已完成+真机验收**（4360bfb）：摘要 pill=触发器（带 Settings2 前缀）紧邻模型 pill 靠左；右组只剩份数+生成；孤立 sliders 触发器删除；image 摘要 pill 点开面板真机验证通过。份数 pill 位置（现右组）待问题四与上游面板结构统一决策。
-3. 问题四：参数设置面板 UI/UX 重设计（设计 skill + flora 模型列表质感 token + 按模型能力动态选项）。上游图像设置面板新结构（透明背景/分辨率+自动尺寸/比例网格+像素换算+自定义折叠/张数）与本仓库面板结构冲突评估：上游未合入部分仅作参照，本仓库以 ModelCapabilityEditor 配置驱动方案为基底。音频/文本要求待用户补发。
+2. ~~问题三 composer 参数 pill 合一~~ **已完成+真机验收**（4360bfb）：摘要 pill=触发器（带 Settings2 前缀）紧邻模型 pill 靠左；右组只剩份数+生成；孤立 sliders 触发器删除；image 摘要 pill 点开面板真机验证通过。
+3. ~~问题四 参数面板 UI/UX 重设计~~ **已完成+真机验收**（a1f9fbd/71c445a/e5a31a9/d69e948/07a3a3a 等）：设计规格 v2（四 skill 综合，先设计后实施）→ 份数独立 A 形态（video/audio UI 先行链路后补）→ 三面板比例/音色置首+像素换算条+能力裁剪+组标题对齐语料 → 图像比例网格标准8比例两行封顶（真机发现 27+ 像素平铺缺陷后二轮收敛）。pending-test.mdx 已登记，遗留待验见该条目。
 4. 问题一：L2 行点击不选择——真机复现确认 A 路线未根治；复现非确定，勿凭推测改码；修后须附 L2 flyout 徽章真机复验（问题二④回归项）。
-5. 收尾：pending-test.mdx 登记（问题二/三）+ commit + 更新本文件。
+5. 收尾：问题四 pending-test.mdx 已登记（本轮）；剩问题一登记 + commit + 更新本文件。
 
-## 7. 开放问题（v4 更新）
+## 7. 开放问题（v5 更新）
 
-- L2 行点击缺陷根因（下一步 3）——为什么复现非确定？时序翻转假设（后台 tab/慢设备）未证。
+- L2 行点击缺陷根因（下一步 4）——为什么复现非确定？时序翻转假设（后台 tab/慢设备）未证。
 - 份数气泡与设置气泡同开重叠（同 z=1100、无互斥，模型菜单有 sibling-close 而设置气泡没有）——是否补互斥，待用户定。
-- origin/main 39 commit 欠账的 rebase 时机（#18 收尾前/后）。
+- video/audio 份数>1 提交拆分链路（用户已拍板 UI 先行，videoGenerationCount/audioGenerationCount 已存储，拆分作为后续独立任务）。
+- tmwd-browser execute_js 对 React 合成事件无响应（click/mousedown 均不触发 state 变更）——验收一律走 fiber 手动调用 memoizedProps（onMouseDown/onClick），已稳定复用两轮。
 - 193MB 崩溃会话本体处置：不 resume；考古用 /tmp/autopsy/ 切片语料。
 - 反射记忆层（om.reflections）回灌是本次崩溃根因——后续长会话是否关闭该层/加体积上限，属 pi 配置决策，待用户定。
 
