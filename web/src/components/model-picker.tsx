@@ -4,7 +4,7 @@ import { Check, ChevronDown, ChevronRight, Coins, Image as ImageIcon, Info, List
 import { Popover, Tooltip } from "antd";
 
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
-import { modelCapabilityConfigFor, videoDurationOptions } from "@/lib/model-capabilities";
+import { modelCapabilityConfigFor, normalizeModelCapabilityConfig, videoDurationOptions } from "@/lib/model-capabilities";
 import { formatPriceRange, modelQuoteRequest, normalizeTierResolution, priceTierSummaryLabel, priceTiersForCurrentSelection } from "@/lib/model-pricing";
 import { compatibleModelInGroup, configuredModelDisplayName, groupModelsByDisplayName, modelCompatibilityError, resolveCompatibleModel, type ModelRequirements } from "@/lib/model-selection";
 import { cn } from "@/lib/utils";
@@ -745,21 +745,46 @@ function ModelLabel({
 
 // flora 媒体类型徽章(2026-09-09 用户截图定案): 图标=模型可接受的输入模态, tooltip 形如 "Accepts text input"。
 // flora 实测: Claude(纯文本输出)显示 text+video+image(它接受三种输入), 图像模型显示 text+image →
-// 图标不表达输出类型。text(提示词输入)恒显; image/video/audio 按 spec.inputs 诚实声明(max>0),
-// 声明为空时按 capability 兜底(dev 端 spec.inputs 全空, 全靠声明会只剩 text), 声明了部分则严格按声明。
+// 图标不表达输出类型。text(提示词输入)恒显; image/video/audio 按实际配置诚实声明：
+// - managed 逻辑模型: spec.inputs[kind].max>0；无声明则按 capability 兜底。
+// - 渠道模型(2026-09-10 用户反馈问题二): 读 capabilityConfig.references.max*——后端「最大参考图=0」
+//   时不得再显示图像图标(旧兑底 capability===kind 无视配置，是误导显示的根因)。
 function modelMediaTypes(config: AiConfig, model: string, capability?: ModelCapability): { kind: string; label: string; icon: ReactNode }[] {
     const channel = resolveModelChannel(config, model);
     const cost = channel.modelCosts?.find((item) => item.model === modelOptionName(model));
     const spec = cost?.logicalCapabilitySpec;
+    const configured = cost?.capabilityConfig ? normalizeModelCapabilityConfig(cost.capabilityConfig) : undefined;
     const entries: { kind: string; label: string; icon: ReactNode }[] = [];
     const push = (kind: string, label: string, icon: ReactNode) => {
         if (!entries.some((item) => item.kind === kind)) entries.push({ kind, label, icon });
     };
     push("text", "可输入文本", <TypeIcon className="size-3" />);
     const declaredInputs = spec?.inputs && Object.keys(spec.inputs).length > 0 ? spec.inputs : undefined;
+    // 渠道模型: 引用上限由后台 capabilityConfig 决定（0=不可输入该模态）。
+    // 映射随请求能力分派: image 请求看 image.references, video 请求看 video.references, text 请求(图片/视频理解)看 text.references。
+    const configuredMax = (kind: "image" | "video" | "audio"): number => {
+        if (capability === "image") return kind === "image" ? configured?.image?.references.maxImages ?? 0 : 0;
+        if (capability === "video") {
+            const refs = configured?.video?.references;
+            return kind === "image" ? refs?.maxImages ?? 0 : kind === "video" ? refs?.maxVideos ?? 0 : kind === "audio" ? refs?.maxAudios ?? 0 : 0;
+        }
+        if (capability === "text") {
+            // 文本模型的图片/视频理解徽章维持旧行为(不显示)——能力摘要副标题由 S08 面板重设计统一处理,
+            // 本轮修复严格限定在用户报告的 image/video 请求域。
+            return 0;
+        }
+        return 0;
+    };
     const inputKinds: Exclude<CapabilitySpec["capability"], "text">[] = ["image", "video", "audio"];
     for (const kind of inputKinds) {
-        const accepts = declaredInputs ? (declaredInputs[kind]?.max ?? 0) > 0 : capability === kind;
+        let accepts: boolean;
+        if (declaredInputs) {
+            accepts = (declaredInputs[kind]?.max ?? 0) > 0;
+        } else if (configured) {
+            accepts = configuredMax(kind) > 0;
+        } else {
+            accepts = capability === kind;
+        }
         if (!accepts) continue;
         if (kind === "image") push("image", "可输入图像", <ImageIcon className="size-3" />);
         if (kind === "video") push("video", "可输入视频", <VideoIcon className="size-3" />);
