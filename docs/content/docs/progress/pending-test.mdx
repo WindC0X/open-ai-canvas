@@ -2460,4 +2460,12 @@ d (docs(progress): S08 问题四质感层补全登记 - 玻璃surface/40px命中
 **验证**：tsc/build ✓；真机计算样式（CDP ignoreCache reload）：未选中 2K = color rgba(255,255,255,.55)/bg 透明/font 11px，选中 1K = color #fff/bg rgba(255,255,255,.12)/borderStyle none；视频时长 = 标题行"时长 8s"+9 刻度标签（4s..12s，active 白粗）+12px 滑块；截图 /tmp/s08-p4-stepper.png。
 
 **遗留待验**：真实 hover 路径（字亮内部不亮为 CSS :hover 规则，合成事件无法触发）；焦点 outline（focus-visible 白描边保留为无障碍要求，与"无边框"不冲突）；JiMeng/Seedance 分支时长组同构复验。
+
 8 (docs(progress): S08 亮度语义/时长步进滑块批登记 - antd reset 压制根因与修复)
+
+### S08 问题四轮·步进滑块/分块/并列自定义批（用户 12 图复批后）
+
+**用户问题与修复（4fa6b17）**：①时长刻度点只显示一个（radial-gradient 在 track 内不可靠）→ **DOM 点阵**（每 step 一个 3px 点，grid 均布）；标签每秒都标太密 → **里程碑抽稀**（约 8 个以内均布，选中值落在抽稀位时强制可见）；抽成共享 `settings-stepper.tsx`（video 时长 + audio 语速共用）。②面板"平成一整块"→ 组间距 16px（space-y-4）。③**音频语速改步进滑块**（用户明确指令，上轮"保持分段"裁量被否）：0.75-1.5 step0.25 四刻度+全标+标题行右当前值，自定义入口保留。④图像比例组：组名"尺寸或比例"→"比例"、**删换算条**、自定义按钮与 W/H 输入并列一行（编辑即切自定义，16 倍对齐就地开关），删 customSizeOpen 折叠与面板底部展开块。⑤组标题亮度=选项 hover 档：canvas-theme 新增 `node.groupTitle`（dark rgba(255,255,255,.92)/light rgba(0,0,0,.85)）。⑥**比例双行卡无选中态根因**：缺 `aria-pressed`（亮度状态机靠它命中）——image/video 三处补齐。⑦比例图标 22px→14px border 1px（与 video SizePreview 同档）。⑧声音指令 textarea 14→12px（antd reset textarea 压制，inline fontSize 同修）。
+
+**验证**：tsc/build ✓；真机（CDP ignoreCache reload）：video 时长 9 点/可见标签 4s,5s,6s,8s,10s,12s（5s 选中强制可见+bg .12）、比例 selected "3:4"；audio 语速 4 刻度 0.75-1.5x/0.75x 选中/textarea 12px；image 组名"比例"/自定义行常驻（自定义+W 1824+H 1024+开关同行）/换算条已删/选中 16:9/图标 14px；截图 /tmp/s08-p4-final-batch.png。
+3 (docs(progress): S08 步进滑块/分块/并列自定义批登记)
