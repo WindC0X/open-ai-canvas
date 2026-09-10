@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { Switch } from "@/components/ui/base/switch";
+import { SettingsStepper } from "./canvas/settings-stepper";
 
 import { ImageSettingsTheme, OptionPill } from "@/components/image-settings-panel";
 import { boolConfig, isSeedanceFastModel, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceRatioOptions } from "@/lib/seedance-video";
@@ -49,7 +50,7 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
                 {/* 排布纪律(设计 v2): 比例(构图)置首, 清晰度/时长随后, 输出属性收尾; 与 Seedance/JiMeng 分支及 image 面板同序。 */}
-                {sizeSupported ? <SettingGroup title="比例" color={theme.node.muted}>
+                {sizeSupported ? <SettingGroup title="比例" color={theme.node.groupTitle}>
                     {dimensions ? <div className="text-xs tabular-nums" style={{ color: theme.node.muted }}>
                         {`${ratio} · ${dimensions.width} × ${dimensions.height}px`}
                     </div> : null}
@@ -59,6 +60,7 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             <button
                                 key={value}
                                 type="button"
+                                aria-pressed={ratio === value}
                                 className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                 style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                                 onMouseDown={(event) => event.stopPropagation()}
@@ -72,7 +74,7 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         ))}
                     </div>
                 </SettingGroup> : null}
-                {configuredResolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.muted}>
+                {configuredResolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.groupTitle}>
                     <div className="grid grid-cols-3 gap-1">
                         {configuredResolutions.map((item) => (
 							<OptionPill key={item.value} selected={isVideoResolutionMatch(resolution, item.value)} disabled={!hasPriceTierForVideoSelection(priceTiers, item.value, Number(seconds))} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
@@ -81,10 +83,10 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         ))}
                     </div>
                 </SettingGroup> : null}
-                <SettingGroup title="时长" color={theme.node.muted} extra={<span className="shrink-0 text-[11px] font-medium leading-none tabular-nums" style={{ color: theme.node.text }}>{seconds}s</span>}>
+                <SettingGroup title="时长" color={theme.node.groupTitle} extra={<span className="shrink-0 text-[11px] font-medium leading-none tabular-nums" style={{ color: theme.node.text }}>{seconds}s</span>}>
 					<VideoDurationControl profile={profile} value={Number(seconds)} theme={theme} disabled={(value) => !hasPriceTierForVideoSelection(priceTiers, resolution, value)} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
                 </SettingGroup>
-                {profile.generateAudio.supported || profile.watermark.supported ? <SettingGroup title="输出" color={theme.node.muted}><div className="grid grid-cols-2 gap-3 rounded-lg px-2" style={{ background: theme.toolbar.itemHover }}>{profile.generateAudio.supported ? <SwitchRow label="生成声音" checked={generateAudio} theme={theme} onChange={(checked) => onConfigChange("videoGenerateAudio", String(checked))} /> : null}{profile.watermark.supported ? <SwitchRow label="添加水印" checked={watermark} theme={theme} onChange={(checked) => onConfigChange("videoWatermark", String(checked))} /> : null}</div></SettingGroup> : null}
+                {profile.generateAudio.supported || profile.watermark.supported ? <SettingGroup title="输出" color={theme.node.groupTitle}><div className="grid grid-cols-2 gap-3 rounded-lg px-2" style={{ background: theme.toolbar.itemHover }}>{profile.generateAudio.supported ? <SwitchRow label="生成声音" checked={generateAudio} theme={theme} onChange={(checked) => onConfigChange("videoGenerateAudio", String(checked))} /> : null}{profile.watermark.supported ? <SwitchRow label="添加水印" checked={watermark} theme={theme} onChange={(checked) => onConfigChange("videoWatermark", String(checked))} /> : null}</div></SettingGroup> : null}
             </div>
         </ImageSettingsTheme>
     );
@@ -97,12 +99,13 @@ function JiMengVideoSettingsPanel({ config, profile, priceTiers, onConfigChange,
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
                 {/* 排布纪律(设计 v2): 比例置首, 清晰度随后(与默认分支同序); JiMeng 比例升级双行卡(h-52)。 */}
-                <SettingGroup title="比例" color={theme.node.muted}>
+                <SettingGroup title="比例" color={theme.node.groupTitle}>
                     <div className="grid grid-cols-3 gap-1">
                 {profile.ratios.map((value) => (
                     <button
                         key={value}
                         type="button"
+                        aria-pressed={config.size === value}
                         className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                         style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                         onMouseDown={(event) => event.stopPropagation()}
@@ -116,7 +119,7 @@ function JiMengVideoSettingsPanel({ config, profile, priceTiers, onConfigChange,
                 ))}
                     </div>
                 </SettingGroup>
-                <SettingGroup title="时长" color={theme.node.muted}>
+                <SettingGroup title="时长" color={theme.node.groupTitle}>
 					<VideoDurationControl profile={profile} value={Number(seconds)} theme={theme} disabled={(value) => !hasPriceTierForVideoSelection(priceTiers, "*", value)} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
                 </SettingGroup>
             </div>
@@ -139,7 +142,7 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
                 {/* 排布纪律(设计 v2): 比例置首(含像素换算条), 清晰度随后(与默认分支同序)。 */}
-                <SettingGroup title="比例" color={theme.node.muted}>
+                <SettingGroup title="比例" color={theme.node.groupTitle}>
                     {(() => {
                         const dims = videoDimensionsForRatioAndResolution(ratio, resolution);
                         return dims ? <div className="text-xs tabular-nums" style={{ color: theme.node.muted }}>
@@ -154,6 +157,7 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                             <button
                                 key={item.value}
                                 type="button"
+                                aria-pressed={ratio === item.value}
                                 className="canvas-settings-option flex h-11 min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-tiny)] leading-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                 style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                                 onMouseDown={(event) => event.stopPropagation()}
@@ -168,7 +172,7 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                         })}
                     </div>
                 </SettingGroup>
-                {profile.resolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.muted}>
+                {profile.resolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.groupTitle}>
                     <div className="grid grid-cols-3 gap-1">
                         {profile.resolutions.map((value) => {
                             const item = { value, label: value.toUpperCase() };
@@ -182,17 +186,17 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                     </div>
                     {isSeedanceFastModel(model) ? <div className="text-[var(--fs-tiny)] leading-4 opacity-55">fast 模型自动使用 720P</div> : null}
                 </SettingGroup> : null}
-                <SettingGroup title="时长" color={theme.node.muted} extra={<span className="shrink-0 text-[11px] font-medium leading-none tabular-nums" style={{ color: theme.node.text }}>{duration}s</span>}>
+                <SettingGroup title="时长" color={theme.node.groupTitle} extra={<span className="shrink-0 text-[11px] font-medium leading-none tabular-nums" style={{ color: theme.node.text }}>{duration}s</span>}>
 					<VideoDurationControl profile={profile} value={duration} theme={theme} disabled={(value) => !hasPriceTierForVideoSelection(priceTiers, resolution, value)} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
                 </SettingGroup>
-                <SettingGroup title="输出" color={theme.node.muted}>
+                <SettingGroup title="输出" color={theme.node.groupTitle}>
                     <div className="grid grid-cols-2 gap-3 rounded-lg px-2" style={{ background: theme.toolbar.itemHover }}>
                         {profile.generateAudio.supported ? <SwitchRow label="生成声音" checked={generateAudio} theme={theme} onChange={(checked) => onConfigChange("videoGenerateAudio", String(checked))} /> : null}
                         {profile.watermark.supported ? <SwitchRow label="添加水印" checked={watermark} theme={theme} onChange={(checked) => onConfigChange("videoWatermark", String(checked))} /> : null}
                     </div>
                 </SettingGroup>
                 {isArkSeedance ? (
-                    <SettingGroup title="参考图" color={theme.node.muted}>
+                    <SettingGroup title="参考图" color={theme.node.groupTitle}>
                         <div className="rounded-md px-2" style={{ background: theme.toolbar.itemHover }}>
                             <SwitchRow label="自动同步可信素材（确认拥有使用权）" checked={useArkPrivateAssets} theme={theme} onChange={(checked) => onConfigChange("videoArkPrivateAssetUpload", String(checked))} />
                         </div>
@@ -250,7 +254,7 @@ function VideoDurationControl({ profile, value, theme, disabled, onChange }: { p
         const max = Math.max(min, profile.duration.max || min);
         const step = Math.max(1, profile.duration.step || 1);
         const normalized = normalizeDurationValue(value, profile.duration.default, min, max, step);
-		return <DurationRangeControl value={normalized} min={min} max={max} step={step} theme={theme} onChange={(next) => { if (!disabled?.(next)) onChange(next); }} />;
+		return <DurationRangeControl value={normalized} min={min} max={max} step={step} onChange={(next) => { if (!disabled?.(next)) onChange(next); }} />;
     }
 
     const options = videoDurationOptions(profile);
@@ -280,46 +284,8 @@ function normalizeTierResolution(value: string) {
 	return videoResolutionComparisonKey(value);
 }
 
-function DurationRangeControl({ value, min, max, step, theme, onChange }: { value: number; min: number; max: number; step: number; theme: CanvasTheme; onChange: (value: number) => void }) {
-    // flora 步进滑块语法(用户参考图 2026-09-11): 标题行右侧当前值 + 2px 细轨离散刻度点 +
-    // 下方可点里程碑标签(均匀分布, 选中白粗)。弃右侧数值输入框与 min/max 两端标签。
-    const total = Math.floor((max - min) / step) + 1;
-    const ticks = Array.from({ length: total }, (_, i) => min + i * step);
-    // 标签全显上限 10 个, 超出则均匀抽稀(刻度点仍在滑轨上, 只是部分不标数)。
-    const labelEvery = Math.max(1, Math.ceil(total / 10));
-    return <div className="space-y-1">
-        <input
-            type="range"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            aria-label="视频时长（秒）"
-            className="video-duration-range h-4 min-w-0 w-full"
-            style={{
-                // 离散刻度点经 CSS 变量透传到 ::-webkit-slider-runnable-track(inline 直接写在 input 上会被 track 底色遮住)。
-                ["--ticks-image" as string]: `radial-gradient(circle, rgba(255,255,255,0.4) 1.5px, transparent 2px)`,
-            }}
-            onChange={(event) => onChange(Number(event.target.value))}
-            onMouseDown={(event) => event.stopPropagation()}
-        />
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}>
-            {ticks.map((tick, index) => (
-                <button
-                    key={tick}
-                    type="button"
-                    className="canvas-settings-option cursor-pointer rounded py-0.5 text-center text-[10px] leading-none tabular-nums"
-                    aria-pressed={value === tick}
-                    disabled={index % labelEvery !== 0}
-                    style={{ opacity: index % labelEvery === 0 ? undefined : 0 }}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onClick={() => onChange(tick)}
-                >
-                    {tick}s
-                </button>
-            ))}
-        </div>
-    </div>;
+function DurationRangeControl({ value, min, max, step, onChange }: { value: number; min: number; max: number; step: number; onChange: (value: number) => void }) {
+    return <SettingsStepper value={value} min={min} max={max} step={step} format={(v) => `${v}s`} onChange={onChange} />;
 }
 
 function normalizeDurationValue(value: number, fallback: number, min: number, max: number, step: number) {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { PencilLine } from "lucide-react";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
 import { usePopoverExit } from "./use-popover-exit";
@@ -83,7 +84,7 @@ export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, l
     );
 }
 
-const ROW = 36;
+const ROW = 32;
 const PANEL_WIDTH = 168;
 const QUICK_TIERS = [1, 2, 3, 4];
 
@@ -110,7 +111,7 @@ function CountSettingsPortal({
 }) {
     const gap = 8;
     const margin = 12;
-    const listMax = Math.min(7, Math.max(0, max - 4)) * ROW + 8;
+    const listMax = Math.min(11, Math.max(0, max - 4)) * ROW + 8;
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - PANEL_WIDTH / 2 : alignRight ? buttonRect.right - PANEL_WIDTH : buttonRect.left;
@@ -213,7 +214,8 @@ function CountSettingsPortal({
                     }}
                 />
             ) : (
-                <button type="button" className="canvas-settings-option canvas-settings-roll-row mt-1" style={{ outlineColor: theme.node.muted, fontSize: "12px" }} onClick={openCustom}>
+                <button type="button" className="canvas-settings-option canvas-settings-roll-row mt-1 flex items-center justify-center gap-1" style={{ outlineColor: theme.node.muted, fontSize: "12px" }} onClick={openCustom}>
+                    <PencilLine className="size-3 opacity-70" />
                     自定义…
                 </button>
             )}

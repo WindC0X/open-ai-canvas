@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 
 import { ImageSettingsTheme, OptionPill } from "@/components/image-settings-panel";
+import { SettingsStepper } from "@/components/canvas/settings-stepper";
 import { audioFormatOptions, audioSpeedLabel, audioVoiceOptions, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AiConfig } from "@/stores/use-config-store";
@@ -30,7 +31,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">音频设置</div> : null}
-                <SettingGroup title="音色" color={theme.node.muted}>
+                <SettingGroup title="音色" color={theme.node.groupTitle}>
                     <div className="grid grid-cols-4 gap-1">
                         {audioVoiceOptions.map((item) => (
                             <OptionPill key={item.value} selected={voice === item.value} theme={theme} onClick={() => onConfigChange("audioVoice", item.value)}>
@@ -39,14 +40,16 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         ))}
                     </div>
                 </SettingGroup>
-                <SettingGroup title="语速" color={theme.node.muted}>
-                    <div className="grid grid-cols-4 gap-1">
-                        {speedOptions.map((value) => (
-                            <OptionPill key={value} selected={speed === value} theme={theme} onClick={() => onConfigChange("audioSpeed", value)}>
-                                {audioSpeedLabel(value)}
-                            </OptionPill>
-                        ))}
-                    </div>
+                <SettingGroup title="语速" color={theme.node.groupTitle} extra={<span className="shrink-0 text-[11px] font-medium leading-none tabular-nums" style={{ color: theme.node.text }}>{audioSpeedLabel(speed)}</span>}>
+                    {/* 步进刻度滑块(用户拍板, 与视频时长同语法): 4 档刻度+里程碑标签; 自定义入口保留。 */}
+                    <SettingsStepper
+                        value={Number(speed) || 1}
+                        min={0.75}
+                        max={Math.max(1.5, Number(speed) || 1)}
+                        step={0.25}
+                        format={(v) => `${v}x`}
+                        onChange={(next) => onConfigChange("audioSpeed", String(next))}
+                    />
                     {customSpeedOpen ? (
                         <input
                             type="number"
@@ -78,7 +81,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         </button>
                     )}
                 </SettingGroup>
-                <SettingGroup title="格式" color={theme.node.muted}>
+                <SettingGroup title="格式" color={theme.node.groupTitle}>
                     <div className="grid grid-cols-3 gap-1">
                         {audioFormatOptions.map((item) => (
                             <OptionPill key={item.value} selected={format === item.value} theme={theme} onClick={() => onConfigChange("audioFormat", item.value)}>
@@ -87,12 +90,12 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         ))}
                     </div>
                 </SettingGroup>
-                <SettingGroup title="声音指令" color={theme.node.muted}>
+                <SettingGroup title="声音指令" color={theme.node.groupTitle}>
                     <textarea
                         value={config.audioInstructions || ""}
                         placeholder="例如：自然、温暖、适合旁白。"
-                        className="thin-scrollbar h-20 w-full resize-none rounded-xl border bg-transparent px-3 py-2 text-sm leading-5 outline-none"
-                        style={{ borderColor: theme.node.stroke, color: theme.node.text }}
+                        className="thin-scrollbar h-20 w-full resize-none rounded-xl border bg-transparent px-3 py-2 text-xs leading-5 outline-none"
+                        style={{ borderColor: theme.node.stroke, color: theme.node.text, fontSize: "12px" }}
                         onChange={(event) => onConfigChange("audioInstructions", event.target.value)}
                         onMouseDown={(event) => event.stopPropagation()}
                     />
@@ -104,12 +107,15 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
 
 // 分段 pill 已收敛到 image-settings-panel 共享导出(40px 命中区)。
 
-function SettingGroup({ title, color, children }: { title: string; color: string; children: ReactNode }) {
+function SettingGroup({ title, color, extra, children }: { title: string; color: string; extra?: ReactNode; children: ReactNode }) {
     // 组间距与 image/video 面板同一收敛(space-y-2); 字重对齐语料 P51-030(12px/400)。
     return (
         <div className="space-y-2">
-            <div className="text-xs font-normal" style={{ color }}>
-                {title}
+            <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="text-xs font-normal" style={{ color }}>
+                    {title}
+                </div>
+                {extra}
             </div>
             {children}
         </div>
