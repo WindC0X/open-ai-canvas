@@ -487,6 +487,13 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                             ) : null}
                         </>
                     ) : mode === "video" ? (
+                        <CanvasVideoSettingsPopover
+                            config={config}
+                            iconOnly
+                            buttonClassName="canvas-node-composer-settings-trigger [&_.lucide]:!size-3"
+                            onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))}
+                        />
+                    ) : null}
                     {renderSubmitButton(expanded)}
                 </div>
             </div>

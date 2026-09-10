@@ -1,11 +1,10 @@
-import { ImageSizePicker } from "./image-size-picker";
-import { imageResolutionUsesQuality } from "@/lib/image-size-presets";
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { ConfigProvider } from "antd";
 import { Switch } from "@/components/ui/base/switch";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
-import { buildImageResolutionOptions, formatImageResolutionSize } from "@/lib/image-resolution-tiers";
+import { buildImageResolutionOptions, formatImageResolutionSize, imageRatioForSize, imageResolutionChoices, imageResolutionOption, imageSizeForResolution, supportsImageResolutionPresets, type ImageResolutionChoice } from "@/lib/image-resolution-tiers";
+import { imageResolutionUsesQuality } from "@/lib/image-size-presets";
 import { modelCapabilityConfigFor, normalizeImageValue, type ImageCapabilityConfig } from "@/lib/model-capabilities";
 import { mergedImageCapabilityConfig } from "@/lib/model-selection";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
@@ -19,6 +18,8 @@ const qualityOptions = [
     { value: "2k", label: "2K" },
     { value: "4k", label: "4K" },
 ];
+
+const DIMENSION_STEP = 16;
 
 type AspectOption = { value: string; label: string; width: number; height: number; icon: string; size?: string };
 
@@ -187,7 +188,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 16倍数对齐
                             </span>
                             <span title="输入完成后自动向上补成 16 的倍数" onMouseDown={(event) => event.stopPropagation()}>
-                                <Switch size="small" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
+                                <Switch size="sm" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
                             </span>
                         </div>
                     </div>
@@ -371,4 +372,55 @@ function SettingTitle({ children, color }: { children: string; color: string }) 
             {children}
         </div>
     );
+}
+
+function imageOptionAllowed(profile: ImageCapabilityConfig, option: AspectOption) {
+    if (profile.size.parameter === "none") return false;
+    if (profile.size.allowCustom && profile.size.values.length === 0) return true;
+    return [option.value, option.size, option.width && option.height ? `${option.width}x${option.height}` : ""].filter(Boolean).some((value) => profile.size.values.includes(String(value)));
+}
+
+function imageAspectOptions(profile: ImageCapabilityConfig): AspectOption[] {
+    if (profile.size.parameter === "none") return [];
+    const values = profile.size.values.filter((value) => value.trim().toLowerCase() !== "auto");
+    if (!values.length) return profile.size.allowCustom ? aspectOptions.filter((item) => item.value !== "auto") : [];
+    return values.map((value) => {
+        const known = aspectOptions.find((item) => (item.size || item.value) === value || item.value === value);
+        if (known) return known;
+        const parts = ratioParts(value);
+        return { value, label: value, size: value, width: parts?.width || 0, height: parts?.height || 0, icon: "custom" };
+    });
+}
+
+function ratioParts(value: string) {
+    const pixel = value.trim().match(/^(\d+)x(\d+)$/i);
+    if (pixel) {
+        const divisor = gcd(Number(pixel[1]), Number(pixel[2]));
+        return { width: Number(pixel[1]) / divisor, height: Number(pixel[2]) / divisor };
+    }
+    const ratio = value.trim().match(/^(\d+):(\d+)$/);
+    if (!ratio) return undefined;
+    const divisor = gcd(Number(ratio[1]), Number(ratio[2]));
+    return { width: Number(ratio[1]) / divisor, height: Number(ratio[2]) / divisor };
+}
+
+function gcd(a: number, b: number): number {
+    return b ? gcd(b, a % b) : a;
+}
+
+function imageOptionValue(profile: ImageCapabilityConfig, option: AspectOption) {
+    const candidates = [option.size, option.value, option.width && option.height ? `${option.width}x${option.height}` : ""].filter(Boolean).map(String);
+    return candidates.find((value) => profile.size.values.includes(value)) || option.size || option.value || "auto";
+}
+
+function readSizeDimensions(size: string, fallback: { width: number; height: number }) {
+    const match = size?.match(/^(\d+)x(\d+)$/);
+    return {
+        width: match ? Number(match[1]) : fallback.width,
+        height: match ? Number(match[2]) : fallback.height,
+    };
+}
+
+function alignDimension(value: number, enabled: boolean) {
+    return enabled ? Math.ceil(value / DIMENSION_STEP) * DIMENSION_STEP : value;
 }
