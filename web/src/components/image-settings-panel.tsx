@@ -407,8 +407,12 @@ function imageAspectOptions(profile: ImageCapabilityConfig): AspectOption[] {
     if (profile.size.parameter === "none") return [];
     const values = profile.size.values.filter((value) => value.trim().toLowerCase() !== "auto");
     if (!values.length) return profile.size.allowCustom ? aspectOptions.filter((item) => item.value !== "auto") : [];
-    // 设计契约(P2 能力裁剪 + 竞品语法): 网格按比例去重而非平铺像素值——
-    // 同一比例的多个像素尺寸由分辨率 tier/换算条表达, 否则 27+ 像素格会把面板炸成 7 行。
+    // 设计契约(P2 能力裁剪 + P5 渐进披露): 网格只承载标准比例(竞品同型, 两行封顶)——
+    // 同比例多像素尺寸归分辨率/换算条, 非标准怪异比例归自定义输入; 标准集为空才回退去重全量。
+    const standard = aspectOptions.filter((item) =>
+        !/-\d+k$/.test(item.value) && [item.value, item.size, item.width && item.height ? `${item.width}x${item.height}` : ""].filter(Boolean).some((candidate) => values.includes(String(candidate))),
+    );
+    if (standard.length) return standard;
     const seenRatios = new Set<string>();
     const options: AspectOption[] = [];
     for (const value of values) {
