@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from "react";
 
-import { ImageSettingsTheme } from "@/components/image-settings-panel";
+import { ImageSettingsTheme, OptionPill } from "@/components/image-settings-panel";
 import { audioFormatOptions, audioSpeedLabel, audioVoiceOptions, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AiConfig } from "@/stores/use-config-store";
@@ -69,7 +69,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     ) : (
                         <button
                             type="button"
-                            className="canvas-settings-option h-8 w-full cursor-pointer rounded-lg px-2.5 text-xs"
+                            className="canvas-settings-option h-10 w-full cursor-pointer rounded-lg px-2.5 text-xs"
                             style={{ background: "transparent", borderColor: theme.toolbar.border, color: theme.node.muted }}
                             onMouseDown={(event) => event.stopPropagation()}
                             onClick={() => setCustomSpeedOpen(true)}
@@ -102,20 +102,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
     );
 }
 
-function OptionPill({ selected, theme, onClick, children }: { selected: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
-    // 字号对齐 image OptionPill(text-xs)。
-    return (
-        <button
-            type="button"
-            className="canvas-settings-option h-8 cursor-pointer rounded-lg px-2.5 text-xs transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-            style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text }}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={onClick}
-        >
-            {children}
-        </button>
-    );
-}
+// 分段 pill 已收敛到 image-settings-panel 共享导出(40px 命中区)。
 
 function SettingGroup({ title, color, children }: { title: string; color: string; children: ReactNode }) {
     // 组间距与 image/video 面板同一收敛(space-y-2); 字重对齐语料 P51-030(12px/400)。

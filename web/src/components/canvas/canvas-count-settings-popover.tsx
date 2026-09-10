@@ -115,13 +115,12 @@ function CountSettingsPortal({
     const topPlacement = placement?.startsWith("top");
     const style = {
         position: "fixed",
+        // 开合锚触发器(emil): 从触发器方向缩放, 而非恒 bottom center。
+        transformOrigin: placement?.endsWith("Right") ? "bottom right" : placement === "top" || placement === "bottom" ? "bottom center" : "bottom left",
         zIndex: "var(--z-dialog-popover)",
         width: PANEL_WIDTH,
         left: Math.max(margin, Math.min(window.innerWidth - PANEL_WIDTH - margin, left)),
         ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(200, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(200, window.innerHeight - buttonRect.bottom - margin * 2) }),
-        background: theme.canvas.background,
-        border: `1px solid ${theme.toolbar.border}`,
-        borderRadius: "var(--r-lg)",
         padding: 5,
         color: theme.node.text,
     } as const;
@@ -152,7 +151,7 @@ function CountSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
-            className={`canvas-count-settings-popover aceternity-floating-panel backdrop-blur-2xl${closing ? " canvas-settings-popover-closing" : ""}`}
+            className={`canvas-count-settings-popover aceternity-floating-panel${closing ? " canvas-settings-popover-closing" : ""}`}
             style={{ ...style, overflowY: "auto" }}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
@@ -166,7 +165,7 @@ function CountSettingsPortal({
                             type="button"
                             aria-pressed={value === tier}
                             aria-label={`${tier} ${label}`}
-                            className="canvas-settings-option h-7 flex-1 !rounded-[10px] text-[13px] font-medium tabular-nums"
+                            className="canvas-settings-option h-10 flex-1 !rounded-[10px] text-[13px] font-medium tabular-nums"
                             style={{
                                 background: value === tier ? theme.toolbar.activeBg : theme.node.panel,
                                 borderColor: value === tier ? theme.node.activeStroke : "transparent",

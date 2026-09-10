@@ -8019,7 +8019,8 @@
     .canvas-settings-option {
         border: 1px solid var(--workspace-border, rgba(127, 127, 127, 0.24));
         cursor: pointer;
-        transition: background-color var(--motion-dur-fast-calc) var(--motion-ease-out), border-color var(--motion-dur-fast-calc) var(--motion-ease-out);
+        /* transform 纳入过渡支攩按下 scale(0.97) 反馈(设计契约 press 列)。 */
+        transition: background-color var(--motion-dur-fast-calc) var(--motion-ease-out), border-color var(--motion-dur-fast-calc) var(--motion-ease-out), transform 100ms var(--motion-ease-out);
     }
 
     .canvas-settings-option:hover {
@@ -8032,6 +8033,80 @@
         /* 选中描边由各面板内联 theme.node.activeStroke 覆盖;此处仅保底中性描边。 */
         border-color: var(--workspace-border-strong, rgba(127, 127, 127, 0.4));
         filter: none;
+    }
+
+    /* 生成参数设置面板统一 surface(设计契约 v2 §四): flora 权威玻璃与模型菜单同源
+       (globals 7392 批注: bg rgba(32,32,32,.9) + blur16 + border 白.05 + radius16 + 无阴影),
+       亮色用白玻璃。几何(left/top/width/maxHeight)仍由组件 inline 动态提供,
+       本规则只接管表面四件套(background/border/radius/shadow),组件不再各自 inline。 */
+    .canvas-image-settings-popover,
+    .canvas-video-settings-popover,
+    .canvas-audio-settings-popover,
+    .canvas-count-settings-popover {
+        border-radius: 16px !important;
+        background: rgba(255, 255, 255, 0.94) !important;
+        border: 1px solid rgba(15, 23, 42, 0.08) !important;
+        box-shadow: none !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    .dark .canvas-image-settings-popover,
+    .dark .canvas-video-settings-popover,
+    .dark .canvas-audio-settings-popover,
+    .dark .canvas-count-settings-popover {
+        background: rgba(32, 32, 32, 0.9) !important;
+        border-color: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    /* 按下即响应(设计契约 §四 press 列: scale 0.97/100ms; apple: 按下即反馈, 无 hover 延迟)。 */
+    .canvas-settings-option:active:not(:disabled) {
+        transform: scale(0.97);
+        transition-duration: 100ms;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-settings-option:active:not(:disabled) {
+            transform: none;
+        }
+    }
+
+    /* 禁用态与双行卡同口径(45% + 保留可读性, 由各面板 title 说明原因)。 */
+    .canvas-settings-option:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    /* 视频时长滑块(设计契约 §四: 6px 细轨, 拇指 hover 1.15x, 1:1 跟手)。 */
+    .video-duration-range {
+        appearance: none;
+        height: 6px;
+        border-radius: 999px;
+        background: color-mix(in srgb, currentColor 14%, transparent);
+        outline-offset: 4px;
+    }
+
+    .video-duration-range::-webkit-slider-thumb {
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        background: currentColor;
+        border: none;
+        transition: transform var(--motion-dur-fast-calc) var(--motion-ease-out);
+    }
+
+    .video-duration-range:hover::-webkit-slider-thumb,
+    .video-duration-range:focus-visible::-webkit-slider-thumb {
+        transform: scale(1.15);
+    }
+
+    .video-duration-range::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        background: currentColor;
+        border: none;
     }
 
     .canvas-node-toolbar::after {

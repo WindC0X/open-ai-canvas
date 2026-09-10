@@ -113,14 +113,13 @@ function VideoSettingsPortal({
     const preferAbove = aboveTop >= 240;
     const style = {
         position: "fixed",
+        // 开合锚触发器(emil): 从触发器方向缩放, 而非恒 bottom center。
+        transformOrigin: placement?.endsWith("Right") ? "bottom right" : placement === "top" || placement === "bottom" ? "bottom center" : "bottom left",
         zIndex: "var(--z-dialog-popover)",
         width,
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
         ...(preferAbove ? { bottom: window.innerHeight - aboveTop } : { top: buttonRect.bottom + gap }),
         maxHeight: Math.min(420, Math.max(260, preferAbove ? aboveTop : window.innerHeight - buttonRect.bottom - margin * 2)),
-        background: theme.canvas.background,
-        border: `1px solid ${theme.toolbar.border}`,
-        borderRadius: "var(--r-lg)",
         padding: 12,
         overflowY: "auto",
         color: theme.node.text,
@@ -129,7 +128,7 @@ function VideoSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
-            className={`canvas-video-settings-popover aceternity-floating-panel backdrop-blur-2xl thin-scrollbar${closing ? " canvas-settings-popover-closing" : ""}`}
+            className={`canvas-video-settings-popover aceternity-floating-panel thin-scrollbar${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}

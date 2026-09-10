@@ -271,12 +271,14 @@ function hasPriceTierForImageSelection(tiers: ReturnType<typeof imageModelPriceT
 	});
 }
 
-function OptionPill({ selected, disabled = false, theme, onClick, children }: { selected: boolean; disabled?: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
+/** 共享分段 pill(参数面板统一控件, audio/video 面板同源消费)。
+ * 命中区 40px(设计契约 P5 Fitts); 禁用态透明度由 globals .canvas-settings-option:disabled 0.45 接管。 */
+export function OptionPill({ selected, disabled = false, theme, onClick, children }: { selected: boolean; disabled?: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
     return (
         <button
             type="button"
             aria-pressed={selected}
-			className="canvas-settings-option h-8 cursor-pointer rounded-lg px-2.5 text-xs transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-40"
+			className="canvas-settings-option h-10 cursor-pointer whitespace-nowrap rounded-lg px-2.5 text-xs leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed"
 			style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
 			disabled={disabled}
             onMouseDown={(event) => event.stopPropagation()}

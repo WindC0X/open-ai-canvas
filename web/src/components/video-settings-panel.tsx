@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { Switch } from "@/components/ui/base/switch";
 
-import { ImageSettingsTheme } from "@/components/image-settings-panel";
+import { ImageSettingsTheme, OptionPill } from "@/components/image-settings-panel";
 import { boolConfig, isSeedanceFastModel, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceRatioOptions } from "@/lib/seedance-video";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { formatVideoResolutionLabel, isVideoResolutionMatch, normalizeVideoDuration, videoDimensionsForRatioAndResolution, videoResolutionComparisonKey, VIDEO_DURATION_MIN } from "@/lib/video-generation-options";
@@ -227,14 +227,7 @@ export function normalizeVideoSizeValue(value: string) {
     return ["9:16", "2:3", "3:4"].includes(value) ? "720x1280" : "1280x720";
 }
 
-// 字重/字号与 image/audio OptionPill 同一收敛(text-xs, 不加 font-medium)。
-function OptionPill({ selected, disabled = false, theme, onClick, children }: { selected: boolean; disabled?: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
-    return (
-        <button type="button" disabled={disabled} aria-pressed={selected} className="canvas-settings-option h-8 cursor-pointer whitespace-nowrap rounded-lg px-2.5 text-xs leading-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-35" style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }} onMouseDown={(event) => event.stopPropagation()} onClick={onClick}>
-            {children}
-        </button>
-    );
-}
+// 分段 pill 已收敛到 image-settings-panel 共享导出(40px 命中区, 与 image/audio 同词汇)。
 
 // 组标题排版与 image 面板同一收敛(text-xs font-normal + space-y-2, 语料 P51-030 12px/400)。
 function SettingGroup({ title, color, children }: { title: string; color: string; children: ReactNode }) {
