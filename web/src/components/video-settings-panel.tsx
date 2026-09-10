@@ -48,20 +48,10 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
-                {configuredResolutions.length > 1 ? <SettingGroup title="分辨率" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-1.5">
-                        {configuredResolutions.map((item) => (
-							<OptionPill key={item.value} selected={isVideoResolutionMatch(resolution, item.value)} disabled={!hasPriceTierForVideoSelection(priceTiers, item.value, Number(seconds))} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
-                                {item.label}
-                            </OptionPill>
-                        ))}
-                    </div>
-                </SettingGroup> : null}
-                {sizeSupported ? <SettingGroup title="尺寸" color={theme.node.muted}>
-                    {dimensions ? <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-                        <DimensionValue prefix="W" value={dimensions.width} theme={theme} />
-                        <span className="text-xs opacity-45">×</span>
-                        <DimensionValue prefix="H" value={dimensions.height} theme={theme} />
+                {/* 排布纪律(设计 v2): 比例(构图)置首, 清晰度/时长随后, 输出属性收尾; 与 Seedance/JiMeng 分支及 image 面板同序。 */}
+                {sizeSupported ? <SettingGroup title="比例" color={theme.node.muted}>
+                    {dimensions ? <div className="text-xs tabular-nums" style={{ color: theme.node.muted }}>
+                        {`${ratio} · ${dimensions.width} × ${dimensions.height}px`}
                     </div> : null}
                     {/* 比例按钮统一 image 面板的双行卡形态(h-52: 图标行+文字行)。 */}
                     <div className="grid grid-cols-3 gap-1.5">
@@ -82,7 +72,16 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         ))}
                     </div>
                 </SettingGroup> : null}
-                <SettingGroup title="秒数" color={theme.node.muted}>
+                {configuredResolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.muted}>
+                    <div className="grid grid-cols-3 gap-1.5">
+                        {configuredResolutions.map((item) => (
+							<OptionPill key={item.value} selected={isVideoResolutionMatch(resolution, item.value)} disabled={!hasPriceTierForVideoSelection(priceTiers, item.value, Number(seconds))} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
+                                {item.label}
+                            </OptionPill>
+                        ))}
+                    </div>
+                </SettingGroup> : null}
+                <SettingGroup title="时长" color={theme.node.muted}>
 					<VideoDurationControl profile={profile} value={Number(seconds)} theme={theme} disabled={(value) => !hasPriceTierForVideoSelection(priceTiers, resolution, value)} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
                 </SettingGroup>
                 {profile.generateAudio.supported || profile.watermark.supported ? <SettingGroup title="输出" color={theme.node.muted}><div className="grid grid-cols-2 gap-3 rounded-lg px-2" style={{ background: theme.toolbar.itemHover }}>{profile.generateAudio.supported ? <SwitchRow label="生成声音" checked={generateAudio} theme={theme} onChange={(checked) => onConfigChange("videoGenerateAudio", String(checked))} /> : null}{profile.watermark.supported ? <SwitchRow label="添加水印" checked={watermark} theme={theme} onChange={(checked) => onConfigChange("videoWatermark", String(checked))} /> : null}</div></SettingGroup> : null}
@@ -97,12 +96,27 @@ function JiMengVideoSettingsPanel({ config, profile, priceTiers, onConfigChange,
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
+                {/* 排布纪律(设计 v2): 比例置首, 清晰度随后(与默认分支同序); JiMeng 比例升级双行卡(h-52)。 */}
                 <SettingGroup title="比例" color={theme.node.muted}>
                     <div className="grid grid-cols-3 gap-1.5">
-                {profile.ratios.map((value) => <OptionPill key={value} selected={config.size === value} theme={theme} onClick={() => onConfigChange("size", value)}>{value}</OptionPill>)}
+                {profile.ratios.map((value) => (
+                    <button
+                        key={value}
+                        type="button"
+                        className="canvas-settings-option flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                        style={{ background: config.size === value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: config.size === value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={() => onConfigChange("size", value)}
+                    >
+                        <span className="grid h-6 w-8 place-items-center">
+                            <SizePreview width={ratioPreview(value).width} height={ratioPreview(value).height} color={theme.node.text} />
+                        </span>
+                        <span className="whitespace-nowrap">{value}</span>
+                    </button>
+                ))}
                     </div>
                 </SettingGroup>
-                <SettingGroup title="秒数" color={theme.node.muted}>
+                <SettingGroup title="时长" color={theme.node.muted}>
 					<VideoDurationControl profile={profile} value={Number(seconds)} theme={theme} disabled={(value) => !hasPriceTierForVideoSelection(priceTiers, "*", value)} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
                 </SettingGroup>
             </div>
@@ -124,21 +138,14 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
-                {profile.resolutions.length > 1 ? <SettingGroup title="分辨率" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-1.5">
-                        {profile.resolutions.map((value) => {
-                            const item = { value, label: value.toUpperCase() };
-							const disabled = (item.value === "1080p" && isSeedanceFastModel(model)) || !hasPriceTierForVideoSelection(priceTiers, item.value, duration);
-                            return (
-                                <OptionPill key={item.value} selected={resolution === item.value} disabled={disabled} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
-                                    {item.label}
-                                </OptionPill>
-                            );
-                        })}
-                    </div>
-                    {isSeedanceFastModel(model) ? <div className="text-[var(--fs-tiny)] leading-4 opacity-55">fast 模型自动使用 720P</div> : null}
-                </SettingGroup> : null}
+                {/* 排布纪律(设计 v2): 比例置首(含像素换算条), 清晰度随后(与默认分支同序)。 */}
                 <SettingGroup title="比例" color={theme.node.muted}>
+                    {(() => {
+                        const dims = videoDimensionsForRatioAndResolution(ratio, resolution);
+                        return dims ? <div className="text-xs tabular-nums" style={{ color: theme.node.muted }}>
+                            {`${ratio} · ${dims.width} × ${dims.height}px`}
+                        </div> : null;
+                    })()}
                     {/* 比例按钮统一 image 面板的双行卡形态(h-52)与 grid-cols-4。 */}
                     <div className="grid grid-cols-4 gap-1.5">
                         {profile.ratios.map((value) => {
@@ -161,6 +168,20 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                         })}
                     </div>
                 </SettingGroup>
+                {profile.resolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.muted}>
+                    <div className="grid grid-cols-3 gap-1.5">
+                        {profile.resolutions.map((value) => {
+                            const item = { value, label: value.toUpperCase() };
+							const disabled = (item.value === "1080p" && isSeedanceFastModel(model)) || !hasPriceTierForVideoSelection(priceTiers, item.value, duration);
+                            return (
+                                <OptionPill key={item.value} selected={resolution === item.value} disabled={disabled} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
+                                    {item.label}
+                                </OptionPill>
+                            );
+                        })}
+                    </div>
+                    {isSeedanceFastModel(model) ? <div className="text-[var(--fs-tiny)] leading-4 opacity-55">fast 模型自动使用 720P</div> : null}
+                </SettingGroup> : null}
                 <SettingGroup title="时长" color={theme.node.muted}>
 					<VideoDurationControl profile={profile} value={duration} theme={theme} disabled={(value) => !hasPriceTierForVideoSelection(priceTiers, resolution, value)} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
                 </SettingGroup>
@@ -215,25 +236,14 @@ function OptionPill({ selected, disabled = false, theme, onClick, children }: { 
     );
 }
 
-// 组标题排版与 image/audio 面板同一收敛(text-xs font-medium + space-y-2)。
+// 组标题排版与 image 面板同一收敛(text-xs font-normal + space-y-2, 语料 P51-030 12px/400)。
 function SettingGroup({ title, color, children }: { title: string; color: string; children: ReactNode }) {
     return (
         <div className="space-y-2">
-            <div className="text-xs font-medium" style={{ color }}>
+            <div className="text-xs font-normal" style={{ color }}>
                 {title}
             </div>
             {children}
-        </div>
-    );
-}
-
-function DimensionValue({ prefix, value, theme }: { prefix: string; value: number; theme: CanvasTheme }) {
-    return (
-        <div className="flex h-8 overflow-hidden rounded-lg text-[var(--fs-label)]" style={{ background: theme.toolbar.itemHover, color: theme.node.text }}>
-            <span className="grid w-7 place-items-center" style={{ color: theme.node.muted }}>
-                {prefix}
-            </span>
-            <span className="min-w-0 flex-1 px-2 leading-8 tabular-nums">{value}</span>
         </div>
     );
 }
