@@ -1,4 +1,6 @@
-# S08 Handoff v2（2026-09-10 定稿，取代 v1）
+# S08 Handoff v3（2026-09-10 rebase 完成后更新，v2 见 git 历史与 v1 存档）
+
+> v3 在 v2 基础上记录：origin/main rebase 欠账已清（用户拍板路线 A），上游实际领先 74 commit（v2 记 39 已过时）。
 
 > v1 写于崩溃会话刚结束时，只知道 journal 存档（五轮失败链），**不知道会话其后又提交了六~九轮（含 A 路线根治）与十~十六轮**。v2 以 git HEAD 实况 + 原始条目核验全面改写。
 > 证据标注：[V] = 本定稿在 HEAD（86f00c9）实测核验；[?] = 有记录但未独立复核。
@@ -9,7 +11,12 @@
 - S08 文本生成生命周期 flora 对齐（`.trellis/tasks/09-06-s08-text-generation-lifecycle/`）。工作清单四项：#15 模型列表 / #16 三个设置面板重排 / #17 composer 底部布局 / #18 浏览器逐面实测验收。
 - **[V] #16 完成**（5e001c4+e9c4429，09-10 01:28，份数迁出独立气泡）。**[V] #17 完成**（86f00c9+ece6b1f，09-10 02:02，composer 左组=模型pill+分隔线+摘要+图标触发器，右组=份数+生成）。**[V] #18 进行中**：面 1-6 已实测通过（09-10 03:16-05:34），验收未收尾、无 commit。
 
-## 2. 已核验状态（HEAD = 86f00c9）
+## 2. 已核验状态（v3 更新：HEAD = 31571cd，rebase 后）
+
+- [V] **rebase 完成（2026-09-10 05:30 左右）**：origin/main 实际领先 74 commit（fetch 后实测，v2 记 39 过时；含 c3e2758 自研 Celadon 组件族+AntD 消费全量替换、Welcome 品牌首页、创作助手第一期、打光/镜头参数、Agent 工具卡等）。备份分支 `backup/s08-pre-rebase-86f00c9` 保留。100 个本地 flora commit 全部重放，冲突 15 处逐个解算（原则：flora 视觉语义保留 + 上游功能新增保留 + antd/组件族行为查源码）。
+- [V] rebase 后续修复 60de1fd：video 分支 JSX 体恢复、image-settings-panel helpers/props 并流（上游份数 UI 保留 + flora 拆分气泡 + 上游 cameraControl 三方共存）、project.tsx 重复导入清理、create/index.tsx 取上游模块化版（上游拆 creation-workspace.tsx 等 6 模块；flora 在该文件的 1151 行差异实为旧单文件基线，真实意图=ModelPicker `grouping="family" searchable` 已补回）。
+- [V] 测试契约对齐 31571cd：canvas-text-selection（03c604b 真 toggle 语义）、canvas-angle-dialog（AppModal 封装默认 destroyOnHidden）。
+- [V] 验证记录：tsc 0 错 + vite build ✓（32.7s）；go build/vet ✓；backend 唯一失败 TestOfficialProtocolPackagesAreSelfContainedDeclarativePlugins（autodl manifest 文档契约）**上游基线同样失败**，与 rebase 无关；web 全量 1615 测试：50 失败(rebase 前 flora 基线既有)→42 失败，其中 3 个新失败已修 2（text-selection/angle-dialog），toolbar-mode-switch 单跑 3/3 稳定过、全量偶发 fail 系上游新测试自身 renderToStaticMarkup 缺 matchMedia polyfill（环境缺陷，不动）；canvas-agent 零差异但 npm install EOVERRIDE（zod override vs 直接依赖冲突）系上游自带债。
 
 - [V] main HEAD = 86f00c9（S08 #17），09-10 02:02:53；跟踪文件零改动，仅 24 个未跟踪路径（.trellis/.agents/.codex/.pi/DESIGN.md/PRODUCT.md，代理配置产物）。
 - [V] 模型菜单修复史：一~四轮失败链（aa34fd7 09-08 09:36 → 925d338 09-09 00:06）→ 85004c8 根因存档（09-09 05:44，journal-1.md）→ **六轮 A 路线根治 edf1410（09-09 07:08：flyout 根级 portal、关闭器白名单含 flyoutRef、MenuBody 内联、玻璃 blur16 单源）** → 七/八/九轮（d0e4393/21fdede/763cd28）→ 十~十三轮滚动条（6a3ca9c/1a4aa48/88d8166/60918a5）。用户 09-09 21:22 确认"OK了"。
@@ -45,16 +52,20 @@
 - **[V] 已修（勿再报）**：`--workspace-foreground` 未定义 12 处 IACVT——已在 :633/:668 定义（注释自记 09-09 实测根因）。
 - [V] 已知外观残余：L1/L2 材质分叉（L1 blur16 无 saturate vs L2 blur18+saturate1.2、亮色 .94 vs .92、default 变体从未 eyeball）——A 路线后未逐一回归，验收时须覆盖。
 
-## 6. 有序下一步
+## 6. 有序下一步（v3：rebase 已完成，重排）
 
-1. 读 `journal-1.md` 2026-09-09 节 + 本文件 §4/§5，建立禁重试边界。
-2. 完成 #18：真机逐面验收第 7 面起 + 回归 L1/L2 材质分叉与亮色/default 变体（§5 末条）。
-3. 定位 **L2 行点击缺陷**（onChange 不触发）：09-10 04:40 与 05:30 两次受控坐实、04:55 一次假阴性（复现非确定）；探针显示 handler 根本没跑；已排除 compatibleModelInGroup 守卫。**未定位，勿凭推测改码。**
-4. 排查份数 pill gating 矛盾：prompt-panel:425 gate `mode==="image" && maxOutputs>1` 应隐藏"2 张"pill 而实际渲染——嫌疑渠道 capabilityConfig 覆盖路径。
-5. 修 §5 前三条现行陷阱（wheel 双调是四文件同型小修，可先行）。
-6. 收尾：pending-test.mdx 登记 + commit + 更新本文件；然后处置 origin/main 落后 39 commit 的 rebase 欠账（含 65f4339 v1.2.8.rc1），需用户拍板。
+0. ~~rebase 欠账~~ **已清**（见 §2 v3）。
+1. 完成 #18 验收（含 rebase 后全量回归——上游 c3e2758 换掉了 AntD Tooltip/Modal 封装层、create 工作台模块化，之前面 1-6 的实测结果不再完全可信，建议快速过一遍关键面）：
+2. **四组用户新反馈（2026-09-10，截图已核）**，顺序已拍板 2→3→4→1：
+   - 问题二：模型行可接受类型未按 capabilityConfig 显示（后端最大参考图=0 但列表仍渲染图片图标；期望形态=minimax 式动态副标题「不支持文生视频/最多 0 张参考图/1-15s·分辨率」）。
+   - 问题三：composer 参数摘要 pill 与设置触发器合一靠左（对 86f00c9 #17 布局的修正）；上游图像设置面板有新版结构，需评估冲突。
+   - 问题四：参数设置面板 UI/UX 重设计（设计 skill + flora 模型列表质感 token + 按模型能力动态选项；图片/视频参考截图已入库，音频/文本要求待用户补发）。
+   - 问题一：L2 行点击不选择（下条 3 详）——**真机仍复现，edf1410 未根治**。
+3. 定位 **L2 行点击缺陷**：真机复现（用户 09-10 截图）确认 A 路线白名单修复不充分；两次受控坐实+一次假阴性（复现非确定）；探针 handler 没跑；已排除 compatibleModelInGroup 守卫。**未定位，勿凭推测改码。**
+4. 修 §5 前三条现行陷阱（wheel 双调是四文件同型小修；**rebase 后 image 的 closeOnOutsidePointer 仍是正确双调参照，但需重核上游改写后各文件现状**）。
+5. 收尾：pending-test.mdx 登记 + commit + 更新本文件。
 
-## 7. 开放问题
+## 7. 开放问题（v3 更新）
 
 - L2 行点击缺陷根因（下一步 3）——为什么复现非确定？时序翻转假设（后台 tab/慢设备）未证。
 - 份数气泡与设置气泡同开重叠（同 z=1100、无互斥，模型菜单有 sibling-close 而设置气泡没有）——是否补互斥，待用户定。
