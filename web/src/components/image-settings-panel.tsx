@@ -118,41 +118,21 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 }}
             >
                 {showTitle ? <div className="text-base font-semibold">图像设置</div> : null}
-                {showQuality && profile.quality.supported && !imageResolutionUsesQuality(profile) ? <div className="space-y-2">
-                    <SettingTitle color={theme.node.muted}>{isGrokResolutionQuality(profile) ? "分辨率" : "质量"}</SettingTitle>
-                    <div className={`grid gap-1.5 ${activeQualityOptions.length <= 2 ? "grid-cols-2" : "grid-cols-4"}`}>
-						{activeQualityOptions.map((item) => (
-                            <OptionPill key={item.value} selected={quality === item.value} disabled={!bypassPriceGuard && !hasPriceTierForImageSelection(priceTiers, item.value, activeSize)} theme={theme} onClick={() => onConfigChange("quality", item.value)}>
-                                {item.label}
-                            </OptionPill>
-                        ))}
-                    </div>
-                </div> : null}
-                {showTransparent && profile.transparentBackground.supported ? <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <SettingTitle color={theme.node.muted}>透明背景</SettingTitle>
-                    </div>
-                    <span title="是否支持透明背景由当前模型接口决定" onMouseDown={(event) => event.stopPropagation()}>
-                        <Switch
-                            size="sm"
-                            checked={transparentBackground}
-                            onChange={(checked) => onConfigChange("transparentBackground", checked ? "true" : "false")}
-                        />
-                    </span>
-                </div> : null}
-                {resolutionChoices.length ? <div className="space-y-2">
-                    <SettingTitle color={theme.node.muted}>分辨率</SettingTitle>
-                    <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : resolutionChoices.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
-                        {resolutionChoices.map((choice) => (
-                            <OptionPill key={choice} selected={choice === "auto" ? activeSize === "auto" : activeResolution?.tier === choice} theme={theme} onClick={() => selectResolution(choice)}>
-                                {choice === "auto" ? "自动" : choice.toUpperCase()}
-                            </OptionPill>
-                        ))}
-                    </div>
-                </div> : null}
                 {availableAspects.length ? <div className="space-y-2">
                     <SettingTitle color={theme.node.muted}>尺寸或比例</SettingTitle>
                     <div className="grid grid-cols-4 gap-1.5 min-[380px]:grid-cols-5">
+                        {!usesResolutionPicker ? (
+                            <button
+                                type="button"
+                                aria-pressed={activeSize === "auto"}
+                                className="canvas-settings-option flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                style={{ background: activeSize === "auto" ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: activeSize === "auto" ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={() => onConfigChange("size", "auto")}
+                            >
+                                <span className="whitespace-nowrap">自适应</span>
+                            </button>
+                        ) : null}
                         {availableAspects.map((item) => (
                             <button
                                 key={item.value}
@@ -179,6 +159,48 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             </button>
                         ) : null}
                     </div>
+                    {/* 像素换算条(P6 反馈闭环): 选中具体比例即回报落图尺寸, 自定义回报原始像素, 自适应交由模型。 */}
+                    <div className="text-xs tabular-nums" style={{ color: theme.node.muted }}>
+                        {isCustomSize
+                            ? `自定义 · ${activeSize.replace("x", " × ")}px`
+                            : activeSize === "auto"
+                              ? "自适应 · 由模型决定"
+                              : selectedAspect && selectedAspect.width > 0
+                                ? `${selectedAspect.label} · ${selectedAspect.width} × ${selectedAspect.height}px`
+                                : imageSizeLabel(activeSize)}
+                    </div>
+                </div> : null}
+                {resolutionChoices.length ? <div className="space-y-2">
+                    <SettingTitle color={theme.node.muted}>分辨率</SettingTitle>
+                    <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : resolutionChoices.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
+                        {resolutionChoices.map((choice) => (
+                            <OptionPill key={choice} selected={choice === "auto" ? activeSize === "auto" : activeResolution?.tier === choice} theme={theme} onClick={() => selectResolution(choice)}>
+                                {choice === "auto" ? "自动" : choice.toUpperCase()}
+                            </OptionPill>
+                        ))}
+                    </div>
+                </div> : null}
+                {showQuality && profile.quality.supported && !imageResolutionUsesQuality(profile) ? <div className="space-y-2">
+                    <SettingTitle color={theme.node.muted}>{isGrokResolutionQuality(profile) ? "分辨率" : "质量"}</SettingTitle>
+                    <div className={`grid gap-1.5 ${activeQualityOptions.length <= 2 ? "grid-cols-2" : "grid-cols-4"}`}>
+						{activeQualityOptions.map((item) => (
+                            <OptionPill key={item.value} selected={quality === item.value} disabled={!bypassPriceGuard && !hasPriceTierForImageSelection(priceTiers, item.value, activeSize)} theme={theme} onClick={() => onConfigChange("quality", item.value)}>
+                                {item.label}
+                            </OptionPill>
+                        ))}
+                    </div>
+                </div> : null}
+                {showTransparent && profile.transparentBackground.supported ? <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <SettingTitle color={theme.node.muted}>透明背景</SettingTitle>
+                    </div>
+                    <span title="是否支持透明背景由当前模型接口决定" onMouseDown={(event) => event.stopPropagation()}>
+                        <Switch
+                            size="sm"
+                            checked={transparentBackground}
+                            onChange={(checked) => onConfigChange("transparentBackground", checked ? "true" : "false")}
+                        />
+                    </span>
                 </div> : null}
                 {profile.size.allowCustom && customSizeOpen ? <div className="space-y-2">
                     <div className="flex items-center justify-between gap-3">
@@ -367,8 +389,9 @@ function AspectIcon({ type, width, height, color }: { type: string; width: numbe
 }
 
 function SettingTitle({ children, color }: { children: string; color: string }) {
+    // 语料权威(P51-030): 组标题 12px/400 muted, 不用 medium 加重。
     return (
-        <div className="text-xs font-medium" style={{ color }}>
+        <div className="text-xs font-normal" style={{ color }}>
             {children}
         </div>
     );
