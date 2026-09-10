@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
 import { usePopoverExit } from "./use-popover-exit";
+import { useExclusiveSettings } from "./use-exclusive-settings";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { CanvasTheme } from "@/lib/canvas-theme";
@@ -35,6 +36,7 @@ export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, l
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
+    useExclusiveSettings("count-settings", open, setOpen);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const { shouldRender, closing } = usePopoverExit(open);
     const count = Math.max(1, Math.min(max, normalizeCount(value)));
@@ -108,7 +110,7 @@ function CountSettingsPortal({
 }) {
     const gap = 8;
     const margin = 12;
-    const listMax = Math.min(9, max) * ROW + 8;
+    const listMax = Math.min(7, Math.max(0, max - 4)) * ROW + 8;
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - PANEL_WIDTH / 2 : alignRight ? buttonRect.right - PANEL_WIDTH : buttonRect.left;

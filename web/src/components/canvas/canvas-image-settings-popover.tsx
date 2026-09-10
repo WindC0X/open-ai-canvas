@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
 import { usePopoverExit } from "./use-popover-exit";
+import { useExclusiveSettings } from "./use-exclusive-settings";
 
 import { ImageSettingsPanel, imageQualityLabel, imageSizeLabel } from "@/components/image-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -39,6 +40,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
+    useExclusiveSettings("image-settings", open, setOpen);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const { shouldRender, closing } = usePopoverExit(open);
     const profile = modelCapabilityConfigFor(config, config.model || config.imageModel).image!;
@@ -117,7 +119,7 @@ function ImageSettingsPortal({
 }) {
     const gap = 8;
     const margin = 12;
-    const width = Math.min(420, window.innerWidth - margin * 2);
+    const width = Math.min(320, window.innerWidth - margin * 2);
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - width / 2 : alignRight ? buttonRect.right - width : buttonRect.left;

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
 import { usePopoverExit } from "./use-popover-exit";
+import { useExclusiveSettings } from "./use-exclusive-settings";
 
 import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -38,6 +39,7 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
+    useExclusiveSettings("video-settings", open, setOpen);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const { shouldRender, closing } = usePopoverExit(open);
     const videoProfile = modelCapabilityConfigFor(config, config.model).video;
