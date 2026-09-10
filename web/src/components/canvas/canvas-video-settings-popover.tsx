@@ -104,7 +104,7 @@ function VideoSettingsPortal({
 }) {
     const gap = 8;
     const margin = 12;
-    const width = Math.min(356, window.innerWidth - margin * 2);
+    const width = Math.min(320, window.innerWidth - margin * 2);
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - width / 2 : alignRight ? buttonRect.right - width : buttonRect.left;
@@ -120,7 +120,7 @@ function VideoSettingsPortal({
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
         ...(preferAbove ? { bottom: window.innerHeight - aboveTop } : { top: buttonRect.bottom + gap }),
         maxHeight: Math.min(420, Math.max(260, preferAbove ? aboveTop : window.innerHeight - buttonRect.bottom - margin * 2)),
-        padding: 12,
+        padding: 10,
         overflowY: "auto",
         color: theme.node.text,
     } as const;
@@ -128,13 +128,13 @@ function VideoSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
-            className={`canvas-video-settings-popover aceternity-floating-panel thin-scrollbar${closing ? " canvas-settings-popover-closing" : ""}`}
+            className={`canvas-video-settings-popover aceternity-floating-panel canvas-settings-scroll${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <VideoSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-3" />
+            <VideoSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-2.5" />
         </div>,
         document.body,
     );

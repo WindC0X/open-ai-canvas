@@ -124,7 +124,9 @@ function CountSettingsPortal({
         padding: 5,
         color: theme.node.text,
     } as const;
-    const counts = Array.from({ length: max }, (_, index) => index + 1);
+    // 列表与快捷档去重(用户实测反馈): 快捷档已覆盖 1-4, 列表从 5 起; max<=4 时仅快捷档+自定义, 面板变矮。
+    const listStart = max > 4 ? 5 : max + 1;
+    const counts = Array.from({ length: Math.max(0, max - listStart + 1) }, (_, index) => listStart + index);
     const quickTiers = QUICK_TIERS.filter((tier) => tier <= max);
     const listRef = useRef<HTMLDivElement>(null);
     const [customOpen, setCustomOpen] = useState(false);
@@ -132,10 +134,12 @@ function CountSettingsPortal({
     const customInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        // 打开时滚动到当前值可见
-        const row = listRef.current?.querySelector(`[data-count="${value}"]`);
-        row?.scrollIntoView({ block: "nearest" });
-    }, [value]);
+        // 打开/切换值时把当前值滚进可视区; 直接算 scrollTop(行高恒定),
+        // 不用 scrollIntoView —— 它会连带滚动画布等所有可滚祖先。
+        const list = listRef.current;
+        if (!list) return;
+        list.scrollTop = value >= listStart ? (value - listStart) * ROW : 0;
+    }, [value, listStart]);
 
     const openCustom = () => {
         setCustomDraft(String(value));
@@ -165,7 +169,7 @@ function CountSettingsPortal({
                             type="button"
                             aria-pressed={value === tier}
                             aria-label={`${tier} ${label}`}
-                            className="canvas-settings-option h-10 flex-1 !rounded-[10px] text-[13px] font-medium tabular-nums"
+                            className="canvas-settings-option h-8 flex-1 !rounded-[10px] text-xs font-medium tabular-nums"
                             style={{
                                 background: value === tier ? theme.toolbar.activeBg : theme.node.panel,
                                 borderColor: value === tier ? theme.node.activeStroke : "transparent",
@@ -178,7 +182,7 @@ function CountSettingsPortal({
                     ))}
                 </div>
             ) : null}
-            <div ref={listRef} className="flex flex-col" style={{ maxHeight: listMax, overflowY: "auto" }}>
+            <div ref={listRef} className="canvas-settings-scroll flex flex-col" style={{ maxHeight: listMax, overflowY: "auto" }}>
                 {counts.map((count) => (
                     <button
                         key={count}

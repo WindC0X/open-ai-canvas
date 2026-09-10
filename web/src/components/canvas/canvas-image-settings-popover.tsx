@@ -133,7 +133,7 @@ function ImageSettingsPortal({
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
         ...(preferAbove ? { bottom: window.innerHeight - aboveTop } : { top: buttonRect.bottom + gap }),
         maxHeight: Math.min(420, Math.max(260, preferAbove ? aboveTop : window.innerHeight - buttonRect.bottom - margin * 2)),
-        padding: 12,
+        padding: 10,
         overflowY: "auto",
         color: theme.node.text,
     } as const;
@@ -141,13 +141,13 @@ function ImageSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
-            className={`canvas-image-settings-popover aceternity-floating-panel thin-scrollbar${closing ? " canvas-settings-popover-closing" : ""}`}
+            className={`canvas-image-settings-popover aceternity-floating-panel canvas-settings-scroll${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-3" />
+            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-2.5" />
         </div>,
         document.body,
     );

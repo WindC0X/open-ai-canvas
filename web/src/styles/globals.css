@@ -7595,44 +7595,52 @@
     }
 
     @supports selector(:-moz-full-screen) {
-        .canvas-model-picker-menu {
+        .canvas-model-picker-menu,
+        .canvas-settings-scroll {
             scrollbar-width: thin;
             scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
         }
 
-        :root:not(.dark) .canvas-model-picker-menu {
+        :root:not(.dark) .canvas-model-picker-menu,
+        :root:not(.dark) .canvas-settings-scroll {
             scrollbar-color: rgba(17, 24, 39, 0.28) transparent;
         }
     }
 
-    .canvas-model-picker-menu::-webkit-scrollbar {
+    .canvas-model-picker-menu::-webkit-scrollbar,
+    .canvas-settings-scroll::-webkit-scrollbar {
         /* flora 参考图实测滑块仅 2-3px 细条(2026-09-09 十三轮); 6px 轨道 - 2px×2 透明内边距 = 2px 可见 */
         width: 6px;
         background: transparent;
     }
 
-    .canvas-model-picker-menu::-webkit-scrollbar-thumb {
+    .canvas-model-picker-menu::-webkit-scrollbar-thumb,
+    .canvas-settings-scroll::-webkit-scrollbar-thumb {
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.22);
         border: 2px solid transparent;
         background-clip: padding-box;
     }
 
-    .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover {
+    .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover,
+    .canvas-settings-scroll::-webkit-scrollbar-thumb:hover {
         /* flora 滑块 hover/select 实测 ≈rgba(255,255,255,.40-.48)(用户 flora 参考图 2026-09-09) */
         background: rgba(255, 255, 255, 0.44);
     }
 
-    .canvas-model-picker-menu::-webkit-scrollbar-track {
+    .canvas-model-picker-menu::-webkit-scrollbar-track,
+    .canvas-settings-scroll::-webkit-scrollbar-track {
         background: transparent;
     }
 
-    :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb {
+    :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb,
+    :root:not(.dark) .canvas-settings-scroll::-webkit-scrollbar-thumb {
         background: rgba(17, 24, 39, 0.28);
         background-clip: padding-box;
     }
 
-    :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover {
+    :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover,
+    :root:not(.dark) .canvas-settings-scroll::-webkit-scrollbar-thumb:hover {
         background: rgba(17, 24, 39, 0.44);
     }
 

@@ -54,12 +54,12 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         {`${ratio} · ${dimensions.width} × ${dimensions.height}px`}
                     </div> : null}
                     {/* 比例按钮统一 image 面板的双行卡形态(h-52: 图标行+文字行)。 */}
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-3 gap-1">
                         {profile.ratios.map((value) => (
                             <button
                                 key={value}
                                 type="button"
-                                className="canvas-settings-option flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                 style={{ background: ratio === value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: ratio === value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => onConfigChange("size", value)}
@@ -73,7 +73,7 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     </div>
                 </SettingGroup> : null}
                 {configuredResolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-3 gap-1">
                         {configuredResolutions.map((item) => (
 							<OptionPill key={item.value} selected={isVideoResolutionMatch(resolution, item.value)} disabled={!hasPriceTierForVideoSelection(priceTiers, item.value, Number(seconds))} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
                                 {item.label}
@@ -98,12 +98,12 @@ function JiMengVideoSettingsPanel({ config, profile, priceTiers, onConfigChange,
                 {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
                 {/* 排布纪律(设计 v2): 比例置首, 清晰度随后(与默认分支同序); JiMeng 比例升级双行卡(h-52)。 */}
                 <SettingGroup title="比例" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-3 gap-1">
                 {profile.ratios.map((value) => (
                     <button
                         key={value}
                         type="button"
-                        className="canvas-settings-option flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                        className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                         style={{ background: config.size === value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: config.size === value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
                         onMouseDown={(event) => event.stopPropagation()}
                         onClick={() => onConfigChange("size", value)}
@@ -147,14 +147,14 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                         </div> : null;
                     })()}
                     {/* 比例按钮统一 image 面板的双行卡形态(h-52)与 grid-cols-4。 */}
-                    <div className="grid grid-cols-4 gap-1.5">
+                    <div className="grid grid-cols-4 gap-1">
                         {profile.ratios.map((value) => {
                             const item = { value, label: value };
                             return (
                             <button
                                 key={item.value}
                                 type="button"
-                                className="canvas-settings-option flex h-[52px] min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-tiny)] leading-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                className="canvas-settings-option flex h-11 min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-tiny)] leading-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                 style={{ background: ratio === item.value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: ratio === item.value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => onConfigChange("size", item.value)}
@@ -169,7 +169,7 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                     </div>
                 </SettingGroup>
                 {profile.resolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-3 gap-1">
                         {profile.resolutions.map((value) => {
                             const item = { value, label: value.toUpperCase() };
 							const disabled = (item.value === "1080p" && isSeedanceFastModel(model)) || !hasPriceTierForVideoSelection(priceTiers, item.value, duration);

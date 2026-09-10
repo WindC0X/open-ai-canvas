@@ -94,7 +94,7 @@ function AudioSettingsPortal({
     onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
     closing: boolean;
 }) {
-    const width = 356;
+    const width = 320;
     const gap = 8;
     const margin = 12;
     const alignRight = placement?.endsWith("Right");
@@ -113,7 +113,7 @@ function AudioSettingsPortal({
         ...(preferAbove ? { bottom: window.innerHeight - aboveTop } : { top: buttonRect.bottom + gap }),
         maxHeight: Math.min(420, Math.max(260, preferAbove ? aboveTop : window.innerHeight - buttonRect.bottom - margin * 2)),
         // 方向纪律:统一向上展开;高度封顶 420px;质感与 image/video 气泡同一收敛(theme.canvas.background + 安静化 elevation)。
-        padding: 12,
+        padding: 10,
         overflowY: "auto",
         color: theme.node.text,
     } as const;
@@ -121,13 +121,13 @@ function AudioSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
-            className={`canvas-audio-settings-popover aceternity-floating-panel thin-scrollbar${closing ? " canvas-settings-popover-closing" : ""}`}
+            className={`canvas-audio-settings-popover aceternity-floating-panel canvas-settings-scroll${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <AudioSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} className="space-y-3" showTitle={false} />
+            <AudioSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} className="space-y-2.5" showTitle={false} />
         </div>,
         document.body,
     );

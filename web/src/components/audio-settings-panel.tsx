@@ -31,7 +31,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">音频设置</div> : null}
                 <SettingGroup title="音色" color={theme.node.muted}>
-                    <div className="grid grid-cols-4 gap-1.5">
+                    <div className="grid grid-cols-4 gap-1">
                         {audioVoiceOptions.map((item) => (
                             <OptionPill key={item.value} selected={voice === item.value} theme={theme} onClick={() => onConfigChange("audioVoice", item.value)}>
                                 {item.label}
@@ -40,7 +40,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     </div>
                 </SettingGroup>
                 <SettingGroup title="语速" color={theme.node.muted}>
-                    <div className="grid grid-cols-4 gap-1.5">
+                    <div className="grid grid-cols-4 gap-1">
                         {speedOptions.map((value) => (
                             <OptionPill key={value} selected={speed === value} theme={theme} onClick={() => onConfigChange("audioSpeed", value)}>
                                 {audioSpeedLabel(value)}
@@ -69,7 +69,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     ) : (
                         <button
                             type="button"
-                            className="canvas-settings-option h-10 w-full cursor-pointer rounded-lg px-2.5 text-xs"
+                            className="canvas-settings-option h-8 w-full cursor-pointer rounded-lg px-2.5 text-xs"
                             style={{ background: "transparent", borderColor: theme.toolbar.border, color: theme.node.muted }}
                             onMouseDown={(event) => event.stopPropagation()}
                             onClick={() => setCustomSpeedOpen(true)}
@@ -79,7 +79,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     )}
                 </SettingGroup>
                 <SettingGroup title="格式" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-3 gap-1">
                         {audioFormatOptions.map((item) => (
                             <OptionPill key={item.value} selected={format === item.value} theme={theme} onClick={() => onConfigChange("audioFormat", item.value)}>
                                 {item.label}
