@@ -110,7 +110,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
 function SettingGroup({ title, color, extra, children }: { title: string; color: string; extra?: ReactNode; children: ReactNode }) {
     // 组间距与 image/video 面板同一收敛(space-y-2); 字重对齐语料 P51-030(12px/400)。
     return (
-        <div className="space-y-2">
+        <div className="canvas-settings-group space-y-2">
             <div className="flex min-w-0 items-center justify-between gap-2">
                 <div className="text-xs font-normal" style={{ color }}>
                     {title}

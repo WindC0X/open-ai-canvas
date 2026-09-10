@@ -236,7 +236,7 @@ export function normalizeVideoSizeValue(value: string) {
 // 组标题排版与 image 面板同一收敛(text-xs font-normal + space-y-2, 语料 P51-030 12px/400)。
 function SettingGroup({ title, color, extra, children }: { title: string; color: string; extra?: ReactNode; children: ReactNode }) {
     return (
-        <div className="space-y-2">
+        <div className="canvas-settings-group space-y-2">
             <div className="flex min-w-0 items-center justify-between gap-2">
                 <div className="text-xs font-normal" style={{ color }}>
                     {title}

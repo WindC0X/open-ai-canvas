@@ -24,6 +24,7 @@ export const canvasThemes = {
             text: "#111827",
             muted: "#6b7280",
             groupTitle: "rgba(0,0,0,.85)",
+            groupFill: "rgba(0,0,0,.035)",
             faint: "#9ca3af",
             // 生成中媒体区进度填充(S04, flora BlockLoadingState bg-white/10 对应物):明底取暗色同族 alpha 保持可感知
             loadingFill: "rgba(17,24,39,.07)",
@@ -97,6 +98,8 @@ export const canvasThemes = {
             muted: "#a3a3a3",
             // 参数面板组标题(用户 2026-09-11: 与选项 hover 字亮度同档, 比 muted 亮一档)
             groupTitle: "rgba(255,255,255,.92)",
+            // 参数面板组卡片背景(用户 2026-09-11: 组块要有背景色分块, 参考 flora 分组卡)
+            groupFill: "rgba(255,255,255,.05)",
             faint: "#666666",
             // 生成中媒体区进度填充(S04):flora 原值 bg-white/10
             loadingFill: "rgba(255,255,255,.10)",

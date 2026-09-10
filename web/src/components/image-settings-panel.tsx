@@ -122,7 +122,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 }}
             >
                 {showTitle ? <div className="text-base font-semibold">图像设置</div> : null}
-                {availableAspects.length ? <div className="space-y-2">
+                {availableAspects.length ? <div className="canvas-settings-group space-y-2">
                     <SettingTitle color={theme.node.groupTitle}>比例</SettingTitle>
                     <div className="grid grid-cols-5 gap-1">
                         {!usesResolutionPicker ? (
@@ -152,12 +152,13 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             </button>
                         ))}
                     </div>
-                    {/* 自定义与长宽定义并列一行(用户拍板): 点击"自定义"应用当前 W/H; 编辑输入即切自定义; 16 倍对齐就地开关。 */}
-                    {profile.size.allowCustom ? <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-1">
+                    {/* 自定义与长宽定义并列一行(用户拍板): 点击"自定义"应用当前 W/H; 编辑输入即切自定义;
+                        W/H 定宽压缩(用户反馈: 给开关常显名字留位); 16 倍对齐就地开关常显"16 倍"。 */}
+                    {profile.size.allowCustom ? <div className="flex items-center gap-1">
                         <button
                             type="button"
                             aria-pressed={isCustomSize}
-                            className="canvas-settings-option h-8 cursor-pointer whitespace-nowrap rounded-lg px-2 text-[11px] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                            className="canvas-settings-option h-8 shrink-0 cursor-pointer whitespace-nowrap rounded-lg px-2 text-[11px] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                             style={{ outlineColor: theme.node.muted, fontSize: "11px" }}
                             onMouseDown={(event) => event.stopPropagation()}
                             onClick={() => updateDimension(null, null)}
@@ -167,12 +168,13 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         <DimensionInput prefix="W" value={dimensions.width} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("width", value)} />
                         <span className="text-[10px] opacity-45">×</span>
                         <DimensionInput prefix="H" value={dimensions.height} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("height", value)} />
-                        <span title="输入完成后自动向上补成 16 的倍数" className="flex shrink-0 items-center" onMouseDown={(event) => event.stopPropagation()}>
+                        <span title="输入完成后自动向上补成 16 的倍数" className="ml-auto flex shrink-0 items-center gap-1" onMouseDown={(event) => event.stopPropagation()}>
+                            <span className="text-[10px] leading-none" style={{ color: theme.node.muted }}>16 倍</span>
                             <Switch size="sm" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
                         </span>
                     </div> : null}
                 </div> : null}
-                {resolutionChoices.length ? <div className="space-y-2">
+                {resolutionChoices.length ? <div className="canvas-settings-group space-y-2">
                     <SettingTitle color={theme.node.groupTitle}>分辨率</SettingTitle>
                     <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : resolutionChoices.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
                         {resolutionChoices.map((choice) => (
@@ -182,7 +184,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         ))}
                     </div>
                 </div> : null}
-                {showQuality && profile.quality.supported && !imageResolutionUsesQuality(profile) ? <div className="space-y-2">
+                {showQuality && profile.quality.supported && !imageResolutionUsesQuality(profile) ? <div className="canvas-settings-group space-y-2">
                     <SettingTitle color={theme.node.groupTitle}>{isGrokResolutionQuality(profile) ? "分辨率" : "质量"}</SettingTitle>
                     <div className={`grid gap-1.5 ${activeQualityOptions.length <= 2 ? "grid-cols-2" : "grid-cols-4"}`}>
 						{activeQualityOptions.map((item) => (
@@ -192,7 +194,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         ))}
                     </div>
                 </div> : null}
-                {showTransparent && profile.transparentBackground.supported ? <div className="flex items-center justify-between gap-3">
+                {showTransparent && profile.transparentBackground.supported ? <div className="canvas-settings-group flex items-center justify-between gap-3">
                     <div className="min-w-0">
                         <SettingTitle color={theme.node.groupTitle}>透明背景</SettingTitle>
                     </div>
@@ -281,15 +283,15 @@ function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange 
     };
 
     return (
-        <label className="flex h-8 overflow-hidden rounded-lg text-xs" style={{ background: theme.toolbar.itemHover, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
-            <span className="grid w-8 place-items-center" style={{ color: theme.node.muted }}>
+        <label className="flex h-8 w-[76px] shrink-0 overflow-hidden rounded-lg text-xs" style={{ background: theme.toolbar.itemHover, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
+            <span className="grid w-6 shrink-0 place-items-center" style={{ color: theme.node.muted }}>
                 {prefix}
             </span>
             <input
                 type="number"
                 min={1}
                 disabled={disabled}
-                className="min-w-0 flex-1 bg-transparent px-2 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="min-w-0 flex-1 bg-transparent px-1 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 defaultValue={value || ""}
                 key={`${prefix}-${value}`}
                 onBlur={(event) => commit(event.currentTarget)}

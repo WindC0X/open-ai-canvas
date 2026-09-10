@@ -8029,6 +8029,26 @@
        未选中 = 内部透明 + 字暗(.55);
        hover = 字亮(近白)但内部不亮(保持透明);
        图标随 currentColor。组件不再 inline background/border/color(收口唯一源)。 */
+
+/* 参数面板内自研 Switch: 组件开态 bg-foreground(近白)在玻璃面板上过亮(用户实测),
+   面板语境降为半透明白, thumb 反色保持可辨; data-state 覆盖点是组件既定扩展点。 */
+.canvas-image-settings-popover [data-slot="switch"][data-state="on"],
+.canvas-video-settings-popover [data-slot="switch"][data-state="on"],
+.canvas-audio-settings-popover [data-slot="switch"][data-state="on"],
+.canvas-count-settings-popover [data-slot="switch"][data-state="on"] {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* 参数面板组卡片(用户 2026-09-11: 组块要有背景色分块, 参考 flora 分组卡)。 */
+.canvas-settings-group {
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.035);
+}
+.dark .canvas-settings-group {
+    background: rgba(255, 255, 255, 0.05);
+}
+
     .canvas-settings-option {
         border: none !important;
         background: transparent !important;

@@ -29,8 +29,8 @@ type CanvasCountSettingsPopoverProps = {
 };
 
 /**
- * 份数独立气泡(A 形态,用户拍板): 快捷档 pill 行 + 竖滚列表 + 自定义输入行。
- * 文本/图像/视频/音频模式共用,量词随调用方(张/个/份)。
+ * 份数独立气泡(用户二轮拍板 2026-09-11): 纯竖滚列表(1..max, 限高滚动) + 自定义输入行。
+ * 快捷档行已删(与列表重复)。文本/图像/视频/音频模式共用,量词随调用方(张/个/份)。
  */
 export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, label = "份", placement = "topLeft", buttonClassName }: CanvasCountSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
@@ -86,7 +86,8 @@ export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, l
 
 const ROW = 32;
 const PANEL_WIDTH = 168;
-const QUICK_TIERS = [1, 2, 3, 4];
+/** 列表最多可见行数(超出滚动); 面板自然高 ≈ 5+8*32+4+32+10 ≈ 307px。 */
+const LIST_VISIBLE_ROWS = 8;
 
 function CountSettingsPortal({
     buttonRect,
@@ -111,26 +112,28 @@ function CountSettingsPortal({
 }) {
     const gap = 8;
     const margin = 12;
-    const listMax = Math.min(11, Math.max(0, max - 4)) * ROW + 8;
+    const listMax = Math.min(LIST_VISIBLE_ROWS, Math.max(1, max)) * ROW + 8;
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - PANEL_WIDTH / 2 : alignRight ? buttonRect.right - PANEL_WIDTH : buttonRect.left;
-    const topPlacement = placement?.startsWith("top");
+    // 节点在画布顶部时向上展开空间不足(用户实测: 压出第二条滚动条) → 自动翻转向下。
+    const desiredTop = placement?.startsWith("top");
+    const panelNaturalHeight = 5 + listMax + 4 + 32 + 10;
+    const topPlacement = desiredTop ? buttonRect.top - margin * 2 >= panelNaturalHeight : false;
     const style = {
         position: "fixed",
-        // 开合锚触发器(emil): 从触发器方向缩放, 而非恒 bottom center。
-        transformOrigin: placement?.endsWith("Right") ? "bottom right" : placement === "top" || placement === "bottom" ? "bottom center" : "bottom left",
+        // 开合锚触发器(emil): 从触发器方向缩放; 向上翻转后锚点换 top。
+        transformOrigin: (topPlacement ? "bottom " : "top ") + (alignRight ? "right" : alignCenter ? "center" : "left"),
         zIndex: "var(--z-dialog-popover)",
         width: PANEL_WIDTH,
         left: Math.max(margin, Math.min(window.innerWidth - PANEL_WIDTH - margin, left)),
         ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(200, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(200, window.innerHeight - buttonRect.bottom - margin * 2) }),
+        // 面板根不内滚(内滚只留给列表), 避免双滚动条。
         padding: 5,
         color: theme.node.text,
     } as const;
-    // 列表与快捷档去重(用户实测反馈): 快捷档已覆盖 1-4, 列表从 5 起; max<=4 时仅快捷档+自定义, 面板变矮。
-    const listStart = max > 4 ? 5 : max + 1;
-    const counts = Array.from({ length: Math.max(0, max - listStart + 1) }, (_, index) => listStart + index);
-    const quickTiers = QUICK_TIERS.filter((tier) => tier <= max);
+    const listStart = 1;
+    const counts = Array.from({ length: max }, (_, index) => listStart + index);
     const listRef = useRef<HTMLDivElement>(null);
     const [customOpen, setCustomOpen] = useState(false);
     const [customDraft, setCustomDraft] = useState("");
@@ -141,7 +144,7 @@ function CountSettingsPortal({
         // 不用 scrollIntoView —— 它会连带滚动画布等所有可滚祖先。
         const list = listRef.current;
         if (!list) return;
-        list.scrollTop = value >= listStart ? (value - listStart) * ROW : 0;
+        list.scrollTop = (value - listStart) * ROW;
     }, [value, listStart]);
 
     const openCustom = () => {
@@ -159,28 +162,11 @@ function CountSettingsPortal({
         <div
             ref={panelRef}
             className={`canvas-count-settings-popover aceternity-floating-panel${closing ? " canvas-settings-popover-closing" : ""}`}
-            style={{ ...style, overflowY: "auto" }}
+            style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            {quickTiers.length > 1 ? (
-                <div className="mb-1 flex gap-1">
-                    {quickTiers.map((tier) => (
-                        <button
-                            key={tier}
-                            type="button"
-                            aria-pressed={value === tier}
-                            aria-label={`${tier} ${label}`}
-                            className="canvas-settings-option h-8 flex-1 !rounded-[10px] font-medium tabular-nums"
-                            style={{ outlineColor: theme.node.muted, fontSize: "12px" }}
-                            onClick={() => onChange(tier)}
-                        >
-                            {tier}
-                        </button>
-                    ))}
-                </div>
-            ) : null}
             <div ref={listRef} className="canvas-settings-scroll flex flex-col" style={{ maxHeight: listMax, overflowY: "auto" }}>
                 {counts.map((count) => (
                     <button
