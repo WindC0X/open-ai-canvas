@@ -7378,7 +7378,8 @@
         flex: 0 0 auto;
         border: 1px solid transparent;
         border-radius: var(--r-md);
-        font-size: var(--fs-label);
+        /* !important 对抗 antd reset 的 button font-size:inherit。 */
+        font-size: var(--fs-label) !important;
         font-weight: 500;
         cursor: pointer;
         transition: background-color var(--motion-dur-fast-calc) var(--motion-ease-out), border-color var(--motion-dur-fast-calc) var(--motion-ease-out);
@@ -8023,24 +8024,45 @@
         }
     }
 
-    /* 选项单元统一纪律:可见边界(bg + 描边)避免无边界裸选项;选中态主色描边;统一 h-8 round。 */
+    /* 选项亮度语义(用户拍板 2026-09-11, flora 参考): 选中不靠边框, 靠内部+文字亮度。
+       选中 = 内部提亮 rgba(255,255,255,.12) + 字纯白 + 无边框;
+       未选中 = 内部透明 + 字暗(.55);
+       hover = 字亮(近白)但内部不亮(保持透明);
+       图标随 currentColor。组件不再 inline background/border/color(收口唯一源)。 */
     .canvas-settings-option {
-        border: 1px solid var(--workspace-border, rgba(127, 127, 127, 0.24));
+        border: none !important;
+        background: transparent !important;
+        /* !important 对抗 antd/dist/reset.css(unlayered button{color/font-size:inherit}) 的全层压制。 */
+        color: rgba(255, 255, 255, 0.55) !important;
         cursor: pointer;
         /* transform 纳入过渡支攩按下 scale(0.97) 反馈(设计契约 press 列)。 */
-        transition: background-color var(--motion-dur-fast-calc) var(--motion-ease-out), border-color var(--motion-dur-fast-calc) var(--motion-ease-out), transform 100ms var(--motion-ease-out);
+        transition: background-color var(--motion-dur-fast-calc) var(--motion-ease-out), color var(--motion-dur-fast-calc) var(--motion-ease-out), transform 100ms var(--motion-ease-out);
     }
 
-    .canvas-settings-option:hover {
-        filter: brightness(1.1);
+    :root:not(.dark) .canvas-settings-option {
+        color: rgba(0, 0, 0, 0.55) !important;
+    }
+
+    .canvas-settings-option:hover:not([aria-pressed="true"]):not([aria-checked="true"]):not(.is-selected):not(:disabled) {
+        color: #ffffff !important;
+    }
+
+    :root:not(.dark) .canvas-settings-option:hover:not([aria-pressed="true"]):not([aria-checked="true"]):not(.is-selected):not(:disabled) {
+        color: rgba(0, 0, 0, 0.92) !important;
     }
 
     .canvas-settings-option[aria-pressed="true"],
     .canvas-settings-option[aria-checked="true"],
     .canvas-settings-option.is-selected {
-        /* 选中描边由各面板内联 theme.node.activeStroke 覆盖;此处仅保底中性描边。 */
-        border-color: var(--workspace-border-strong, rgba(127, 127, 127, 0.4));
-        filter: none;
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: #ffffff !important;
+    }
+
+    :root:not(.dark) .canvas-settings-option[aria-pressed="true"],
+    :root:not(.dark) .canvas-settings-option[aria-checked="true"],
+    :root:not(.dark) .canvas-settings-option.is-selected {
+        background: rgba(0, 0, 0, 0.08) !important;
+        color: rgba(0, 0, 0, 0.92) !important;
     }
 
     /* 生成参数设置面板统一 surface(设计契约 v2 §四): flora 权威玻璃与模型菜单同源
@@ -8085,22 +8107,33 @@
         cursor: not-allowed;
     }
 
-    /* 视频时长滑块(设计契约 §四: 6px 细轨, 拇指 hover 1.15x, 1:1 跟手)。 */
+    /* 视频时长滑块(flora 步进语法, 用户参考图 2026-09-11): 2px 细轨 + 12px 白拇指,
+       离散刻度点由组件 inline radial-gradient 画在轨道(webkit track 透明透出)。 */
     .video-duration-range {
         appearance: none;
-        height: 6px;
-        border-radius: 999px;
-        background: color-mix(in srgb, currentColor 14%, transparent);
+        height: 12px;
+        background: transparent;
         outline-offset: 4px;
+    }
+
+    .video-duration-range::-webkit-slider-runnable-track {
+        height: 2px;
+        border-radius: 999px;
+        background-color: rgba(255, 255, 255, 0.14);
+        background-image: var(--ticks-image, none);
+        background-size: 100% 100%;
+        background-repeat: repeat-x;
     }
 
     .video-duration-range::-webkit-slider-thumb {
         appearance: none;
-        width: 14px;
-        height: 14px;
+        width: 12px;
+        height: 12px;
+        margin-top: -5px;
         border-radius: 999px;
-        background: currentColor;
+        background: #ffffff;
         border: none;
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.25);
         transition: transform var(--motion-dur-fast-calc) var(--motion-ease-out);
     }
 
@@ -8109,12 +8142,26 @@
         transform: scale(1.15);
     }
 
-    .video-duration-range::-moz-range-thumb {
-        width: 14px;
-        height: 14px;
+    .video-duration-range::-moz-range-track {
+        height: 2px;
         border-radius: 999px;
-        background: currentColor;
+        background-color: rgba(255, 255, 255, 0.14);
+        background-image: var(--ticks-image, none);
+        background-size: 100% 100%;
+        background-repeat: repeat-x;
+    }
+
+    .video-duration-range::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: #ffffff;
         border: none;
+    }
+
+    :root:not(.dark) .video-duration-range::-webkit-slider-runnable-track,
+    :root:not(.dark) .video-duration-range::-moz-range-track {
+        background: rgba(0, 0, 0, 0.12);
     }
 
     .canvas-node-toolbar::after {

@@ -126,7 +126,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 type="button"
                                 aria-pressed={activeSize === "auto"}
                                 className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-                                style={{ background: activeSize === "auto" ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: activeSize === "auto" ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                                style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => onConfigChange("size", "auto")}
                             >
@@ -137,12 +137,12 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             <button
                                 key={item.value}
                                 type="button"
-                                className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-                                style={{ background: selectedAspect?.value === item.value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selectedAspect?.value === item.value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                                className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => selectAspect(item.value)}
                             >
-                                <AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} />
+                                <AspectIcon type={item.icon} width={item.width} height={item.height} color="currentColor" />
                                 <span className="whitespace-nowrap">{item.label}</span>
                             </button>
                         ))}
@@ -151,7 +151,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 type="button"
                                 aria-pressed={isCustomSize}
                                 className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-                                style={{ background: isCustomSize || customSizeOpen ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: isCustomSize || customSizeOpen ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                                style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => setCustomSizeOpen((open) => !open)}
                             >
@@ -278,8 +278,8 @@ export function OptionPill({ selected, disabled = false, theme, onClick, childre
         <button
             type="button"
             aria-pressed={selected}
-			className="canvas-settings-option h-8 cursor-pointer whitespace-nowrap rounded-lg px-2.5 text-xs leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed"
-			style={{ background: selected ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: selected ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+			className="canvas-settings-option h-8 cursor-pointer whitespace-nowrap rounded-lg px-2 text-[11px] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 disabled:cursor-not-allowed"
+			style={{ outlineColor: theme.node.muted, fontSize: "11px" }}
 			disabled={disabled}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}

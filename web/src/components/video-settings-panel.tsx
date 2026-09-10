@@ -60,12 +60,12 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 key={value}
                                 type="button"
                                 className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-                                style={{ background: ratio === value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: ratio === value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                                style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => onConfigChange("size", value)}
                             >
                                 <span className="grid h-6 w-8 place-items-center">
-                                    <SizePreview width={ratioPreview(value).width} height={ratioPreview(value).height} color={theme.node.text} />
+                                    <SizePreview width={ratioPreview(value).width} height={ratioPreview(value).height} color="currentColor" />
                                 </span>
                                 <span className="whitespace-nowrap">{value}</span>
                             </button>
@@ -81,7 +81,7 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         ))}
                     </div>
                 </SettingGroup> : null}
-                <SettingGroup title="时长" color={theme.node.muted}>
+                <SettingGroup title="时长" color={theme.node.muted} extra={<span className="shrink-0 text-[11px] font-medium leading-none tabular-nums" style={{ color: theme.node.text }}>{seconds}s</span>}>
 					<VideoDurationControl profile={profile} value={Number(seconds)} theme={theme} disabled={(value) => !hasPriceTierForVideoSelection(priceTiers, resolution, value)} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
                 </SettingGroup>
                 {profile.generateAudio.supported || profile.watermark.supported ? <SettingGroup title="输出" color={theme.node.muted}><div className="grid grid-cols-2 gap-3 rounded-lg px-2" style={{ background: theme.toolbar.itemHover }}>{profile.generateAudio.supported ? <SwitchRow label="生成声音" checked={generateAudio} theme={theme} onChange={(checked) => onConfigChange("videoGenerateAudio", String(checked))} /> : null}{profile.watermark.supported ? <SwitchRow label="添加水印" checked={watermark} theme={theme} onChange={(checked) => onConfigChange("videoWatermark", String(checked))} /> : null}</div></SettingGroup> : null}
@@ -104,12 +104,12 @@ function JiMengVideoSettingsPanel({ config, profile, priceTiers, onConfigChange,
                         key={value}
                         type="button"
                         className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-                        style={{ background: config.size === value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: config.size === value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                        style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                         onMouseDown={(event) => event.stopPropagation()}
                         onClick={() => onConfigChange("size", value)}
                     >
                         <span className="grid h-6 w-8 place-items-center">
-                            <SizePreview width={ratioPreview(value).width} height={ratioPreview(value).height} color={theme.node.text} />
+                            <SizePreview width={ratioPreview(value).width} height={ratioPreview(value).height} color="currentColor" />
                         </span>
                         <span className="whitespace-nowrap">{value}</span>
                     </button>
@@ -155,12 +155,12 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                                 key={item.value}
                                 type="button"
                                 className="canvas-settings-option flex h-11 min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-tiny)] leading-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-                                style={{ background: ratio === item.value ? theme.toolbar.activeBg : theme.toolbar.itemHover, borderColor: ratio === item.value ? theme.node.activeStroke : theme.toolbar.border, color: theme.node.text, outlineColor: theme.node.muted }}
+                                style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => onConfigChange("size", item.value)}
                             >
                                 <span className="grid h-6 w-8 place-items-center">
-                                    <SizePreview width={ratioPreview(item.value).width} height={ratioPreview(item.value).height} color={theme.node.text} />
+                                    <SizePreview width={ratioPreview(item.value).width} height={ratioPreview(item.value).height} color="currentColor" />
                                 </span>
                                 <span className="whitespace-nowrap">{item.label}</span>
                             </button>
@@ -182,7 +182,7 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                     </div>
                     {isSeedanceFastModel(model) ? <div className="text-[var(--fs-tiny)] leading-4 opacity-55">fast 模型自动使用 720P</div> : null}
                 </SettingGroup> : null}
-                <SettingGroup title="时长" color={theme.node.muted}>
+                <SettingGroup title="时长" color={theme.node.muted} extra={<span className="shrink-0 text-[11px] font-medium leading-none tabular-nums" style={{ color: theme.node.text }}>{duration}s</span>}>
 					<VideoDurationControl profile={profile} value={duration} theme={theme} disabled={(value) => !hasPriceTierForVideoSelection(priceTiers, resolution, value)} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
                 </SettingGroup>
                 <SettingGroup title="输出" color={theme.node.muted}>
@@ -230,43 +230,17 @@ export function normalizeVideoSizeValue(value: string) {
 // 分段 pill 已收敛到 image-settings-panel 共享导出(40px 命中区, 与 image/audio 同词汇)。
 
 // 组标题排版与 image 面板同一收敛(text-xs font-normal + space-y-2, 语料 P51-030 12px/400)。
-function SettingGroup({ title, color, children }: { title: string; color: string; children: ReactNode }) {
+function SettingGroup({ title, color, extra, children }: { title: string; color: string; extra?: ReactNode; children: ReactNode }) {
     return (
         <div className="space-y-2">
-            <div className="text-xs font-normal" style={{ color }}>
-                {title}
+            <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="text-xs font-normal" style={{ color }}>
+                    {title}
+                </div>
+                {extra}
             </div>
             {children}
         </div>
-    );
-}
-
-function DurationInput({ value, min, max, theme, onChange }: { value: number; min: number; max?: number; theme: CanvasTheme; onChange: (value: number) => void }) {
-    const commit = (input: HTMLInputElement) => {
-        const next = Math.min(max || Number.POSITIVE_INFINITY, Math.max(min, Math.floor(Number(input.value) || value || min)));
-        input.value = String(next);
-        onChange(next);
-    };
-
-    return (
-        <label className="flex h-8 w-20 shrink-0 items-center overflow-hidden rounded-lg border text-[var(--fs-label)]" style={{ background: theme.toolbar.itemHover, borderColor: theme.toolbar.border, color: theme.node.text }}>
-            <input
-                key={`${min}-${value}`}
-                type="number"
-                inputMode="numeric"
-                min={min}
-                max={max}
-                defaultValue={value}
-                aria-label="视频时长（秒）"
-                className="min-w-0 flex-1 bg-transparent pl-2 text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                onBlur={(event) => commit(event.currentTarget)}
-                onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
-                }}
-                onMouseDown={(event) => event.stopPropagation()}
-            />
-            <span className="shrink-0 px-1.5" style={{ color: theme.node.muted }}>秒</span>
-        </label>
     );
 }
 
@@ -307,25 +281,43 @@ function normalizeTierResolution(value: string) {
 }
 
 function DurationRangeControl({ value, min, max, step, theme, onChange }: { value: number; min: number; max: number; step: number; theme: CanvasTheme; onChange: (value: number) => void }) {
-    return <div className="space-y-1.5">
-        <div className="flex min-w-0 items-center gap-2">
-            <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={value}
-                aria-label="视频时长（秒）"
-                className="video-duration-range h-8 min-w-0 flex-1"
-                style={{ accentColor: theme.accent.primary }}
-                onChange={(event) => onChange(Number(event.target.value))}
-                onMouseDown={(event) => event.stopPropagation()}
-            />
-            <DurationInput value={value} min={min} max={max} theme={theme} onChange={onChange} />
-        </div>
-        <div className="flex justify-between px-0.5 text-[var(--fs-tiny)]" style={{ color: theme.node.muted }}>
-            <span>{min}s</span>
-            <span>{max}s</span>
+    // flora 步进滑块语法(用户参考图 2026-09-11): 标题行右侧当前值 + 2px 细轨离散刻度点 +
+    // 下方可点里程碑标签(均匀分布, 选中白粗)。弃右侧数值输入框与 min/max 两端标签。
+    const total = Math.floor((max - min) / step) + 1;
+    const ticks = Array.from({ length: total }, (_, i) => min + i * step);
+    // 标签全显上限 10 个, 超出则均匀抽稀(刻度点仍在滑轨上, 只是部分不标数)。
+    const labelEvery = Math.max(1, Math.ceil(total / 10));
+    return <div className="space-y-1">
+        <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            aria-label="视频时长（秒）"
+            className="video-duration-range h-4 min-w-0 w-full"
+            style={{
+                // 离散刻度点经 CSS 变量透传到 ::-webkit-slider-runnable-track(inline 直接写在 input 上会被 track 底色遮住)。
+                ["--ticks-image" as string]: `radial-gradient(circle, rgba(255,255,255,0.4) 1.5px, transparent 2px)`,
+            }}
+            onChange={(event) => onChange(Number(event.target.value))}
+            onMouseDown={(event) => event.stopPropagation()}
+        />
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}>
+            {ticks.map((tick, index) => (
+                <button
+                    key={tick}
+                    type="button"
+                    className="canvas-settings-option cursor-pointer rounded py-0.5 text-center text-[10px] leading-none tabular-nums"
+                    aria-pressed={value === tick}
+                    disabled={index % labelEvery !== 0}
+                    style={{ opacity: index % labelEvery === 0 ? undefined : 0 }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={() => onChange(tick)}
+                >
+                    {tick}s
+                </button>
+            ))}
         </div>
     </div>;
 }

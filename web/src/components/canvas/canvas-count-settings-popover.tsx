@@ -171,12 +171,8 @@ function CountSettingsPortal({
                             type="button"
                             aria-pressed={value === tier}
                             aria-label={`${tier} ${label}`}
-                            className="canvas-settings-option h-8 flex-1 !rounded-[10px] text-xs font-medium tabular-nums"
-                            style={{
-                                background: value === tier ? theme.toolbar.activeBg : theme.node.panel,
-                                borderColor: value === tier ? theme.node.activeStroke : "transparent",
-                                color: theme.node.text,
-                            }}
+                            className="canvas-settings-option h-8 flex-1 !rounded-[10px] font-medium tabular-nums"
+                            style={{ outlineColor: theme.node.muted, fontSize: "12px" }}
                             onClick={() => onChange(tier)}
                         >
                             {tier}
@@ -193,11 +189,7 @@ function CountSettingsPortal({
                         aria-pressed={value === count}
                         aria-label={`${count} ${label}`}
                         className="canvas-settings-option canvas-settings-roll-row"
-                        style={{
-                            background: value === count ? theme.toolbar.activeBg : "transparent",
-                            borderColor: value === count ? theme.node.activeStroke : "transparent",
-                            color: theme.node.text,
-                        }}
+                        style={{ outlineColor: theme.node.muted }}
                         onClick={() => onChange(count)}
                     >
                         {count}
@@ -221,7 +213,7 @@ function CountSettingsPortal({
                     }}
                 />
             ) : (
-                <button type="button" className="canvas-settings-option canvas-settings-roll-row mt-1 !text-[12px]" style={{ background: "transparent", borderColor: "transparent", color: theme.node.muted }} onClick={openCustom}>
+                <button type="button" className="canvas-settings-option canvas-settings-roll-row mt-1" style={{ outlineColor: theme.node.muted, fontSize: "12px" }} onClick={openCustom}>
                     自定义…
                 </button>
             )}

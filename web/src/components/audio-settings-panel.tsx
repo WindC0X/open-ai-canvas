@@ -69,8 +69,8 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     ) : (
                         <button
                             type="button"
-                            className="canvas-settings-option h-8 w-full cursor-pointer rounded-lg px-2.5 text-xs"
-                            style={{ background: "transparent", borderColor: theme.toolbar.border, color: theme.node.muted }}
+                            className="canvas-settings-option h-8 w-full cursor-pointer rounded-lg px-2"
+                            style={{ outlineColor: theme.node.muted, fontSize: "11px" }}
                             onMouseDown={(event) => event.stopPropagation()}
                             onClick={() => setCustomSpeedOpen(true)}
                         >
