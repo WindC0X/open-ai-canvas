@@ -29,6 +29,8 @@ const aspectOptions: AspectOption[] = [
     { value: "2:3", label: "2:3", width: 1024, height: 1536, icon: "portrait" },
     { value: "4:3", label: "4:3", width: 1360, height: 1024, icon: "landscape" },
     { value: "3:4", label: "3:4", width: 1024, height: 1360, icon: "portrait" },
+    { value: "4:5", label: "4:5", size: "1024x1280", width: 1024, height: 1280, icon: "portrait" },
+    { value: "5:4", label: "5:4", size: "1280x1024", width: 1280, height: 1024, icon: "landscape" },
     { value: "16:9", label: "16:9", width: 1824, height: 1024, icon: "landscape" },
     { value: "2:1", label: "2:1", size: "2048x1024", width: 2048, height: 1024, icon: "landscape" },
     { value: "1:2", label: "1:2", size: "1024x2048", width: 1024, height: 2048, icon: "portrait" },
@@ -283,7 +285,7 @@ function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange 
     };
 
     return (
-        <label className="flex h-8 w-[76px] shrink-0 overflow-hidden rounded-lg text-xs" style={{ background: theme.toolbar.itemHover, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
+        <label className="flex h-8 w-[68px] shrink-0 overflow-hidden rounded-lg text-xs" style={{ background: theme.toolbar.itemHover, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
             <span className="grid w-6 shrink-0 place-items-center" style={{ color: theme.node.muted }}>
                 {prefix}
             </span>

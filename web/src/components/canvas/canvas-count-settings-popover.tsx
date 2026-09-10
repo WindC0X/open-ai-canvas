@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { PencilLine } from "lucide-react";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
 import { usePopoverExit } from "./use-popover-exit";
@@ -29,8 +28,8 @@ type CanvasCountSettingsPopoverProps = {
 };
 
 /**
- * 份数独立气泡(用户二轮拍板 2026-09-11): 纯竖滚列表(1..max, 限高滚动) + 自定义输入行。
- * 快捷档行已删(与列表重复)。文本/图像/视频/音频模式共用,量词随调用方(张/个/份)。
+ * 份数独立气泡(用户三轮拍板 2026-09-11): 纯竖滚列表(1..max, 限高 4 行, 其余滚动)。
+ * 快捷档行与自定义行均已删(重复/冗余)。文本/图像/视频/音频模式共用,量词随调用方(张/个/份)。
  */
 export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, label = "份", placement = "topLeft", buttonClassName }: CanvasCountSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
@@ -86,8 +85,8 @@ export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, l
 
 const ROW = 32;
 const PANEL_WIDTH = 168;
-/** 列表最多可见行数(超出滚动); 面板自然高 ≈ 5+8*32+4+32+10 ≈ 307px。 */
-const LIST_VISIBLE_ROWS = 8;
+/** 列表最多可见行数(用户拍板: 限 4 行, 其余滚动查看); 面板自然高 ≈ 5+4*32+8 ≈ 141px。 */
+const LIST_VISIBLE_ROWS = 4;
 
 function CountSettingsPortal({
     buttonRect,
@@ -118,7 +117,7 @@ function CountSettingsPortal({
     const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - PANEL_WIDTH / 2 : alignRight ? buttonRect.right - PANEL_WIDTH : buttonRect.left;
     // 节点在画布顶部时向上展开空间不足(用户实测: 压出第二条滚动条) → 自动翻转向下。
     const desiredTop = placement?.startsWith("top");
-    const panelNaturalHeight = 5 + listMax + 4 + 32 + 10;
+    const panelNaturalHeight = 10 + listMax;
     const topPlacement = desiredTop ? buttonRect.top - margin * 2 >= panelNaturalHeight : false;
     const style = {
         position: "fixed",
@@ -135,9 +134,6 @@ function CountSettingsPortal({
     const listStart = 1;
     const counts = Array.from({ length: max }, (_, index) => listStart + index);
     const listRef = useRef<HTMLDivElement>(null);
-    const [customOpen, setCustomOpen] = useState(false);
-    const [customDraft, setCustomDraft] = useState("");
-    const customInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         // 打开/切换值时把当前值滚进可视区; 直接算 scrollTop(行高恒定),
@@ -146,17 +142,6 @@ function CountSettingsPortal({
         if (!list) return;
         list.scrollTop = (value - listStart) * ROW;
     }, [value, listStart]);
-
-    const openCustom = () => {
-        setCustomDraft(String(value));
-        setCustomOpen(true);
-        requestAnimationFrame(() => customInputRef.current?.select());
-    };
-    const commitCustom = () => {
-        const parsed = normalizeCount(customDraft);
-        onChange(Math.max(1, Math.min(max, parsed)));
-        setCustomOpen(false);
-    };
 
     return createPortal(
         <div
@@ -183,28 +168,6 @@ function CountSettingsPortal({
                     </button>
                 ))}
             </div>
-            {customOpen ? (
-                <input
-                    ref={customInputRef}
-                    autoFocus
-                    inputMode="numeric"
-                    className="canvas-count-custom-input mt-1 h-8 w-full rounded-[10px] px-2 text-center text-[13px] tabular-nums outline-none"
-                    style={{ background: theme.node.panel, border: `1px solid ${theme.toolbar.border}`, color: theme.node.text }}
-                    value={customDraft}
-                    aria-label={`自定义份数(1-${max} ${label})`}
-                    onChange={(event) => setCustomDraft(event.target.value.replace(/[^\d]/g, ""))}
-                    onBlur={commitCustom}
-                    onKeyDown={(event) => {
-                        if (event.key === "Enter") commitCustom();
-                        if (event.key === "Escape") setCustomOpen(false);
-                    }}
-                />
-            ) : (
-                <button type="button" className="canvas-settings-option canvas-settings-roll-row mt-1 flex items-center justify-center gap-1" style={{ outlineColor: theme.node.muted, fontSize: "12px" }} onClick={openCustom}>
-                    <PencilLine className="size-3 opacity-70" />
-                    自定义…
-                </button>
-            )}
         </div>,
         document.body,
     );

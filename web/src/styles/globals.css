@@ -8042,7 +8042,7 @@
 /* 参数面板组卡片(用户 2026-09-11: 组块要有背景色分块, 参考 flora 分组卡)。 */
 .canvas-settings-group {
     border-radius: 12px;
-    padding: 10px;
+    padding: 8px;
     background: rgba(0, 0, 0, 0.035);
 }
 .dark .canvas-settings-group {
