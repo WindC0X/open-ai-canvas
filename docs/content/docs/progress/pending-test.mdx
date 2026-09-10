@@ -2408,4 +2408,18 @@ d (docs(pending-test): S08 模型菜单五轮修复根因分析存档 - 勘误mo
 **浏览器实测（tmwd，tab 1146048766，reload 后新模块）**：①视频节点：左组 `Agnes Video 2.5 Flash` + 分隔线 + `720P · 16:9 · 5s`（aria=视频参数摘要）+ 图标触发器（aria=视频设置：720P · 16:9 · 5s），右组生成按钮 ✓；②文本节点：左组仅模型 pill（分隔线/摘要隐藏），右组「生成份数」pill + 生成 ✓；③图像节点：摘要 `1K`，打开图像设置弹层切 2K 后左组摘要与触发器 aria 实时联动为 `2K`（参数联动核心场景 ✓），恢复 1K 后弹层关闭正常。
 
 **遗留待验**：份数 pill 与摘要同时显示时的左/右组宽度挤压（窄面板 + 16 份时长文案）人眼过目；expanded 弹窗（920px）内同布局复验；亮色主题人眼；audio 模式摘要（本地无音频渠道，仅结构验证）。
+
 6 (docs(pending-test): S08 #17 composer 底部布局批登记 - 左组摘要重排+浏览器实测)
+
+### S08 问题四轮：参数设置面板重设计 v2（份数独立 A 形态 + 三面板排布/换算条/能力裁剪对齐）
+
+**设计先行的依据**：设计规格 v2（`.trellis/tasks/09-06-s08-text-generation-lifecycle/design-p4-settings-panels.md`）综合 impeccable/emil-design-eng/apple-design/ux-psychology-review 四 skill，产出 12 原则（Hick 高频直出、Progressive Disclosure 自定义折叠、Centre-Stage 预选、Fitts 命中区、按下即响应、动效频率闸门等）+ 能力裁剪矩阵（值域全部取自 capabilityConfig，不支持不渲染）+ 三面板区块流（用户 21:47 拍板后设计，22:57 批准实施）。
+
+**改动（5 commit）**：①`a1f9fbd` 份数独立气泡 A 形态（快捷档 1/2/3/4 pill 行 + 竖滚列表 + "自定义…"行内输入，量词 张/个/份 按调用方参数化；video/audio 以 `videoGenerationCount`/`audioGenerationCount` 挂载份数气泡，**UI 先行链路后补**：count>1 提交仍按单生成）；②`71c445a` 图像面板比例置首+像素换算条（`4:3 · 1360 × 1024px`）+非 preset 模型自适应档+组标题 12px/400 对齐语料 P51-030；③`e5a31a9` 视频面板三协议分支（默认/JiMeng/Seedance）统一比例置首含换算条，尺寸值框收敛为 image 同款文本条，JiMeng 比例 pill 升级双行卡，"分辨率"改题"清晰度"；④`d69e948` 音频面板排布 音色→语速→格式→声音指令，12+ 音色四列栅格，语速自定义常驻输入折叠为"自定义语速…"入口；⑤`07a3a3a`+后续 图像比例网格终版收敛：27+ 像素值平铺炸 7 行 → **标准 8 比例∩值域两行封顶**，非标准怪异比例归自定义域（16 倍数对齐），标准集为空才回退按比例去重全量。
+
+**验证**：bunx tsc --noEmit ✓、bun run build ✓（31.4s）、真机 tmwd 逐面 DOM 断言（tab 1146059889，vite 重启后 curl 确认 served module 与磁盘一致）。
+
+**浏览器实测**：①image 份数气泡：快捷 1-4+竖滚 1-15+自定义输入（aria 自定义份数 1-15 张，label=张）✓；②video 面板：比例置首含 `16:9 · 1280 × 720px` 换算条，双行卡 21:9/16:9/4:3/1:1/3:4/9:16，时长滑块 4-12s，清晰度组按能力裁剪未渲染（单档位模型），份数 label=个 ✓；③audio 面板：音色 14 项四列（Alloy 选中）→语速 0.75x/1x/1.25x/1.5x+自定义输入（min 0.25 max 4 step 0.05）→格式 6 项，份数 label=个 max=4 ✓；④text 份数气泡回归：1-15+自定义，label=份 ✓；⑤image 面板终版：8 比例网格（4:3 选中）+自定义+换算条+分辨率（自动/1K/2K/4K）+质量+透明背景开关，截图留证 ✓。
+
+**遗留待验**：①份数气泡与设置气泡同开互斥（§7 开放问题，待用户定）；②mask-edit-dialog（image-settings-panel showCount=false 消费方）props 未动仅编译验证，蒙版编辑真机路径未走；③非 preset 模型网格"自适应"档（Grok 类）仅真机抽验一例；④video/audio 份数>1 提交拆分链路（后续独立任务）；⑤亮色主题人眼过目。
+d (docs(progress): S08 问题四轮登记 - 参数面板重设计 v2 交付与真机验收记录)
