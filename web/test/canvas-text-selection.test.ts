@@ -8,7 +8,8 @@ describe("text node selection (#429)", () => {
     test("opens the text generation panel on a node click", () => {
         const project = readFileSync(new URL("../src/pages/canvas/project.tsx", import.meta.url), "utf8");
         const clickHandler = project.slice(project.indexOf("const handleSelectedNodeClick ="), project.indexOf("const handleNodeBringToFront ="));
-        expect(clickHandler).toMatch(/node.type === CanvasNodeType.Text\)\s*\{\s*setDialogNodeId\(node.id\)/);
+        // S08 03c604b: 单击文本节点真 toggle 唤出提示词面板(旧 current===id?current:null 永不打开缺陷已修)。
+        expect(clickHandler).toMatch(/node\.type === CanvasNodeType\.Text \|\| node\.type === CanvasNodeType\.Frame\)[\s\S]*?setDialogNodeId\(\(current\) => \(current === node\.id \? null : node\.id\)\)/);
     });
 
     test("allows plain and rich text previews to reach node selection", () => {
