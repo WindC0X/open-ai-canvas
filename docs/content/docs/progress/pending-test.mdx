@@ -2432,4 +2432,18 @@ d (docs(progress): S08 问题四轮登记 - 参数面板重设计 v2 交付与�
 **验证**：tsc ✓、build ✓；真机计算样式断言（image 面板）：bg rgba(32,32,32,.9)/blur(16px)/radius 16px/shadow none/border 白.05、分段 pill 40px×4、双行卡 52px、transformOrigin 生效；亮色分支以移除 .dark class 验证白玻璃 rgba(255,255,255,.94) ✓（store 切换同规则）。
 
 **遗留待验**：真实主题开关切换（store 路径）与 mask-edit-dialog 消费点人眼过目；滑块拇指 1.15x 交互手感。
+
 d (docs(progress): S08 问题四质感层补全登记 - 玻璃surface/40px命中/按下反馈/滑块/开合锚)
+
+### S08 问题四轮·密度/滚动条/份数去重/互斥批（用户 9 图复批后）
+
+**用户实测问题**：①参数面板相对模型菜单过大（框大字空）；②份数气泡快捷档与列表 1-4 重复、打开未滚到当前值、粗原生滚动条；③各面板滚动条与模型菜单超细滚动条不一致；④（本轮截图实证）份数气泡与设置面板同开互相遮挡。
+
+**根因**：滚动条不一致 = `thin-scrollbar` 的标准属性 `scrollbar-width: thin` 在 Chromium 121+ 使 `::-webkit-scrollbar` 定制整体失效（globals 7667 批注已有该互斥规则结论），Windows Chrome 渲染带箭头的系统条；命中区 40px 为对契约 P5 的字面执行，用户实测过大——**用户实测优先于契约字面**。
+
+**改动（3b1a56a+1ba0cbe）**：①滚动条：`.canvas-settings-scroll` 并入模型菜单权威滚动条选择器组（6px 轨道 2px 胶囊/白.22 hover .44/亮色深.28/@supports Firefox 分支），四面板换用之（弃 thin-scrollbar），count 内层列表补挂；②密度：面板宽 356/420→320、padding 12→10、组距 space-y-3→2.5、grid gap 1.5→1、分段 pill 40→32px、双行卡 52→44px、count 快捷档 40→32px 字 13→12；③份数列表与快捷档去重（列表从 5 起，max≤4 仅快捷+自定义）、`scrollTop=(value-listStart)*ROW` 直算滚到当前值（弃 scrollIntoView 防连带滚画布）、列表可见高 332→260；④互斥：`use-exclusive-settings.ts` 事件总线，任一气泡打开广播关闭其余（模型菜单 sibling-close 同语义）。
+
+**验证**：tsc/build ✓；真机计算样式：面板 320×373、分段 pill 32、双行卡 44、份数面板高 344/列表 260/快捷 32；去重后列表首项 5、选 8 重开 scrollTop clamp 至最大可见（8 可见+选中）；互斥序列：开图像面板→开份数→图像关份数开（事件日志 4 条 recv 语义正确）；调试留痕已移除。
+
+**遗留待验**：真实指针点击路径（CDP/合成事件不含 pointerdown，互斥在真实交互叠加外点关闭双保险）；亮色主题滚动条 thumb（深.28）人眼；mask-edit-dialog。
+1 (docs(progress): S08 密度/滚动条/份数去重/互斥批登记)
