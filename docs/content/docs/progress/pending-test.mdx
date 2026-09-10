@@ -2446,4 +2446,18 @@ d (docs(progress): S08 问题四质感层补全登记 - 玻璃surface/40px命中
 **验证**：tsc/build ✓；真机计算样式：面板 320×373、分段 pill 32、双行卡 44、份数面板高 344/列表 260/快捷 32；去重后列表首项 5、选 8 重开 scrollTop clamp 至最大可见（8 可见+选中）；互斥序列：开图像面板→开份数→图像关份数开（事件日志 4 条 recv 语义正确）；调试留痕已移除。
 
 **遗留待验**：真实指针点击路径（CDP/合成事件不含 pointerdown，互斥在真实交互叠加外点关闭双保险）；亮色主题滚动条 thumb（深.28）人眼；mask-edit-dialog。
+
 1 (docs(progress): S08 密度/滚动条/份数去重/互斥批登记)
+
+### S08 问题四轮·亮度语义/时长步进滑块批（用户参考图复批后）
+
+**用户指令**：①时长 UI 从"滑块+数值输入框+min/max 刻度"改为 flora 步进形态（标题行右侧当前值+细轨离散刻度点+下方里程碑标签）；②选项字号太大拥挤；③**选中态弃白边框，改为亮度语义**：选中=内部提亮+字纯白+无边框，未选中=内部透明+字暗，hover=字亮内部不亮（flora 参考图：纯亮度对比，无描边）。
+
+**根因插曲**：改版后 computed 样式不生效——`antd/dist/reset.css`（unlayered）`button { color/font-size: inherit }` 压制一切 @layer 规则（Tailwind utilities/base、globals 选项规则均在 layer 内）；CDP getMatchedStyles 排查实锤。修复：选项状态机 color/background/border 升 `!important`，受压 button 的字号 inline 化（fontSize: 11px / var(--fs-label) / 12px）。
+
+**改动（b361f32）**：①globals `.canvas-settings-option` 状态机重写为亮度语义（dark：未选中 rgba(255,255,255,.55)/hover #fff/选中 bg .12+字 #fff；light 反向黑系），图标随 currentColor，组件全部剥离 inline background/border/color（收口唯一源）；②时长：`DurationRangeControl` 重写——SettingGroup 加 extra 槽（标题行右侧当前值 `8s`），2px 细轨+12px 白拇指+radial-gradient 离散刻度点（CSS 变量 `--ticks-image` 透传进 track 伪元素），下方 9 个可点里程碑标签（全部 step 值，>10 个自动抽稀），删 DurationInput 数值框与 min/max 两端标签；③选项字号 12→11px（pill/双行卡/快捷档/列表 12px）、px-2.5→2；④音频语速：保持 4 档分段形态（离散 4 值用拖拽滑块违反 Fitts/Hick，**设计裁量**），已同步亮度语义与 11px 字号——若用户希望语速也改步进滑块再调。
+
+**验证**：tsc/build ✓；真机计算样式（CDP ignoreCache reload）：未选中 2K = color rgba(255,255,255,.55)/bg 透明/font 11px，选中 1K = color #fff/bg rgba(255,255,255,.12)/borderStyle none；视频时长 = 标题行"时长 8s"+9 刻度标签（4s..12s，active 白粗）+12px 滑块；截图 /tmp/s08-p4-stepper.png。
+
+**遗留待验**：真实 hover 路径（字亮内部不亮为 CSS :hover 规则，合成事件无法触发）；焦点 outline（focus-visible 白描边保留为无障碍要求，与"无边框"不冲突）；JiMeng/Seedance 分支时长组同构复验。
+8 (docs(progress): S08 亮度语义/时长步进滑块批登记 - antd reset 压制根因与修复)
