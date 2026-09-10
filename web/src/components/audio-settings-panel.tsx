@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { audioFormatOptions, audioSpeedLabel, audioVoiceOptions, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
@@ -21,24 +21,19 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const voice = normalizeAudioVoiceValue(config.audioVoice);
     const format = normalizeAudioFormatValue(config.audioFormat);
     const speed = normalizeAudioSpeedValue(config.audioSpeed);
+    // 排布纪律(设计 v2): 音色(首要创作参数) > 语速(呈现节奏) > 格式(输出属性) > 声音指令。
+    // 语速自定义(Progressive Disclosure): 仅当当前值不在预设档内时展开输入, 否则提供自定义入口。
+    const speedIsPreset = speedOptions.includes(speed);
+    const [customSpeedOpen, setCustomSpeedOpen] = useState(!speedIsPreset);
 
     return (
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">音频设置</div> : null}
-                <SettingGroup title="声音" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-1.5">
+                <SettingGroup title="音色" color={theme.node.muted}>
+                    <div className="grid grid-cols-4 gap-1.5">
                         {audioVoiceOptions.map((item) => (
                             <OptionPill key={item.value} selected={voice === item.value} theme={theme} onClick={() => onConfigChange("audioVoice", item.value)}>
-                                {item.label}
-                            </OptionPill>
-                        ))}
-                    </div>
-                </SettingGroup>
-                <SettingGroup title="格式" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-1.5">
-                        {audioFormatOptions.map((item) => (
-                            <OptionPill key={item.value} selected={format === item.value} theme={theme} onClick={() => onConfigChange("audioFormat", item.value)}>
                                 {item.label}
                             </OptionPill>
                         ))}
@@ -52,19 +47,45 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             </OptionPill>
                         ))}
                     </div>
-                    <input
-                        type="number"
-                        aria-label="自定义语速"
-                        min={0.25}
-                        max={4}
-                        step={0.05}
-                        className="h-8 w-full rounded-lg border bg-transparent px-3 text-center text-xs outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        style={{ borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text }}
-                        value={config.audioSpeed || "1"}
-                        onChange={(event) => onConfigChange("audioSpeed", event.target.value)}
-                        onBlur={(event) => onConfigChange("audioSpeed", normalizeAudioSpeedValue(event.target.value))}
-                        onMouseDown={(event) => event.stopPropagation()}
-                    />
+                    {customSpeedOpen ? (
+                        <input
+                            type="number"
+                            aria-label="自定义语速"
+                            min={0.25}
+                            max={4}
+                            step={0.05}
+                            autoFocus
+                            className="h-8 w-full rounded-lg border bg-transparent px-3 text-center text-xs outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            style={{ borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text }}
+                            value={config.audioSpeed || "1"}
+                            onChange={(event) => onConfigChange("audioSpeed", event.target.value)}
+                            onBlur={(event) => onConfigChange("audioSpeed", normalizeAudioSpeedValue(event.target.value))}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") event.currentTarget.blur();
+                                if (event.key === "Escape") setCustomSpeedOpen(false);
+                            }}
+                            onMouseDown={(event) => event.stopPropagation()}
+                        />
+                    ) : (
+                        <button
+                            type="button"
+                            className="canvas-settings-option h-8 w-full cursor-pointer rounded-lg px-2.5 text-xs"
+                            style={{ background: "transparent", borderColor: theme.toolbar.border, color: theme.node.muted }}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onClick={() => setCustomSpeedOpen(true)}
+                        >
+                            自定义语速…
+                        </button>
+                    )}
+                </SettingGroup>
+                <SettingGroup title="格式" color={theme.node.muted}>
+                    <div className="grid grid-cols-3 gap-1.5">
+                        {audioFormatOptions.map((item) => (
+                            <OptionPill key={item.value} selected={format === item.value} theme={theme} onClick={() => onConfigChange("audioFormat", item.value)}>
+                                {item.label}
+                            </OptionPill>
+                        ))}
+                    </div>
                 </SettingGroup>
                 <SettingGroup title="声音指令" color={theme.node.muted}>
                     <textarea
@@ -97,10 +118,10 @@ function OptionPill({ selected, theme, onClick, children }: { selected: boolean;
 }
 
 function SettingGroup({ title, color, children }: { title: string; color: string; children: ReactNode }) {
-    // 组间距与 image/video 面板同一收敛(space-y-2)。
+    // 组间距与 image/video 面板同一收敛(space-y-2); 字重对齐语料 P51-030(12px/400)。
     return (
         <div className="space-y-2">
-            <div className="text-xs font-medium" style={{ color }}>
+            <div className="text-xs font-normal" style={{ color }}>
                 {title}
             </div>
             {children}
