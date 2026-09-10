@@ -2422,4 +2422,14 @@ d (docs(pending-test): S08 模型菜单五轮修复根因分析存档 - 勘误mo
 **浏览器实测**：①image 份数气泡：快捷 1-4+竖滚 1-15+自定义输入（aria 自定义份数 1-15 张，label=张）✓；②video 面板：比例置首含 `16:9 · 1280 × 720px` 换算条，双行卡 21:9/16:9/4:3/1:1/3:4/9:16，时长滑块 4-12s，清晰度组按能力裁剪未渲染（单档位模型），份数 label=个 ✓；③audio 面板：音色 14 项四列（Alloy 选中）→语速 0.75x/1x/1.25x/1.5x+自定义输入（min 0.25 max 4 step 0.05）→格式 6 项，份数 label=个 max=4 ✓；④text 份数气泡回归：1-15+自定义，label=份 ✓；⑤image 面板终版：8 比例网格（4:3 选中）+自定义+换算条+分辨率（自动/1K/2K/4K）+质量+透明背景开关，截图留证 ✓。
 
 **遗留待验**：①份数气泡与设置气泡同开互斥（§7 开放问题，待用户定）；②mask-edit-dialog（image-settings-panel showCount=false 消费方）props 未动仅编译验证，蒙版编辑真机路径未走；③非 preset 模型网格"自适应"档（Grok 类）仅真机抽验一例；④video/audio 份数>1 提交拆分链路（后续独立任务）；⑤亮色主题人眼过目。
+
 d (docs(progress): S08 问题四轮登记 - 参数面板重设计 v2 交付与真机验收记录)
+
+### S08 问题四轮·质感层补全（用户复批"称不上完整 UI/UX"后）
+
+**改动（8867f50）**：设计契约 §四 surface/状态规格此前未实施，本批补齐——①**统一玻璃 surface**（globals 新规则接管四件套，组件删 inline background/border/radius 与 backdrop-blur-2xl）：dark `rgba(32,32,32,.9)+blur16+border 白.05+radius16+无阴影`（与模型菜单 7392 批注同源权威值），亮色 `rgba(255,255,255,.94)+border 深.08`；②**选项命中区 40px**：三份重复 OptionPill 收敛为 image-settings-panel 共享导出（audio/video import），h-8→h-10，count 快捷档 h-7→h-10（竖滚行保持 P51 权威 36px）；③**按下即响应**：`.canvas-settings-option:active` scale 0.97/100ms（reduced-motion 降级），transition 补 transform；④禁用态统一 0.45（globals :disabled 接管）；⑤**滑块质感**：`.video-duration-range` 6px 细轨+14px 拇指 hover 1.15x；⑥**开合锚触发器**：四 popover transformOrigin 按 placement（bottom left/right/center），替换恒 bottom center。
+
+**验证**：tsc ✓、build ✓；真机计算样式断言（image 面板）：bg rgba(32,32,32,.9)/blur(16px)/radius 16px/shadow none/border 白.05、分段 pill 40px×4、双行卡 52px、transformOrigin 生效；亮色分支以移除 .dark class 验证白玻璃 rgba(255,255,255,.94) ✓（store 切换同规则）。
+
+**遗留待验**：真实主题开关切换（store 路径）与 mask-edit-dialog 消费点人眼过目；滑块拇指 1.15x 交互手感。
+d (docs(progress): S08 问题四质感层补全登记 - 玻璃surface/40px命中/按下反馈/滑块/开合锚)
