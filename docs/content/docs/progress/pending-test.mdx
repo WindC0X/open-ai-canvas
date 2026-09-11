@@ -2516,4 +2516,10 @@ f (docs(progress): S08 自适应诚实渲染/透明背景单行批登记)
 **用户问题与修复（14f3d35）**：①Grok Imagine Image Edit 面板无分辨率组（同渠道 Image 2.0 有）→ 根因：分辨率档判定只看 `quality.values` 档位映射（Image Edit 后台漏配质量档），而后台"按分辨率配置可用画幅"的 1K/2K 分组实际存于 `size.presets`（含 tier/ratio/size）未被消费。修复：`imageResolutionUsesQuality` 补 presets tier 分支（aspect_ratio 模式下 presets 有 tier 即由该链路承载分辨率档）；面板 `imageTierChoices` = quality 映射 ∪ presets tier，`qualityValue` 无映射时回落 tier 名（grok-image 协议 `normalizeGrokImageResolution("1k")` 接受）。真机断言：Image Edit 面板 titles=[比例,分辨率]、1K 单档全宽 282px。②分辨率/清晰度组列数按选项数自适应（用户拍板：不空位）——1 档全宽/2 档两列各半宽/3 档三列（image quality 档组+video 清晰度 default/Seedance 两分支）。真机断言：Image 2.0 两档各 138px。
 
 **验证**：tsc/build ✓；真机（CDP ignoreCache reload，切模型 Grok Imagine Image Edit → 2.0）：两组模型分辨率组均显示且宽度按档数分布；截图 /tmp/s08-p4-batch8.png。
+
 9 (docs(progress): S08 分辨率档presets兜底/按数分宽批登记)
+
+### S08 问题四轮·单档恒选中/归一豁免批（用户截图复批后）
+
+**用户问题与修复（b0a2194）**：Grok Imagine Image Edit 分辨率组单档 1K 无选中态 → 双根因：①写入 quality="1k" 被 `normalizeImageValue` 归一弹回 default（quality.values 漏配档位）→ 选择不持久；②初始 quality=default 不等于档名 → selected 恒假。修复：归一加 presets tier 豁免（写 tier 名且 size.presets 含该 tier 时保留，grok-image 发送链路 normalizeGrokImageResolution 消费）；面板单档（imageTierChoices.length===1 且 quality 无映射）选中态恒亮（唯一档即生效档）。**验证**：tsc/build ✓；真机 video 面板单档 720P 全宽+selected=true（用户清画布重建后 image 节点暂缺，image 侧为同构三元逻辑，待用户复验）。
+b (docs(progress): S08 单档恒选中/归一豁免批登记)
