@@ -186,7 +186,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     <div className="canvas-settings-group">
                     <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : resolutionChoices.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
                         {resolutionChoices.map((choice) => (
-                            <OptionPill key={choice} selected={choice === "auto" ? activeSize === "auto" : activeResolution?.tier === choice} theme={theme} onClick={() => selectResolution(choice)}>
+                            <OptionPill key={choice} selected={choice === "auto" ? activeSize === "auto" || !activeResolution : activeResolution?.tier === choice} theme={theme} onClick={() => selectResolution(choice)}>
                                 {choice === "auto" ? "自动" : choice.toUpperCase()}
                             </OptionPill>
                         ))}
@@ -268,6 +268,7 @@ function isGrokResolutionQuality(profile: ImageCapabilityConfig) {
 }
 
 export function imageSizeLabel(size: string) {
+    if (size === "auto") return "自动";
     const resolutionLabel = formatImageResolutionSize(size, buildImageResolutionOptions([size]));
     return resolutionLabel !== size ? resolutionLabel : aspectOptions.find((item) => (item.size || item.value) === size || item.value === size)?.label || size;
 }

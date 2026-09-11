@@ -929,8 +929,11 @@ function imagePresetTierForSelection(profile: ImageCapabilityConfig, size: strin
 export function normalizeImageSizeSetting(profile: ImageCapabilityConfig, value?: string) {
     if (profile.size.parameter === "none") return "auto";
     const candidate = value?.trim() || profile.size.default;
+    // "auto"=模型自选(发送链不传 size 参数), 对所有 size 模型都是合法存储值(2026-09-11):
+    // 面板分辨率组注入"自动"档, 默认/未设置态高亮"自动"而不是强填 values[0](用户反馈"默认缺分辨率选中")。
+    if (candidate === "auto") return "auto";
     if (profile.size.allowCustom || profile.size.values.includes(candidate)) return candidate;
-    return profile.size.default || profile.size.values[0] || "auto";
+    return profile.size.default || "auto";
 }
 
 export function imageSizeRequest(profile: ImageCapabilityConfig, value?: string) {

@@ -29,7 +29,9 @@ export function buildImageResolutionOptions(values: string[]) {
 }
 
 export function imageResolutionChoices(values: string[]): ImageResolutionChoice[] {
-    const choices: ImageResolutionChoice[] = values.some((value) => value.trim().toLowerCase() === "auto") ? ["auto"] : [];
+    // "自动"恒为第一档(2026-09-11): size 模型的空/auto 值=模型自选(发送链不传 size 参数),
+    // 面板默认态应有选中项, 不再强填 values[0](用户反馈"默认缺分辨率选中")。
+    const choices: ImageResolutionChoice[] = ["auto"];
     for (const option of buildImageResolutionOptions(values)) {
         if (!choices.includes(option.tier)) choices.push(option.tier);
     }

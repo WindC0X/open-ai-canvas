@@ -88,25 +88,6 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
 
     return (
         <>
-<<<<<<< HEAD
-=======
-            {onCameraControlChange && (
-                <Button
-                    size="small"
-                    type="text"
-                    className="canvas-camera-control-trigger !h-8 !rounded-full !px-2.5"
-                    style={{
-                        background: cameraEnabled ? theme.node.activeStroke : "transparent",
-                        color: cameraEnabled ? theme.node.panel : theme.node.text,
-                    }}
-                    icon={<Camera className="size-3.5" />}
-                    aria-pressed={cameraEnabled}
-                    aria-label="摄像机控制"
-                    title={`摄像机控制${cameraEnabled ? " · 已启用" : ""}`}
-                    onClick={() => setCameraOpen(true)}
-                />
-            )}
->>>>>>> 2217f88f (feat(canvas): composer 底部按钮 ghost 质感统一 - 份数x1形式+参数去图标+箭头右侧+模型按钮fit-content自适应+智能引用Quote图标+开合动画统一motion token)
             {hasSettings && (
                 <span ref={buttonRef} className="inline-flex min-w-0">
                     <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[168px] !justify-start !rounded-full !px-2.5"}`} style={{ color: theme.node.text }} aria-expanded={open} aria-label={`图像设置：${summary}`} title={`图像设置 · ${summary}`} onClick={() => updateOpen(!open)}>

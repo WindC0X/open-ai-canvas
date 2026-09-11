@@ -430,6 +430,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                         accent={monochromeAccent}
                         compact={!expanded}
                     />
+                    <span aria-hidden className="canvas-node-composer-divider" />
                     {mode === "text" ? (
                         <CanvasTextSettingsPopover
                             value={Math.max(1, Math.min(15, Math.floor(Math.abs(Number(node.metadata?.textCount) || 1))))}
