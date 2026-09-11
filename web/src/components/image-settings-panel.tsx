@@ -86,7 +86,8 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const isCustomSize = profile.size.allowCustom && activeSize !== "auto" && !selectedAspect;
     const dimensions = readSizeDimensions(activeSize, selectedAspect || aspectOptions[0]);
 	const activeQualityOptions = profile.quality.values.map((value) => qualityOptions.find((item) => item.value === value) || { value, label: value });
-	const imageTierChoices = (["1k", "2k", "4k"] as const).filter((tier) => imageTierAvailable(profile, tier));
+	// 分辨率档 = quality 档位映射 ∪ 后台 presets 分组 tier(quality 漏配档位时以 presets 为准, 如 Grok Imagine Image Edit)。
+	const imageTierChoices = (["1k", "2k", "4k"] as const).filter((tier) => imageTierAvailable(profile, tier) || profile.size.presets?.some((preset) => preset.tier === tier));
 	const priceTiers = imageModelPriceTiers(config);
     const selectAspect = (value: string) => {
         const option = availableAspects.find((item) => item.value === value);
@@ -197,9 +198,9 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 {showQuality && imageResolutionUsesQuality(profile) ? <div className="space-y-1.5">
                     <SettingTitle color={theme.node.groupTitle}>分辨率</SettingTitle>
                     <div className="canvas-settings-group">
-                    <div className="grid gap-1.5 grid-cols-3">
-                        {(["1k", "2k", "4k"] as const).filter((tier) => imageTierAvailable(profile, tier)).map((tier) => {
-                            const qualityValue = imageQualityForTier(profile, tier);
+                    <div className={`grid gap-1.5 ${imageTierChoices.length === 1 ? "grid-cols-1" : imageTierChoices.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                        {imageTierChoices.map((tier) => {
+                            const qualityValue = imageQualityForTier(profile, tier) || tier;
                             return (
                                 <OptionPill key={tier} selected={Boolean(qualityValue) && quality === qualityValue} theme={theme} onClick={() => onConfigChange("quality", qualityValue || quality)}>
                                     {tier.toUpperCase()}

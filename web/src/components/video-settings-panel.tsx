@@ -72,7 +72,7 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 </SettingGroup> : null}
                 {/* 清晰度组必须显示(用户拍板): 单档也独占一行全宽, 不再因 length<=1 裁剪。 */}
                 {configuredResolutions.length > 0 ? <SettingGroup title="清晰度" color={theme.node.groupTitle}>
-                    <div className={`grid gap-1 ${configuredResolutions.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
+                    <div className={`grid gap-1 ${configuredResolutions.length === 1 ? "grid-cols-1" : configuredResolutions.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                         {configuredResolutions.map((item) => (
 							<OptionPill key={item.value} selected={isVideoResolutionMatch(resolution, item.value)} disabled={!hasPriceTierForVideoSelection(priceTiers, item.value, Number(seconds))} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
                                 {item.label}
@@ -165,7 +165,7 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                 </SettingGroup>
                 {/* 清晰度组必须显示(用户拍板): 单档也独占一行全宽。 */}
                 {profile.resolutions.length > 0 ? <SettingGroup title="清晰度" color={theme.node.groupTitle}>
-                    <div className="grid grid-cols-3 gap-1">
+                    <div className={`grid gap-1 ${profile.resolutions.length === 1 ? "grid-cols-1" : profile.resolutions.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                         {profile.resolutions.map((value) => {
                             const item = { value, label: value.toUpperCase() };
 							const disabled = (item.value === "1080p" && isSeedanceFastModel(model)) || !hasPriceTierForVideoSelection(priceTiers, item.value, duration);

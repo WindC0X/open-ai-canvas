@@ -57,7 +57,11 @@ export function imageQualityForTier(profile: ImageCapabilityConfig, tier: ImageR
 }
 
 export function imageResolutionUsesQuality(profile: ImageCapabilityConfig) {
-    return profile.size.parameter === "aspect_ratio" && IMAGE_RESOLUTIONS.some((tier) => imageQualityForTier(profile, tier));
+    if (profile.size.parameter !== "aspect_ratio") return false;
+    // quality.values 有档位映射(1k/2k/4k 或 low/medium/high)即由 quality 承载分辨率档;
+    // 或后台"按分辨率配置可用画幅"存了 size.presets(含 tier 分组)——quality 漏配档位时
+    // 分辨率组仍按 presets tiers 显示(用户纪律: 比例+分辨率两组必须显示)。
+    return IMAGE_RESOLUTIONS.some((tier) => imageQualityForTier(profile, tier)) || new Set(profile.size.presets?.map((preset) => preset.tier) || []).size > 0;
 }
 
 export function imageTierAvailable(profile: ImageCapabilityConfig, tier: ImageResolutionTier) {
