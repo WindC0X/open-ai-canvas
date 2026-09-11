@@ -39,7 +39,6 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const seconds = normalizeVideoDuration(config.videoSeconds);
     const resolution = resolveVideoResolutionValue(profile, config.vquality);
     const ratio = resolveVideoRatioValue(profile, config.size);
-    const dimensions = videoDimensionsForRatioAndResolution(ratio, resolution);
     const sizeSupported = profile.ratios.length > 0;
     const configuredResolutions = profile.resolutions.map((value) => ({ value, label: formatVideoResolutionLabel(value) }));
     const generateAudio = boolConfig(config.videoGenerateAudio, profile.generateAudio.default);
@@ -51,10 +50,7 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
                 {/* 排布纪律(设计 v2): 比例(构图)置首, 清晰度/时长随后, 输出属性收尾; 与 Seedance/JiMeng 分支及 image 面板同序。 */}
                 {sizeSupported ? <SettingGroup title="比例" color={theme.node.groupTitle}>
-                    {dimensions ? <div className="text-xs tabular-nums" style={{ color: theme.node.muted }}>
-                        {`${ratio} · ${dimensions.width} × ${dimensions.height}px`}
-                    </div> : null}
-                    {/* 比例按钮统一 image 面板的双行卡形态(h-52: 图标行+文字行)。 */}
+                    {/* 换算条已删(用户拍板: 像素归分辨率组, 比例组不放 "16:9 · 1280x720px" 头部行)。 */}
                     <div className="grid grid-cols-3 gap-1">
                         {profile.ratios.map((value) => (
                             <button
@@ -74,8 +70,9 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         ))}
                     </div>
                 </SettingGroup> : null}
-                {configuredResolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.groupTitle}>
-                    <div className="grid grid-cols-3 gap-1">
+                {/* 清晰度组必须显示(用户拍板): 单档也独占一行全宽, 不再因 length<=1 裁剪。 */}
+                {configuredResolutions.length > 0 ? <SettingGroup title="清晰度" color={theme.node.groupTitle}>
+                    <div className={`grid gap-1 ${configuredResolutions.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
                         {configuredResolutions.map((item) => (
 							<OptionPill key={item.value} selected={isVideoResolutionMatch(resolution, item.value)} disabled={!hasPriceTierForVideoSelection(priceTiers, item.value, Number(seconds))} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
                                 {item.label}
@@ -141,14 +138,8 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
-                {/* 排布纪律(设计 v2): 比例置首(含像素换算条), 清晰度随后(与默认分支同序)。 */}
+                {/* 排布纪律(设计 v2): 比例置首(换算条已删, 同默认分支), 清晰度随后。 */}
                 <SettingGroup title="比例" color={theme.node.groupTitle}>
-                    {(() => {
-                        const dims = videoDimensionsForRatioAndResolution(ratio, resolution);
-                        return dims ? <div className="text-xs tabular-nums" style={{ color: theme.node.muted }}>
-                            {`${ratio} · ${dims.width} × ${dims.height}px`}
-                        </div> : null;
-                    })()}
                     {/* 比例按钮统一 image 面板的双行卡形态(h-52)与 grid-cols-4。 */}
                     <div className="grid grid-cols-4 gap-1">
                         {profile.ratios.map((value) => {
@@ -172,7 +163,8 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
                         })}
                     </div>
                 </SettingGroup>
-                {profile.resolutions.length > 1 ? <SettingGroup title="清晰度" color={theme.node.groupTitle}>
+                {/* 清晰度组必须显示(用户拍板): 单档也独占一行全宽。 */}
+                {profile.resolutions.length > 0 ? <SettingGroup title="清晰度" color={theme.node.groupTitle}>
                     <div className="grid grid-cols-3 gap-1">
                         {profile.resolutions.map((value) => {
                             const item = { value, label: value.toUpperCase() };

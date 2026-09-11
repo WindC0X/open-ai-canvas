@@ -86,6 +86,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const isCustomSize = profile.size.allowCustom && activeSize !== "auto" && !selectedAspect;
     const dimensions = readSizeDimensions(activeSize, selectedAspect || aspectOptions[0]);
 	const activeQualityOptions = profile.quality.values.map((value) => qualityOptions.find((item) => item.value === value) || { value, label: value });
+	const imageTierChoices = (["1k", "2k", "4k"] as const).filter((tier) => imageTierAvailable(profile, tier));
 	const priceTiers = imageModelPriceTiers(config);
     const selectAspect = (value: string) => {
         const option = availableAspects.find((item) => item.value === value);
