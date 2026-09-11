@@ -2500,4 +2500,12 @@ e (docs(progress): S08 分辨率组/份数即关/标题出卡批登记)
 **用户问题与修复（a1c1fd9）**：①Grok Imagine Image 2.0 比例组"自适应"无法选择 → 根因：模型 values 未声明 auto 档，点自适应写 size=auto 后 normalize 立即回落 default（永不选中）。按能力诚实渲染原则：自适应格只在 `profile.size.values.includes("auto")` 时渲染（Gpt Image 2 走分辨率组"自动"档语义，Grok 这类无 auto 档模型不再显示该格）。②单控件组（透明背景）标题与开关分两行 → 用户拍板标题与开关共一行（去掉独占行卡）。③image.png 节点点击不出 composer → **上游特性而非缺陷**：`isCanvasImageSourceNode`（canvas-image-source.ts）把"已有媒体内容但无生成配置"的图片节点定义为输入素材，不提供原地生成入口（渲染条件显式排除），素材编辑走节点浮动工具栏（局部重绘/转换等动作建新节点）。
 
 **验证**：tsc/build ✓；真机（CDP ignoreCache reload）：Gpt Image 2 面板 10 比例无自适应格+透明背景单行（标题左开关右）；截图 /tmp/s08-p4-batch6.png。
+
 f (docs(progress): S08 自适应诚实渲染/透明背景单行批登记)
+
+### S08 问题四轮·比例/分辨率分组纪律收口批（用户 2 图复批后）
+
+**用户拍板**：视频和图片面板中**比例与分辨率两个分组必须显示**，分辨率不挂在比例组头部（"16:9 · 1280×720px" 换算条删除），**单档也要独占显示**（参考竞品"画质 1K"全宽按钮形态）。**修复（655e635）**：①视频面板删比例组像素换算条（default 与 Seedance 两分支，含无用 videoDimensionsForRatioAndResolution 调用）。②清晰度组不再因 `resolutions.length<=1` 裁剪——单档渲染且全宽独占一行（`grid-cols-1`），多档仍三列；真机断言 Grok Imagine Video 面板 titles=[比例,清晰度,时长]、720P 全宽 282px。③图片面板 quality 档分辨率组（1K/2K/4K）档数自适应宽度（单档 grid-cols-1 全宽）；preset 像素模式分辨率组原本即渲染。
+
+**验证**：tsc/build ✓；真机（CDP ignoreCache reload）：Grok Imagine Video 面板比例组无换算条+清晰度 720P 单档全宽显示；截图 /tmp/s08-p4-batch7.png。
+1 (docs(progress): S08 比例/分辨率分组纪律收口批登记)
