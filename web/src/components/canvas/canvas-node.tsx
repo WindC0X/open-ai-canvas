@@ -322,7 +322,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 style={{
                     background: hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
                     // 固定占位；选中以描边表达（原语语义对齐），避免边框宽度变化造成白边跳动。生成中以旋转渐变环替代（.node-generating-border）。
-                    border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "0" : `1px solid ${isSelected ? theme.node.activeStroke : theme.node.stroke}`,
+                    border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "0" : isSelected ? `1.25px solid ${theme.node.activeBorder}` : `1px solid ${theme.node.stroke}`,
                     // 安静化（DESIGN.md 表面补录）：阴影保持常规档，hover 才升到 hoverShadow。首次空白生成的边框让位给旋转渐变环。
                     boxShadow: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,
                 }}

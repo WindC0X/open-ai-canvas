@@ -388,7 +388,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     </div>
                     {mode !== "text" ? (
                         <>
-                            <span aria-hidden className="h-4 w-px shrink-0" style={{ background: "var(--workspace-border)" }} />
+                            <span aria-hidden className="canvas-node-composer-divider shrink-0" />
                             {/* 问题三(2026-09-10 用户拍板): 参数摘要 pill 本身=设置触发器(带箭头可点开面板),
                                 紧邻模型 pill 靠左; 原右侧孤立 sliders 图标触发器删除。 */}
                             {mode === "image" ? (

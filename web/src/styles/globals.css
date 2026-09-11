@@ -7405,7 +7405,7 @@
     .canvas-settings-roll-row {
         display: grid;
         place-items: center;
-        height: 36px;
+        height: 32px;
         flex: 0 0 auto;
         border: 1px solid transparent;
         border-radius: var(--r-md);
@@ -10264,6 +10264,14 @@
         white-space: nowrap !important;
     }
 
+    /* antd Button 的内容包装 span 默认 block, 会把文本与箭头折成两行 — 强制横向排列 */
+    .canvas-node-composer-settings-trigger > span {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px;
+        white-space: nowrap;
+    }
+
     /* composer 底栏分组分隔符(2026-09-11): 文本色 16% 合成 — 比旧 workspace-border 提亮
        一档但保持低调; 挂在模型|相机、相机|参数、引用|份数之间。 */
     .canvas-node-composer-divider {
@@ -10300,6 +10308,7 @@
         border-radius: var(--r-md) !important;
         background: transparent !important;
         box-shadow: none !important;
+        font-size: var(--fs-tiny) !important;
         font-weight: 400 !important;
     }
     .canvas-node-composer-model .canvas-composer-model-picker:hover,
