@@ -46,7 +46,7 @@ describe("canvas visual contrast", () => {
         // 首次空白生成边框归零，让位给 .node-generating-border 旋转渐变环（S04 同源条件）。
         const source = await Bun.file(new URL("../src/components/canvas/canvas-node.tsx", import.meta.url)).text();
 
-        expect(source).toContain('border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "0" : `1px solid ${isSelected ? theme.node.activeStroke : theme.node.stroke}`');
+        expect(source).toContain('border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "0" : isSelected ? `1.5px solid ${theme.node.activeBorder}` : `1px solid ${theme.node.stroke}`');
         expect(source).not.toContain('border: isComposerNode ? "0" : "1px solid transparent"');
         expect(source).toContain('node-generating-border');
     });

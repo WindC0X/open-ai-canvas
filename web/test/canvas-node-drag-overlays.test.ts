@@ -9,7 +9,9 @@ const selectionControllerSource = readFileSync(resolve(import.meta.dir, "../src/
 describe("canvas node drag overlays", () => {
     test("hides floating editors and selection controls for the whole drag preview", () => {
         expect(projectSource).toContain("const isCanvasNodeMoving = isNodeDragging || Boolean(dragPreview?.nodeIds.size);");
-        expect(projectSource).toContain("dialogNode.type !== CanvasNodeType.Drawing && !selectionBox && !isCanvasNodeMoving");
+        // 拖拽时隐藏浮层编辑器的核心语义; 上游新增 fileUpload/Script/Panorama 排除项, 断言只锁 Drawing 排除与移动门控。
+        expect(projectSource).toContain("dialogNode.type !== CanvasNodeType.Drawing");
+        expect(projectSource).toContain("!selectionBox && !isCanvasNodeMoving");
         expect(projectSource).not.toContain("angleNode?.metadata?.content && !isCanvasNodeMoving");
         expect(projectSource).toContain("emotionNode?.metadata?.content && !isCanvasNodeMoving");
         expect(projectSource).toContain("selectedNodeBounds && !selectionBox && !isCanvasNodeMoving");
