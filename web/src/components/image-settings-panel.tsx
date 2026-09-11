@@ -201,8 +201,10 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     <div className={`grid gap-1.5 ${imageTierChoices.length === 1 ? "grid-cols-1" : imageTierChoices.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                         {imageTierChoices.map((tier) => {
                             const qualityValue = imageQualityForTier(profile, tier) || tier;
+                            // 唯一档且 quality 未声明映射: 该档即恒定生效档, 选中态恒亮(用户实测单档不亮)。
+                            const tierSelected = imageTierChoices.length === 1 && !imageQualityForTier(profile, tier) ? true : quality === qualityValue;
                             return (
-                                <OptionPill key={tier} selected={Boolean(qualityValue) && quality === qualityValue} theme={theme} onClick={() => onConfigChange("quality", qualityValue || quality)}>
+                                <OptionPill key={tier} selected={tierSelected} theme={theme} onClick={() => onConfigChange("quality", qualityValue)}>
                                     {tier.toUpperCase()}
                                 </OptionPill>
                             );
