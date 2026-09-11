@@ -23,11 +23,12 @@ import { persistCanvasMediaPerformanceMode, readCanvasMediaPerformanceMode } fro
 import { summarizeCanvasContext } from "@/lib/canvas/canvas-context-summary";
 import { refreshCanvasCharacterReferenceNodes } from "@/lib/canvas/canvas-character-reference";
 import { useAssetStore } from "@/stores/use-asset-store";
-import { flushCanvasStorePersistence, useCanvasStore } from "@/stores/canvas/use-canvas-store";
+import { CanvasSyncConflictGate } from "@/components/canvas/canvas-sync-conflict-gate";
+import { flushCanvasStorePersistence } from "@/stores/canvas/use-canvas-store";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
-import { App, Button, Popconfirm } from "antd";
+import { App, Button } from "antd";
 import { ArrowLeftRight } from "lucide-react";
 import { AppModal } from "@/components/ui/product/app-modal";
 import { getNodeSpec } from "@/constant/canvas";
@@ -2314,45 +2315,14 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         />
     ) : null;
     if (!projectLoaded && loadError) {
-        const exportLocalCanvas = () => {
-            // 冲突页退路: 把本地版本的完整 JSON 落盘, 之后无论选择哪一侧都不会丢数据。
-            const local = useCanvasStore.getState().projects.find((candidate) => candidate.id === projectId);
-            if (!local) return;
-            const blob = new Blob([JSON.stringify(local, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement("a");
-            anchor.href = url;
-            anchor.download = `canvas-conflict-${projectId}-${Date.now()}.json`;
-            anchor.click();
-            URL.revokeObjectURL(url);
-        };
-        const loadRemote = () => {
-            void loadRemoteAfterDiscard();
-        };
         return (
-            <main className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-                <p role="alert" className="max-w-[420px]">{loadError}</p>
-                {loadConflict ? (
-                    <>
-                        <div className="flex items-center gap-3">
-                            <Button onClick={exportLocalCanvas}>导出本地备份</Button>
-                            <Popconfirm
-                                title="加载云端版本？"
-                                description="本地这份画布（含未同步的修改）将被放弃，云端版本会覆盖本地。可先导出备份。"
-                                okText="加载云端版本"
-                                cancelText="取消"
-                                onConfirm={loadRemote}
-                            >
-                                <Button danger>加载云端版本</Button>
-                            </Popconfirm>
-                        </div>
-                        <Link to="/canvas">返回画布库</Link>
-                    </>
-                ) : (
-                    <Button onClick={retryLoad}>重新加载</Button>
-                )}
-                {!loadConflict && <Link to="/canvas">返回画布库</Link>}
-            </main>
+            <CanvasSyncConflictGate
+                message={loadError}
+                conflict={loadConflict}
+                onRetry={retryLoad}
+                onLoadRemote={() => void loadRemoteAfterDiscard()}
+                projectId={projectId}
+            />
         );
     }
 4ba221bd (feat(web): 画布同步冲突页三选一 - 结构化冲突错误+导出本地JSON+确认后加载云端版本(放弃本地))
