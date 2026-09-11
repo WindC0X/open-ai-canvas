@@ -284,7 +284,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 contain: "layout style",
                 // 几何过渡(flora SIZE_TRANSITION 300ms 语法): 参数联动/完成回填等程序性变化平滑;
                 // 用户手拖手缩(resizeActive/dragOffset)即时跟手。拖拽只动 transform, width 不变, 无需排除。
-                transition: resizeActive ? "none" : "width 300ms cubic-bezier(0.22, 1, 0.36, 1), height 300ms cubic-bezier(0.22, 1, 0.36, 1)",
+                transition: resizeActive ? "none" : "width 420ms cubic-bezier(0.22, 1, 0.36, 1), height 420ms cubic-bezier(0.22, 1, 0.36, 1)", // 用户 2026-09-11: 比例切换过渡放慢(300→420ms)
             }}
             onMouseEnter={() => {
                 setHovered(true);

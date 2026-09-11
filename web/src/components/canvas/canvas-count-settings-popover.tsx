@@ -40,6 +40,11 @@ export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, l
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const { shouldRender, closing } = usePopoverExit(open);
     const count = Math.max(1, Math.min(max, normalizeCount(value)));
+    // 选中即关(用户反馈): 列表点选完成选择后收起面板。
+    const handleSelect = (next: number) => {
+        onChange(next);
+        setOpen(false);
+    };
 
     useEffect(() => {
         if (!shouldRender) return;
@@ -69,7 +74,7 @@ export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, l
         };
     }, [shouldRender]);
 
-    const panel = shouldRender && buttonRect ? <CountSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} value={count} max={max} label={label} onChange={onChange} closing={closing} /> : null;
+    const panel = shouldRender && buttonRect ? <CountSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} value={count} max={max} label={label} onChange={handleSelect} closing={closing} /> : null;
 
     return (
         <>

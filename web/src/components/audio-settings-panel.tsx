@@ -109,15 +109,16 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
 
 function SettingGroup({ title, color, extra, children }: { title: string; color: string; extra?: ReactNode; children: ReactNode }) {
     // 组间距与 image/video 面板同一收敛(space-y-2); 字重对齐语料 P51-030(12px/400)。
+    // 组卡背景只包控件区, 分组名留在外面(用户 2026-09-11)。
     return (
-        <div className="canvas-settings-group space-y-2">
+        <div className="space-y-1.5">
             <div className="flex min-w-0 items-center justify-between gap-2">
                 <div className="text-xs font-normal" style={{ color }}>
                     {title}
                 </div>
                 {extra}
             </div>
-            {children}
+            <div className="canvas-settings-group">{children}</div>
         </div>
     );
 }

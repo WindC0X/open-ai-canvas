@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/base/switch";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { buildImageResolutionOptions, formatImageResolutionSize, imageRatioForSize, imageResolutionChoices, imageResolutionOption, imageSizeForResolution, supportsImageResolutionPresets, type ImageResolutionChoice } from "@/lib/image-resolution-tiers";
-import { imageResolutionUsesQuality } from "@/lib/image-size-presets";
+import { imageResolutionUsesQuality, imageTierAvailable, imageQualityForTier } from "@/lib/image-size-presets";
 import { modelCapabilityConfigFor, normalizeImageValue, type ImageCapabilityConfig } from "@/lib/model-capabilities";
 import { mergedImageCapabilityConfig } from "@/lib/model-selection";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
@@ -124,8 +124,9 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 }}
             >
                 {showTitle ? <div className="text-base font-semibold">图像设置</div> : null}
-                {availableAspects.length ? <div className="canvas-settings-group space-y-2">
+                {availableAspects.length ? <div className="space-y-1.5">
                     <SettingTitle color={theme.node.groupTitle}>比例</SettingTitle>
+                    <div className="canvas-settings-group space-y-2">
                     <div className="grid grid-cols-5 gap-1">
                         {!usesResolutionPicker ? (
                             <button
@@ -175,9 +176,11 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             <Switch size="sm" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
                         </span>
                     </div> : null}
+                    </div>
                 </div> : null}
-                {resolutionChoices.length ? <div className="canvas-settings-group space-y-2">
+                {resolutionChoices.length ? <div className="space-y-1.5">
                     <SettingTitle color={theme.node.groupTitle}>分辨率</SettingTitle>
+                    <div className="canvas-settings-group">
                     <div className={`grid gap-1.5 ${resolutionChoices.length <= 2 ? "grid-cols-2" : resolutionChoices.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
                         {resolutionChoices.map((choice) => (
                             <OptionPill key={choice} selected={choice === "auto" ? activeSize === "auto" : activeResolution?.tier === choice} theme={theme} onClick={() => selectResolution(choice)}>
@@ -185,9 +188,28 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             </OptionPill>
                         ))}
                     </div>
+                    </div>
                 </div> : null}
-                {showQuality && profile.quality.supported && !imageResolutionUsesQuality(profile) ? <div className="canvas-settings-group space-y-2">
+                {/* aspect_ratio+quality 档模型(如 grok2api 后台 1K/2K 分辨率分组): 分辨率组由 quality
+                    承载(imageResolutionUsesQuality), 选择写入 quality; 原质量组(低/中/高)此时不重复渲染。 */}
+                {showQuality && imageResolutionUsesQuality(profile) ? <div className="space-y-1.5">
+                    <SettingTitle color={theme.node.groupTitle}>分辨率</SettingTitle>
+                    <div className="canvas-settings-group">
+                    <div className="grid gap-1.5 grid-cols-3">
+                        {(["1k", "2k", "4k"] as const).filter((tier) => imageTierAvailable(profile, tier)).map((tier) => {
+                            const qualityValue = imageQualityForTier(profile, tier);
+                            return (
+                                <OptionPill key={tier} selected={Boolean(qualityValue) && quality === qualityValue} theme={theme} onClick={() => onConfigChange("quality", qualityValue || quality)}>
+                                    {tier.toUpperCase()}
+                                </OptionPill>
+                            );
+                        })}
+                    </div>
+                    </div>
+                </div> : null}
+                {showQuality && profile.quality.supported && !imageResolutionUsesQuality(profile) ? <div className="space-y-1.5">
                     <SettingTitle color={theme.node.groupTitle}>{isGrokResolutionQuality(profile) ? "分辨率" : "质量"}</SettingTitle>
+                    <div className="canvas-settings-group">
                     <div className={`grid gap-1.5 ${activeQualityOptions.length <= 2 ? "grid-cols-2" : "grid-cols-4"}`}>
 						{activeQualityOptions.map((item) => (
                             <OptionPill key={item.value} selected={quality === item.value} disabled={!bypassPriceGuard && !hasPriceTierForImageSelection(priceTiers, item.value, activeSize)} theme={theme} onClick={() => onConfigChange("quality", item.value)}>
@@ -195,18 +217,19 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             </OptionPill>
                         ))}
                     </div>
-                </div> : null}
-                {showTransparent && profile.transparentBackground.supported ? <div className="canvas-settings-group flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <SettingTitle color={theme.node.groupTitle}>透明背景</SettingTitle>
                     </div>
-                    <span title="是否支持透明背景由当前模型接口决定" onMouseDown={(event) => event.stopPropagation()}>
-                        <Switch
-                            size="sm"
-                            checked={transparentBackground}
-                            onChange={(checked) => onConfigChange("transparentBackground", checked ? "true" : "false")}
-                        />
-                    </span>
+                </div> : null}
+                {showTransparent && profile.transparentBackground.supported ? <div className="space-y-1.5">
+                    <SettingTitle color={theme.node.groupTitle}>透明背景</SettingTitle>
+                    <div className="canvas-settings-group flex items-center justify-end">
+                        <span title="是否支持透明背景由当前模型接口决定" onMouseDown={(event) => event.stopPropagation()}>
+                            <Switch
+                                size="sm"
+                                checked={transparentBackground}
+                                onChange={(checked) => onConfigChange("transparentBackground", checked ? "true" : "false")}
+                            />
+                        </span>
+                    </div>
                 </div> : null}
             </div>
         </ImageSettingsTheme>
