@@ -10257,7 +10257,8 @@
         border-radius: var(--r-md) !important;
         padding-inline: var(--space-2) !important;
         box-shadow: none !important;
-        font-size: var(--fs-tiny) !important;
+        /* 2026-09-11 用户指令: 三按钮按主题基准 13px 统一(原 var(--fs-tiny)=10px 过小) */
+        font-size: 13px !important;
         font-weight: 400 !important;
         /* 文本+箭头强制单行(2026-09-11 用户反馈: 箭头折行致文字偏上) */
         flex-wrap: nowrap !important;
@@ -10308,7 +10309,7 @@
         border-radius: var(--r-md) !important;
         background: transparent !important;
         box-shadow: none !important;
-        font-size: var(--fs-tiny) !important;
+        font-size: 13px !important;
         font-weight: 400 !important;
     }
     .canvas-node-composer-model .canvas-composer-model-picker:hover,
