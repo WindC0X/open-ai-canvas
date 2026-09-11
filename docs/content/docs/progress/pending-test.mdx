@@ -2522,4 +2522,20 @@ f (docs(progress): S08 自适应诚实渲染/透明背景单行批登记)
 ### S08 问题四轮·单档恒选中/归一豁免批（用户截图复批后）
 
 **用户问题与修复（b0a2194）**：Grok Imagine Image Edit 分辨率组单档 1K 无选中态 → 双根因：①写入 quality="1k" 被 `normalizeImageValue` 归一弹回 default（quality.values 漏配档位）→ 选择不持久；②初始 quality=default 不等于档名 → selected 恒假。修复：归一加 presets tier 豁免（写 tier 名且 size.presets 含该 tier 时保留，grok-image 发送链路 normalizeGrokImageResolution 消费）；面板单档（imageTierChoices.length===1 且 quality 无映射）选中态恒亮（唯一档即生效档）。**验证**：tsc/build ✓；真机 video 面板单档 720P 全宽+selected=true（用户清画布重建后 image 节点暂缺，image 侧为同构三元逻辑，待用户复验）。
+
 b (docs(progress): S08 单档恒选中/归一豁免批登记)
+
+### S08 问题一轮·L2 行点击根修批（幽灵浮层截获）
+
+**根因链（2026-09-11 实测定案，推翻此前 hover-gap 单因假设）**：L2 flyout 行点击命中的是**第二个 ModelPicker 实例**残留的透明幽灵 antd Popover——composer 关闭/换节点时其内部曾打开的模型菜单 open 状态跨实例残留，rc-motion enter 动画在后台 tab（rAF 节流）冻结于 prepare 帧，呈现 `opacity:0 + pointer-events:auto + zIndex 1200` 的可交互透明层，覆盖画布点击落点截获事件（实锤数据：`elementsFromPoint(579,727)` 命中链 100% 落在幽灵层行上）。非确定复现=幽灵层存在与否+覆盖区域相关。
+
+**修复（四层防御）**：
+1. globals.css：antd 浮层 zoom-big/fade/slide-up/move-up 动画过渡态（enter/leave 的 prepare/start/active）全局 `pointer-events:none`——冻结态不可交互，即现幽灵也挡不住点击；
+2. project.tsx：`CanvasNodePromptPanel`/`CanvasConfigComposer` 按 `key={panelNode.id}` 强重建——换节点时 ModelPicker open 状态不再跨节点残留（同时消除面板 state 串扰）；
+3. canvas-prompt-optimizer-drawer.tsx：Popover `destroyOnHidden`——composer 关闭即卸载 children 内部浮层；
+4. model-picker.tsx：①flyout portal 挂载点 body→#root（React 19 委托派发最可靠路径，fixed 定位语义不变）；②`setPickerOpen` 新增 flyoutPointer 拦截——antd useWinClick 在 mousedown 捕获阶段对 flyout 行点击请求关闭（flyout 不在其 popupEle 判定内），放行会让受控 flush 在行 handler 派发前分离 fiber → "只关不选"；现按 pointerdown 落点标记拦截。
+
+**真机验收（CDP Input.dispatchMouseEvent 真实指针，tab visible）**：Grok2Api flyout 点 Image Edit → composer 显示切换+flyout 关闭+菜单 expanded=false（无残留/重开）；反向点 Image 2.0 双向切换稳定；换节点后 popover 总数 0 无幽灵、新节点菜单开/Esc 关正常；L1 直出行选择此前已真机过。诊断探针已清理。
+
+**连带收益**：解释了此前多次"L2 修复真机无效/复现非确定"——幽灵层存在性随操作历史变化；enter-prepare 冻结成因（后台 tab rAF 节流）同时是 handoff 记载的 leave 永不完成问题的姊妹症状。
+5 (docs(progress): S08 问题一轮登记 - L2 行点击幽灵浮层根修批)
