@@ -27,6 +27,43 @@ let remoteOperationTail: Promise<void> = Promise.resolve();
 let subscriptionsInstalled = false;
 let acknowledgedAssets = new Map<string, Asset>();
 let acknowledgedProjects = new Map<string, CanvasProject>();
+// 同步水位: "最后一次确认与远端一致"的 updatedAt(按用户持久化到 localStorage)。
+// 会话内基线(acknowledged*)随进程消失, 重启后会把上一会话未同步成功的本地修改误认作"已同步基线",
+// adopt 远端时静默覆盖丢失。水位跨会话存活, 是唯一可靠的"本地是否落后于上次确认同步点"判据。
+// 服务端 upsert 原样存储客户端 updatedAt(backend/internal/service/user_data.go parseClientTime),
+// 因此"同步成功"必然使两侧 updatedAt 相同, 水位对比无时钟歧义。
+let watermarkProjects = new Map<string, string>();
+let watermarkAssets = new Map<string, string>();
+
+function watermarkStorageKey(userId: string) {
+    return `canvas-user-data-sync-watermark:${userId}`;
+}
+
+function loadWatermarks(userId: string) {
+    watermarkProjects = new Map();
+    watermarkAssets = new Map();
+    try {
+        const raw = localStorage.getItem(watermarkStorageKey(userId));
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { p?: Record<string, string>; a?: Record<string, string> };
+        watermarkProjects = new Map(Object.entries(parsed.p ?? {}));
+        watermarkAssets = new Map(Object.entries(parsed.a ?? {}));
+    } catch {
+        // 水位缺失时退回旧行为: 无法识别跨会话未同步修改(不再比旧实现更差), 下次同步成功即重建水位。
+    }
+}
+
+function persistWatermarks() {
+    if (!activeRemoteUserId) return;
+    try {
+        localStorage.setItem(watermarkStorageKey(activeRemoteUserId), JSON.stringify({
+            p: Object.fromEntries(watermarkProjects),
+            a: Object.fromEntries(watermarkAssets),
+        }));
+    } catch {
+        // localStorage 配额满等场景忽略: 水位落后只导致保守冲突(fail-closed), 不会静默覆盖。
+    }
+}
 let incrementalSession = false;
 let sessionEpoch = 0;
 const verifiedProjects = new Set<string>();
@@ -37,6 +74,7 @@ export async function initializeRemoteUserDataSession(userId: string) {
     await withRemoteUserDataSyncExclusive(async () => {
         resetRemoteUserDataSync();
         activeRemoteUserId = userId;
+        loadWatermarks(userId);
         incrementalSession = true;
         acknowledgedProjects = new Map(useCanvasStore.getState().projects.map((project) => [project.id, project]));
         acknowledgedAssets = new Map(useAssetStore.getState().assets.map((asset) => [asset.id, asset]));
@@ -63,7 +101,17 @@ export async function loadCanvasProjectForEditing(id: string) {
             verifiedProjects.add(id);
             return current;
         }
+        // 本地在"上次确认同步"之后修改过(含上一会话同步失败的残留)时, 不得静默采纳远端覆盖。
+        // 远端在水位之后也变了 → 双向分歧, 抛冲突; 仅本地领先 → 保留本地, 交给既有防抖同步提交。
+        const syncWatermark = watermarkProjects.get(id);
+        if (current && syncWatermark && Date.parse(current.updatedAt) !== Date.parse(syncWatermark)) {
+            if (Date.parse(project.updatedAt) !== Date.parse(syncWatermark)) throw new Error("画布已在其他端修改，请先导出本地修改再重新加载");
+            verifiedProjects.add(id);
+            return current;
+        }
         acknowledgedProjects.set(id, project);
+        watermarkProjects.set(id, project.updatedAt);
+        persistWatermarks();
         verifiedProjects.add(id);
         useCanvasStore.setState((state) => ({ projects: [...state.projects.filter((candidate) => candidate.id !== id), project] }));
         return project;
@@ -143,11 +191,16 @@ function acceptRemoteAssets(remoteAssets: Asset[]) {
     const current = new Map(useAssetStore.getState().assets.map((asset) => [asset.id, asset]));
     for (const asset of assets) {
         const local = current.get(asset.id);
+        // 跨会话残留的未同步修改(本地 updatedAt 偏离水位)优先保护: 不采纳远端, 保留本地待同步。
+        const assetWatermark = watermarkAssets.get(asset.id);
+        if (local && assetWatermark && Date.parse(local.updatedAt) !== Date.parse(assetWatermark)) continue;
         if (local && !sameEntitySnapshot(acknowledgedAssets.get(asset.id), local)) continue;
         acknowledgedAssets.set(asset.id, asset);
+        watermarkAssets.set(asset.id, asset.updatedAt);
         verifiedAssets.add(asset.id);
         current.set(asset.id, asset);
     }
+    persistWatermarks();
     useAssetStore.setState({ assets: [...current.values()] });
 }
 
@@ -239,6 +292,8 @@ export function resetRemoteUserDataSync() {
     remoteUserDataPhase = "inactive";
     acknowledgedAssets.clear();
     acknowledgedProjects.clear();
+    watermarkProjects = new Map();
+    watermarkAssets = new Map();
     if (syncTimer) {
         window.clearTimeout(syncTimer);
         syncTimer = null;
@@ -508,6 +563,7 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>) {
         const remotePayload = await ensureRemoteResourceReferences(assetForRemoteSync(source), uploaded);
         await upsertRemoteAsset(remotePayload);
         acknowledgedAssets.set(source.id, source);
+        watermarkAssets.set(source.id, source.updatedAt);
         verifiedAssets.add(source.id);
     }
     for (const source of dirtyProjects) {
@@ -537,6 +593,7 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>) {
             }
             await upsertRemoteCanvasProject(sanitizeCanvasProjectForRemoteSync(remotePayload));
             acknowledgedProjects.set(source.id, source);
+            watermarkProjects.set(source.id, source.updatedAt);
             verifiedProjects.add(source.id);
             if (total > 0) useSyncProgressStore.getState().setProjectProgress(source.id, null);
         } catch (error) {
