@@ -41,7 +41,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     // 互斥广播关闭必须同步外部镜像(project.tsx 的 nodeImageSettingsOpen gate 节点工具栏),
-    // 走裸 setOpen 会绕过 updateOpen 的 onOpenChange 造成工具栏永久隐藏(周审 P1-1, b3a78c3 漏网点)。
+    // 走裸 setOpen 会绕过 updateOpen 的 onOpenChange, 镜像残留 true 会让节点工具栏被隐藏。
     useExclusiveSettings("image-settings", open, (next) => {
         if (next) {
             setOpen(true);

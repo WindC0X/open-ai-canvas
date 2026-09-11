@@ -880,8 +880,8 @@ export function CanvasAssistantPanel({
     useEffect(() => {
         if (!cinematicEntry) return;
         setView("chat");
-        // 入口确定性增强(周审 P1-2): 之前只切视图, 输入框为空且系统提示词无 cinematic 引导,
-        // 模型可能永远不调用 canvas_create_cinematic_session。预填种子文案给出明确意图起点(不自动发送)。
+        // 入口只切视图会让空输入框失去明确意图起点, 模型可能不调用 canvas_create_cinematic_session;
+        // 预填种子文案(不自动发送)保证影视会话的确定性触发。
         setPrompt((prev) => prev || "帮我创作一部影视短剧：题材、主要角色和核心冲突是——");
         onCinematicEntryConsumed?.();
     }, [cinematicEntry, onCinematicEntryConsumed]);

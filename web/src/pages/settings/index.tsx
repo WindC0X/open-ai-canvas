@@ -57,8 +57,8 @@ export default function SettingsPage() {
 
     const isVisibleConfigSection = (value: string | null): value is ConfigSectionKey => isConfigSection(value) && visibleConfigSections.some((section) => section.key === value);
 
-    // 注: app-user-overlays body class 由 UserLayout 统一管理(本页渲染在 UserLayout 的 Outlet 内)。
-    // 此处曾重复 add/remove — 从 /settings 切走时会把布局依赖的 class 摘掉且无法恢复(周审 P1-5), 已删。
+    // 注: app-user-overlays body class 由 UserLayout 统一管理(本页渲染在 UserLayout 的 Outlet 内);
+    // 页面内不得重复 add/remove, 否则从本页切走时会把布局依赖的 class 摘掉且无法恢复。
 
     useEffect(() => {
         if (isVisibleConfigSection(requestedSection)) {
