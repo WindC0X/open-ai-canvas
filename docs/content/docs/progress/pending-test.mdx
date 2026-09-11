@@ -2492,4 +2492,12 @@ d (docs(progress): S08 问题四质感层补全登记 - 玻璃surface/40px命中
 **用户问题与修复（1171be6）**：①**aspect_ratio 模型后台 1K/2K 分辨率分组在面板不可见** → 根因：面板分辨率组只在 `supportsImageResolutionPresets`（size 像素模式）渲染，而 aspect_ratio+quality 档模型（grok2api：size→aspect_ratio、quality→resolution 1k/2k）的质量组又被 `!imageResolutionUsesQuality` 抑制——两头全空。修复：面板新增 aspect_ratio+quality 档分支，分辨率组 1K/2K/4K 由 `imageTierAvailable`/`imageQualityForTier` 承载（选择写 config.quality，与发送链路 quality→resolution 一致），真机断言 titles=[比例,分辨率]、1K/2K 在且 1K 选中。②份数列表选中后不关面板 → 父级 onChange 包装 `handleSelect`（onChange 后 setOpen(false)），真机断言点 3 后面板关闭且 pill 更新"3 份"。③组卡背景把分组名框进去 → 三面板分组名（SettingTitle/SettingGroup title）全部移出 `.canvas-settings-group` 卡外（标题+卡片双层结构 space-y-1.5），真机断言 titleInsideCard=0。④比例切换过渡偏快 → canvas-node 节点尺寸 transition 300→420ms（同曲线）。
 
 **验证**：tsc/build ✓；真机（CDP ignoreCache reload，Grok Imagine Image 2.0 节点）：分辨率组 1K/2K 可见+选中态、比例/分辨率标题在卡外、份数点选 3 即关面板+pill 更新；截图 /tmp/s08-p4-batch5.png。
+
 e (docs(progress): S08 分辨率组/份数即关/标题出卡批登记)
+
+### S08 问题四轮·自适应诚实渲染/透明背景单行批（用户 3 图复批后）
+
+**用户问题与修复（a1c1fd9）**：①Grok Imagine Image 2.0 比例组"自适应"无法选择 → 根因：模型 values 未声明 auto 档，点自适应写 size=auto 后 normalize 立即回落 default（永不选中）。按能力诚实渲染原则：自适应格只在 `profile.size.values.includes("auto")` 时渲染（Gpt Image 2 走分辨率组"自动"档语义，Grok 这类无 auto 档模型不再显示该格）。②单控件组（透明背景）标题与开关分两行 → 用户拍板标题与开关共一行（去掉独占行卡）。③image.png 节点点击不出 composer → **上游特性而非缺陷**：`isCanvasImageSourceNode`（canvas-image-source.ts）把"已有媒体内容但无生成配置"的图片节点定义为输入素材，不提供原地生成入口（渲染条件显式排除），素材编辑走节点浮动工具栏（局部重绘/转换等动作建新节点）。
+
+**验证**：tsc/build ✓；真机（CDP ignoreCache reload）：Gpt Image 2 面板 10 比例无自适应格+透明背景单行（标题左开关右）；截图 /tmp/s08-p4-batch6.png。
+f (docs(progress): S08 自适应诚实渲染/透明背景单行批登记)
