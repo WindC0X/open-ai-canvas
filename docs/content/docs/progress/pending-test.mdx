@@ -2524,7 +2524,21 @@ f (docs(progress): S08 自适应诚实渲染/透明背景单行批登记)
 **用户问题与修复（b0a2194）**：Grok Imagine Image Edit 分辨率组单档 1K 无选中态 → 双根因：①写入 quality="1k" 被 `normalizeImageValue` 归一弹回 default（quality.values 漏配档位）→ 选择不持久；②初始 quality=default 不等于档名 → selected 恒假。修复：归一加 presets tier 豁免（写 tier 名且 size.presets 含该 tier 时保留，grok-image 发送链路 normalizeGrokImageResolution 消费）；面板单档（imageTierChoices.length===1 且 quality 无映射）选中态恒亮（唯一档即生效档）。**验证**：tsc/build ✓；真机 video 面板单档 720P 全宽+selected=true（用户清画布重建后 image 节点暂缺，image 侧为同构三元逻辑，待用户复验）。
 
 
+
 b (docs(progress): S08 单档恒选中/归一豁免批登记)
+
+### S08 #18 逐面验收批（rebase 后全量回归 + 面 7-9 首验）
+
+**面 1-6 回归（rebase 后关键面）**：①图像 footer（模型 13px/参数摘要/份数 x1/ghost 透明）②文本 footer+份数气泡（15 行/可见 4/136px/行 32）③音频 footer+面板（音色>语速>格式/12px 声音指令）④模型菜单 L1（玻璃 .9+blur16+r16/行高 53）⑤L2 flyout（384px/徽章诚实声明回归：Image 2.0 单 T chip、Image Edit T+image）⑥Esc 关闭无残留（ghost=0）。**过程中发现并修复 appear 防线缺口**（见独立 commit）：首开 appear-prepare 冻结态 pe:none 补入。
+
+**面 7 视频**：footer 摘要 720P·16:9·5s + x1 份数；面板玻璃面/320 宽/6 比例卡/时长步进滑块 4-12s 当前值亮。
+
+**面 8 default 变体消费者**：mask-edit-dialog（局部重绘入口）Modal 打开、内部 ModelPicker 菜单 default variant 玻璃面正常（.9/blur16/384/2 行）、Esc 双层关闭干净。
+
+**面 9 亮色主题**：面板白玻璃 rgba(255,255,255,.94)/边框 rgba(15,23,42,.08)/选项暗字 rgba(0,0,0,.55) 透明底，dark 恢复确认。
+
+**测试环境坑（复现两次）**：fiber onClick 点空模型配置节点的模型菜单触发 onMissingConfig 导航 /settings?section=channels&continue=1 —— 恢复 history.pushState 回画布 URL + PopStateEvent。
+e (docs(progress): S08 #18 逐面验收批登记 - rebase后回归+面7-9首验)
 
 ### S08 底栏质感收尾批（字号统一/分隔符/折行根修/份数行高/选中边框）
 
