@@ -2484,4 +2484,12 @@ d (docs(progress): S08 问题四质感层补全登记 - 玻璃surface/40px命中
 **用户问题与修复（adc81f5）**：①份数面板"自定义行不保留"+列表限高 4 行 → 删自定义行（含 customOpen/commitCustom 状态与 PencilLine 导入），列表 maxHeight 4*32+8=136px、面板自然高 148px，其余滚动查看；15 行全量列表（1..max）。②参数面板默认出现滚动条 → image/video 弹层 maxHeight 420→560（与模型菜单同档），组卡 padding 10→8 压内容高，真机断言 scrollH=clientH（无溢出）。③16 倍开关溢出组卡右缘 → 自定义行 W/H 76→68px（行宽预算 284→268 < 280 内容宽）。④**比例档"默认全、切模型回来不全"** → 根因：aspectOptions 静态表缺 4:5/5:4 两档——size 模式模型（Gpt Image 2）走 ratioParts 动态 fallback 全量 10 档，aspect_ratio 模式模型（Grok Imagine Image 2.0）走 standard 匹配分支只能匹配到表内 8 档；表补 4:5(1024x1280)/5:4(1280x1024) 后真机断言 ratioCount=10（1:1,3:2,2:3,4:3,3:4,4:5,5:4,16:9,21:9,9:16）。⑤渠道能力与参数配置（后台"尺寸参数 aspect_ratio 模式+分辨率分组"）→ 前端面板已按 capabilityConfig 消费该配置（本次 4:5/5:4 即此链路的档位补全；分组分辨率=usesResolutionPicker 分支已有）。
 
 **验证**：tsc/build ✓；真机（CDP ignoreCache reload）：比例 10 档全显、面板无默认滚动条（scrollH=clientH=200 当前节点精简 profile）、份数面板 15 行/无自定义行/listMaxH 136/面板 148px/无双滚动条；截图 /tmp/s08-p4-batch4.png。
+
 6 (docs(progress): S08 份数限高/比例档补全/默认无滚动批登记)
+
+### S08 问题四轮·分辨率组/份数即关/标题出卡批（用户 4 图复批后）
+
+**用户问题与修复（1171be6）**：①**aspect_ratio 模型后台 1K/2K 分辨率分组在面板不可见** → 根因：面板分辨率组只在 `supportsImageResolutionPresets`（size 像素模式）渲染，而 aspect_ratio+quality 档模型（grok2api：size→aspect_ratio、quality→resolution 1k/2k）的质量组又被 `!imageResolutionUsesQuality` 抑制——两头全空。修复：面板新增 aspect_ratio+quality 档分支，分辨率组 1K/2K/4K 由 `imageTierAvailable`/`imageQualityForTier` 承载（选择写 config.quality，与发送链路 quality→resolution 一致），真机断言 titles=[比例,分辨率]、1K/2K 在且 1K 选中。②份数列表选中后不关面板 → 父级 onChange 包装 `handleSelect`（onChange 后 setOpen(false)），真机断言点 3 后面板关闭且 pill 更新"3 份"。③组卡背景把分组名框进去 → 三面板分组名（SettingTitle/SettingGroup title）全部移出 `.canvas-settings-group` 卡外（标题+卡片双层结构 space-y-1.5），真机断言 titleInsideCard=0。④比例切换过渡偏快 → canvas-node 节点尺寸 transition 300→420ms（同曲线）。
+
+**验证**：tsc/build ✓；真机（CDP ignoreCache reload，Grok Imagine Image 2.0 节点）：分辨率组 1K/2K 可见+选中态、比例/分辨率标题在卡外、份数点选 3 即关面板+pill 更新；截图 /tmp/s08-p4-batch5.png。
+e (docs(progress): S08 分辨率组/份数即关/标题出卡批登记)
