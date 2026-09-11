@@ -72,6 +72,8 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
         const closeOnCanvasWheel = (event: WheelEvent) => {
             if (event.target instanceof Node && panelRef.current?.contains(event.target)) return;
             setOpen(false);
+            // wheel 关闭同样要同步 project.tsx 的 nodeImageSettingsOpen, 否则节点工具栏被残留的 open 状态永久隐藏。
+            onOpenChange?.(false);
         };
         window.addEventListener("wheel", closeOnCanvasWheel, { capture: true, passive: true });
         return () => {
