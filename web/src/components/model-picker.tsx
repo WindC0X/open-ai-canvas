@@ -101,7 +101,10 @@ export function ModelPicker({
     };
     const scheduleFlyoutClose = () => {
         if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);
-        flyoutCloseTimer.current = window.setTimeout(() => setFlyoutGroup(null), 160);
+        // 关闭容差 280ms(原 160): 真实用户从 L1 行移向右侧 flyout 要穿过 8px 定位 gap,
+        // 慢移/犹豫超过旧容差时 flyout 已卸载, 随后点击落空 —— 表现即 "L2 行点击不选择"
+        // (复现非确定的根因: 与鼠标速度相关; L1 直出行常驻无此窗, 故 L1 恒可选)。
+        flyoutCloseTimer.current = window.setTimeout(() => setFlyoutGroup(null), 280);
     };
     const cancelFlyoutClose = () => {
         if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);

@@ -7772,6 +7772,21 @@
         border-color: rgba(17, 24, 39, 0.06);
     }
 
+    /* hover 桥(L2 缺陷修复的一半): flyout 定位在 L1 行右侧 +8px, 行与 flyout 之间的真空隙
+       在鼠标慢移(>旧关闭容差)时会先卸载 flyout → 点击落空 = "L2 行点击不选择"(非确定复现
+       的根因, 与鼠标速度相关)。桥向左延伸 12px 覆盖 gap, 鼠标穿过时仍在 flyout hover 域内
+       (onMouseEnter → cancelFlyoutClose), 视觉零变化。
+       定位用 absolute(flyout 自身是 fixed = containing block): fixed 在 Chromium 不受
+       backdrop-filter containing block 影响时相对视口, 桥会跑到视口左缘失效(CDP 实测)。 */
+    .canvas-model-picker-flyout::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -12px;
+        width: 12px;
+        height: 100%;
+    }
+
     /* 媒体类型徽章: flora live = 18x18 透明底 + 1px 描边圆 + 图标 muted 灰(低对比, 非白亮);
        flora 实测(2026-09-09 截图): 描边与图标都是暗灰、明显低于正文对比。
        用长手属性: Tailwind preflight 的 * { border: 0 } 在 @layer base, shorthand+嵌套@supports
