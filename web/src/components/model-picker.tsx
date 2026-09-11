@@ -235,23 +235,32 @@ export function ModelPicker({
     useEffect(() => {
         if (!open) return;
         // 画布拖拽从 pointerdown 开始，须在捕获阶段关闭 Portal 菜单，避免菜单与触发器分离。
+        // flyoutPointer 标记: pointerdown 落点在 flyout 内时置位(pointerup 清除), 供
+        // setPickerOpen 拦截 antd useWinClick 的同步关闭 —— antd 在 mousedown 捕获阶段调
+        // onOpenChange(false), 此时行 React handler 尚未派发, 受控 flush 会让行 fiber 在
+        // 派发前分离 → L2 行点击"只关不选"(2026-09-11 实测)。
         const closeOnOutsidePointer = (event: PointerEvent) => {
             const target = event.target;
             if (!(target instanceof Node)) return;
-            // flyout portal 挂在 body(不在 menuRef 子树内), 不纳入判定会被本关闭器当外部点击同步关掉,
+            // flyout portal 不在 menuRef 子树内, 不纳入判定会被本关闭器当外部点击同步关掉,
             // 导致 flyout 行 mousedown 在事件派发中途 fiber 分离, 行内 onChange 选择丢失(2026-09-09 实测)。
-            if (triggerRef.current?.contains(target) || menuRef.current?.contains(target) || flyoutRef.current?.contains(target)) return;
+            const inFlyout = flyoutRef.current?.contains(target) ?? false;
+            flyoutPointerRef.current = inFlyout;
+            if (triggerRef.current?.contains(target) || menuRef.current?.contains(target) || inFlyout) return;
             setOpen(false);
         };
+        const clearFlyoutPointer = () => { flyoutPointerRef.current = false; };
         // 画布 wheel 缩放/平移移动触发器锚点, antd Popover 不跟随 transform —— 手势打断直接关(修漂移)。
         const closeOnCanvasWheel = (event: WheelEvent) => {
             if ((event.target instanceof Node && menuRef.current?.contains(event.target)) || (event.target instanceof Node && flyoutRef.current?.contains(event.target))) return;
             setOpen(false);
         };
         window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+        window.addEventListener("pointerup", clearFlyoutPointer, true);
         window.addEventListener("wheel", closeOnCanvasWheel, { capture: true, passive: true });
         return () => {
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+            window.removeEventListener("pointerup", clearFlyoutPointer, true);
             window.removeEventListener("wheel", closeOnCanvasWheel, { capture: true });
         };
     }, [open]);
@@ -269,11 +278,17 @@ export function ModelPicker({
     // flyout 行 mousedown 的时间戳: 该时间窗内忽略 antd 的"外部点击关闭"。
     // 否则 mousedown 关菜单→行卸载→落空 click 掉到触发器→菜单重开(选择后残留)。
     const lastFlyoutMouseDownRef = useRef(0);
+    // pointerdown 落点是否在 flyout 内: setPickerOpen 据此拦截 antd useWinClick 的同步关闭,
+    // 保证 flyout 行 mousedown 的 React 派发不被受控 flush 打断(2026-09-11 issue-1 根修)。
+    const flyoutPointerRef = useRef(false);
     const setPickerOpen = (nextOpen: boolean) => {
         // 行 mousedown 后的时间窗内忽略 antd 的开/关切换:
         // mousedown 即选择+关菜单 → 行因选中/置顶重排被 detach → 落空 click 掉到触发器
         // 会请求 reopen(true) 造成"选择后残留"的镜像缺陷, 双向都挡。
         if (Date.now() - lastFlyoutMouseDownRef.current < 400) return;
+        // antd useWinClick 对 flyout 行点击会请求关闭(flyout 不在其 popupEle 判定内):
+        // 此关闭若放行, 受控 flush 会在行 mousedown 派发前分离行 fiber → 只关不选。拦截之。
+        if (!nextOpen && flyoutPointerRef.current) return;
         if (nextOpen && !options.length && config.channelMode === "local") onMissingConfig?.();
 7e1a15f6 (fix(canvas): S08 模型菜单 flora live 值对齐 - .9玻璃/徽章白.1/媒体描边圆/黑上黑根因(var顺序)/flyout选择残留修复)
         if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
@@ -655,7 +670,10 @@ export function ModelPicker({
                 // 被 React 跳过 → 只关不选(2026-09-09 rowHit 实测)。仅由 flyoutGroup 驱动时行
                 // handler 正常跑完: onChange + setFlyoutGroup(null) 主动卸载; Esc/外部点击等
                 // 其它关闭路径由上方 !open effect 清 flyoutGroup 兑底。 */}
-                document.body,
+                // 挂载点 body → #root(2026-09-11 issue-1 根修): React 19 委托 listener 在
+                // createRoot container 上派发最可靠; #root 顶层无 transform 祖先,
+                // position:fixed 定位语义不变, z-index 1200 已在 CSS 声明。
+                document.getElementById("root") as HTMLElement,
             )}
         </div>
     );

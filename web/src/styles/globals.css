@@ -7319,6 +7319,37 @@
         display: none !important;
     }
 
+    /* rc-motion 动画过渡态禁交互(2026-09-11 issue-1 根因防线):
+       后台 tab 下 rAF 被节流, enter-prepare 冻结时元素 opacity:0 但 pointer-events:auto,
+       形成透明幽灵浮层截获点击(模型菜单 L2 行"点击不选择"的真因)。
+       过渡态仅存在 <200ms, 禁交互无感知; 冻结时防止幽灵层挡住真实浮层。 */
+    .ant-zoom-big-enter-prepare,
+    .ant-zoom-big-enter-start,
+    .ant-zoom-big-enter-active,
+    .ant-zoom-big-leave-prepare,
+    .ant-zoom-big-leave-start,
+    .ant-zoom-big-leave-active,
+    .ant-fade-enter-prepare,
+    .ant-fade-enter-start,
+    .ant-fade-enter-active,
+    .ant-fade-leave-prepare,
+    .ant-fade-leave-start,
+    .ant-fade-leave-active,
+    .ant-slide-up-enter-prepare,
+    .ant-slide-up-enter-start,
+    .ant-slide-up-enter-active,
+    .ant-slide-up-leave-prepare,
+    .ant-slide-up-leave-start,
+    .ant-slide-up-leave-active,
+    .ant-move-up-enter-prepare,
+    .ant-move-up-enter-start,
+    .ant-move-up-enter-active,
+    .ant-move-up-leave-prepare,
+    .ant-move-up-leave-start,
+    .ant-move-up-leave-active {
+        pointer-events: none !important;
+    }
+
     /* 模型菜单专用 surface: flora live 权威值(2026-09-07 flora 现场抓取)
        bg rgba(32,32,32,.9) + backdrop blur16 + border 白.05 + radius16 + 无阴影。
        (9263e82 曾误判"flora 实心"砍掉玻璃感, 与 corpus flora-canvas-analysis.md:233

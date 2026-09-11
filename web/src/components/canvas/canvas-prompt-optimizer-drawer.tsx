@@ -758,6 +758,10 @@ export function CanvasPromptOptimizerDrawer({ open, children, prompt, generation
             autoAdjustOverflow
             motion={{ motionName: "" }}
             styles={{ root: popoverRootStyle }}
+            /* 关闭即卸载 children(2026-09-11 issue-1 根修): composer 关闭后若内部 ModelPicker
+               菜单仍 open(独立 portal 挂 body), 会残留 opacity:0 + pointer-events:auto 的幽灵层
+               截获后续点击; 卸载 children 使内部浮层随 composer 一并销毁。 */
+            destroyOnHidden
             content={content}
             classNames={{ root: "canvas-prompt-optimizer-popover", container: "canvas-prompt-optimizer-popover-surface", content: "canvas-prompt-optimizer-popover-content" }}
         >

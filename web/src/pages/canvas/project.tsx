@@ -1976,6 +1976,8 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
             if (panelNode.type === CanvasNodeType.Script || panelNode.type === CanvasNodeType.Drawing) return null;
             return panelNode.type === CanvasNodeType.Config ? (
                 <CanvasConfigComposer
+                    /* 同 CanvasNodePromptPanel: 按节点强重建, 防 state 跨节点串扰(2026-09-11)。 */
+                    key={panelNode.id}
                     value={panelNode.metadata?.composerContent ?? panelNode.metadata?.prompt ?? ""}
                     inputs={configInputsById.get(panelNode.id) || []}
                     skillReferences={skillMentionReferences}
@@ -1989,6 +1991,10 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
             ) : (
                 <CanvasNodePromptPanel
                     projectId={projectId}
+                    /* 按节点强重建(issue-1 根修 2026-09-11): 复用实例会让旧节点曾打开的
+                       ModelPicker 菜单 open state 跨节点残留(enter 动画在 rAF 节流下冻结成
+                       opacity:0 可交互幽灵层, 截获后续模型菜单点击); key 换节点即卸载重建。 */
+                    key={panelNode.id}
                     node={panelNode}
                     isRunning={isCanvasNodeGenerating(panelNode, runningNodeId)}
                     mentionReferences={[
