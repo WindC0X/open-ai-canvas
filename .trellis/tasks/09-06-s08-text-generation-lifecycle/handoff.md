@@ -57,7 +57,7 @@
 1. ~~问题二 模型行可接受类型~~ **已完成+真机验收**（49f626b）：渠道模型媒体徽章按 capabilityConfig.references 诚实声明；回归面①⑤真机过、②③推演级标注、④归入问题一复验。**教训：dev server 在 WSL /mnt 下 watch 失灵——改码后必须 curl dev 模块确认新旧再浏览器验收；端口残留子进程须 pkill -f vite**。
 2. ~~问题三 composer 参数 pill 合一~~ **已完成+真机验收**（4360bfb）：摘要 pill=触发器（带 Settings2 前缀）紧邻模型 pill 靠左；右组只剩份数+生成；孤立 sliders 触发器删除；image 摘要 pill 点开面板真机验证通过。
 3. ~~问题四 参数面板 UI/UX 重设计~~ **已完成+真机验收**（a1f9fbd/71c445a/e5a31a9/d69e948/07a3a3a + 8867f50 质感层补全）：设计规格 v2（四 skill 综合，先设计后实施）→ 份数独立 A 形态（video/audio UI 先行链路后补）→ 三面板比例/音色置首+像素换算条+能力裁剪+组标题对齐语料 → 图像比例网格标准8比例两行封顶（真机发现 27+ 像素平铺缺陷后二轮收敛）→ **质感层**（8867f50）：统一玻璃 surface/开合锚触发器/OptionPill 收敛共享 → **密度+滚动条+去重批**（3b1a56a）：面板 320/选项 32px/双行卡 44px/份数列表 5 起去重+scrollTop 滚当前值/滚动条并入模型菜单权威规则（thin-scrollbar 标准属性压制 webkit 定制的坑）→ **互斥批**（1ba0cbe）：use-exclusive-settings 事件总线，任一气泡开广播关其余 → **亮度语义批**（b361f32）：选中弃白边框改亮度（内部 .12 提亮+字纯白），未选中透明暗字，hover 字亮内部不亮；时长改步进刻度滑块（标题行当前值+2px 细轨+可点里程碑标签，去输入框）；**antd/dist/reset.css unlayered button{color/font-size:inherit} 压制一切 @layer 规则**——选项状态机 !important+受压 button 字号 inline 化（CDP getMatchedStyles 实锤的坑，勿忘）。pending-test.mdx 已登记四条。
-4. 问题一：L2 行点击不选择——真机复现确认 A 路线未根治；复现非确定，勿凭推测改码；修后须附 L2 flyout 徽章真机复验（问题二④回归项）。
+4. 问题一：L2 行点击不选择——**诊断进展（2026-09-11, 73b8e1d）**：代码结构实锤候选根因——L1 直出行常驻恒可选；L2 flyout 定位在分组行右侧 +8px，行 onMouseLeave 即 schedule 160ms 关闭，真实鼠标慢移穿过 8px gap 超容差时 flyout 已卸载、点击落空（现象=L1 可选/L2 不可选+复现非确定，与鼠标速度相关，与 §7 时序翻转假设吻合）。加固：容差 280ms+hover 桥（::before absolute 向左 12px 覆盖 gap；fixed 在 backdrop-filter 上下文相对视口失效，CDP 实测）。**验证受限**：CDP Input.dispatchMouseEvent 对该 tab 无效（探针实锤 events 空，此前『CDP 点击成功』结论作废）；fiber/dispatchEvent 直调不走 hover 时序故无法复现。**待用户真机复验**：下次遇到时观察『点击 L2 时 flyout 是否已消失』；修后须附 L2 flyout 徽章真机复验（问题二④回归项）。
 5. 收尾：问题四 pending-test.mdx 已登记（本轮）；剩问题一登记 + commit + 更新本文件。
 
 ## 7. 开放问题（v5 更新）
