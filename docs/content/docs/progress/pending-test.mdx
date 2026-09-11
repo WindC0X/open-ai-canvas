@@ -2508,4 +2508,12 @@ f (docs(progress): S08 自适应诚实渲染/透明背景单行批登记)
 **用户拍板**：视频和图片面板中**比例与分辨率两个分组必须显示**，分辨率不挂在比例组头部（"16:9 · 1280×720px" 换算条删除），**单档也要独占显示**（参考竞品"画质 1K"全宽按钮形态）。**修复（655e635）**：①视频面板删比例组像素换算条（default 与 Seedance 两分支，含无用 videoDimensionsForRatioAndResolution 调用）。②清晰度组不再因 `resolutions.length<=1` 裁剪——单档渲染且全宽独占一行（`grid-cols-1`），多档仍三列；真机断言 Grok Imagine Video 面板 titles=[比例,清晰度,时长]、720P 全宽 282px。③图片面板 quality 档分辨率组（1K/2K/4K）档数自适应宽度（单档 grid-cols-1 全宽）；preset 像素模式分辨率组原本即渲染。
 
 **验证**：tsc/build ✓；真机（CDP ignoreCache reload）：Grok Imagine Video 面板比例组无换算条+清晰度 720P 单档全宽显示；截图 /tmp/s08-p4-batch7.png。
+
 1 (docs(progress): S08 比例/分辨率分组纪律收口批登记)
+
+### S08 问题四轮·分辨率档 presets 兜底/按数分宽批（用户 2 图复批后）
+
+**用户问题与修复（14f3d35）**：①Grok Imagine Image Edit 面板无分辨率组（同渠道 Image 2.0 有）→ 根因：分辨率档判定只看 `quality.values` 档位映射（Image Edit 后台漏配质量档），而后台"按分辨率配置可用画幅"的 1K/2K 分组实际存于 `size.presets`（含 tier/ratio/size）未被消费。修复：`imageResolutionUsesQuality` 补 presets tier 分支（aspect_ratio 模式下 presets 有 tier 即由该链路承载分辨率档）；面板 `imageTierChoices` = quality 映射 ∪ presets tier，`qualityValue` 无映射时回落 tier 名（grok-image 协议 `normalizeGrokImageResolution("1k")` 接受）。真机断言：Image Edit 面板 titles=[比例,分辨率]、1K 单档全宽 282px。②分辨率/清晰度组列数按选项数自适应（用户拍板：不空位）——1 档全宽/2 档两列各半宽/3 档三列（image quality 档组+video 清晰度 default/Seedance 两分支）。真机断言：Image 2.0 两档各 138px。
+
+**验证**：tsc/build ✓；真机（CDP ignoreCache reload，切模型 Grok Imagine Image Edit → 2.0）：两组模型分辨率组均显示且宽度按档数分布；截图 /tmp/s08-p4-batch8.png。
+9 (docs(progress): S08 分辨率档presets兜底/按数分宽批登记)
