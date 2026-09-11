@@ -1,8 +1,9 @@
 import { App, Button, Input, InputNumber } from "antd";
 import { Select } from "@/components/ui/base/select";
 import { SettingsRow } from "@/components/ui/product/settings-row";
-import { ArrowLeft, Boxes, Bug, Cloud, MessageSquareText, RadioTower, SlidersHorizontal, Workflow } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowLeft, Boxes, Bug, Cloud, MessageSquareText, MonitorUp, RadioTower, SlidersHorizontal, SquareTerminal, Workflow } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+e445c85d (fix(web): settings页删除app-user-overlays重复管理 - 修复切走后布局class被摘且不可恢复(周审P1-5))
 import { useNavigate, useSearchParams } from "react-router";
 
 import { UserOSSSettingsForm } from "@/components/layout/user-oss-settings-form";
@@ -56,10 +57,8 @@ export default function SettingsPage() {
 
     const isVisibleConfigSection = (value: string | null): value is ConfigSectionKey => isConfigSection(value) && visibleConfigSections.some((section) => section.key === value);
 
-    useLayoutEffect(() => {
-        document.body.classList.add("app-user-overlays");
-        return () => document.body.classList.remove("app-user-overlays");
-    }, []);
+    // 注: app-user-overlays body class 由 UserLayout 统一管理(本页渲染在 UserLayout 的 Outlet 内)。
+    // 此处曾重复 add/remove — 从 /settings 切走时会把布局依赖的 class 摘掉且无法恢复(周审 P1-5), 已删。
 
     useEffect(() => {
         if (isVisibleConfigSection(requestedSection)) {
