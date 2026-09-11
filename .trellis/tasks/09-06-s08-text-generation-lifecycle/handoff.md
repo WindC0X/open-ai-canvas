@@ -43,7 +43,7 @@
 
 ## 5. 已知陷阱（审查 P0 并入，逐条按 HEAD 复核——v1 半数已过时）
 
-- **[V] 仍在·高危**：四个设置气泡（canvas-image/text→text 封装、audio、video、count-settings-popover）的 wheel 关闭 handler 只 `setOpen(false)` 漏 `onOpenChange?.(false)` → project.tsx 的 `nodeImageSettingsOpen` 等状态泄漏（:280/:1117/:2580 以它 gate 工具栏）→ 画布工具栏失效。v1 只记 image 一处，实为四个同型。仓库内现成正确写法：`closeOnOutsidePointer`（同文件）就是 setOpen+onOpenChange 双调。
+- **[已修 2026-09-11]**：~~四个设置气泡 wheel 关闭只 `setOpen(false)` 漏 `onOpenChange?.(false)`~~ → image 气泡已补双调用（commit 待查 git log "wheel 关闭同步批"），真机验证 wheel 关闭后 nodeImageSettingsOpen 同步 false、工具栏恢复；video/audio/count 的 open 为组件内部 useState 无父级受控，不存在此 desync，无需加 prop。仓库内现成正确写法：`closeOnOutsidePointer`（同文件）就是 setOpen+onOpenChange 双调。
 - **[V] 仍在**：浅色主题"黑上黑"——globals.css :7285 `.canvas-model-picker-popover…surface` 硬编码 `rgba(32,32,32,.9) !important` 无 `:root:not(.dark)` 覆盖（flyout 有 :7720、滚动条有 :7562，主面板独缺）。
 - **[V] 仍在**：契约测试按源文本断言——web/test/canvas-node-size-transition.test.tsx 全部断言为 `nodeSource.includes(旧实现字符串) === false`，是 grep 式源码契约而非行为测试；重构源码措辞即可翻绿/翻红，与运行时无关。
 - **[V] 仍在**：model-picker.tsx:273 `setPickerOpen` 的 400ms 双向时间窗仍在（A 路线未摘除）；正常流无害，但窗内合法 onOpenChange 会被吞，排障时勿忽略。
