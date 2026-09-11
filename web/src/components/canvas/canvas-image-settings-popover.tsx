@@ -40,7 +40,15 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    useExclusiveSettings("image-settings", open, setOpen);
+    // 互斥广播关闭必须同步外部镜像(project.tsx 的 nodeImageSettingsOpen gate 节点工具栏),
+    // 走裸 setOpen 会绕过 updateOpen 的 onOpenChange 造成工具栏永久隐藏(周审 P1-1, b3a78c3 漏网点)。
+    useExclusiveSettings("image-settings", open, (next) => {
+        if (next) {
+            setOpen(true);
+            return;
+        }
+        updateOpen(false);
+    });
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const { shouldRender, closing } = usePopoverExit(open);
     const profile = modelCapabilityConfigFor(config, config.model || config.imageModel).image!;
