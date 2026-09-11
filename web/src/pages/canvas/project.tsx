@@ -586,7 +586,9 @@ function InfiniteCanvasPage() {
     }, [closeAgent, focusMode]);
 
     useEffect(() => {
-        if (!dialogNodeId) setNodeImageSettingsOpen(false);
+        // 任何节点切换或关闭都会按 key 卸载旧面板, React 卸载不触发 onOpenChange;
+        // 镜像必须随 dialogNodeId 变化主动复位, 否则残留 true 会让新节点的工具栏被隐藏。
+        setNodeImageSettingsOpen(false);
     }, [dialogNodeId]);
 
     useLayoutEffect(() => {

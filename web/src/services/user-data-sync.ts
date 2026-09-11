@@ -106,6 +106,9 @@ export async function loadCanvasProjectForEditing(id: string) {
         const syncWatermark = watermarkProjects.get(id);
         if (current && syncWatermark && Date.parse(current.updatedAt) !== Date.parse(syncWatermark)) {
             if (Date.parse(project.updatedAt) !== Date.parse(syncWatermark)) throw new Error("画布已在其他端修改，请先导出本地修改再重新加载");
+            // 仅本地领先: 基线改记远端版本, 使 store(含未同步修改)与基线产生差异,
+            // 既有防抖同步会按 dirty 检测自动提交这笔上一会话残留的修改; 此处已确认远端==水位, 增量守卫可跳过。
+            acknowledgedProjects.set(id, project);
             verifiedProjects.add(id);
             return current;
         }
