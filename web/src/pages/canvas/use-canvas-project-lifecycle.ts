@@ -9,7 +9,8 @@ import { removeCanvasDrawing } from "@/lib/canvas/canvas-drawing-storage";
 import { normalizeCanvasNodeTimestamps } from "@/lib/canvas/canvas-node-timestamps";
 import { hydrateAssistantImages, resetInterruptedGeneration } from "@/lib/canvas/canvas-project-generation";
 import { listAddedSkills, type Skill } from "@/services/api/skills";
-import { createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, loadCanvasProjectForEditing, localSavedRemotePendingMessage, saveRemoteUserDataNow, subscribeAgentCanvasRefresh } from "@/services/user-data-sync";
+import { CanvasSyncConflictError, createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, discardLocalCanvasProject, loadCanvasProjectForEditing, localSavedRemotePendingMessage, saveRemoteUserDataNow } from "@/services/user-data-sync";
+4ba221bd (feat(web): 画布同步冲突页三选一 - 结构化冲突错误+导出本地JSON+确认后加载云端版本(放弃本地))
 import { flushCanvasStorePersistence, useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -83,6 +84,7 @@ export function useCanvasProjectLifecycle({
     const currentProject = useCanvasStore((state) => state.projects.find((project) => project.id === projectId));
     const [addedSkills, setAddedSkills] = useState<Skill[]>([]);
     const [loadError, setLoadError] = useState("");
+    const [loadConflict, setLoadConflict] = useState<CanvasSyncConflictError | null>(null);
     const [loadAttempt, setLoadAttempt] = useState(0);
     const [agentCreatedNodes, setAgentCreatedNodes] = useState<{ projectId: string; nodes: CanvasNodeData[] } | null>(null);
     const viewportSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -152,7 +154,13 @@ export function useCanvasProjectLifecycle({
                 });
         };
         void load().catch((error) => {
-            if (!cancelled) setLoadError(error instanceof Error ? error.message : "读取画布失败，请重试");
+            if (cancelled) return;
+            if (error instanceof CanvasSyncConflictError) {
+                setLoadConflict(error);
+                setLoadError(error.message);
+                return;
+            }
+            setLoadError(error instanceof Error ? error.message : "读取画布失败，请重试");
         });
         return () => {
             cancelled = true;
@@ -276,7 +284,14 @@ export function useCanvasProjectLifecycle({
 
     return {
         loadError,
+        loadConflict,
         retryLoad: () => setLoadAttempt((attempt) => attempt + 1),
+        loadRemoteAfterDiscard: async () => {
+            // 冲突页"加载云端版本": 先放弃本地该画布(镜像/ack/水位一并清), 再重跑加载 — 纯远端采纳, 不会再次冲突。
+            await discardLocalCanvasProject(projectId);
+            setLoadConflict(null);
+            setLoadAttempt((attempt) => attempt + 1);
+        },
         addedSkills,
         agentCreatedNodes: agentCreatedNodes?.projectId === projectId ? agentCreatedNodes.nodes : null,
         clearCanvasFiles,

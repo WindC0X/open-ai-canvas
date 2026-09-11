@@ -23,11 +23,11 @@ import { persistCanvasMediaPerformanceMode, readCanvasMediaPerformanceMode } fro
 import { summarizeCanvasContext } from "@/lib/canvas/canvas-context-summary";
 import { refreshCanvasCharacterReferenceNodes } from "@/lib/canvas/canvas-character-reference";
 import { useAssetStore } from "@/stores/use-asset-store";
-import { flushCanvasStorePersistence } from "@/stores/canvas/use-canvas-store";
+import { flushCanvasStorePersistence, useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
-import { App, Button } from "antd";
+import { App, Button, Popconfirm } from "antd";
 import { ArrowLeftRight } from "lucide-react";
 import { AppModal } from "@/components/ui/product/app-modal";
 import { getNodeSpec } from "@/constant/canvas";
@@ -419,7 +419,8 @@ function InfiniteCanvasPage() {
         [cleanupAssetImages, getHistoryCleanupContext],
     );
 
-    const { loadError, retryLoad, addedSkills, agentCreatedNodes, clearCanvasFiles, createAndOpenProject, currentProject, deleteCurrentProject, renameCurrentProject, saveCanvasProject, updateProject } = useCanvasProjectLifecycle({
+    const { loadError, loadConflict, retryLoad, loadRemoteAfterDiscard, addedSkills, clearCanvasFiles, createAndOpenProject, currentProject, deleteCurrentProject, renameCurrentProject, saveCanvasProject, updateProject } = useCanvasProjectLifecycle({
+4ba221bd (feat(web): 画布同步冲突页三选一 - 结构化冲突错误+导出本地JSON+确认后加载云端版本(放弃本地))
         projectId,
         projectLoaded,
         nodes,
@@ -2285,41 +2286,76 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         isProjectLinked: Boolean(currentProject?.projectId),
         starterMode: currentProject?.starterMode,
     });
-    const emptyCanvasState =
-        emptyStateKind === "freeform" ? (
-            <CanvasFreeformEmptyState commands={freeformCreateCommands} />
-        ) : emptyStateKind === "linked" ? (
-            <CanvasLinkedProjectEmptyState
-                projectName={linkedProjectQuery.data?.project.name || currentProject?.title || "项目画布"}
-                hasChapter={Boolean(linkedProjectQuery.data?.units.length)}
-                onAddFirstChapter={() => {
-                    const first = linkedProjectQuery.data?.units.slice().sort((left, right) => left.position - right.position)[0];
-                    if (first) void handleProjectChapterInsert({ id: first.id, projectId: linkedProjectId, title: first.title, position: first.position });
-                }}
-                onOpenAssets={() => openProjectAssets()}
-                onAddText={() => createNode(CanvasNodeType.Text)}
-            />
-        ) : emptyStateKind === "guided" ? (
-            <CanvasShortDramaEmptyState
-                onCreatePipeline={createShortDramaPipeline}
-                onOpenAgent={() => {
-                    setCinematicAgentEntry(true);
-                    openAgent();
-                }}
-                onStartFreeform={() => updateProject(projectId, { starterMode: "freeform" })}
-                onUpload={() => handleUploadRequest()}
-                onAddText={() => createNode(CanvasNodeType.Text)}
-                onAddScript={() => createNode(CanvasNodeType.Script)}
-            />
-        ) : null;
-    if (!projectLoaded && loadError)
+    const emptyCanvasState = emptyStateKind === "freeform" ? (
+        <CanvasFreeformEmptyState commands={freeformCreateCommands} />
+    ) : emptyStateKind === "linked" ? (
+        <CanvasLinkedProjectEmptyState
+            projectName={linkedProjectQuery.data?.project.name || currentProject?.title || "项目画布"}
+            hasChapter={Boolean(linkedProjectQuery.data?.units.length)}
+            onAddFirstChapter={() => {
+                const first = linkedProjectQuery.data?.units.slice().sort((left, right) => left.position - right.position)[0];
+                if (first) void handleProjectChapterInsert({ id: first.id, projectId: linkedProjectId, title: first.title, position: first.position });
+            }}
+            onOpenAssets={() => openProjectAssets()}
+            onAddText={() => createNode(CanvasNodeType.Text)}
+        />
+    ) : emptyStateKind === "guided" ? (
+        <CanvasShortDramaEmptyState
+            onCreatePipeline={createShortDramaPipeline}
+            onOpenAgent={() => {
+                setCinematicAgentEntry(true);
+                setAgentMode("online");
+                openAgent("online");
+            }}
+            onStartFreeform={() => updateProject(projectId, { starterMode: "freeform" })}
+            onUpload={() => handleUploadRequest()}
+            onAddText={() => createNode(CanvasNodeType.Text)}
+            onAddScript={() => createNode(CanvasNodeType.Script)}
+        />
+    ) : null;
+    if (!projectLoaded && loadError) {
+        const exportLocalCanvas = () => {
+            // 冲突页退路: 把本地版本的完整 JSON 落盘, 之后无论选择哪一侧都不会丢数据。
+            const local = useCanvasStore.getState().projects.find((candidate) => candidate.id === projectId);
+            if (!local) return;
+            const blob = new Blob([JSON.stringify(local, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = `canvas-conflict-${projectId}-${Date.now()}.json`;
+            anchor.click();
+            URL.revokeObjectURL(url);
+        };
+        const loadRemote = () => {
+            void loadRemoteAfterDiscard();
+        };
         return (
-            <main className="flex h-full flex-col items-center justify-center gap-4">
-                <p role="alert">{loadError}</p>
-                <Button onClick={retryLoad}>重新加载</Button>
-                <Link to="/canvas">返回画布库</Link>
+            <main className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+                <p role="alert" className="max-w-[420px]">{loadError}</p>
+                {loadConflict ? (
+                    <>
+                        <div className="flex items-center gap-3">
+                            <Button onClick={exportLocalCanvas}>导出本地备份</Button>
+                            <Popconfirm
+                                title="加载云端版本？"
+                                description="本地这份画布（含未同步的修改）将被放弃，云端版本会覆盖本地。可先导出备份。"
+                                okText="加载云端版本"
+                                cancelText="取消"
+                                onConfirm={loadRemote}
+                            >
+                                <Button danger>加载云端版本</Button>
+                            </Popconfirm>
+                        </div>
+                        <Link to="/canvas">返回画布库</Link>
+                    </>
+                ) : (
+                    <Button onClick={retryLoad}>重新加载</Button>
+                )}
+                {!loadConflict && <Link to="/canvas">返回画布库</Link>}
             </main>
         );
+    }
+4ba221bd (feat(web): 画布同步冲突页三选一 - 结构化冲突错误+导出本地JSON+确认后加载云端版本(放弃本地))
     if (!projectLoaded) return <CanvasRefreshShell />;
 
     return (

@@ -82,6 +82,18 @@ export async function initializeRemoteUserDataSession(userId: string) {
     });
 }
 
+/** 冲突页"加载云端版本": 放弃本地该画布(从 store 移除), 下一次 load 即走纯远端采纳。不触碰其它画布与持久媒体。 */
+export async function discardLocalCanvasProject(id: string) {
+    await withRemoteUserDataSyncExclusive(async () => {
+        acknowledgedProjects.delete(id);
+        watermarkProjects.delete(id);
+        verifiedProjects.delete(id);
+        useCanvasStore.setState((state) => ({ projects: state.projects.filter((candidate) => candidate.id !== id) }));
+        await flushCanvasStorePersistence();
+        persistWatermarks();
+    });
+}
+
 export async function loadCanvasProjectForEditing(id: string) {
     const pending = remoteProjectLoadPromises.get(id);
     if (pending) return pending;
@@ -105,7 +117,7 @@ export async function loadCanvasProjectForEditing(id: string) {
         // 远端在水位之后也变了 → 双向分歧, 抛冲突; 仅本地领先 → 保留本地, 交给既有防抖同步提交。
         const syncWatermark = watermarkProjects.get(id);
         if (current && syncWatermark && Date.parse(current.updatedAt) !== Date.parse(syncWatermark)) {
-            if (Date.parse(project.updatedAt) !== Date.parse(syncWatermark)) throw new Error("画布已在其他端修改，请先导出本地修改再重新加载");
+            if (Date.parse(project.updatedAt) !== Date.parse(syncWatermark)) throw new CanvasSyncConflictError(id, "diverged");
             // 仅本地领先: 基线改记远端版本, 使 store(含未同步修改)与基线产生差异,
             // 既有防抖同步会按 dirty 检测自动提交这笔上一会话残留的修改; 此处已确认远端==水位, 增量守卫可跳过。
             acknowledgedProjects.set(id, project);
@@ -719,6 +731,21 @@ async function uploadLocalStorageKey(storageKey: string, payload: Record<string,
 
 function requireRemoteUserDataBaseline() {
     if (remoteUserDataPhase !== "ready") throw new Error("云端数据基线尚未建立，已停止写入");
+}
+
+export type CanvasSyncConflictKind = "diverged";
+
+/** 画布本地与远端双向分歧(两版都有对方没有的修改)。阻断打开, 由用户选择导出备份或放弃本地。 */
+export class CanvasSyncConflictError extends Error {
+    readonly kind: CanvasSyncConflictKind;
+    readonly projectId: string;
+
+    constructor(projectId: string, kind: CanvasSyncConflictKind) {
+        super("画布在本地和云端都有修改。可先导出本地备份，再选择加载云端版本（将放弃本地版本）。");
+        this.name = "CanvasSyncConflictError";
+        this.kind = kind;
+        this.projectId = projectId;
+    }
 }
 
 function sameEntitySnapshot<T>(acknowledged: T | undefined, current: T) {
