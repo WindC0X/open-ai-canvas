@@ -2523,7 +2523,23 @@ f (docs(progress): S08 自适应诚实渲染/透明背景单行批登记)
 
 **用户问题与修复（b0a2194）**：Grok Imagine Image Edit 分辨率组单档 1K 无选中态 → 双根因：①写入 quality="1k" 被 `normalizeImageValue` 归一弹回 default（quality.values 漏配档位）→ 选择不持久；②初始 quality=default 不等于档名 → selected 恒假。修复：归一加 presets tier 豁免（写 tier 名且 size.presets 含该 tier 时保留，grok-image 发送链路 normalizeGrokImageResolution 消费）；面板单档（imageTierChoices.length===1 且 quality 无映射）选中态恒亮（唯一档即生效档）。**验证**：tsc/build ✓；真机 video 面板单档 720P 全宽+selected=true（用户清画布重建后 image 节点暂缺，image 侧为同构三元逻辑，待用户复验）。
 
+
 b (docs(progress): S08 单档恒选中/归一豁免批登记)
+
+### S08 底栏质感收尾批（字号统一/分隔符/折行根修/份数行高/选中边框）
+
+**用户五项反馈（2026-09-11 晚）与修复**：
+
+1. **三按钮字号不统一**（708e0b0 + bc631bb）：模型按钮被 creation 皮肤规则覆盖成 13px、参数/份数为 var(--fs-tiny)=10px → 先反向统一到 10px，用户指令"按主题基准 13px 统一" → 三按钮显式 `font-size: 13px`；真机 computed fontSize 全部 13px。
+2. **分隔符亮度不统一**：模型|相机之间的旧 inline 分隔线用 `workspace-border`（过淡）→ 换统一 `.canvas-node-composer-divider` 类（文本色 16% 合成）。
+3. **参数按钮箭头折行根修**：antd Button 的内容包装 span 是 `display:block`，把箭头挤到第二行 → `.canvas-node-composer-settings-trigger > span` 强制 `inline-flex + align-items:center + gap 4px`；三图（image/video/audio）全部单行 h=28。
+4. **份数面板默认滚动条**：行高常量 ROW=32 与 CSS 行高 36px 不一致，4 行内容 144px > 容器 136px 溢出 8px → CSS `.canvas-settings-roll-row` 36→32px 对齐；真机 scrollH 128 = clientH 128 无滚动。
+5. **选中边框降亮+加粗**：颜色 #f1f1f1→#d9d9d9（四套皮肤各配 `node.activeBorder` token），宽度 1px→1.5px。**DPR=1 屏幕上 Chrome 把 1.5px 实际绘制为 2px 实色像素列**（像素级截图验证，两列 ~#d8d8d8 无抗锯齿混合）；getComputedStyle 报 1px 是 CSSOM 取整假象。用户确认观感 OK 保持 1.5px。
+
+### S08 wheel 关闭同步批（nodeImageSettingsOpen desync 根修）
+
+**根因**：image 设置气泡 `closeOnCanvasWheel` 只 `setOpen(false)` 不同步 project.tsx 的 `nodeImageSettingsOpen` → 残留 true 使 `:2594` 的工具栏隐藏条件持续生效，**节点悬浮工具栏被永久隐藏**（直到重开面板再关）。修复：wheel 关闭补 `onOpenChange?.(false)`（2ace884 后的漏网点；closeOnOutsidePointer 已双调用）。video/audio/count 气泡 open 为组件内部 state 无父级受控，无此 desync，不加 prop。**真机验收**：开面板 → wheel 关闭 → aria-expanded=false + toolbar 恢复显示 + 面板退出动画后卸载。
+b (docs(progress): S08 底栏质感收尾批+wheel关闭同步批登记)
 
 ### S08 问题一轮·L2 行点击根修批（幽灵浮层截获）
 
