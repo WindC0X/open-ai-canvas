@@ -128,7 +128,8 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     <SettingTitle color={theme.node.groupTitle}>比例</SettingTitle>
                     <div className="canvas-settings-group space-y-2">
                     <div className="grid grid-cols-5 gap-1">
-                        {!usesResolutionPicker ? (
+                        {/* 能力诚实渲染: 模型 values 未声明 auto 档时自适应不可选中, 直接不显示。 */}
+                        {!usesResolutionPicker && profile.size.values.includes("auto") ? (
                             <button
                                 type="button"
                                 aria-pressed={activeSize === "auto"}
@@ -219,17 +220,16 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     </div>
                     </div>
                 </div> : null}
-                {showTransparent && profile.transparentBackground.supported ? <div className="space-y-1.5">
+                {/* 单控件组(用户拍板): 标题与开关共一行, 不单独占一行卡。 */}
+                {showTransparent && profile.transparentBackground.supported ? <div className="flex items-center justify-between gap-3">
                     <SettingTitle color={theme.node.groupTitle}>透明背景</SettingTitle>
-                    <div className="canvas-settings-group flex items-center justify-end">
-                        <span title="是否支持透明背景由当前模型接口决定" onMouseDown={(event) => event.stopPropagation()}>
-                            <Switch
-                                size="sm"
-                                checked={transparentBackground}
-                                onChange={(checked) => onConfigChange("transparentBackground", checked ? "true" : "false")}
-                            />
-                        </span>
-                    </div>
+                    <span title="是否支持透明背景由当前模型接口决定" onMouseDown={(event) => event.stopPropagation()}>
+                        <Switch
+                            size="sm"
+                            checked={transparentBackground}
+                            onChange={(checked) => onConfigChange("transparentBackground", checked ? "true" : "false")}
+                        />
+                    </span>
                 </div> : null}
             </div>
         </ImageSettingsTheme>
