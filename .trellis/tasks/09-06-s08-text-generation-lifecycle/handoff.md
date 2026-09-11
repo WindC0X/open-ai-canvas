@@ -57,12 +57,12 @@
 1. ~~问题二 模型行可接受类型~~ **已完成+真机验收**（49f626b）：渠道模型媒体徽章按 capabilityConfig.references 诚实声明；回归面①⑤真机过、②③推演级标注、④归入问题一复验。**教训：dev server 在 WSL /mnt 下 watch 失灵——改码后必须 curl dev 模块确认新旧再浏览器验收；端口残留子进程须 pkill -f vite**。
 2. ~~问题三 composer 参数 pill 合一~~ **已完成+真机验收**（4360bfb）：摘要 pill=触发器（带 Settings2 前缀）紧邻模型 pill 靠左；右组只剩份数+生成；孤立 sliders 触发器删除；image 摘要 pill 点开面板真机验证通过。
 3. ~~问题四 参数面板 UI/UX 重设计~~ **已完成+真机验收**（a1f9fbd/71c445a/e5a31a9/d69e948/07a3a3a + 8867f50 质感层补全）：设计规格 v2（四 skill 综合，先设计后实施）→ 份数独立 A 形态（video/audio UI 先行链路后补）→ 三面板比例/音色置首+像素换算条+能力裁剪+组标题对齐语料 → 图像比例网格标准8比例两行封顶（真机发现 27+ 像素平铺缺陷后二轮收敛）→ **质感层**（8867f50）：统一玻璃 surface/开合锚触发器/OptionPill 收敛共享 → **密度+滚动条+去重批**（3b1a56a）：面板 320/选项 32px/双行卡 44px/份数列表 5 起去重+scrollTop 滚当前值/滚动条并入模型菜单权威规则（thin-scrollbar 标准属性压制 webkit 定制的坑）→ **互斥批**（1ba0cbe）：use-exclusive-settings 事件总线，任一气泡开广播关其余 → **亮度语义批**（b361f32）：选中弃白边框改亮度（内部 .12 提亮+字纯白），未选中透明暗字，hover 字亮内部不亮；时长改步进刻度滑块（标题行当前值+2px 细轨+可点里程碑标签，去输入框）；**antd/dist/reset.css unlayered button{color/font-size:inherit} 压制一切 @layer 规则**——选项状态机 !important+受压 button 字号 inline 化（CDP getMatchedStyles 实锤的坑，勿忘）。pending-test.mdx 已登记四条。
-4. 问题一：L2 行点击不选择——**诊断进展（2026-09-11, 73b8e1d）**：代码结构实锤候选根因——L1 直出行常驻恒可选；L2 flyout 定位在分组行右侧 +8px，行 onMouseLeave 即 schedule 160ms 关闭，真实鼠标慢移穿过 8px gap 超容差时 flyout 已卸载、点击落空（现象=L1 可选/L2 不可选+复现非确定，与鼠标速度相关，与 §7 时序翻转假设吻合）。加固：容差 280ms+hover 桥（::before absolute 向左 12px 覆盖 gap；fixed 在 backdrop-filter 上下文相对视口失效，CDP 实测）。**验证受限**：CDP Input.dispatchMouseEvent 对该 tab 无效（探针实锤 events 空，此前『CDP 点击成功』结论作废）；fiber/dispatchEvent 直调不走 hover 时序故无法复现。**待用户真机复验**：下次遇到时观察『点击 L2 时 flyout 是否已消失』；修后须附 L2 flyout 徽章真机复验（问题二④回归项）。
-5. 收尾：问题四 pending-test.mdx 已登记（本轮）；剩问题一登记 + commit + 更新本文件。
+4. ~~问题一 L2 行点击~~ **已完成+真机验收（2026-09-11）**：真因=幽灵 antd Popover（换节点/composer 关闭后其内部 open=true 的模型菜单残留 + rc-motion enter 在后台 tab rAF 节流下冻结 prepare 帧 → opacity:0 + pointer-events:auto + z1200，elementsFromPoint 实锤截获点击；此前 hover-gap 假设降级为次要加固，仍保留 280ms 容差+hover 桥）。四层修复：globals.css 动画过渡态全局禁交互、panel key={id} 强重建、optimizer drawer destroyOnHidden、model-picker flyout portal 改 #root + setPickerOpen flyoutPointer 拦截 antd useWinClick 同步关闭（mousedown 捕获阶段放行会让受控 flush 在行 handler 派发前分离 fiber→只关不选）。真机（CDP 真实指针+tab 前台）：Image 2.0↔Image Edit 双向切换+flyout 关+菜单 expanded=false 无残留；换节点 popover=0 无幽灵；问题二④回归项（flyout 徽章）同链路可复验。CDP 输入只投递前台 tab（visibilityState=hidden 时静默丢弃）——曾致多轮"点击成功"假结论，验收前必查 visibilityState。
+5. 收尾：问题四/问题一 pending-test.mdx 均已登记；剩本轮代码 commit + 用户复验。
 
 ## 7. 开放问题（v5 更新）
 
-- L2 行点击缺陷根因（下一步 4）——为什么复现非确定？时序翻转假设（后台 tab/慢设备）未证。
+- ~~L2 行点击缺陷根因~~ 已定案（幽灵 antd Popover 截获；enter-prepare 冻结=后台 tab rAF 节流）。残余观察项：若用户再遇 L2 异常，先查是否有 opacity:0 可交互的 .ant-popover（CSS 防线已令其不可交互，理论只剩视觉遮挡级）。
 - 份数气泡与设置气泡同开重叠（同 z=1100、无互斥，模型菜单有 sibling-close 而设置气泡没有）——是否补互斥，待用户定。
 - video/audio 份数>1 提交拆分链路（用户已拍板 UI 先行，videoGenerationCount/audioGenerationCount 已存储，拆分作为后续独立任务）。
 - tmwd-browser execute_js 对 React 合成事件无响应（click/mousedown 均不触发 state 变更）——验收一律走 fiber 手动调用 memoizedProps（onMouseDown/onClick），已稳定复用两轮。
