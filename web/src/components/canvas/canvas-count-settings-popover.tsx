@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { Settings2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "antd";
 import { usePopoverExit } from "./use-popover-exit";
 import { useExclusiveSettings } from "./use-exclusive-settings";
@@ -79,8 +79,9 @@ export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, l
     return (
         <>
             <span ref={buttonRef} className="inline-flex min-w-0">
-                <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[168px] !justify-start !rounded-full !px-2.5"}`} style={{ background: theme.node.fill, color: theme.node.text }} icon={<Settings2 className="size-3.5" />} aria-expanded={open} aria-label={`生成份数：${count} ${label}`} title={`生成份数 · ${count} ${label}`} onClick={() => setOpen(!open)}>
-                    <span className="truncate">{count} {label}</span>
+                <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[168px] !justify-start !rounded-full !px-2.5"}`} style={{ color: theme.node.text }} aria-expanded={open} aria-label={`生成份数：${count} ${label}`} title={`生成份数 · ${count} ${label}`} onClick={() => setOpen(!open)}>
+                    <span className="truncate tabular-nums">{`x${count}`}</span>
+                    <ChevronDown className="canvas-composer-trigger-chevron size-3 shrink-0 opacity-50" aria-hidden="true" />
                 </Button>
             </span>
             {panel}

@@ -1,7 +1,7 @@
 import { Button, Image as AntImage, InputNumber, Modal, Popover } from "antd";
 import { Tooltip } from "@/components/ui/base/tooltip";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowLeftRight, ArrowUp, AtSign, Boxes, Camera, ChevronDown, FileText, GripVertical, ImageIcon, ImagePlus, Link2, LoaderCircle, Maximize2, Music2, Pencil, SlidersHorizontal, UserRound, Video, WandSparkles, X } from "lucide-react";
+import { ArrowLeftRight, ArrowUp, AtSign, Boxes, Camera, ChevronDown, FileText, GripVertical, ImageIcon, ImagePlus, Link2, LoaderCircle, Maximize2, Music2, Pencil, Quote, SlidersHorizontal, UserRound, Video, WandSparkles, X } from "lucide-react";
 
 import { ModelPicker } from "@/components/model-picker";
 import { defaultConfig, modelOptionName, resolveModelChannel, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
@@ -371,8 +371,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                 <div className={expanded ? "min-w-0 flex-1 flex items-center gap-2" : "flex min-w-0 flex-1 items-center gap-2"}>
                     <div className="canvas-node-composer-model">
                         <ModelPicker
-                            className="!h-7 !w-full !min-w-0 !text-[var(--fs-tiny)] !font-normal [&_img]:!size-3 [&_.lucide]:!size-3"
-                            fullWidth
+                            className="!h-7 !min-w-0 !text-[var(--fs-tiny)] !font-normal [&_img]:!size-3 [&_.lucide]:!size-3"
                             placement="topLeft"
                             config={config}
                             value={config.model}
@@ -664,7 +663,7 @@ function ReferenceToolsPopover({ canAutoMention, autoLinkEnabled, onAutoMention,
                 aria-label="打开智能引用"
                 title="智能引用"
             >
-                <SlidersHorizontal className="size-3.5" />
+                <Quote className="size-3" />
                 {!compact ? <span>引用</span> : null}
             </button>
         </Popover>

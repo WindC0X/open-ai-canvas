@@ -8050,8 +8050,18 @@
     .canvas-image-settings-popover,
     .canvas-video-settings-popover,
     .canvas-text-settings-popover,
-    .canvas-audio-settings-popover {
+    .canvas-audio-settings-popover,
+    .canvas-count-settings-popover {
         animation: canvas-panel-in var(--motion-dur-fast-calc) var(--motion-ease-out) both;
+    }
+
+    /* composer 底部按钮面板展开/关闭动画统一(2026-09-11): antd 浮层(模型菜单/智能引用等)
+       的 rc-motion zoom-big 过渡时长/缓动对齐自建面板 canvas-panel-in/out 的 motion token,
+       四气泡(canvas-panel-in/closing)与 antd 浮层视觉节奏一致。 */
+    .ant-popover .ant-zoom-big-enter-active,
+    .ant-popover .ant-zoom-big-leave-active {
+        transition-duration: var(--motion-dur-fast-calc) !important;
+        transition-timing-function: var(--motion-ease-out) !important;
     }
 
     /* 设置气泡统一关闭动画: open=false 后 150ms exit 窗口内加 .canvas-settings-popover-closing (usePopoverExit)。 */
@@ -10221,9 +10231,12 @@
     }
 
     .canvas-node-composer-model {
+        /* 自适应宽度(2026-09-11): fit-content 由按钮内容撑开, 长名受 max-width 截断,
+           不再 flex 拉伸 + w-full 留空带 */
+        width: fit-content;
         min-width: 0;
-        max-width: 220px;
-        flex: 1 1 auto;
+        max-width: min(220px, 42vw);
+        flex: 0 1 auto;
     }
 
     .canvas-node-composer-settings-trigger {
@@ -10254,6 +10267,40 @@
     .canvas-reference-tools-popover {
         width: 280px !important;
         max-width: calc(100vw - 24px) !important;
+    }
+
+    /* composer 底部模型按钮(2026-09-11 用户参考 flora): ghost 融合报纸色 + 内容自适应宽度。
+       作用域限 canvas composer 容器, 不影响 create 页共用 .creation-model-picker 规则。 */
+    .canvas-node-composer-model .canvas-composer-model-picker,
+    .dark .canvas-node-composer-model .canvas-composer-model-picker {
+        width: auto !important;
+        max-width: min(220px, 42vw) !important;
+        height: 28px !important;
+        border: 0 !important;
+        border-radius: var(--r-md) !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        font-weight: 400 !important;
+    }
+    .canvas-node-composer-model .canvas-composer-model-picker:hover,
+    .canvas-node-composer-model .canvas-composer-model-picker[aria-expanded="true"],
+    .dark .canvas-node-composer-model .canvas-composer-model-picker:hover,
+    .dark .canvas-node-composer-model .canvas-composer-model-picker[aria-expanded="true"] {
+        border: 0 !important;
+        background: var(--canvas-composer-control-hover) !important;
+    }
+
+    /* 参数/份数触发按钮 ghost 透明(2026-09-11): antd6 text 按钮经 skin cssinjs 带底色,
+       unlayered !important 压制; hover/展开提亮与模型按钮同节奏。 */
+    .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger,
+    .dark .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger {
+        background: transparent !important;
+    }
+    .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger:hover,
+    .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger[aria-expanded="true"],
+    .dark .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger:hover,
+    .dark .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger[aria-expanded="true"] {
+        background: var(--canvas-composer-control-hover) !important;
     }
 
     .canvas-reference-tools-popover .ant-popover-content,
