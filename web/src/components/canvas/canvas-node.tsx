@@ -134,15 +134,22 @@ export const CanvasNode = React.memo(function CanvasNode({
             let overSupply = false;
             if (!inside) {
                 for (const supply of document.querySelectorAll(`[data-supply-node="${CSS.escape(data.id)}"]`)) {
-                    const target = supply.classList.contains("canvas-node-panel-affordance")
-                        ? supply.querySelector("[data-canvas-node-panel]")
-                        : supply;
-                    if (!target) continue;
-                    const sr = target.getBoundingClientRect();
-                    if (event.clientX >= sr.left && event.clientX <= sr.right && event.clientY >= sr.top && event.clientY <= sr.bottom) {
-                        overSupply = true;
-                        break;
+                    // 命中域含间隙桥(og-canvas: 桥是 hover 域的物理组成部分)
+                    const targets = [supply as Element];
+                    if (supply.classList.contains("canvas-node-panel-affordance")) {
+                        const panel = supply.querySelector("[data-canvas-node-panel]");
+                        if (panel) targets.push(panel);
                     }
+                    const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
+                    if (bridge) targets.push(bridge);
+                    for (const target of targets) {
+                        const sr = target.getBoundingClientRect();
+                        if (event.clientX >= sr.left && event.clientX <= sr.right && event.clientY >= sr.top && event.clientY <= sr.bottom) {
+                            overSupply = true;
+                            break;
+                        }
+                    }
+                    if (overSupply) break;
                 }
             }
             lastCheck = now;

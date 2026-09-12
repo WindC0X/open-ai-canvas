@@ -172,6 +172,8 @@ import { ART_CRITIQUE_NODE_TYPE } from "@/lib/art-critique/contracts";
 const CanvasDirectorWorkbench = lazy(() => import("@/components/canvas/director/canvas-director-workbench").then((module) => ({ default: module.CanvasDirectorWorkbench })));
 const CanvasDrawingEditorModal = lazy(() => import("@/components/canvas/canvas-drawing-editor-modal").then((module) => ({ default: module.CanvasDrawingEditorModal })));
 
+const NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS = 380;
+
 const NODE_STATUS_SUCCESS = "success" as const;
 const EMPTY_RESOURCE_REFERENCES: CanvasResourceReference[] = [];
 
@@ -2211,7 +2213,7 @@ const {
         ],
     );
 
-    // hover 离开的两段延迟(og-canvas 同构): 220ms 宽限期供给保持挂载, 指针可穿过间隙被间隙桥接住
+    // hover 离开的两段延迟(og-canvas 同构同值 380ms): 宽限期供给保持挂载, 慢速穿越间隙由间隙桥接住
     // (结构化主路径); 宽限到期后 hover 清空并以 hidden 渲染保留 160ms 播退场动画, 之后才真正卸载。
     // hover 实例与 selected 实例并存, 此处只影响 hover 第二实例的生命周期。
     const hoverGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2229,6 +2231,24 @@ const {
         setExitingNodeId((current) => (current === nodeId ? null : current));
         setHoveredNodeId(nodeId);
     }, []);
+    // 供给命中域 = 工具栏/面板本体 ∪ 间隙桥(og-canvas: 桥是 hover 域的物理组成部分,
+    // 慢速穿越 gap 时指针在桥上, 不算离开节点 hover 域)。
+    const supplyRectsContain = (nodeId: string, x: number, y: number): boolean => {
+        for (const supply of document.querySelectorAll('[data-supply-node="' + CSS.escape(nodeId) + '"]')) {
+            const targets: Element[] = [supply];
+            if (supply.classList.contains("canvas-node-panel-affordance")) {
+                const panel = supply.querySelector("[data-canvas-node-panel]");
+                if (panel) targets.push(panel);
+            }
+            const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
+            if (bridge) targets.push(bridge);
+            for (const target of targets) {
+                const rect = target.getBoundingClientRect();
+                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return true;
+            }
+        }
+        return false;
+    };
     // 最后已知指针位置: hover end 判定时供给几何检查需要(指针可能静止, mousemove 校准不触发)
     const lastPointerRef = useRef<{ x: number; y: number }>({ x: -1, y: -1 });
     // 供给 selfHover 几何校准: 供给被 transform 移走/快速滑动时浏览器不补发 mouseleave,
@@ -2247,7 +2267,11 @@ const {
                     if (!target) return current;
                     const rect = target.getBoundingClientRect();
                     const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
-                    return inside ? current : null;
+                    if (inside) return current;
+                    // 矩形判定兜底: 命中链就在本供给内(锚点刚更新/子元素覆盖时矩形可能滞后一帧)不误清
+                    const hit = document.elementFromPoint(event.clientX, event.clientY);
+                    if (hit && hit.closest('[data-supply-node="' + CSS.escape(current) + '"]')) return current;
+                    return null;
                 });
             };
             check(setToolbarHoverId);
@@ -2259,15 +2283,7 @@ const {
     const pointerOverSupply = useCallback((nodeId: string) => {
         const pt = lastPointerRef.current;
         if (pt.x < 0) return false;
-        for (const supply of document.querySelectorAll('[data-supply-node="' + CSS.escape(nodeId) + '"]')) {
-            const target = supply.classList.contains("canvas-node-panel-affordance")
-                ? supply.querySelector("[data-canvas-node-panel]")
-                : supply;
-            if (!target) continue;
-            const sr = target.getBoundingClientRect();
-            if (pt.x >= sr.left && pt.x <= sr.right && pt.y >= sr.top && pt.y <= sr.bottom) return true;
-        }
-        return false;
+        return supplyRectsContain(nodeId, pt.x, pt.y);
     }, []);
     const handleCanvasNodeHoverEnd = useCallback((nodeId: string) => {
         if (hoverGraceRef.current) clearTimeout(hoverGraceRef.current);
@@ -2283,7 +2299,7 @@ const {
                 exitGraceRef.current = null;
                 setExitingNodeId((current) => (current === nodeId ? null : current));
             }, 160);
-        }, 220);
+        }, NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS);
     }, [pointerOverSupply]);
 
     // 微供给双实例(og-canvas pinned+hover 同构): selected 节点的工具栏/composer 常驻 full,
