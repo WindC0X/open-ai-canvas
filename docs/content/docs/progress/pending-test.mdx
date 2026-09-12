@@ -1787,6 +1787,10 @@ v2（用户反馈首版难看后重做）：菜单改用 antd Dropdown（placeme
 
 节点悬浮工具栏接入 flora 玻璃材质族（rgba(32,32,32,.9)+blur16+radius14+无阴影，与模型菜单/参数面板同源），显隐生命周期替换为微供给状态机（`lib/canvas/affordance.ts` 纯函数 + `AffordanceSurface` 原语）：idle 不显示 / hover 节点双微（0.45 不透明+降饱和）/ hover 到某供给该供给全显（只动 opacity/filter，渐显不变形）/ 选中即全显常驻。composer 面板随 hover 未选中节点微浮现（用户拍板完整面板微浮现），与选中面板并存（不同节点）。旧 `toolbarNodeId`+220ms timer 双轨状态机退役；220ms 宽限语义保留为 hover 离开的延迟清空（物理间隙期供给保持挂载）。工具栏入场动画 canvas-panel-in 退役（与 opacity 过渡互压）。9 格状态表真机验证 7 格通过（CDP hidden 限制下框选/拖拽 2 格由单测覆盖）。全量测试基线对照：本任务零新增产品失败；新增测试文件改变 bun 模块加载顺序，暴露 17 个顺序敏感文件的预存状态泄漏失败（editor slot/materializer/Agent store/诊断缓冲，单独跑全过），登记为测试基建债务。
 
+### hover 常驻与层级抢夺根修（2026-09-13，用户二次点名工作流底层解析）
+
+用户实测两新症状：①hover 态常驻——离开节点与全部供给到空白画布后 hover 不退，直到 hover 另一节点；②层级抢夺——指针在被上层节点盖住的下节点边框区域触发下节点 hover。自查+工作流并行定位到**单一根因**：`supplyRectsContain`（及 canvas-node 双向校准）把 composer 的 `inset-0` 全屏坐标容器 wrapper 也计入了供给命中域——wrapper 本身 inline `pointer-events:none` 不拦截指针，但其 `getBoundingClientRect` 是全屏矩形，导致节点外任意空白点都被判为"指针在本节点供给上"→ grace 到点豁免永远成立（hover 常驻）+ 校准永不释放本地 hovered；hover 常驻使该节点的工具栏/桥（z=50）持续浮在相邻上层节点（z=10/20）本体之上，指针在邻居节点可视区实际命中残留供给——即"层级抢夺"。修复：两处命中域计算剔除 wrapper 本体矩形（只算面板本体/间隙桥/感应带/工具栏 surface），并给供给链（工具栏/composer）的 mouseleave 补 `handleSupplyLeave`→`handleCanvasNodeHoverEnd` 闭环（节点 leave 因供给豁免跳过 hoverEnd 后由供给链最终 leave 兜底）。真机回归：hover→工具栏→空白 1.3s 后供给退场（0 残留）；移到相邻节点本体 hover 正确归属新节点（旧供给消失）；慢速穿越无消失。工作流四视角审计（事件链/命中测试/状态机/重构设计）并行运行中，结论回来后复核是否还有结构性残留。
+
 ### 工作流审计驱动的闪烁根修（2026-09-12 深夜六轮，用户要求工作流全面解析）
 
 三视角工作流审计（事件时序/命中测试/og 对照）钉死闪烁根因 R1：project 层 mousemove 校准 effect 内联的供给循环**不含间隙桥**，与 supplyRectsContain（含桥）、380ms grace 的"间隙保持"语义互相矛盾——三个机制三套命中域，校准一票否决桥+grace 的全部保活：慢速穿越时指针落在桥上 → 校准清 hoveredNodeId → 工具栏卸载连桥一起消失 → 只能退回节点重挂载（"闪 N 次后才 full"）。收敛修复：(1) supplyRectsContain 提为模块级统一谓词（供给本体 ∪ 面板 ∪ 间隙桥 ∪ 感应带），所有 hover 域判定单一来源；(2) 校准在 grace 期让位（hoverGraceRef 存在时 return），由 grace 到点检查裁决；(3) micro 面板主体回归 og 的 pe:none + 顶部感应带升级（855px 宽 pe:auto 面板形成巨大命中域是"composer 外侧区域触发 hover"的根因）；(4) 节点边框/阴影补 150ms 过渡平滑残余抖动。真机回归：慢速 7 步穿越（总时长超宽限）工具栏挂载数全程恒 1（零卸载），快速跳变保持 micro 不消失，合成事件 full 升级链通。
