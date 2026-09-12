@@ -174,6 +174,28 @@ const CanvasDrawingEditorModal = lazy(() => import("@/components/canvas/canvas-d
 
 const NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS = 380;
 
+// 供给命中域 = 工具栏/面板本体 ∪ 间隙桥 ∪ 感应带(og-canvas: 桥是 hover 域的物理组成部分,
+// 慢速穿越 gap 时指针在桥上, 不算离开节点 hover 域)。所有 hover 域判定统一走这一个谓词,
+// 防止多处内联循环各自为政(历史上校准漏桥导致 hover 一票否决, 闪烁根因 R1)。
+function supplyRectsContain(nodeId: string, x: number, y: number): boolean {
+    for (const supply of document.querySelectorAll('[data-supply-node="' + CSS.escape(nodeId) + '"]')) {
+        const targets: Element[] = [supply];
+        if (supply.classList.contains("canvas-node-panel-affordance")) {
+            const panel = supply.querySelector("[data-canvas-node-panel]");
+            if (panel) targets.push(panel);
+        }
+        const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
+        if (bridge) targets.push(bridge);
+        const senseBand = supply.querySelector("[data-canvas-panel-sense-band]");
+        if (senseBand) targets.push(senseBand);
+        for (const target of targets) {
+            const rect = target.getBoundingClientRect();
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return true;
+        }
+    }
+    return false;
+}
+
 const NODE_STATUS_SUCCESS = "success" as const;
 const EMPTY_RESOURCE_REFERENCES: CanvasResourceReference[] = [];
 
@@ -326,22 +348,16 @@ function InfiniteCanvasPage() {
             const now = performance.now();
             if (now - lastCheck < 120) return;
             lastCheck = now;
+            // leave 正被宽限期宽限时由 grace 到点检查裁决, 校准不抢杀(否则桥+grace 的保活被一票否决)
+            if (hoverGraceRef.current) return;
             const current = hoveredNodeRef.current;
             if (!current) return;
             const el = document.querySelector(`[data-node-id="${CSS.escape(current)}"]`);
             if (!el) return;
-            const r = el.getBoundingClientRect();
-            const inside = event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom;
-            if (inside) return;
-            // 供给豁免: 指针在该节点的工具栏/composer 上时保持 hover(间隙保持语义)
-            for (const supply of document.querySelectorAll(`[data-supply-node="${CSS.escape(current)}"]`)) {
-                const target = supply.classList.contains("canvas-node-panel-affordance")
-                    ? supply.querySelector("[data-canvas-node-panel]")
-                    : supply;
-                if (!target) continue;
-                const sr = target.getBoundingClientRect();
-                if (event.clientX >= sr.left && event.clientX <= sr.right && event.clientY >= sr.top && event.clientY <= sr.bottom) return;
-            }
+            const rect = el.getBoundingClientRect();
+            if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) return;
+            // 供给豁免统一走 supplyRectsContain(含间隙桥/感应带)
+            if (supplyRectsContain(current, event.clientX, event.clientY)) return;
             setHoveredNodeId((c) => (c === current ? null : c));
         };
         window.addEventListener("mousemove", onMove, { passive: true });
@@ -2231,24 +2247,6 @@ const {
         setExitingNodeId((current) => (current === nodeId ? null : current));
         setHoveredNodeId(nodeId);
     }, []);
-    // 供给命中域 = 工具栏/面板本体 ∪ 间隙桥(og-canvas: 桥是 hover 域的物理组成部分,
-    // 慢速穿越 gap 时指针在桥上, 不算离开节点 hover 域)。
-    const supplyRectsContain = (nodeId: string, x: number, y: number): boolean => {
-        for (const supply of document.querySelectorAll('[data-supply-node="' + CSS.escape(nodeId) + '"]')) {
-            const targets: Element[] = [supply];
-            if (supply.classList.contains("canvas-node-panel-affordance")) {
-                const panel = supply.querySelector("[data-canvas-node-panel]");
-                if (panel) targets.push(panel);
-            }
-            const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
-            if (bridge) targets.push(bridge);
-            for (const target of targets) {
-                const rect = target.getBoundingClientRect();
-                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return true;
-            }
-        }
-        return false;
-    };
     // 最后已知指针位置: hover end 判定时供给几何检查需要(指针可能静止, mousemove 校准不触发)
     const lastPointerRef = useRef<{ x: number; y: number }>({ x: -1, y: -1 });
     // 供给 selfHover 几何校准: 供给被 transform 移走/快速滑动时浏览器不补发 mouseleave,

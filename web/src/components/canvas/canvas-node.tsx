@@ -142,6 +142,8 @@ export const CanvasNode = React.memo(function CanvasNode({
                     }
                     const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
                     if (bridge) targets.push(bridge);
+                    const senseBand = supply.querySelector("[data-canvas-panel-sense-band]");
+                    if (senseBand) targets.push(senseBand);
                     for (const target of targets) {
                         const sr = target.getBoundingClientRect();
                         if (event.clientX >= sr.left && event.clientX <= sr.right && event.clientY >= sr.top && event.clientY <= sr.bottom) {
@@ -379,6 +381,8 @@ export const CanvasNode = React.memo(function CanvasNode({
                 style={{
                     background: hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
                     // 固定占位；选中以描边表达（原语语义对齐），避免边框宽度变化造成白边跳动。生成中以旋转渐变环替代（.node-generating-border）。
+                    // hover 过渡: 快速指针进出供给间隙时 hovered 短暂翻转, 无过渡则边框/阴影跳变(用户实测"闪烁")。
+                    transition: resizeActive ? "none" : "border-color 150ms var(--motion-ease-out), box-shadow 150ms var(--motion-ease-out)",
                     border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "0" : isSelected ? `1.5px solid ${theme.node.activeBorder}` : `1px solid ${theme.node.stroke}`,
                     // 安静化（DESIGN.md 表面补录）：阴影保持常规档，hover 才升到 hoverShadow。首次空白生成的边框让位给旋转渐变环。
                     boxShadow: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,

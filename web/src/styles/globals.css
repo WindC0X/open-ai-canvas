@@ -8344,9 +8344,10 @@
 
     /* 按下即响应(设计契约 §四 press 列: scale 0.97/100ms; apple: 按下即反馈, 无 hover 延迟)。 */
     /* 微供给 composer 面板: 容器层恒为 pointer-events:none(inline), 交互面按级别控制。
-       micro 主体保持可交互(2026-09-12): pe:none 会让指针穿透到下层节点, 浏览器补发本节点
-       mouseout → hover 域断裂, "hover→移向面板途中掉 hover"且面板永远无法经主体 hover 升级
-       full(只剩 20px 感应带); micro 面板区域连续可交互是升级路径的前提。 */
+       micro 主体 pe:none(回归 og-canvas 语义): 855px 宽的半透明面板 pe:auto 会形成巨大命中域,
+       拦截其后/旁节点的指针并让"节点 hover"在面板外侧空白区触发(用户实测); 升级走顶部感应带。
+       full(选中/感应带触发后)主体恢复可交互。 */
+    .canvas-node-panel-affordance[data-affordance="micro"] [data-canvas-node-panel],
     .canvas-node-panel-affordance[data-affordance="hidden"] [data-canvas-node-panel] {
         pointer-events: none;
     }
