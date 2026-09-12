@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "检查阶段验证纪律: 纯函数单测覆盖状态表/tsc/build/真机逐格验收"}
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "检查阶段环境纪律: vite watcher 失效重启/served 验证/基线对照"}

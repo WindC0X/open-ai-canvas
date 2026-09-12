@@ -1,0 +1,3 @@
+{"reason": "原语组件改造与接线遵守组件层规范", "file": ".trellis/spec/frontend/component-guidelines.md"}
+{"reason": "验证纪律: 纯函数单测/tsc/build/真机逐格", "file": ".trellis/spec/frontend/quality-guidelines.md"}
+{"reason": "vite watcher 失效重启/声称不超实测/全量测试基线对照", "file": ".trellis/spec/frontend/verification-env-discipline.md"}
