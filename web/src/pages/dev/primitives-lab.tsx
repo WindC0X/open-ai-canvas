@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Composer, HoverToolbar, NodeSurface, type ToolbarPersistence } from "@/components/canvas/primitives";
+import { AffordanceSurface, Composer, NodeSurface, type AffordanceLevel } from "@/components/canvas/primitives";
 import { useThemeStore } from "@/stores/use-theme-store";
 
 /**
@@ -25,11 +25,10 @@ function ThemeToggle() {
     );
 }
 
-const PERSISTENCE_LABELS: Record<ToolbarPersistence, string> = {
-    "hover-only": "hover-only(瞬态)",
-    selected: "selected(常驻)",
-    "edit-focus": "edit-focus(编辑常驻)",
-    "dropdown-open": "dropdown-open(菜单桥接)",
+const LEVEL_LABELS: Record<AffordanceLevel, string> = {
+    hidden: "hidden(idle 不显示)",
+    micro: "micro(hover 节点低存在感)",
+    full: "full(全显)",
 };
 
 const PHASES = ["empty", "ready", "running", "generated", "error"] as const;
@@ -49,10 +48,7 @@ export default function PrimitivesLab() {
     const [sending, setSending] = useState(false);
     const [selection, setSelection] = useState<"idle" | "hover" | "selected">("selected");
     const [phase, setPhase] = useState<(typeof PHASES)[number]>("empty");
-    const [persistence, setPersistence] = useState<ToolbarPersistence>("selected");
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-
-    const effectivePersistence: ToolbarPersistence = dropdownOpen ? "dropdown-open" : persistence;
+    const [level, setLevel] = useState<AffordanceLevel>("full");
 
     return (
         <div style={{ padding: 32, maxWidth: 960, margin: "0 auto", color: "var(--foreground)" }}>
@@ -82,29 +78,32 @@ export default function PrimitivesLab() {
                             {phase === "empty" ? "空态:提示词入口 + 说明" : phase === "running" ? "生成中:ambient,非居中卡" : phase}
                         </div>
                     </NodeSurface>
-                    {selection === "selected" && (
-                        <HoverToolbar persistence={effectivePersistence} anchor={{ x: 8, y: -44 }} onDropdownToggle={setDropdownOpen}>
-                            <div style={{ display: "flex", gap: 2, padding: 4, alignItems: "center" }}>
-                                {["模型", "4:3", "Tools", "锁", "下载"].map((t) => (
-                                    <button key={t} type="button" style={{ padding: "4px 8px", fontSize: 12, background: "transparent", border: "none", color: "var(--foreground)", cursor: "pointer", borderRadius: 6 }}>{t}</button>
-                                ))}
-                            </div>
-                        </HoverToolbar>
-                    )}
+                    <AffordanceSurface
+                        level={level}
+                        role="toolbar"
+                        ariaLabel="演示工具条"
+                        className="absolute left-2 top-0 -translate-y-full"
+                    >
+                        <div style={{ display: "flex", gap: 2, padding: 4, alignItems: "center", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10 }}>
+                            {["模型", "4:3", "Tools", "锁", "下载"].map((t) => (
+                                <button key={t} type="button" style={{ padding: "4px 8px", fontSize: 12, background: "transparent", border: "none", color: "var(--foreground)", cursor: "pointer", borderRadius: 6 }}>{t}</button>
+                            ))}
+                        </div>
+                    </AffordanceSurface>
                 </div>
             </Section>
 
-            <Section title="HoverToolbar — 四态 persistence">
+            <Section title="AffordanceSurface — 微供给三级(hidden/micro/full)">
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                    {(Object.keys(PERSISTENCE_LABELS) as ToolbarPersistence[]).map((p) => (
-                        <button key={p} type="button" onClick={() => setPersistence(p)} style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid var(--border)", background: persistence === p ? "var(--primary)" : "transparent", color: persistence === p ? "var(--primary-foreground)" : "inherit", cursor: "pointer", fontSize: 12 }}>
-                            {PERSISTENCE_LABELS[p]}
+                    {(Object.keys(LEVEL_LABELS) as AffordanceLevel[]).map((l) => (
+                        <button key={l} type="button" onClick={() => setLevel(l)} style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid var(--border)", background: level === l ? "var(--primary)" : "transparent", color: level === l ? "var(--primary-foreground)" : "inherit", cursor: "pointer", fontSize: 12 }}>
+                            {LEVEL_LABELS[l]}
                         </button>
                     ))}
                 </div>
                 <p style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.6 }}>
-                    hover-only:指针进入保持、离开即收(leaveGraceMs=0);selected / edit-focus:常驻;dropdown-open:桥接宽限不参与 hover 计时。
-                    上方 NodeSurface 已联动演示:data-toolbar-persistence 标记当前语义。
+                    微供给契约(2026-09-12):idle 不显示;hover 节点双微;hover 到哪个供给哪个全显(渐显不变形,只动 opacity/filter);selected 全显常驻。
+                    上方 NodeSurface 联动演示:data-affordance 标记当前级别。
                 </p>
             </Section>
 

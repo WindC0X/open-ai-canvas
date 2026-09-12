@@ -243,6 +243,9 @@
 
     /* --- 7. 动效（对应 #99 动效 token）--- */
     /* duration */
+    /* 微供给存在感(2026-09-12 契约): hover 节点时工具栏/composer 的低存在感级别 */
+    --affordance-micro-opacity: 0.45;
+    --affordance-micro-saturate: 0.8;
     --motion-dur-instant: 80ms;
     --motion-dur-fast: 150ms;
     --motion-dur-base: 250ms;
@@ -314,6 +317,16 @@
     :root {
         --motion-scale: 0.3;
     }
+}
+
+/* 微供给容器:reduced-motion / no-motion 下直接切换,无过渡(2026-09-12 契约) */
+@media (prefers-reduced-motion: reduce) {
+    [data-affordance] {
+        transition: none !important;
+    }
+}
+.no-motion [data-affordance] {
+    transition: none !important;
 }
 
 /* 用户在应用内选择"无动效"时，JS 添加 .no-motion 类（L2 禁用）*/
