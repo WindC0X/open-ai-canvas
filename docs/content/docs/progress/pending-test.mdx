@@ -1787,6 +1787,10 @@ v2（用户反馈首版难看后重做）：菜单改用 antd Dropdown（placeme
 
 节点悬浮工具栏接入 flora 玻璃材质族（rgba(32,32,32,.9)+blur16+radius14+无阴影，与模型菜单/参数面板同源），显隐生命周期替换为微供给状态机（`lib/canvas/affordance.ts` 纯函数 + `AffordanceSurface` 原语）：idle 不显示 / hover 节点双微（0.45 不透明+降饱和）/ hover 到某供给该供给全显（只动 opacity/filter，渐显不变形）/ 选中即全显常驻。composer 面板随 hover 未选中节点微浮现（用户拍板完整面板微浮现），与选中面板并存（不同节点）。旧 `toolbarNodeId`+220ms timer 双轨状态机退役；220ms 宽限语义保留为 hover 离开的延迟清空（物理间隙期供给保持挂载）。工具栏入场动画 canvas-panel-in 退役（与 opacity 过渡互压）。9 格状态表真机验证 7 格通过（CDP hidden 限制下框选/拖拽 2 格由单测覆盖）。全量测试基线对照：本任务零新增产品失败；新增测试文件改变 bun 模块加载顺序，暴露 17 个顺序敏感文件的预存状态泄漏失败（editor slot/materializer/Agent store/诊断缓冲，单独跑全过），登记为测试基建债务。
 
+### antd 动画播放态接管修复（2026-09-12 深夜二轮，用户"依旧跳变"反馈触发）
+
+前两轮把 prepare 帧 transform 和 transition 时长全部对齐后用户实测依旧跳变——深度排查发现 antd zoom 动画的**播放态（-active）走 CSS keyframes 动画（antZoomBigIn: scale(0.8)→1, antSlideUpIn: translateY(-100%)→0），不是 transition**：transition 强制与 prepare 帧覆盖在动画播放期间完全不参与，keyframes 帧直接接管 transform，缩放/整滑照播。修复：动画播放态换 animation-name 为自绘 canvas-panel-in/out（antd 规则带 :where() 零特异性前缀，普通选择器即可覆盖），zoom 入/出与 slide-up/down 入/出全部接管，统一 150ms ease-out 6px 微浮。机检：三个动画态探针 animationName 全部命中。
+
 ### antd 浮层动画对齐从未生效的根修（2026-09-12 深夜，用户"每次 vs 偶尔发虚"观察触发）
 
 用户观察到玻璃弹出层打开时透明度渐变（发虚）：工具栏菜单每次可见、模型菜单偶尔。追查发现双重根因——(1) 发虚本身是 opacity 动画期间 backdrop-filter 合成减弱的物理现象；(2) **S08 以来的 antd 浮层动画对齐规则从未生效**：zoom-big/slide-up 等 motion 类挂在 .ant-popover/.ant-dropdown 根元素自身，历史规则写成后代选择器从未命中，所有浮层一直跑 antd 默认 0.2s 动画（不同浮层默认动画不同=发虚感不一致的来源）。当时机检只验证"规则存在于产物"未验证 computed 效果。修复：改为复合选择器（.ant-popover.ant-zoom-big-*），dropdown 的 slide-up/down（placement 决定的 motion 类）单独补对齐（只对齐时长/缓动，slide 位移保留 antd 值）。机检：computed transitionProperty=opacity,transform、duration=0.15s、ease=cubic-bezier(0.22,1,0.36,1)。发虚期统一缩至 150ms，全站弹出层动画语言一致。
