@@ -225,16 +225,15 @@ export default function SharedCanvasPage() {
         };
     }));
 const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.type === CanvasNodeType.Script ? <SharedScriptNode node={node} onUnauthorized={unauthorized} /> : node.type === CanvasNodeType.BatchTable ? <CanvasBatchTableNodeContent node={node} nodes={nodes} connections={connections} batch={node.metadata?.generationBatches?.at(-1)} theme={theme} readOnly onPatchTable={() => {}} onAddRow={() => {}} onRemoveRow={() => {}} onUpdateRow={() => {}} onFillRows={() => {}} onGenerate={() => {}} onRetryItem={() => {}} onAddReferenceColumn={() => {}} onConnectStart={() => {}} /> : <SharedConfigNode node={node} onUnauthorized={unauthorized} />, [connections, nodes, theme, unauthorized]);
-        // 微供给: 工具栏单例锚定 hover 优先, 无 hover 回落选中节点; 只读页无拖拽/框选/设置气泡 guard。
-    const toolbarNodeKey = hoveredNodeId ?? selectedNodeId;
-04d20f57 (feat(canvas): 节点工具栏微供给接线+玻璃质感 - hover锚定单例/选中常驻full/220ms timer退役, dock材质换flora玻璃族)
-    const toolbarNode = toolbarNodeKey ? nodeById.get(toolbarNodeKey) || null : null;
-    const toolbarLevel: AffordanceLevel = !toolbarNode
-        ? "hidden"
-        : deriveToolbarAffordance(
-            { nodeId: toolbarNode.id, hoveredNodeId, dialogNodeId: selectedNodeId, selfHover: toolbarHover },
-            { nodeDragging: false, selectionBoxActive: false, settingsOpen: false },
-        );
+    // 微供给双实例(与主画布同语义): 选中节点工具栏常驻, hover 其它节点时第二实例微浮现。
+    // 只读页无拖拽/框选/设置气泡 guard。
+    const selectedToolbarNode = selectedNodeId ? nodeById.get(selectedNodeId) || null : null;
+    const hoverToolbarTarget = hoveredNodeId && hoveredNodeId !== selectedNodeId ? nodeById.get(hoveredNodeId) || null : null;
+    const toolbarLevels = (node: CanvasNodeData): AffordanceLevel => deriveToolbarAffordance(
+        { nodeId: node.id, hoveredNodeId, dialogNodeId: selectedNodeId, selfHover: toolbarHover && hoveredNodeId === node.id },
+        { nodeDragging: false, selectionBoxActive: false, settingsOpen: false },
+    );
+4d070fc5 (fix(canvas): 二次review修复 - exitTimer单飞清竞态/shared页双实例对齐主画布语义/hoverTarget命名)
 
     if (loading) return <FullScreenLoader label="正在打开共享画布" detail="读取节点、连线和视图状态" />;
     if (loadError) return <div className="grid h-screen place-items-center px-5" style={{ background: theme.canvas.background }}><WorkspaceState icon="error" title="分享链接不可用" description={loadError} action={<Link to="/"><Button>返回首页</Button></Link>} /></div>;
@@ -274,7 +273,12 @@ const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.t
                 }} onHoverStart={setHoveredNodeId} onHoverEnd={(id) => setHoveredNodeId((current) => (current === id ? null : current))} onConnectStart={unauthorized} onResize={() => undefined} onContentChange={unauthorized} onRetry={unauthorized} onOpenTaskDetails={unauthorized} onViewImage={(target) => setInfoNodeId(target.id)} onContextMenu={(event, nodeId) => openContextMenu(event, nodeId)} />)}
             </InfiniteCanvas>
 
-            <CanvasNodeToolbar node={toolbarNode} level={toolbarLevel} viewport={viewport} containerRef={containerRef} onHoverChange={setToolbarHover} onInfo={(node) => setInfoNodeId(node.id)} onEditText={unauthorized} onDecreaseFont={unauthorized} onIncreaseFont={unauthorized} onToggleDialog={unauthorized} onAnnotate={unauthorized} onGenerateImage={unauthorized} onUpload={unauthorized} onDownload={unauthorized} onSaveAsset={unauthorized} onMaskEdit={unauthorized} onEmotion={unauthorized} onPortraitTexture={unauthorized} onCrop={unauthorized} onSplit={unauthorized} onUpscale={unauthorized} onSuperResolve={unauthorized} onAngle={unauthorized} onLighting={unauthorized} onPanorama={unauthorized} onViewImage={unauthorized} onExtractVideoFrames={unauthorized} onExtractAudioFromVideo={unauthorized} onTrimVideoSegments={unauthorized} extractingVideoFrames={false} extractingAudio={false} trimmingVideo={false} onSubtitles={unauthorized} onTimeline={unauthorized} onReversePrompt={unauthorized} onRetry={unauthorized} onToggleFreeResize={unauthorized} onToggleLocked={unauthorized} onDelete={unauthorized} />
+            {[
+                { node: selectedToolbarNode, level: selectedToolbarNode ? toolbarLevels(selectedToolbarNode) : null },
+                { node: hoverToolbarTarget, level: hoverToolbarTarget ? toolbarLevels(hoverToolbarTarget) : null },
+            ].filter((instance): instance is { node: CanvasNodeData; level: AffordanceLevel } => instance.node !== null).map((instance) => (
+                <CanvasNodeToolbar key={`shared-toolbar-${instance.node.id}`} node={instance.node} level={instance.level} viewport={viewport} containerRef={containerRef} onHoverChange={setToolbarHover} onInfo={(node) => setInfoNodeId(node.id)} onEditText={unauthorized} onDecreaseFont={unauthorized} onIncreaseFont={unauthorized} onToggleDialog={unauthorized} onAnnotate={unauthorized} onGenerateImage={unauthorized} onUpload={unauthorized} onDownload={unauthorized} onSaveAsset={unauthorized} onMaskEdit={unauthorized} onEmotion={unauthorized} onPortraitTexture={unauthorized} onCrop={unauthorized} onSplit={unauthorized} onUpscale={unauthorized} onSuperResolve={unauthorized} onAngle={unauthorized} onLighting={unauthorized} onPanorama={unauthorized} onViewImage={unauthorized} onExtractVideoFrames={unauthorized} onExtractAudioFromVideo={unauthorized} onTrimVideoSegments={unauthorized} extractingVideoFrames={false} extractingAudio={false} trimmingVideo={false} onSubtitles={unauthorized} onTimeline={unauthorized} onReversePrompt={unauthorized} onRetry={unauthorized} onToggleFreeResize={unauthorized} onToggleLocked={unauthorized} onDelete={unauthorized} />
+            ))}
 
             <div className="absolute bottom-5 left-5 z-[var(--z-panel-floating)]"><CanvasZoomControls scale={viewport.k} containerRef={containerRef} onScaleChange={setZoom} onFitContent={resetViewport} isMiniMapOpen={false} onToggleMiniMap={unauthorized} onOpenShortcuts={unauthorized} /></div>
             <div className="pointer-events-none absolute bottom-5 right-5 z-[var(--z-panel-floating)] max-w-[340px] text-right text-xs leading-5" style={{ color: theme.node.muted }}>访客操作仅在当前页面临时生效</div>

@@ -2202,6 +2202,7 @@ const {
         hoverGraceRef.current = setTimeout(() => {
             hoverGraceRef.current = null;
             setHoveredNodeId((current) => (current === nodeId ? null : current));
+            if (exitGraceRef.current) clearTimeout(exitGraceRef.current);
             setExitingNodeId(nodeId);
             exitGraceRef.current = setTimeout(() => {
                 exitGraceRef.current = null;
@@ -2218,9 +2219,9 @@ const {
     // selected 实例(dialog 驱动, 常驻)
     const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
     // hover 实例(第二实例): 与 dialog 及 selected-single 工具栏同节点时不重复渲染, 否则同位叠影+双重事件
-    const hoverToolbarTarget = hoveredNode ?? exitingNode;
-    const hoverPanelNode = hoverToolbarTarget && hoverToolbarTarget.id !== dialogNodeId && isPanelCarrier(hoverToolbarTarget) && !selectionBox && !isCanvasNodeMoving ? hoverToolbarTarget : null;
-    const hoverToolbarNode = hoverToolbarTarget && hoverToolbarTarget.id !== dialogNodeId && hoverToolbarTarget.id !== toolbarNode?.id && !isFrameNode(hoverToolbarTarget) && !selectionBox && !isCanvasNodeMoving ? hoverToolbarTarget : null;
+    const hoverSupplyTarget = hoveredNode ?? exitingNode;
+    const hoverPanelNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && isPanelCarrier(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving ? hoverSupplyTarget : null;
+    const hoverToolbarNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && hoverSupplyTarget.id !== toolbarNode?.id && !isFrameNode(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving ? hoverSupplyTarget : null;
     const toolbarGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox), settingsOpen: nodeImageSettingsOpen };
     const composerGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox) };
     const selectedToolbarLevel: AffordanceLevel = !toolbarNode || emotionNodeId
