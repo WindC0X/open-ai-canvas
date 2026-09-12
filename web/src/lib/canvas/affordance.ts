@@ -29,8 +29,8 @@ export type AffordanceInput = {
 export type ToolbarGuardInput = {
     nodeDragging: boolean;
     selectionBoxActive: boolean;
-    /** 图像设置气泡开启时工具栏必须让位(避免重叠) */
-    settingsOpen: boolean;
+    /** 参数面板(320px, 从 composer 底栏弹出)与节点上方工具栏无几何重叠, 不再让位 */
+    settingsOpen?: boolean;
 };
 
 export type ComposerGuardInput = {
@@ -51,7 +51,7 @@ function deriveLevel(
 
 /** 工具栏存在感:拖拽/框选/设置气泡开启时强制隐藏。 */
 export function deriveToolbarAffordance(input: AffordanceInput, guards: ToolbarGuardInput): AffordanceLevel {
-    return deriveLevel(input, guards.nodeDragging || guards.selectionBoxActive || guards.settingsOpen);
+    return deriveLevel(input, guards.nodeDragging || guards.selectionBoxActive || Boolean(guards.settingsOpen));
 }
 
 /** composer 存在感:拖拽不抑制(拖拽替换引用 96e0051a 需要 composer 可接受投放),设置气泡是其自身一部分不抑制。 */

@@ -38,6 +38,11 @@ describe("deriveToolbarAffordance", () => {
         expect(deriveToolbarAffordance({ ...base, dialogNodeId: NODE, hoveredNodeId: NODE }, { ...tbGuards, settingsOpen: true })).toBe("hidden");
     });
 
+    test("参数面板开启不再隐藏工具栏(2026-09-12: 面板与工具栏无几何重叠, settingsOpen guard 移除)", () => {
+        // settingsOpen 省略(undefined) — guard 不生效, selected 仍 full
+        expect(deriveToolbarAffordance({ ...base, dialogNodeId: NODE }, { nodeDragging: false, selectionBoxActive: false })).toBe("full");
+    });
+
     test("框选中 → hidden", () => {
         expect(deriveToolbarAffordance({ ...base, hoveredNodeId: NODE }, { ...tbGuards, selectionBoxActive: true })).toBe("hidden");
     });

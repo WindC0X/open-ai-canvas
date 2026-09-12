@@ -2222,7 +2222,9 @@ const {
     const hoverSupplyTarget = hoveredNode ?? exitingNode;
     const hoverPanelNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && isPanelCarrier(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving ? hoverSupplyTarget : null;
     const hoverToolbarNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && hoverSupplyTarget.id !== toolbarNode?.id && !isFrameNode(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving ? hoverSupplyTarget : null;
-    const toolbarGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox), settingsOpen: nodeImageSettingsOpen };
+    // settingsOpen 不再作工具栏 guard: 参数面板从 composer 底栏弹出(320px 宽, 与节点上方工具栏
+    // 无几何重叠), 打开参数面板隐藏工具栏反而打断"选参数→换模型/引用"的操作动线。
+    const toolbarGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox) };
     const composerGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox) };
     const selectedToolbarLevel: AffordanceLevel = !toolbarNode || emotionNodeId
         ? "hidden"
