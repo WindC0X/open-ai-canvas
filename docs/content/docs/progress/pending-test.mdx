@@ -1787,6 +1787,14 @@ v2（用户反馈首版难看后重做）：菜单改用 antd Dropdown（placeme
 
 节点悬浮工具栏接入 flora 玻璃材质族（rgba(32,32,32,.9)+blur16+radius14+无阴影，与模型菜单/参数面板同源），显隐生命周期替换为微供给状态机（`lib/canvas/affordance.ts` 纯函数 + `AffordanceSurface` 原语）：idle 不显示 / hover 节点双微（0.45 不透明+降饱和）/ hover 到某供给该供给全显（只动 opacity/filter，渐显不变形）/ 选中即全显常驻。composer 面板随 hover 未选中节点微浮现（用户拍板完整面板微浮现），与选中面板并存（不同节点）。旧 `toolbarNodeId`+220ms timer 双轨状态机退役；220ms 宽限语义保留为 hover 离开的延迟清空（物理间隙期供给保持挂载）。工具栏入场动画 canvas-panel-in 退役（与 opacity 过渡互压）。9 格状态表真机验证 7 格通过（CDP hidden 限制下框选/拖拽 2 格由单测覆盖）。全量测试基线对照：本任务零新增产品失败；新增测试文件改变 bun 模块加载顺序，暴露 17 个顺序敏感文件的预存状态泄漏失败（editor slot/materializer/Agent store/诊断缓冲，单独跑全过），登记为测试基建债务。
 
+### 微供给全画布点击拦截修复（2026-09-12 深夜，用户"点击无反应/闪现消失"反馈后）
+
+**根因一个**：composer 外层 AffordanceSurface（inset-0 容器）的 level inline `pointerEvents: "auto"` 压过 `pointer-events-none` Tailwind 类（inline > class）——hover 挂载面板后整个覆盖层拦截画布全部 hit-test：点击节点/空白/框选全无反应；且鼠标一动 hit-test 即"离开"节点进入覆盖层，触发 mouseout→grace 220ms→供给消失→重挂循环（闪现消失）。
+
+修复：容器 style 显式 `pointerEvents: "none"`；微态面板主体由 globals.css 按级别设 `pointer-events: none`（full 恢复）；面板顶部新增 20px 感应带（pointer-events-auto）——指针到达即归还 hover 并经冒泡升级 full，主体随之恢复可交互。
+
+**验收纪律升级（本轮盲区教训）**：此前验证全用 fiber 直呼/事件派发，绕过了 hit-test，因此拦截类缺陷全部漏检。此后所有浮层/pointer-events 验收必须以 `elementFromPoint` 断言真实命中路径。本轮 elementFromPoint 断言 8 项：空白/节点命中不受覆盖层影响、hover 1.5s 稳定、微态主体穿透、相邻节点可达、感应带升级 full、full 主体可交互（textarea 命中）、点击节点切换选择、面板跟随。
+
 ### 微供给间隙桥与定位修复（2026-09-12 晚，用户复验反馈后）
 
 用户复验发现两批问题，均已修复并机检：
