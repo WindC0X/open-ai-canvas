@@ -910,7 +910,7 @@ export function normalizeImageValue(profile: ImageCapabilityConfig, value: { siz
     const quality = profile.quality.supported
         ? requestedQuality === "auto" || requestedQuality === "any"
             ? "auto"
-            : value.quality && (profile.quality.values.includes(value.quality) || tierAllowedByPresets)
+            : value.quality && profile.quality.values.includes(value.quality)
                 ? value.quality
                 : profile.quality.default || "auto"
         : requestedQuality === "1k" || requestedQuality === "2k" || requestedQuality === "4k"
