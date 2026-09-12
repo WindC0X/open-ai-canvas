@@ -1,7 +1,7 @@
 import { Button, Image as AntImage, InputNumber, Modal, Popover } from "antd";
 import { Tooltip } from "@/components/ui/base/tooltip";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowLeftRight, ArrowUp, AtSign, Boxes, Camera, ChevronDown, FileText, GripVertical, ImageIcon, ImagePlus, Link2, LoaderCircle, Maximize2, Music2, Pencil, Quote, SlidersHorizontal, UserRound, Video, WandSparkles, X } from "lucide-react";
+import { ArrowUp, AtSign, Boxes, Camera, ChevronDown, FileText, GripVertical, ImageIcon, ImagePlus, Link2, LoaderCircle, Maximize2, Music2, Pencil, Quote, SlidersHorizontal, UserRound, Video, WandSparkles, X } from "lucide-react";
 
 import { ModelPicker } from "@/components/model-picker";
 import { defaultConfig, modelOptionName, resolveModelChannel, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
@@ -15,7 +15,7 @@ import { navigateToSettings } from "@/lib/settings-navigation";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { CanvasCameraControlPopover } from "./canvas-camera-control-popover";
-import { CanvasImageSettingsPopover, imageSettingsSummary } from "./canvas-image-settings-popover";
+import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
 import { CanvasCountSettingsPopover } from "./canvas-count-settings-popover";
 import { CanvasTextSettingsPopover } from "./canvas-text-settings-popover";
 import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
@@ -392,16 +392,23 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                             {/* 问题三(2026-09-10 用户拍板): 参数摘要 pill 本身=设置触发器(带箭头可点开面板),
                                 紧邻模型 pill 靠左; 原右侧孤立 sliders 图标触发器删除。 */}
                             {mode === "image" ? (
-                                <CanvasImageSettingsPopover
-                                    config={config}
-                                    placement={expanded ? "topRight" : "topLeft"}
-                                    buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
-                                    onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}
-                                    onMissingConfig={() => navigateToSettings({ continueCreation: true })}
-                                    onOpenChange={expanded ? undefined : onImageSettingsOpenChange}
-                                    cameraControl={node.metadata?.cameraControl}
-                                    onCameraControlChange={(options) => onConfigChange(node.id, { cameraControl: options })}
-                                />
+                                <>
+                                    {/* 相机控制按钮保持在摘要 pill 左侧(上游 af342e8c 组件化后挂载点由右组移回左组, 对齐重放前布局) */}
+                                    <CanvasCameraControlPopover
+                                        cameraControl={node.metadata?.cameraControl}
+                                        onCameraControlChange={(options) => onConfigChange(node.id, { cameraControl: options })}
+                                        theme={theme}
+                                        compact={!expanded}
+                                    />
+                                    <CanvasImageSettingsPopover
+                                        config={config}
+                                        placement={expanded ? "topRight" : "topLeft"}
+                                        buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
+                                        onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}
+                                        onMissingConfig={() => navigateToSettings({ continueCreation: true })}
+                                        onOpenChange={expanded ? undefined : onImageSettingsOpenChange}
+                                    />
+                                </>
                             ) : mode === "video" ? (
                                 <CanvasVideoSettingsPopover
                                     config={config}
@@ -438,40 +445,14 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                             placement={expanded ? "topRight" : "topLeft"}
                             buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
                         />
-                    ) : mode === "image" ? (
-                        // 图片模式下，显示相机配置与镜头配置
-                        <>
-                            <CanvasCameraControlPopover
-                                cameraControl={node.metadata?.cameraControl}
-                                onCameraControlChange={(options) => onConfigChange(node.id, { cameraControl: options })}
-                                theme={theme}
-                                compact={!expanded}
-                            />
-                            <CanvasImageSettingsPopover
-                                config={config}
-                                placement={expanded ? "topRight" : "topLeft"}
-                                buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
-                                onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}
-                                onMissingConfig={() => navigateToSettings({ continueCreation: true })}
-                                onOpenChange={expanded ? undefined : onImageSettingsOpenChange}
-                            />
-                            {countProfile.maxOutputs > 1 ? (
-                                <CanvasCountSettingsPopover
-                                    value={Number(config.count) || 1}
-                                    onChange={(value) => onConfigChange(node.id, { count: value })}
-                                    max={Math.min(15, countProfile.maxOutputs)}
-                                    label="张"
-                                    placement={expanded ? "topRight" : "topLeft"}
-                                    buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
-                                />
-                            ) : null}
-                        </>
-                    ) : mode === "video" ? (
-                        <CanvasVideoSettingsPopover
-                            config={config}
-                            iconOnly
-                            buttonClassName="canvas-node-composer-settings-trigger [&_.lucide]:!size-3"
-                            onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))}
+                    ) : mode === "image" && countProfile.maxOutputs > 1 ? (
+                        <CanvasCountSettingsPopover
+                            value={Number(config.count) || 1}
+                            onChange={(value) => onConfigChange(node.id, { count: value })}
+                            max={Math.min(15, countProfile.maxOutputs)}
+                            label="张"
+                            placement={expanded ? "topRight" : "topLeft"}
+                            buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
                         />
                     ) : mode === "video" || mode === "audio" ? (
                         // UI 先行(用户拍板): video/audio 份数仅存储展示, count>1 提交仍按单生成, 链路后补。
