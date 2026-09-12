@@ -323,6 +323,7 @@
 @media (prefers-reduced-motion: reduce) {
     [data-affordance] {
         transition: none !important;
+        animation: none !important;
     }
 }
 .no-motion [data-affordance] {
@@ -8221,6 +8222,19 @@
     .canvas-node-panel-affordance[data-affordance="micro"] [data-canvas-node-panel],
     .canvas-node-panel-affordance[data-affordance="hidden"] [data-canvas-node-panel] {
         pointer-events: none;
+    }
+
+    /* 微供给进场动画: 实例挂载(从 hidden 进入 micro/full)时从透明起步渐显;
+       to 缺省=元素当前 opacity(micro 0.45 / full 1), 与 inline transition 不冲突。
+       hidden→micro 边界穿越时重启(匹配态变化), micro↔full 之间不重启。 */
+    @keyframes affordance-in {
+        from {
+            opacity: 0;
+        }
+    }
+    [data-affordance="micro"],
+    [data-affordance="full"] {
+        animation: affordance-in 180ms var(--motion-ease-out) backwards;
     }
 
     .canvas-settings-option:active:not(:disabled) {

@@ -308,9 +308,11 @@ function InfiniteCanvasPage() {
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [tapNowImportOpen, setTapNowImportOpen] = useState(false);
     const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
-    const [toolbarHover, setToolbarHover] = useState(false);
-    const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
-    const [composerHover, setComposerHover] = useState(false);
+    const [toolbarHoverId, setToolbarHoverId] = useState<string | null>(null);
+    const [composerHoverId, setComposerHoverId] = useState<string | null>(null);
+    const [toolbarMenuOpenId, setToolbarMenuOpenId] = useState<string | null>(null);
+    // 退场动画(og 两段式): hover 宽限到期先以 hidden 渲染保留(opacity 过渡), 播完再真正卸载
+    const [exitingNodeId, setExitingNodeId] = useState<string | null>(null);
     // 活动任务面板实测高度(含展开态):右侧同锚的对象 HUD 用它动态下移,避免两浮层重叠(S06)。
     const [activeTaskPanelHeight, setActiveTaskPanelHeight] = useState(0);
     const [arkPrivateAssetUploadNodeId, setArkPrivateAssetUploadNodeId] = useState<string | null>(null);
@@ -2181,12 +2183,18 @@ const {
     // hoveredNodeId 会让供给在指针穿过间隙时卸载, 永远无法进入供给升级 full(旧 220ms timer 的语义等价物,
     // 单一 hoveredNodeId 源 + 单一 grace, 非旧双轨状态机)。
     const hoverGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const exitGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleCanvasNodeHoverStart = useCallback((nodeId: string) => {
         if (nodeDraggingRef.current) return;
         if (hoverGraceRef.current) {
             clearTimeout(hoverGraceRef.current);
             hoverGraceRef.current = null;
         }
+        if (exitGraceRef.current) {
+            clearTimeout(exitGraceRef.current);
+            exitGraceRef.current = null;
+        }
+        setExitingNodeId((current) => (current === nodeId ? null : current));
         setHoveredNodeId(nodeId);
     }, []);
     const handleCanvasNodeHoverEnd = useCallback((nodeId: string) => {
@@ -2194,28 +2202,52 @@ const {
         hoverGraceRef.current = setTimeout(() => {
             hoverGraceRef.current = null;
             setHoveredNodeId((current) => (current === nodeId ? null : current));
+            setExitingNodeId(nodeId);
+            exitGraceRef.current = setTimeout(() => {
+                exitGraceRef.current = null;
+                setExitingNodeId((current) => (current === nodeId ? null : current));
+            }, 160);
         }, 220);
     }, []);
 
-    // 微供给: 工具栏单例锚定 hover 优先(指针注意力), 无 hover 时回落到选中节点(常驻 full)。
+    // 微供给双实例(og-canvas pinned+hover 同构): selected 节点的工具栏/composer 常驻 full,
+    // hover 其它节点时第二实例微浮现 —— 两者并存互不抢占(单例会抢走选中节点的常驻供给)。
     const hoveredNode = useMemo(() => (hoveredNodeId ? nodes.find((item) => item.id === hoveredNodeId) ?? null : null), [nodes, hoveredNodeId]);
-    const displayToolbarNode = hoveredNode && !isFrameNode(hoveredNode) ? hoveredNode : toolbarNode;
-    // 微供给: composer 承载节点(dialog 优先, hover 回落); 排除条件与挂载 gate 同源。
-    const panelCandidate = dialogNode ?? hoveredNode;
-    const displayPanelNode = panelCandidate && !isCanvasImageSourceNode(panelCandidate) && !panelCandidate.metadata?.fileUpload && panelCandidate.type !== CanvasNodeType.Script && panelCandidate.type !== CanvasNodeType.Drawing && panelCandidate.type !== CanvasNodeType.Panorama && !isFrameNode(panelCandidate) ? panelCandidate : null;
-    const toolbarLevel: AffordanceLevel = !displayToolbarNode || emotionNodeId
+    const isPanelCarrier = (node: CanvasNodeData) => !isCanvasImageSourceNode(node) && !node.metadata?.fileUpload && node.type !== CanvasNodeType.Script && node.type !== CanvasNodeType.Drawing && node.type !== CanvasNodeType.Panorama && !isFrameNode(node);
+    // selected 实例(dialog 驱动, 常驻)
+    const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
+    // hover 实例(非 dialog 节点才需要第二实例, 避免同节点双渲染)
+    const exitingNode = exitingNodeId ? nodes.find((item) => item.id === exitingNodeId) ?? null : null;
+    const hoverPanelCandidate = hoveredNode && hoveredNode.id !== dialogNodeId ? hoveredNode : (exitingNode && exitingNode.id !== dialogNodeId ? exitingNode : null);
+    const hoverPanelNode = hoverPanelCandidate && isPanelCarrier(hoverPanelCandidate) && !selectionBox && !isCanvasNodeMoving ? hoverPanelCandidate : null;
+    const hoverToolbarNode = (hoveredNode ?? exitingNode) && (hoveredNode ?? exitingNode)!.id !== dialogNodeId && !isFrameNode(hoveredNode ?? exitingNode!) && !selectionBox && !isCanvasNodeMoving ? (hoveredNode ?? exitingNode) : null;
+    const toolbarGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox), settingsOpen: nodeImageSettingsOpen };
+    const composerGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox) };
+    const selectedToolbarLevel: AffordanceLevel = !toolbarNode || emotionNodeId
         ? "hidden"
-        : toolbarMenuOpen
+        : deriveToolbarAffordance(
+            { nodeId: toolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: toolbarHoverId === toolbarNode.id },
+            toolbarGuards,
+        );
+    const hoverToolbarLevel: AffordanceLevel = !hoverToolbarNode || emotionNodeId
+        ? "hidden"
+        : toolbarMenuOpenId === hoverToolbarNode.id
             ? "full"
             : deriveToolbarAffordance(
-                { nodeId: displayToolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: toolbarHover },
-                { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox), settingsOpen: nodeImageSettingsOpen },
+                { nodeId: hoverToolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: toolbarHoverId === hoverToolbarNode.id },
+                toolbarGuards,
             );
-    const composerLevel: AffordanceLevel = !displayPanelNode || emotionNodeId
+    const selectedComposerLevel: AffordanceLevel = !selectedPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: displayPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: composerHover, siblingHover: toolbarHover },
-            { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox) },
+            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: composerHoverId === selectedPanelNode.id, siblingHover: toolbarHoverId === selectedPanelNode.id },
+            composerGuards,
+        );
+    const hoverComposerLevel: AffordanceLevel = !hoverPanelNode || emotionNodeId
+        ? "hidden"
+        : deriveComposerAffordance(
+            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: composerHoverId === hoverPanelNode.id, siblingHover: toolbarHoverId === hoverPanelNode.id },
+            composerGuards,
         );
     const retryCanvasNode = useCallback(
         (node: CanvasNodeData) => {
@@ -2586,31 +2618,34 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                             }}
                         />
 
-                    {displayPanelNode && !selectionBox && !isCanvasNodeMoving ? (
+                    {[
+                        { node: selectedPanelNode, level: selectedComposerLevel },
+                        { node: hoverPanelNode, level: hoverComposerLevel },
+                    ].filter((instance): instance is { node: CanvasNodeData; level: AffordanceLevel } => instance.node !== null).map((instance) => (
                         <AffordanceSurface
-                            level={composerLevel}
+                            key={`composer-${instance.node.id}`}
+                            level={instance.level}
                             className="canvas-node-panel-affordance absolute inset-0"
                             style={{ pointerEvents: "none" }}
-                            onMouseEnter={() => setComposerHover(true)}
-                            onMouseLeave={() => setComposerHover(false)}
-闪隐)
+                            onMouseEnter={() => setComposerHoverId(instance.node.id)}
+                            onMouseLeave={() => setComposerHoverId((current) => (current === instance.node.id ? null : current))}
+0f0d0804 (fix(canvas): 微供给双实例并存+进出场动画 - selected常驻full不抢占/hover第二实例微浮现/og两段式退场)
                         >
                             <CanvasNodePanelOverlay
-                                node={displayPanelNode}
+                                node={instance.node}
                                 viewport={viewport}
                                 containerRef={containerRef}
-                                allowOverflow={displayPanelNode.type !== CanvasNodeType.Config}
-                            gapPx={10}
-                            onGapEnter={handleCanvasNodeHoverStart}
-                                dragOffset={dragPreview?.nodeIds.has(displayPanelNode.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
-                                isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(displayPanelNode.id))}
+                                allowOverflow={instance.node.type !== CanvasNodeType.Config}
+                                gapPx={10}
+                                onGapEnter={handleCanvasNodeHoverStart}
+                                dragOffset={dragPreview?.nodeIds.has(instance.node.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
+                                isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(instance.node.id))}
                             >
-                                {/* 按节点强重建(issue-1 根修): 复用实例会让旧节点曾打开的 ModelPicker 菜单 open state 跨节点残留。
-                                    hover 微浮现复用同一面板实例(dialog 与 hover 交替时 key 变化即卸载重建)。 */}
-                                <div key={displayPanelNode.id}>{renderCanvasNodePanel(displayPanelNode)}</div>
+                                {/* 按节点强重建(issue-1 根修): 复用实例会让旧节点曾打开的 ModelPicker 菜单 open state 跨节点残留。 */}
+                                <div key={instance.node.id}>{renderCanvasNodePanel(instance.node)}</div>
                             </CanvasNodePanelOverlay>
                         </AffordanceSurface>
-                    ) : null}
+                    ))}
 
                     <ObjectHudPanel
                         node={toolbarNode}
@@ -2685,15 +2720,20 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                         />
                     ) : null}
 
-                    <CanvasNodeToolbar
-                        node={emotionNodeId ? null : displayToolbarNode}
-                        level={toolbarLevel}
-                        onGapEnter={handleCanvasNodeHoverStart}
-                        workspaceMode={workspaceMode}
+                    {[
+                        { node: toolbarNode, level: selectedToolbarLevel },
+                        { node: hoverToolbarNode, level: hoverToolbarLevel },
+                    ].filter((instance): instance is { node: CanvasNodeData; level: AffordanceLevel } => instance.node !== null).map((instance) => (
+                        <CanvasNodeToolbar
+                            key={`toolbar-${instance.node.id}`}
+                            node={emotionNodeId ? null : instance.node}
+                            level={instance.level}
+                            onGapEnter={handleCanvasNodeHoverStart}
+                            workspaceMode={workspaceMode}
                         viewport={viewport}
                         containerRef={containerRef}
-                        onHoverChange={setToolbarHover}
-                        onMenuOpenChange={setToolbarMenuOpen}
+                            onHoverChange={(hovering) => setToolbarHoverId((current) => (hovering ? instance.node.id : current === instance.node.id ? null : current))}
+                            onMenuOpenChange={(open) => setToolbarMenuOpenId((current) => (open ? instance.node.id : current === instance.node.id ? null : current))}
                         onInfo={(node) => (node.metadata?.workflowKind === "character" && node.metadata.characterAssetId ? openTextNodeEditor(node) : setInfoNodeId(node.id))}
                         onEditText={openTextNodeEditor}
                         onDecreaseFont={(node) => handleFontSizeChange(node.id, Math.max(10, (node.metadata?.fontSize || 14) - 2))}
@@ -2737,9 +2777,9 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                         onRetry={retryCanvasNode}
                         onToggleFreeResize={(node) => toggleNodeFreeResize(node.id)}
                         onToggleLocked={(node) => toggleNodeLocked(node.id)}
-                        onDelete={(node) => deleteNodes(new Set([node.id]))}
-                    />
-
+                            onDelete={(node) => deleteNodes(new Set([node.id]))}
+                        />
+                    ))}
                     {isMiniMapOpen && !focusMode ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} canvasContainerRef={containerRef} onViewportPreviewChange={previewViewport} onViewportChange={handleViewportChange} /> : null}
 
                     {!focusMode ? (
