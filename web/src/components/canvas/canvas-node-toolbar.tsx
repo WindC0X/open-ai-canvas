@@ -340,7 +340,7 @@ export function CanvasNodeToolbar({
                 {utilityTools.length || moreTools.length ? <span aria-hidden className="aceternity-dock-separator mx-1 h-5 w-px shrink-0" /> : null}
                 {utilityTools.map((tool) => <NodeDockToolButton key={tool.id} tool={tool} iconOnly />)}
                 {moreTools.length ? (
-                    <NodeDockMenuButton menuId="more" label="更多" icon={<Ellipsis className="size-3.5" />} tools={moreTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} placement="topRight" iconOnly />
+                    <NodeDockMenuButton menuId="more" label="更多" icon={<Ellipsis className="size-3.5" />} tools={moreTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} placement="bottomRight" iconOnly />
                 ) : null}
                 </div>
             </div>
@@ -371,7 +371,7 @@ function compareToolbarTools(left: ToolbarTool, right: ToolbarTool) {
     return left.order - right.order;
 }
 
-function NodeDockMenuButton({ menuId, label, icon, tools, openMenuId, onOpenChange, placement = "top", iconOnly = false, split }: { menuId: string; label: string; icon: ReactNode; tools: ToolbarTool[]; openMenuId: string | null; onOpenChange: (menuId: string, open: boolean) => void; placement?: "top" | "topRight"; iconOnly?: boolean; split?: { node: CanvasNodeData; onSplit: (node: CanvasNodeData, params: ImageSplitParams) => void } }) {
+function NodeDockMenuButton({ menuId, label, icon, tools, openMenuId, onOpenChange, placement = "bottom", iconOnly = false, split }: { menuId: string; label: string; icon: ReactNode; tools: ToolbarTool[]; openMenuId: string | null; onOpenChange: (menuId: string, open: boolean) => void; placement?: "bottom" | "bottomRight"; iconOnly?: boolean; split?: { node: CanvasNodeData; onSplit: (node: CanvasNodeData, params: ImageSplitParams) => void } }) {a0c7295b (feat(canvas): 工具栏内部按钮与下拉菜单flora质感对齐 - 按钮h28/r-md/13px, 菜单玻璃族皮, 弹出方向统一朝下)
     const open = openMenuId === menuId;
     const triggerRef = useRef<HTMLButtonElement>(null);
     const [splitPanelOpen, setSplitPanelOpen] = useState(false);

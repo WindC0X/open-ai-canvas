@@ -7416,6 +7416,72 @@
         border-color: rgba(15, 23, 42, 0.08) !important;
     }
 
+    /* 工具栏内部按钮对齐 composer 底栏按钮语法(密度/圆角/字号/hover), scoped 不影响其它 dock 场景 */
+    .canvas-node-toolbar .aceternity-dock-command {
+        height: 28px !important;
+        border-radius: var(--r-md) !important;
+        font-size: 13px !important;
+        gap: 4px;
+    }
+    .canvas-node-toolbar .aceternity-dock-command:hover:not(:disabled) {
+        background: var(--canvas-composer-control-hover) !important;
+    }
+    .canvas-node-toolbar .aceternity-dock-command.is-active {
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: #fff !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar .aceternity-dock-command.is-active {
+        background: rgba(0, 0, 0, 0.08) !important;
+        color: rgba(0, 0, 0, 0.92) !important;
+    }
+
+    /* 工具栏下拉菜单面板: flora 玻璃族(与模型菜单/参数面板同源), 弹出方向统一朝下 */
+    .canvas-node-toolbar-menu .ant-dropdown-menu {
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 5px !important;
+    }
+    .canvas-node-toolbar-menu {
+        border-radius: 12px !important;
+        background: rgba(32, 32, 32, 0.9) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+        color: rgba(255, 255, 255, 0.85);
+    }
+    .canvas-node-toolbar-menu .ant-dropdown-menu-item {
+        background: transparent !important;
+        border-radius: 8px !important;
+        min-height: 32px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+    .canvas-node-toolbar-menu .ant-dropdown-menu-item:hover:not(.ant-dropdown-menu-item-disabled) {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #fff !important;
+    }
+    .canvas-node-toolbar-menu .ant-dropdown-menu-item-group-title {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55) !important;
+        padding: 6px 8px 2px !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu {
+        background: rgba(255, 255, 255, 0.94) !important;
+        border-color: rgba(15, 23, 42, 0.08) !important;
+        color: rgba(0, 0, 0, 0.85);
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu .ant-dropdown-menu-item {
+        color: rgba(0, 0, 0, 0.85) !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu .ant-dropdown-menu-item:hover:not(.ant-dropdown-menu-item-disabled) {
+        background: rgba(0, 0, 0, 0.06) !important;
+        color: rgba(0, 0, 0, 0.92) !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu .ant-dropdown-menu-item-group-title {
+        color: rgba(0, 0, 0, 0.55) !important;
+    }
+
     .canvas-model-picker-menu {
         /* flora P51-030: 菜单根定宽 384(世界), 不随内容/触发器收缩。
            高度上限 560(2026-09-09 十轮): 420 在 pinned≥2 时提前内部滚动裁切,
