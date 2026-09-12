@@ -134,11 +134,15 @@ export const CanvasNode = React.memo(function CanvasNode({
             let overSupply = false;
             if (!inside) {
                 for (const supply of document.querySelectorAll(`[data-supply-node="${CSS.escape(data.id)}"]`)) {
-                    // 命中域含间隙桥(og-canvas: 桥是 hover 域的物理组成部分)
-                    const targets = [supply as Element];
+                    // 命中域含间隙桥(og-canvas: 桥是 hover 域的物理组成部分)。
+                    // composer wrapper 是 inset-0 全屏坐标容器(pe:none), 其矩形不是 hover 域 —
+                    // 计入会让节点外任意点判为供给命中, 本地 hovered 永不释放。
+                    const targets: Element[] = [];
                     if (supply.classList.contains("canvas-node-panel-affordance")) {
                         const panel = supply.querySelector("[data-canvas-node-panel]");
                         if (panel) targets.push(panel);
+                    } else {
+                        targets.push(supply as Element);
                     }
                     const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
                     if (bridge) targets.push(bridge);

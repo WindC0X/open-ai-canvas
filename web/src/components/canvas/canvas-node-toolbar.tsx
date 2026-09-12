@@ -34,6 +34,7 @@ type CanvasNodeToolbarProps = {
     onMenuOpenChange?: (open: boolean) => void;
     /** 指针穿过节点↔工具栏间隙桥: hover 归还源节点(og-canvas gap-bridge 同构) */
     onGapEnter?: (nodeId: string) => void;
+    onSupplyLeave?: (nodeId: string, event?: React.MouseEvent) => void;
     onInfo: (node: CanvasNodeData) => void;
     onEditText: (node: CanvasNodeData) => void;
     onDecreaseFont: (node: CanvasNodeData) => void;
@@ -97,6 +98,7 @@ export function CanvasNodeToolbar({
     onHoverChange,
     onMenuOpenChange,
     onGapEnter,
+    onSupplyLeave,
     onInfo,
     onEditText,
     onDecreaseFont,
@@ -307,8 +309,18 @@ export function CanvasNodeToolbar({
             data-supply-node={node.id}
             className="canvas-node-toolbar absolute z-[var(--z-node-toolbar)] -translate-x-1/2 -translate-y-full"
             style={{ left: 0, top: 0, transform: `translate3d(${anchor.left}px, ${anchor.top}px, 0)`, width: "max-content", maxWidth: "calc(100% - 20px)", color: theme.node.text }}
-            onMouseEnter={() => onHoverChange(true)}
-            onMouseLeave={() => onHoverChange(false)}
+            onMouseEnter={() => {
+                onHoverChange(true);
+                // 供给 enter 补挂 hover 生命周期: 节点 leave 被供给豁免跳过 hoverEnd 后,
+                // hover 归属改由供给链续期; 若此前 hoveredNodeId 已被清(直连供给), 在此恢复。
+                onGapEnter?.(node.id);
+            }}
+            onMouseLeave={(event) => {
+                onHoverChange(false);
+                // 供给链最终 leave: 指针不在本节点 hover 域(节点∪其它供给)时结束 hover 生命周期,
+                // 否则 hoveredNodeId 因节点 leave 豁免而永久残留(用户实测 hover 常驻缺陷)。
+                onSupplyLeave?.(node.id, event);
+            }}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
             data-canvas-no-zoom

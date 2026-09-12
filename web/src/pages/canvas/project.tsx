@@ -179,8 +179,13 @@ const NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS = 380;
 // 防止多处内联循环各自为政(历史上校准漏桥导致 hover 一票否决, 闪烁根因 R1)。
 function supplyRectsContain(nodeId: string, x: number, y: number): boolean {
     for (const supply of document.querySelectorAll('[data-supply-node="' + CSS.escape(nodeId) + '"]')) {
-        const targets: Element[] = [supply];
-        if (supply.classList.contains("canvas-node-panel-affordance")) {
+        const targets: Element[] = [];
+        // composer wrapper(canvas-node-panel-affordance) 是 inset-0 全屏坐标容器(inline pe:none 不拦截指针),
+        // 其矩形绝不是 hover 域 — 计入会让"任意空白画布点"判为供给命中(hover 常驻/层级抢夺的根源)。
+        // 只算真实交互面: 面板本体(pe:auto)、间隙桥、感应带; 工具栏(surface 自身 pe:auto)以 supply 本体计。
+        if (!supply.classList.contains("canvas-node-panel-affordance")) {
+            targets.push(supply);
+        } else {
             const panel = supply.querySelector("[data-canvas-node-panel]");
             if (panel) targets.push(panel);
         }
@@ -1174,7 +1179,6 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         // panel from the previous node cannot reappear after mouse-up.
         setDialogNodeId(node.id);
     }, [nodesRef]);
-6a8bd6b1 (fix(canvas): S08 文本节点唤出语义 - 单击真toggle唤出提示词面板, 拖动只移动不强开面板(修current===id?current:null永不打开的缺陷))
 
     const handleCanvasDeselect = useCallback(() => {
         setContextMenu(null);
@@ -2300,6 +2304,21 @@ const {
         }, NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS);
     }, [pointerOverSupply]);
 
+    // 供给链最终 leave: 节点 mouseleave 因供给豁免跳过 hoverEnd 后, hover 归属改由供给链续期;
+    // 指针离开所有供给且不在节点矩形内时, 由这里结束 hover 生命周期(否则 hoveredNodeId 永久残留)。
+    const handleSupplyLeave = useCallback((nodeId: string, event?: React.MouseEvent) => {
+        const x = event?.clientX ?? lastPointerRef.current.x;
+        const y = event?.clientY ?? lastPointerRef.current.y;
+        if (x < 0) return;
+        const el = document.querySelector('[data-node-id="' + CSS.escape(nodeId) + '"]');
+        if (el) {
+            const rect = el.getBoundingClientRect();
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return;
+        }
+        if (supplyRectsContain(nodeId, x, y)) return;
+        handleCanvasNodeHoverEnd(nodeId);
+    }, [handleCanvasNodeHoverEnd]);
+
     // 微供给双实例(og-canvas pinned+hover 同构): selected 节点的工具栏/composer 常驻 full,
     // hover 其它节点时第二实例微浮现 —— 两者并存互不抢占(单例会抢走选中节点的常驻供给)。
     const hoveredNode = useMemo(() => (hoveredNodeId ? nodes.find((item) => item.id === hoveredNodeId) ?? null : null), [nodes, hoveredNodeId]);
@@ -2689,7 +2708,6 @@ onViewportChange={handleViewportChange}
                                     />
                                 )}
                             </AssistantPanelColumn>
-beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度动态让位, 卸载归零复位)
                         ) : null}
 
                         <CanvasNodeSearchModal
@@ -2720,9 +2738,11 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                             data-supply-node={instance.node.id}
                             className="canvas-node-panel-affordance absolute inset-0"
                             style={{ pointerEvents: "none" }}
-                            onMouseEnter={() => setComposerHoverId(instance.node.id)}
-                            onMouseLeave={() => setComposerHoverId((current) => (current === instance.node.id ? null : current))}
-0f0d0804 (fix(canvas): 微供给双实例并存+进出场动画 - selected常驻full不抢占/hover第二实例微浮现/og两段式退场)
+                            onMouseEnter={() => { setComposerHoverId(instance.node.id); handleCanvasNodeHoverStart(instance.node.id); }}
+                            onMouseLeave={(event) => {
+                                setComposerHoverId((current) => (current === instance.node.id ? null : current));
+                                handleSupplyLeave(instance.node.id, event);
+                            }}
                         >
                             <CanvasNodePanelOverlay
                                 node={instance.node}
@@ -2826,6 +2846,7 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                         viewport={viewport}
                         containerRef={containerRef}
                             onHoverChange={(hovering) => setToolbarHoverId((current) => (hovering ? instance.node.id : current === instance.node.id ? null : current))}
+                            onSupplyLeave={(nodeId, event) => handleSupplyLeave(nodeId, event)}
                             onMenuOpenChange={(open) => setToolbarMenuOpenId((current) => (open ? instance.node.id : current === instance.node.id ? null : current))}
                         onInfo={(node) => (node.metadata?.workflowKind === "character" && node.metadata.characterAssetId ? openTextNodeEditor(node) : setInfoNodeId(node.id))}
                         onEditText={openTextNodeEditor}
