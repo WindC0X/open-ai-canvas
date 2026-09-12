@@ -7368,6 +7368,21 @@
     .ant-slide-up-leave-prepare,
     .ant-slide-up-leave-start,
     .ant-slide-up-leave-active,
+    .ant-slide-down-appear-prepare,
+    .ant-slide-down-appear-start,
+    .ant-slide-down-appear-active,
+    .ant-slide-down-enter-prepare,
+    .ant-slide-down-enter-start,
+    .ant-slide-down-enter-active,
+    .ant-slide-down-leave-prepare,
+    .ant-slide-down-leave-start,
+    .ant-slide-down-leave-active,
+    .ant-slide-left-appear-prepare,
+    .ant-slide-left-enter-prepare,
+    .ant-slide-left-leave-active,
+    .ant-slide-right-appear-prepare,
+    .ant-slide-right-enter-prepare,
+    .ant-slide-right-leave-active,
     .ant-move-up-appear-prepare,
     .ant-move-up-appear-start,
     .ant-move-up-appear-active,
@@ -8186,8 +8201,17 @@
     }
     .ant-popover.ant-zoom-big-appear-prepare,
     .ant-popover.ant-zoom-big-enter-prepare,
-    .ant-popover.ant-zoom-big-leave-active {
+    .ant-popover.ant-zoom-big-leave-active,
+    .ant-dropdown.ant-slide-up-appear-prepare,
+    .ant-dropdown.ant-slide-up-enter-prepare,
+    .ant-dropdown.ant-slide-down-appear-prepare,
+    .ant-dropdown.ant-slide-down-enter-prepare,
+    .ant-dropdown.ant-slide-up-leave-active,
+    .ant-dropdown.ant-slide-down-leave-active {
         opacity: 0 !important;
+        /* 覆盖 antd slide 的 ±100% 整面板滑入/滑出位移: 与 canvas-panel-in/out 的
+           6px 微浮语义统一, 否则 top placement 菜单从整个面板高度外滑入,
+           打开瞬间与触发按钮间隔一个面板高度的空隙。 */
         transform: translateY(6px) scale(0.97) !important;
     }
     /* Dropdown 按 placement 用 slide-up/down motion(类名非 zoom-big), 只对齐时长/缓动,
@@ -11081,11 +11105,13 @@
         from {
             opacity: 0;
             filter: saturate(0.92);
+            transform: translateY(6px) scale(0.97);
         }
 
         to {
             opacity: 1;
             filter: saturate(1);
+            transform: none;
         }
     }
 
