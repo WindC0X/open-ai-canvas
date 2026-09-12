@@ -22,6 +22,8 @@ export type AffordanceInput = {
     dialogNodeId: string | null;
     /** 本供给自身被悬停(hover 到它本身就是升级 full 的入山路径) */
     selfHover: boolean;
+    /** 同节点的另一供给被悬停: 指针在节点与本供给之间的间隙时保持 micro, 避免闪隐(旧 220ms timer 的语义等价物) */
+    siblingHover?: boolean;
 };
 
 export type ToolbarGuardInput = {
@@ -37,14 +39,14 @@ export type ComposerGuardInput = {
 };
 
 function deriveLevel(
-    { nodeId, hoveredNodeId, dialogNodeId, selfHover }: AffordanceInput,
+    { nodeId, hoveredNodeId, dialogNodeId, selfHover, siblingHover }: AffordanceInput,
     guarded: boolean,
 ): AffordanceLevel {
     if (guarded) return "hidden";
     if (dialogNodeId === nodeId) return "full";
-    if (hoveredNodeId !== nodeId) return "hidden";
     if (selfHover) return "full";
-    return "micro";
+    if (hoveredNodeId === nodeId || siblingHover) return "micro";
+    return "hidden";
 }
 
 /** 工具栏存在感:拖拽/框选/设置气泡开启时强制隐藏。 */

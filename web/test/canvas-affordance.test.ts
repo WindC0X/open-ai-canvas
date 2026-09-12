@@ -62,4 +62,14 @@ describe("deriveComposerAffordance", () => {
     test("另一节点被选中时本节点 hover → 仍按 hover 语义 micro", () => {
         expect(deriveComposerAffordance({ ...base, hoveredNodeId: NODE, dialogNodeId: "other" }, cmGuards)).toBe("micro");
     });
+
+    test("间隙保持: 指针在另一供给上时本供给保持 micro 不闪隐", () => {
+        // hover 已离开节点, 但同节点另一供给仍被悬停 → 保持 micro(旧 220ms timer 的语义等价物)
+        expect(deriveComposerAffordance({ ...base, hoveredNodeId: null, siblingHover: true }, cmGuards)).toBe("micro");
+        expect(deriveToolbarAffordance({ ...base, hoveredNodeId: null, siblingHover: true }, tbGuards)).toBe("micro");
+    });
+
+    test("间隙保持与 selected 并存时 selected 优先", () => {
+        expect(deriveComposerAffordance({ ...base, dialogNodeId: NODE, siblingHover: true }, cmGuards)).toBe("full");
+    });
 });
