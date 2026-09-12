@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 
 /** 微供给存在感级别(2026-09-12 契约): hidden=idle 不可见 / micro=hover 节点的低存在感 / full=全显 */
 export type AffordanceLevel = "hidden" | "micro" | "full";
@@ -10,7 +10,7 @@ export type AffordanceSurfaceProps = {
     style?: CSSProperties;
     role?: string;
     ariaLabel?: string;
-};
+} & Pick<HTMLAttributes<HTMLDivElement>, "onMouseEnter" | "onMouseLeave" | "onFocus" | "onBlur" | "onMouseDown" | "onPointerDown" | "onKeyDown">;
 
 /**
  * 微供给容器:节点工具栏/composer 共用的存在感外壳。
@@ -22,7 +22,7 @@ export type AffordanceSurfaceProps = {
  *   hidden 关闭命中并 aria-hidden;
  * - prefers-reduced-motion 由 CSS 侧降级(globals.css 对 [data-affordance] 关 transition)。
  */
-export function AffordanceSurface({ level, children, className, style, role, ariaLabel }: AffordanceSurfaceProps) {
+export function AffordanceSurface({ level, children, className, style, role, ariaLabel, ...rest }: AffordanceSurfaceProps) {
     const surfaceStyle: CSSProperties = {
         opacity: level === "hidden" ? 0 : level === "micro" ? "var(--affordance-micro-opacity)" : 1,
         filter: level === "micro" ? "saturate(var(--affordance-micro-saturate))" : undefined,
@@ -38,6 +38,7 @@ export function AffordanceSurface({ level, children, className, style, role, ari
             aria-hidden={level === "hidden" || undefined}
             data-affordance={level}
             style={surfaceStyle}
+            {...rest}
         >
             {children}
         </div>
