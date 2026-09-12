@@ -8209,10 +8209,9 @@
     .ant-dropdown.ant-slide-up-leave-active,
     .ant-dropdown.ant-slide-down-leave-active {
         opacity: 0 !important;
-        /* 覆盖 antd slide 的 ±100% 整面板滑入/滑出位移: 与 canvas-panel-in/out 的
-           6px 微浮语义统一, 否则 top placement 菜单从整个面板高度外滑入,
-           打开瞬间与触发按钮间隔一个面板高度的空隙。 */
-        transform: translateY(6px) scale(0.97) !important;
+        /* 覆盖 antd zoom 的 scale(0.8)(origin 远端, 大面板打开时底边收放可达百px)
+           与 slide 的 ±100% 整面板滑入: 统一为 6px 微浮, 几何零跳变。 */
+        transform: translateY(6px) !important;
     }
     /* Dropdown 按 placement 用 slide-up/down motion(类名非 zoom-big), 只对齐时长/缓动,
        slide 位移语义保留 antd 自带值(强制 translateY 会与滑入冲突)。 */
@@ -8234,11 +8233,11 @@
     @keyframes canvas-panel-out {
         from {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0);
         }
         to {
             opacity: 0;
-            transform: translateY(6px) scale(0.97);
+            transform: translateY(6px);
         }
     }
 
@@ -11101,11 +11100,14 @@
         animation: canvas-connection-flow 0.9s var(--motion-ease-linear) infinite;
     }
 
+    /* 动画只用位移不用缩放: scale 的几何效应 = 远离 origin 端的边位移 高度×(1-scale),
+       大面板(模型菜单 552px)在 top placement 下表现为"打开瞬间与触发按钮间隔大,
+       动画中底边下沉贴上"的跳变; 纯 translateY(6px) 与 origin 无关, 两端零跳变。 */
     @keyframes canvas-panel-in {
         from {
             opacity: 0;
             filter: saturate(0.92);
-            transform: translateY(6px) scale(0.97);
+            transform: translateY(6px);
         }
 
         to {
