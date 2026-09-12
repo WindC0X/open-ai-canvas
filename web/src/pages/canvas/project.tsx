@@ -2179,9 +2179,9 @@ const {
         ],
     );
 
-    // hover 离开节点的 220ms 宽限: 节点与微供给(工具栏/composer)之间存在物理间隙, 立即清空
-    // hoveredNodeId 会让供给在指针穿过间隙时卸载, 永远无法进入供给升级 full(旧 220ms timer 的语义等价物,
-    // 单一 hoveredNodeId 源 + 单一 grace, 非旧双轨状态机)。
+    // hover 离开的两段延迟(og-canvas 同构): 220ms 宽限期供给保持挂载, 指针可穿过间隙被间隙桥接住
+    // (结构化主路径); 宽限到期后 hover 清空并以 hidden 渲染保留 160ms 播退场动画, 之后才真正卸载。
+    // hover 实例与 selected 实例并存, 此处只影响 hover 第二实例的生命周期。
     const hoverGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const exitGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleCanvasNodeHoverStart = useCallback((nodeId: string) => {
@@ -2213,14 +2213,14 @@ const {
     // 微供给双实例(og-canvas pinned+hover 同构): selected 节点的工具栏/composer 常驻 full,
     // hover 其它节点时第二实例微浮现 —— 两者并存互不抢占(单例会抢走选中节点的常驻供给)。
     const hoveredNode = useMemo(() => (hoveredNodeId ? nodes.find((item) => item.id === hoveredNodeId) ?? null : null), [nodes, hoveredNodeId]);
-    const isPanelCarrier = (node: CanvasNodeData) => !isCanvasImageSourceNode(node) && !node.metadata?.fileUpload && node.type !== CanvasNodeType.Script && node.type !== CanvasNodeType.Drawing && node.type !== CanvasNodeType.Panorama && !isFrameNode(node);
+    const exitingNode = useMemo(() => (exitingNodeId ? nodes.find((item) => item.id === exitingNodeId) ?? null : null), [nodes, exitingNodeId]);
+    const isPanelCarrier = useCallback((node: CanvasNodeData) => !isCanvasImageSourceNode(node) && !node.metadata?.fileUpload && node.type !== CanvasNodeType.Script && node.type !== CanvasNodeType.Drawing && node.type !== CanvasNodeType.Panorama && !isFrameNode(node), []);
     // selected 实例(dialog 驱动, 常驻)
     const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
-    // hover 实例(非 dialog 节点才需要第二实例, 避免同节点双渲染)
-    const exitingNode = exitingNodeId ? nodes.find((item) => item.id === exitingNodeId) ?? null : null;
-    const hoverPanelCandidate = hoveredNode && hoveredNode.id !== dialogNodeId ? hoveredNode : (exitingNode && exitingNode.id !== dialogNodeId ? exitingNode : null);
-    const hoverPanelNode = hoverPanelCandidate && isPanelCarrier(hoverPanelCandidate) && !selectionBox && !isCanvasNodeMoving ? hoverPanelCandidate : null;
-    const hoverToolbarNode = (hoveredNode ?? exitingNode) && (hoveredNode ?? exitingNode)!.id !== dialogNodeId && !isFrameNode(hoveredNode ?? exitingNode!) && !selectionBox && !isCanvasNodeMoving ? (hoveredNode ?? exitingNode) : null;
+    // hover 实例(第二实例): 与 dialog 及 selected-single 工具栏同节点时不重复渲染, 否则同位叠影+双重事件
+    const hoverToolbarTarget = hoveredNode ?? exitingNode;
+    const hoverPanelNode = hoverToolbarTarget && hoverToolbarTarget.id !== dialogNodeId && isPanelCarrier(hoverToolbarTarget) && !selectionBox && !isCanvasNodeMoving ? hoverToolbarTarget : null;
+    const hoverToolbarNode = hoverToolbarTarget && hoverToolbarTarget.id !== dialogNodeId && hoverToolbarTarget.id !== toolbarNode?.id && !isFrameNode(hoverToolbarTarget) && !selectionBox && !isCanvasNodeMoving ? hoverToolbarTarget : null;
     const toolbarGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox), settingsOpen: nodeImageSettingsOpen };
     const composerGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox) };
     const selectedToolbarLevel: AffordanceLevel = !toolbarNode || emotionNodeId

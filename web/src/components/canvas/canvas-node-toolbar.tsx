@@ -19,6 +19,9 @@ import { CanvasNodeType, type CanvasNodeData, type CanvasNodeMetadata, type Canv
 import { buildImageToolbarTools } from "./canvas-image-toolbar-tools";
 import { CanvasGridSplitPicker } from "./canvas-grid-split-picker";
 
+/** 工具栏锚定间隙: anchor 计算(节点顶上方)与间隙桥高度共用同一语义, 改一处必须同步另一处 */
+export const CANVAS_NODE_TOOLBAR_ANCHOR_GAP_PX = 30;
+
 type CanvasNodeToolbarProps = {
     node: CanvasNodeData | null;
     viewport: ViewportTransform;
@@ -166,7 +169,7 @@ export function CanvasNodeToolbar({
             const halfToolbar = toolbarWidth / 2;
             const canClamp = toolbarWidth > 0 && toolbarWidth <= containerRect.width - 20;
             let left = canClamp ? Math.min(Math.max(preferredLeft, halfToolbar + 10), containerRect.width - halfToolbar - 10) : preferredLeft;
-            const above = nodeRect.top - containerRect.top - 30;
+            const above = nodeRect.top - containerRect.top - CANVAS_NODE_TOOLBAR_ANCHOR_GAP_PX;
             let top = Math.max(toolbarHeight + 8, Math.min(above, containerRect.height - 8));
             for (const panel of container.querySelectorAll<HTMLElement>("[data-canvas-node-panel]")) {
                 const panelRect = panel.getBoundingClientRect();
@@ -315,7 +318,7 @@ export function CanvasNodeToolbar({
             {onGapEnter ? (
                 <CanvasNodeToolbarGapBridge
                     nodeId={node.id}
-                    gapPx={30}
+                    gapPx={CANVAS_NODE_TOOLBAR_ANCHOR_GAP_PX}
                     direction="down"
                     onEnter={onGapEnter}
                 />

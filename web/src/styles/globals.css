@@ -8228,6 +8228,11 @@
         pointer-events: none;
     }
 
+    /* full 态主体已可交互, 顶部感应带不再拦截内容区点击 */
+    .canvas-node-panel-affordance[data-affordance="full"] [data-canvas-panel-sense-band] {
+        pointer-events: none;
+    }
+
     /* 微供给进场动画: 实例挂载(从 hidden 进入 micro/full)时从透明起步渐显;
        to 缺省=元素当前 opacity(micro 0.45 / full 1), 与 inline transition 不冲突。
        hidden→micro 边界穿越时重启(匹配态变化), micro↔full 之间不重启。 */
