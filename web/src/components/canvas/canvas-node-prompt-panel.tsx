@@ -400,6 +400,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                                         theme={theme}
                                         compact={!expanded}
                                     />
+                                    <span aria-hidden className="canvas-node-composer-divider shrink-0" />
                                     <CanvasImageSettingsPopover
                                         config={config}
                                         placement={expanded ? "topRight" : "topLeft"}
