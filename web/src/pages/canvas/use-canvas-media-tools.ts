@@ -73,7 +73,6 @@ type UseCanvasMediaToolsOptions = {
     setDialogNodeId: Dispatch<SetStateAction<string | null>>;
     setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
     setHoveredNodeId: Dispatch<SetStateAction<string | null>>;
-    setToolbarNodeId: Dispatch<SetStateAction<string | null>>;
     setRunningNodeId: Dispatch<SetStateAction<string | null>>;
     startUploadStatus: StartCanvasUploadStatus;
     startGenerationRequest: (targetNodeId: string, originNodeId: string, runningId?: string, controller?: AbortController) => AbortController;
@@ -99,7 +98,6 @@ export function useCanvasMediaTools({
     setDialogNodeId,
     setContextMenu,
     setHoveredNodeId,
-    setToolbarNodeId,
     setRunningNodeId,
     startUploadStatus,
     startGenerationRequest,
@@ -199,13 +197,12 @@ export function useCanvasMediaTools({
         const child = createPortraitTextureNode(node, nanoid());
         child.metadata = { ...child.metadata, portraitTexture: portraitTextureSettings };
         setHoveredNodeId(null);
-        setToolbarNodeId(null);
         setNodes((current) => [...current, child]);
         setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: child.id }]);
         setSelectedNodeIds(new Set([child.id]));
         setSelectedConnectionId(null);
         setDialogNodeId(child.id);
-    }, [message, setConnections, setDialogNodeId, setHoveredNodeId, setNodes, setSelectedConnectionId, setSelectedNodeIds, setToolbarNodeId]);
+    }, [message, setConnections, setDialogNodeId, setHoveredNodeId, setNodes, setSelectedConnectionId, setSelectedNodeIds]);
 
     const cropImageNode = useCallback(async (node: CanvasNodeData, crop: CanvasImageCropRect) => {
         if (!node.metadata?.content) return;
@@ -244,9 +241,8 @@ export function useCanvasMediaTools({
         }
         if (extractingVideoFramesNodeIdRef.current) return;
         setHoveredNodeId(null);
-        setToolbarNodeId(null);
         setFrameDialogNodeId(node.id);
-    }, [message, setHoveredNodeId, setToolbarNodeId]);
+    }, [message, setHoveredNodeId]);
 
     const closeFrameDialog = useCallback(() => {
         if (extractingVideoFramesNodeIdRef.current) return;
@@ -309,10 +305,9 @@ export function useCanvasMediaTools({
         }
         if (segmentRunningRef.current) return;
         setHoveredNodeId(null);
-        setToolbarNodeId(null);
         setSegmentDialogNodeId(node.id);
         setSegmentDialogMode("audio");
-    }, [message, setHoveredNodeId, setToolbarNodeId]);
+    }, [message, setHoveredNodeId]);
 
     const openVideoSegmentExtractor = useCallback((node: CanvasNodeData) => {
         if (!node.metadata?.content) {
@@ -321,10 +316,9 @@ export function useCanvasMediaTools({
         }
         if (segmentRunningRef.current) return;
         setHoveredNodeId(null);
-        setToolbarNodeId(null);
         setSegmentDialogNodeId(node.id);
         setSegmentDialogMode("video");
-    }, [message, setHoveredNodeId, setToolbarNodeId]);
+    }, [message, setHoveredNodeId]);
 
     const closeSegmentDialog = useCallback(() => {
         if (segmentRunningRef.current) return;

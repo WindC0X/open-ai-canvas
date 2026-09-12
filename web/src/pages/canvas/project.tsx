@@ -24,6 +24,8 @@ import { summarizeCanvasContext } from "@/lib/canvas/canvas-context-summary";
 import { refreshCanvasCharacterReferenceNodes } from "@/lib/canvas/canvas-character-reference";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { CanvasSyncConflictGate } from "@/components/canvas/canvas-sync-conflict-gate";
+import { deriveToolbarAffordance, type AffordanceLevel } from "@/lib/canvas/affordance";
+import { isFrameNode } from "@/lib/canvas/canvas-frame";
 import { flushCanvasStorePersistence } from "@/stores/canvas/use-canvas-store";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -251,7 +253,6 @@ function InfiniteCanvasPage() {
     const canvasStorageScope = getActiveUserScope();
     const containerRef = useRef<HTMLDivElement>(null);
     const didInitialCenterRef = useRef(false);
-    const toolbarHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const assetHandoffRef = useRef("");
 
     const config = useConfigStore((state) => state.config);
@@ -306,7 +307,8 @@ function InfiniteCanvasPage() {
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [tapNowImportOpen, setTapNowImportOpen] = useState(false);
     const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
-    const [toolbarNodeId, setToolbarNodeId] = useState<string | null>(null);
+    const [toolbarHover, setToolbarHover] = useState(false);
+    const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
     // 活动任务面板实测高度(含展开态):右侧同锚的对象 HUD 用它动态下移,避免两浮层重叠(S06)。
     const [activeTaskPanelHeight, setActiveTaskPanelHeight] = useState(0);
     const [arkPrivateAssetUploadNodeId, setArkPrivateAssetUploadNodeId] = useState<string | null>(null);
@@ -654,7 +656,6 @@ function InfiniteCanvasPage() {
         setSelectedConnectionId,
         setContextMenu,
         setDialogNodeId,
-        setToolbarNodeId,
     });
 
     useEffect(() => {
@@ -852,7 +853,6 @@ function InfiniteCanvasPage() {
         setDialogNodeId,
         setContextMenu,
         setHoveredNodeId,
-        setToolbarNodeId,
         setRunningNodeId,
         startUploadStatus,
         startGenerationRequest,
@@ -864,7 +864,6 @@ function InfiniteCanvasPage() {
         (removedIds: Set<string>, nextNodes: CanvasNodeData[], removedNodes: CanvasNodeData[]) => {
             const clearDeletedId = (current: string | null) => (current && removedIds.has(current) ? null : current);
             setHoveredNodeId(clearDeletedId);
-            setToolbarNodeId(clearDeletedId);
             setDialogNodeId(clearDeletedId);
             setTextEditorNodeId(clearDeletedId);
             setCharacterReferenceNodeId(clearDeletedId);
@@ -1062,7 +1061,6 @@ function InfiniteCanvasPage() {
     const handleNodeInteractionStart = useCallback((selectionModifier: boolean) => {
         setContextMenu(null);
         setHoveredNodeId(null);
-        setToolbarNodeId(null);
         if (selectionModifier) setDialogNodeId(null);
     }, []);
 
@@ -1127,7 +1125,6 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
     const handleCanvasDeselect = useCallback(() => {
         setContextMenu(null);
         setHoveredNodeId(null);
-        setToolbarNodeId(null);
         setDialogNodeId(null);
     }, []);
 
@@ -1152,28 +1149,7 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         onDeselect: handleCanvasDeselect,
     });
 
-    const keepNodeToolbar = useCallback(
-        (nodeId: string) => {
-            if (nodeDraggingRef.current || nodeImageSettingsOpen) return;
-            if (toolbarHideTimerRef.current) {
-                clearTimeout(toolbarHideTimerRef.current);
-                toolbarHideTimerRef.current = null;
-            }
-            setToolbarNodeId(nodeId);
-        },
-        [nodeImageSettingsOpen],
-    );
-
-    const hideNodeToolbar = useCallback(() => {
-        if (toolbarHideTimerRef.current) clearTimeout(toolbarHideTimerRef.current);
-        // flora exit 档 220ms：鼠标在节点与工具栏之间的空隙移动时保持不闪退（旧 120ms 会闪烁）。
-        toolbarHideTimerRef.current = setTimeout(() => {
-            setToolbarNodeId(null);
-            toolbarHideTimerRef.current = null;
-        }, 220);
-    }, []);
-
-    const {
+const {
         collapsingBatchIds,
         downloadNodeImage,
         handleConfigNodeChange,
@@ -1199,7 +1175,6 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         setSelectedNodeIds,
         setSelectedConnectionId,
         setDialogNodeId,
-        setToolbarNodeId,
         setHoveredNodeId,
     });
 
@@ -1430,7 +1405,6 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         setSelectedConnectionId(null);
         setContextMenu(null);
         setDialogNodeId(null);
-        setToolbarNodeId(null);
         if (node.metadata?.workflowKind === "character" && node.metadata.characterAssetId) {
             setCharacterReferenceNodeId(node.id);
             return;
@@ -1444,17 +1418,23 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         setSelectedConnectionId(null);
         setContextMenu(null);
         setDialogNodeId(null);
-        setToolbarNodeId(null);
         setDrawingNodeId(node.id);
     }, []);
 
+    const openPortraitClearance = useCallback((node: CanvasNodeData) => {
+        if (node.type !== PORTRAIT_CLEARANCE_NODE_TYPE) return;
+        setSelectedNodeIds(new Set([node.id]));
+        setSelectedConnectionId(null);
+        setContextMenu(null);
+        setDialogNodeId(null);
+        setPortraitClearanceNodeId(node.id);
+    }, []);
     const openArtCritique = useCallback((node: CanvasNodeData) => {
         if (node.type !== ART_CRITIQUE_NODE_TYPE) return;
         setSelectedNodeIds(new Set([node.id]));
         setSelectedConnectionId(null);
         setContextMenu(null);
         setDialogNodeId(null);
-        setToolbarNodeId(null);
         setArtCritiqueNodeId(node.id);
     }, []);
     const duplicateNodeFromContent = useCallback((node: CanvasNodeData) => duplicateNode(node.id), [duplicateNode]);
@@ -1819,8 +1799,7 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
             });
             setSelectedConnectionId(null);
             closeConnectionCreateMenu();
-            setToolbarNodeId(null);
-            setDialogNodeId(null);
+                setDialogNodeId(null);
             setContextMenu({ type: "node", x: event.clientX, y: event.clientY, nodeId: id });
         },
         [closeConnectionCreateMenu],
@@ -2034,10 +2013,7 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
                     onClose={() => setDialogNodeId(null)}
                     onNodeMouseDown={handleNodeMouseDown}
                     workspaceMode={workspaceMode}
-                    onImageSettingsOpenChange={(open) => {
-                        setNodeImageSettingsOpen(open);
-                        if (open) setToolbarNodeId(null);
-                    }}
+                    onImageSettingsOpenChange={setNodeImageSettingsOpen}
                 />
             );
         },
@@ -2199,21 +2175,25 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         ],
     );
 
-    const handleCanvasNodeHoverStart = useCallback(
-        (nodeId: string) => {
-            if (nodeDraggingRef.current) return;
-            setHoveredNodeId(nodeId);
-            keepNodeToolbar(nodeId);
-        },
-        [keepNodeToolbar],
-    );
-    const handleCanvasNodeHoverEnd = useCallback(
-        (nodeId: string) => {
-            setHoveredNodeId((current) => (current === nodeId ? null : current));
-            hideNodeToolbar();
-        },
-        [hideNodeToolbar],
-    );
+    const handleCanvasNodeHoverStart = useCallback((nodeId: string) => {
+        if (nodeDraggingRef.current) return;
+        setHoveredNodeId(nodeId);
+    }, []);
+    const handleCanvasNodeHoverEnd = useCallback((nodeId: string) => {
+        setHoveredNodeId((current) => (current === nodeId ? null : current));
+    }, []);
+
+    // 微供给: 工具栏单例锚定 hover 优先(指针注意力), 无 hover 时回落到选中节点(常驻 full)。
+    const hoveredNode = useMemo(() => (hoveredNodeId ? nodes.find((item) => item.id === hoveredNodeId) ?? null : null), [nodes, hoveredNodeId]);
+    const displayToolbarNode = hoveredNode && !isFrameNode(hoveredNode) ? hoveredNode : toolbarNode;
+    const toolbarLevel: AffordanceLevel = !displayToolbarNode || emotionNodeId
+        ? "hidden"
+        : toolbarMenuOpen
+            ? "full"
+            : deriveToolbarAffordance(
+                { nodeId: displayToolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: toolbarHover },
+                { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox), settingsOpen: nodeImageSettingsOpen },
+            );
     const retryCanvasNode = useCallback(
         (node: CanvasNodeData) => {
             if (node.type === CanvasNodeType.Script) {
@@ -2833,29 +2813,105 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                             <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold text-blue-200">
                                 @{connectionReplaceHover.referenceLabel}
                             </span>
-f (feat(canvas): 对象信息面板 - B-lite-1 只读事实浮层(选中跟随/错峰揭示/退出同步))
                         </div>
 
-                        {angleNode?.metadata?.content ? (
-                            <CanvasNodePanelOverlay
-                                node={angleNode}
-                                viewport={viewport}
-                                containerRef={containerRef}
-                                panelWidth={640}
-                                panelHeight={540}
-                                allowOverflow
-                                dragOffset={dragPreview?.nodeIds.has(angleNode.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
-                                isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(angleNode.id))}
-                            >
-                                <CanvasNodeAnglePanel
-                                    dataUrl={angleNode.metadata.content}
-                                    onClose={() => setAngleNodeId(null)}
-                                    onConfirm={(params) => {
-                                        void generateAngleNode(angleNode, params);
-                                    }}
-                                />
-                            </CanvasNodePanelOverlay>
-                        ) : null}
+                    {selectedNodeBounds && !selectionBox && !isCanvasNodeMoving ? (
+                        <CanvasProjectSelectionToolbar
+                            anchorRef={selectionBoundsElementRef}
+                            containerRef={containerRef}
+                            count={selectedNodeBounds.count}
+                            selectedVideoCount={selectedVideoNodes.length}
+                            mergingVideos={Boolean(mergeVideoProgress)}
+                            onAlign={alignSelectedNodes}
+                            onArrange={arrangeSelectedNodes}
+                            onCreateStoryboard={createStoryboardGroup}
+                            onCreateReferenceGroup={createReferenceGroup}
+                            onBatchConnect={() => beginBatchConnectionMode(Array.from(selectedNodeIds))}
+                            onMergeVideos={() => void mergeSelectedVideos()}
+                        />
+                    ) : null}
+
+                    {uploadStatus ? <CanvasUploadStatusToast status={uploadStatus} theme={theme} /> : null}
+                    {mergeVideoProgress ? <CanvasMergeStatusToast progress={mergeVideoProgress} theme={theme} /> : null}
+                    {lastAgentChange ? (
+                        <CanvasAgentChangeToast
+                            change={lastAgentChange}
+                            theme={theme}
+                            onView={viewLastAgentChange}
+                            onUndo={() => {
+                                undoAgentOps();
+                            }}
+                            onClose={dismissLastAgentChange}
+                        />
+                    ) : null}
+
+                    <CanvasNodeToolbar
+                        node={emotionNodeId ? null : displayToolbarNode}
+                        level={toolbarLevel}
+                        workspaceMode={workspaceMode}
+                        viewport={viewport}
+                        containerRef={containerRef}
+                        onHoverChange={setToolbarHover}
+                        onMenuOpenChange={setToolbarMenuOpen}
+                        onInfo={(node) => (node.metadata?.workflowKind === "character" && node.metadata.characterAssetId ? openTextNodeEditor(node) : setInfoNodeId(node.id))}
+                        onEditText={openTextNodeEditor}
+                        onDecreaseFont={(node) => handleFontSizeChange(node.id, Math.max(10, (node.metadata?.fontSize || 14) - 2))}
+                        onIncreaseFont={(node) => handleFontSizeChange(node.id, Math.min(32, (node.metadata?.fontSize || 14) + 2))}
+                        onToggleDialog={(node) => setDialogNodeId((current) => (current === node.id ? null : node.id))}
+                        onGenerateImage={generateImageFromTextNode}
+                        onUpload={(node) => handleUploadRequest(node.id)}
+                        onDownload={downloadNodeImage}
+                        onSaveAsset={(node) => void saveNodeAsset(node)}
+                        onCreateConversion={createConversionFromSource}
+                        onAnnotate={(node) => setAnnotationNodeId(node.id)}
+                        onMaskEdit={(node) => setMaskEditNodeId(node.id)}
+                        onEmotion={(node) => {
+                            setDialogNodeId(null);
+                            setEmotionNodeId((current) => (current === node.id ? null : node.id));
+                        }}
+                        onPortraitTexture={openPortraitTextureEditor}
+                        onCrop={(node) => setCropNodeId(node.id)}
+                        onSplit={(node) => setSplitNodeId(node.id)}
+                        onUpscale={(node) => setUpscaleNodeId(node.id)}
+                        onSuperResolve={(node) => setSuperResolveNodeId(node.id)}
+                        onAngle={(node) => {
+                            setDialogNodeId(null);
+                            setAngleNodeId((current) => (current === node.id ? null : node.id));
+                        }}
+                        onLighting={(node) => {
+                            setDialogNodeId(null);
+                            setLightingNodeId((current) => (current === node.id ? null : node.id));
+                        }}
+                        onPanorama={openPanoramaConfig}
+                        onViewImage={(node) => setPreviewNodeId(node.id)}
+                        onExtractVideoFrames={openVideoFrameExtractor}
+                        onExtractAudioFromVideo={(node) => void extractAudioFromVideo(node)}
+                        onTrimVideoSegments={openVideoSegmentExtractor}
+                        onSubtitles={(node) => setSubtitleNodeId(node.id)}
+                        onTimeline={(node) => setTimelineNodeId(node.id)}
+                        extractingVideoFrames={toolbarNode?.id === extractingVideoFramesNodeId}
+                        extractingAudio={segmentRunningMode === "audio"}
+                        trimmingVideo={segmentRunningMode === "video"}
+                        onReversePrompt={createImageReversePromptNodes}
+                        onRetry={retryCanvasNode}
+                        onToggleFreeResize={(node) => toggleNodeFreeResize(node.id)}
+                        onToggleLocked={(node) => toggleNodeLocked(node.id)}
+                        onDelete={(node) => deleteNodes(new Set([node.id]))}
+                    />
+
+                    {isMiniMapOpen && !focusMode ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} canvasContainerRef={containerRef} onViewportPreviewChange={previewViewport} onViewportChange={handleViewportChange} /> : null}
+
+                    {!focusMode ? (
+                        <CanvasOverlayLayerContainer
+                            overlayId="asset-tray"
+                            fallbackZIndex="var(--z-panel)"
+                            className="absolute bottom-[calc(var(--canvas-inset-y)+var(--space-16))] left-[var(--canvas-inset-x)] flex items-end gap-2 lg:bottom-[var(--canvas-inset-y)]"
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onWheel={(event) => event.stopPropagation()}
+                        >
+                            <CanvasZoomControls
+                                scale={viewport.k}
 
                         {lightingNode?.metadata?.content ? (
                             <AppModal flush open centered title={null} closable={false} footer={null} width={720} onCancel={() => setLightingNodeId(null)}>

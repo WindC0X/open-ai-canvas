@@ -3,10 +3,10 @@ import { App, Button, Dropdown, Input, Modal, Tag, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import { Camera, Check, ChevronDown, ChevronRight, Ellipsis, Images, Plus, SlidersHorizontal, UserRound } from "lucide-react";
 
-import { canvasDockStyle } from "@/lib/canvas/canvas-aceternity-style";
 import { ASSET_CATEGORY_OPTIONS } from "@/lib/asset-category";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { resolveNodeToolbarPlacement, resolveToolbarTools, type NodeToolbarGroup, type ToolContext, type ToolbarHandlers } from "@/lib/canvas/tool-registry";
+import { AffordanceSurface, type AffordanceLevel } from "@/components/canvas/primitives";
 import { subscribeCanvasGraphicsViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { canvasNodeAssetCategory } from "@/lib/canvas/canvas-node-asset";
 import type { ImageSplitParams } from "@/lib/canvas/canvas-image-data";
@@ -22,8 +22,12 @@ type CanvasNodeToolbarProps = {
     node: CanvasNodeData | null;
     viewport: ViewportTransform;
     containerRef: RefObject<HTMLDivElement | null>;
-    onKeep: (nodeId: string) => void;
-    onLeave: () => void;
+    /** 微供给存在感级别(状态机推导,见 lib/canvas/affordance.ts) */
+    level: AffordanceLevel;
+    /** 指针/键盘焦点进入或离开工具栏(微供给 full 升级路径) */
+    onHoverChange: (hovering: boolean) => void;
+    /** 下拉菜单开合(开启期间工具栏保持 full) */
+    onMenuOpenChange?: (open: boolean) => void;
     onInfo: (node: CanvasNodeData) => void;
     onEditText: (node: CanvasNodeData) => void;
     onDecreaseFont: (node: CanvasNodeData) => void;
@@ -83,8 +87,9 @@ export function CanvasNodeToolbar({
     node,
     viewport,
     containerRef,
-    onKeep,
-    onLeave,
+    level,
+    onHoverChange,
+    onMenuOpenChange,
     onInfo,
     onEditText,
     onDecreaseFont,
@@ -290,31 +295,29 @@ export function CanvasNodeToolbar({
     const processMenuLabel = compact ? "工具" : isVideo ? "提取素材" : isImage ? "图片工具" : isAudio ? "音频处理" : "文本调整";
     const handleMenuOpenChange = (menuId: string, open: boolean) => {
         setOpenMenuId((current) => open ? menuId : current === menuId ? null : current);
-        if (open) onKeep(node.id);
-        else if (!toolbarRef.current?.contains(document.activeElement)) onLeave();
+        onMenuOpenChange?.(open);
     };
-    const dockStyle = canvasDockStyle(theme, theme.node.text);
-
     return (
-        <div
-            ref={toolbarRef}
-            className="canvas-node-toolbar absolute z-[var(--z-node-toolbar)] -translate-x-1/2 -translate-y-full"
+        <AffordanceSurface
+            level={level}
+            className="canvas-node-toolbar absolute z-[var(--z-node-toolbar)]"
             style={{ left: 0, top: 0, transform: `translate3d(${anchor.left}px, ${anchor.top}px, 0)`, width: "max-content", maxWidth: "calc(100% - 20px)", color: theme.node.text }}
-            onMouseEnter={() => onKeep(node.id)}
-            onMouseLeave={() => { if (!openMenuId) onLeave(); }}
+            onMouseEnter={() => onHoverChange(true)}
+            onMouseLeave={() => onHoverChange(false)}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
             data-canvas-no-zoom
             onKeyDown={(event) => event.stopPropagation()}
-            onFocus={() => onKeep(node.id)}
-            onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget) && !openMenuId) onLeave(); }}
+            onFocus={() => onHoverChange(true)}
+            onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onHoverChange(false); }}
         >
-            <div
-                role="toolbar"
-                aria-label="节点快捷工具"
-                className="flex h-11 max-w-full items-center gap-0.5 overflow-visible rounded-[var(--dock-radius-tight)] px-2 backdrop-blur-2xl"
-                style={{ ...dockStyle, border: 0 }}
-            >
+            <div ref={toolbarRef}>
+                <div
+                    role="toolbar"
+                    aria-label="节点快捷工具"
+                    className="canvas-node-toolbar-surface flex h-11 max-w-full items-center gap-0.5 overflow-visible px-2"
+                    style={{ color: theme.node.text }}
+                >
                 {primaryTools.map((tool) => <NodeDockToolButton key={tool.id} tool={tool} />)}
                 {panoramaTools.map((tool) => <NodeDockToolButton key={tool.id} tool={tool} />)}
                 {portraitTools.length ? <NodeDockMenuButton menuId="portrait" label="人像调整" icon={<UserRound className="size-3.5" />} tools={portraitTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}
@@ -327,8 +330,9 @@ export function CanvasNodeToolbar({
                 {moreTools.length ? (
                     <NodeDockMenuButton menuId="more" label="更多" icon={<Ellipsis className="size-3.5" />} tools={moreTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} placement="topRight" iconOnly />
                 ) : null}
+                </div>
             </div>
-        </div>
+        </AffordanceSurface>
     );
 }
 

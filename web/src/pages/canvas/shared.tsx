@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 
 import { ConnectionPath } from "@/components/canvas/canvas-connections";
 import { CanvasNodeToolbar, CanvasNodeInfoModal } from "@/components/canvas/canvas-node-toolbar";
+import { deriveToolbarAffordance, type AffordanceLevel } from "@/lib/canvas/affordance";
 import { CanvasFrameNode } from "@/components/canvas/canvas-frame-node";
 import { CanvasNode } from "@/components/canvas/canvas-node";
 import { CanvasBatchTableNodeContent } from "@/components/canvas/canvas-batch-table-node";
@@ -34,7 +35,6 @@ export default function SharedCanvasPage() {
     const containerRef = useRef<HTMLDivElement>(null);
     const viewportRef = useRef<ViewportTransform>({ x: 0, y: 0, k: 1 });
     const dragRef = useRef<DragState | null>(null);
-    const toolbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [title, setTitle] = useState("共享画布");
     const [nodes, setNodes] = useState<CanvasNodeData[]>([]);
     const [connections, setConnections] = useState<Awaited<ReturnType<typeof getPublicCanvasShare>>["project"]["connections"]>([]);
@@ -43,7 +43,8 @@ export default function SharedCanvasPage() {
     const [viewport, setViewport] = useState<ViewportTransform>({ x: 0, y: 0, k: 1 });
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [infoNodeId, setInfoNodeId] = useState<string | null>(null);
-    const [toolbarNodeId, setToolbarNodeId] = useState<string | null>(null);
+    const [toolbarHover, setToolbarHover] = useState(false);
+    const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [dragOffset, setDragOffset] = useState<Position | null>(null);
     const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
     const [loading, setLoading] = useState(true);
@@ -140,22 +141,10 @@ export default function SharedCanvasPage() {
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
             document.body.style.cursor = "default";
-            if (toolbarTimerRef.current) clearTimeout(toolbarTimerRef.current);
         };
     }, []);
 
-    const keepToolbar = useCallback((nodeId: string) => {
-        if (toolbarTimerRef.current) clearTimeout(toolbarTimerRef.current);
-        toolbarTimerRef.current = null;
-        setToolbarNodeId(nodeId);
-    }, []);
-    const hideToolbar = useCallback(() => {
-        if (toolbarTimerRef.current) clearTimeout(toolbarTimerRef.current);
-        toolbarTimerRef.current = setTimeout(() => {
-            toolbarTimerRef.current = null;
-            setToolbarNodeId(null);
-        }, 160);
-    }, []);
+
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -235,13 +224,17 @@ export default function SharedCanvasPage() {
             metadata: { ...node.metadata, frame: { collapsed, expandedWidth: collapsed ? node.width : frame?.expandedWidth || node.width, expandedHeight: collapsed ? node.height : frame?.expandedHeight || node.height } },
         };
     }));
-    const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => {
-        if (node.type === CanvasNodeType.Script) return <SharedScriptNode node={node} onUnauthorized={unauthorized} />;
-        if (node.type === CanvasNodeType.BatchTable) return <CanvasBatchTableNodeContent node={node} nodes={nodes} connections={connections} batch={node.metadata?.generationBatches?.at(-1)} theme={theme} readOnly onPatchTable={() => {}} onAddRow={() => {}} onRemoveRow={() => {}} onUpdateRow={() => {}} onFillRows={() => {}} onGenerate={() => {}} onRetryItem={() => {}} onAddReferenceColumn={() => {}} onConnectStart={() => {}} />;
-        return <SharedConfigNode node={node} onUnauthorized={unauthorized} />;
-    }, [connections, nodes, theme, unauthorized]);
-    const toolbarNodeKey = selectedNodeId;
+const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.type === CanvasNodeType.Script ? <SharedScriptNode node={node} onUnauthorized={unauthorized} /> : node.type === CanvasNodeType.BatchTable ? <CanvasBatchTableNodeContent node={node} nodes={nodes} connections={connections} batch={node.metadata?.generationBatches?.at(-1)} theme={theme} readOnly onPatchTable={() => {}} onAddRow={() => {}} onRemoveRow={() => {}} onUpdateRow={() => {}} onFillRows={() => {}} onGenerate={() => {}} onRetryItem={() => {}} onAddReferenceColumn={() => {}} onConnectStart={() => {}} /> : <SharedConfigNode node={node} onUnauthorized={unauthorized} />, [connections, nodes, theme, unauthorized]);
+        // 微供给: 工具栏单例锚定 hover 优先, 无 hover 回落选中节点; 只读页无拖拽/框选/设置气泡 guard。
+    const toolbarNodeKey = hoveredNodeId ?? selectedNodeId;
+04d20f57 (feat(canvas): 节点工具栏微供给接线+玻璃质感 - hover锚定单例/选中常驻full/220ms timer退役, dock材质换flora玻璃族)
     const toolbarNode = toolbarNodeKey ? nodeById.get(toolbarNodeKey) || null : null;
+    const toolbarLevel: AffordanceLevel = !toolbarNode
+        ? "hidden"
+        : deriveToolbarAffordance(
+            { nodeId: toolbarNode.id, hoveredNodeId, dialogNodeId: selectedNodeId, selfHover: toolbarHover },
+            { nodeDragging: false, selectionBoxActive: false, settingsOpen: false },
+        );
 
     if (loading) return <FullScreenLoader label="正在打开共享画布" detail="读取节点、连线和视图状态" />;
     if (loadError) return <div className="grid h-screen place-items-center px-5" style={{ background: theme.canvas.background }}><WorkspaceState icon="error" title="分享链接不可用" description={loadError} action={<Link to="/"><Button>返回首页</Button></Link>} /></div>;
@@ -269,7 +262,7 @@ export default function SharedCanvasPage() {
                     const dragged = [node, ...(frameChildrenById.get(nodeId) || [])];
                     dragRef.current = { primaryId: nodeId, nodeIds: dragged.map((item) => item.id), startX: event.clientX, startY: event.clientY, origins: new Map(dragged.map((item) => [item.id, item.position])), moved: false };
                     document.body.style.cursor = "grabbing";
-                }} onResize={() => undefined} onToggleCollapsed={toggleFrame} onFolderStyleChange={() => undefined} onTitleChange={unauthorized} onHoverStart={keepToolbar} onHoverEnd={hideToolbar} onContextMenu={(event, nodeId) => openContextMenu(event, nodeId)} /> : <CanvasNode key={node.id} data={node} dragOffset={dragRef.current?.nodeIds.includes(node.id) && dragOffset ? dragOffset : undefined} scale={viewport.k} isSelected={selectedNodeId === node.id} isRelated={false} isFocusRelated={false} isConnectionTarget={false} showImageInfo={false} readOnly renderNodeContent={renderSharedNode} onMouseDown={(event, nodeId) => {
+                }} onResize={() => undefined} onToggleCollapsed={toggleFrame} onFolderStyleChange={() => undefined} onTitleChange={unauthorized} onHoverStart={setHoveredNodeId} onHoverEnd={(id) => setHoveredNodeId((current) => (current === id ? null : current))} onContextMenu={(event, nodeId) => openContextMenu(event, nodeId)} /> : <CanvasNode key={node.id} data={node} dragOffset={dragRef.current?.nodeIds.includes(node.id) && dragOffset ? dragOffset : undefined} scale={viewport.k} isSelected={selectedNodeId === node.id} isRelated={false} isFocusRelated={false} isConnectionTarget={false} showImageInfo={false} readOnly renderNodeContent={renderSharedNode} onMouseDown={(event, nodeId) => {
                     event.stopPropagation();
                     if (event.button !== 0) return;
                     const target = nodes.find((item) => item.id === nodeId);
@@ -278,10 +271,10 @@ export default function SharedCanvasPage() {
                     setContextMenu(null);
                     dragRef.current = { primaryId: nodeId, nodeIds: [nodeId], startX: event.clientX, startY: event.clientY, origins: new Map([[nodeId, target.position]]), moved: false };
                     document.body.style.cursor = "grabbing";
-                }} onHoverStart={keepToolbar} onHoverEnd={hideToolbar} onConnectStart={unauthorized} onResize={() => undefined} onContentChange={unauthorized} onRetry={unauthorized} onOpenTaskDetails={unauthorized} onViewImage={(target) => setInfoNodeId(target.id)} onContextMenu={(event, nodeId) => openContextMenu(event, nodeId)} />)}
+                }} onHoverStart={setHoveredNodeId} onHoverEnd={(id) => setHoveredNodeId((current) => (current === id ? null : current))} onConnectStart={unauthorized} onResize={() => undefined} onContentChange={unauthorized} onRetry={unauthorized} onOpenTaskDetails={unauthorized} onViewImage={(target) => setInfoNodeId(target.id)} onContextMenu={(event, nodeId) => openContextMenu(event, nodeId)} />)}
             </InfiniteCanvas>
 
-            <CanvasNodeToolbar node={dragRef.current ? null : toolbarNode} viewport={viewport} containerRef={containerRef} onKeep={keepToolbar} onLeave={hideToolbar} onInfo={(node) => setInfoNodeId(node.id)} onEditText={unauthorized} onDecreaseFont={unauthorized} onIncreaseFont={unauthorized} onToggleDialog={unauthorized} onAnnotate={unauthorized} onGenerateImage={unauthorized} onUpload={unauthorized} onDownload={unauthorized} onSaveAsset={unauthorized} onMaskEdit={unauthorized} onEmotion={unauthorized} onPortraitTexture={unauthorized} onCrop={unauthorized} onSplit={unauthorized} onUpscale={unauthorized} onSuperResolve={unauthorized} onAngle={unauthorized} onLighting={unauthorized} onPanorama={unauthorized} onViewImage={unauthorized} onExtractVideoFrames={unauthorized} onExtractAudioFromVideo={unauthorized} onTrimVideoSegments={unauthorized} extractingVideoFrames={false} extractingAudio={false} trimmingVideo={false} onSubtitles={unauthorized} onTimeline={unauthorized} onReversePrompt={unauthorized} onRetry={unauthorized} onToggleFreeResize={unauthorized} onToggleLocked={unauthorized} onDelete={unauthorized} />
+            <CanvasNodeToolbar node={toolbarNode} level={toolbarLevel} viewport={viewport} containerRef={containerRef} onHoverChange={setToolbarHover} onInfo={(node) => setInfoNodeId(node.id)} onEditText={unauthorized} onDecreaseFont={unauthorized} onIncreaseFont={unauthorized} onToggleDialog={unauthorized} onAnnotate={unauthorized} onGenerateImage={unauthorized} onUpload={unauthorized} onDownload={unauthorized} onSaveAsset={unauthorized} onMaskEdit={unauthorized} onEmotion={unauthorized} onPortraitTexture={unauthorized} onCrop={unauthorized} onSplit={unauthorized} onUpscale={unauthorized} onSuperResolve={unauthorized} onAngle={unauthorized} onLighting={unauthorized} onPanorama={unauthorized} onViewImage={unauthorized} onExtractVideoFrames={unauthorized} onExtractAudioFromVideo={unauthorized} onTrimVideoSegments={unauthorized} extractingVideoFrames={false} extractingAudio={false} trimmingVideo={false} onSubtitles={unauthorized} onTimeline={unauthorized} onReversePrompt={unauthorized} onRetry={unauthorized} onToggleFreeResize={unauthorized} onToggleLocked={unauthorized} onDelete={unauthorized} />
 
             <div className="absolute bottom-5 left-5 z-[var(--z-panel-floating)]"><CanvasZoomControls scale={viewport.k} containerRef={containerRef} onScaleChange={setZoom} onFitContent={resetViewport} isMiniMapOpen={false} onToggleMiniMap={unauthorized} onOpenShortcuts={unauthorized} /></div>
             <div className="pointer-events-none absolute bottom-5 right-5 z-[var(--z-panel-floating)] max-w-[340px] text-right text-xs leading-5" style={{ color: theme.node.muted }}>访客操作仅在当前页面临时生效</div>

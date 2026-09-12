@@ -7395,6 +7395,22 @@
         width: min(384px, calc(100vw - 24px)) !important;
     }
 
+    /* 节点悬浮工具栏: 同一玻璃材质族(2026-09-12 微供给任务)。
+       与模型菜单/参数面板同源值, radius 14(h-11 密度下 16 过圆), 无阴影。 */
+    .canvas-node-toolbar .canvas-node-toolbar-surface {
+        border-radius: 14px !important;
+        background: rgba(32, 32, 32, 0.9) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+    }
+
+    :root:not(.dark) .canvas-node-toolbar .canvas-node-toolbar-surface {
+        background: rgba(255, 255, 255, 0.94) !important;
+        border-color: rgba(15, 23, 42, 0.08) !important;
+    }
+
     .canvas-model-picker-menu {
         /* flora P51-030: 菜单根定宽 384(世界), 不随内容/触发器收缩。
            高度上限 560(2026-09-09 十轮): 420 在 pinned≥2 时提前内部滚动裁切,
