@@ -8189,15 +8189,31 @@
        dropdown 的 motion 类为 slide-up/down(placement 决定), 单独在下方对齐时长。 */
     /* rc-motion 的 motion 类挂在 .ant-popover/.ant-dropdown 根元素自身 —— 必须用复合选择器
        (历史教训: 写成后代选择器从未命中, 所有浮层一直跑 antd 默认 0.2s 动画)。 */
+    /* 动画播放态走 antd keyframes(antZoomBigIn: scale(.8)->1, antSlideUpIn: translateY(-100%)->0),
+       transition 强制在播放期不参与 —— 必须换 animation-name 为自绘微浮动画
+       (antd 规则带 :where() 0 特异性前缀, 普通选择器即可覆盖; scale/-100% 位移
+       正是"打开瞬间与触发按钮间隔大、随后面板整体落位"跳变的来源)。 */
     .ant-popover.ant-zoom-big-appear-active,
     .ant-popover.ant-zoom-big-enter-active,
-    .ant-popover.ant-zoom-big-leave-active,
     .ant-dropdown.ant-zoom-big-appear-active,
     .ant-dropdown.ant-zoom-big-enter-active,
-    .ant-dropdown.ant-zoom-big-leave-active {
-        transition-duration: var(--motion-dur-fast-calc) !important;
-        transition-timing-function: var(--motion-ease-out) !important;
-        transition-property: opacity, transform !important;
+    .ant-dropdown.ant-slide-up-appear-active,
+    .ant-dropdown.ant-slide-up-enter-active,
+    .ant-dropdown.ant-slide-down-appear-active,
+    .ant-dropdown.ant-slide-down-enter-active {
+        animation-name: canvas-panel-in !important;
+        animation-duration: var(--motion-dur-fast-calc) !important;
+        animation-timing-function: var(--motion-ease-out) !important;
+        animation-fill-mode: both !important;
+    }
+    .ant-popover.ant-zoom-big-leave-active,
+    .ant-dropdown.ant-zoom-big-leave-active,
+    .ant-dropdown.ant-slide-up-leave-active,
+    .ant-dropdown.ant-slide-down-leave-active {
+        animation-name: canvas-panel-out !important;
+        animation-duration: var(--motion-dur-fast-calc) !important;
+        animation-timing-function: var(--motion-ease-out) !important;
+        animation-fill-mode: both !important;
     }
     .ant-popover.ant-zoom-big-appear-prepare,
     .ant-popover.ant-zoom-big-enter-prepare,
