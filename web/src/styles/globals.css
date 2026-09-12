@@ -8216,6 +8216,13 @@
     }
 
     /* 按下即响应(设计契约 §四 press 列: scale 0.97/100ms; apple: 按下即反馈, 无 hover 延迟)。 */
+    /* 微供给 composer 面板: 微态(micro)主体不拦截画布点击, full(selected/hover 到感应带)恢复可交互。
+       容器层恒为 pointer-events:none(inline), 交互面由这里按级别控制。 */
+    .canvas-node-panel-affordance[data-affordance="micro"] [data-canvas-node-panel],
+    .canvas-node-panel-affordance[data-affordance="hidden"] [data-canvas-node-panel] {
+        pointer-events: none;
+    }
+
     .canvas-settings-option:active:not(:disabled) {
         transform: scale(0.97);
         transition-duration: 100ms;

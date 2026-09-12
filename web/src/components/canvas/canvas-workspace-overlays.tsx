@@ -146,6 +146,16 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             onPointerDown={(event) => event.stopPropagation()}
         >
             {gapPx && onGapEnter ? <CanvasNodeToolbarGapBridge nodeId={node.id} gapPx={gapPx} direction="up" onEnter={onGapEnter} /> : null}
+            {/* 微态感应带: 面板主体在微态不拦截点击(pointer-events:none 由 CSS 控制), 指针到达顶部
+                感应带即归还 hover 并经冒泡升级 full, 主体随之恢复可交互 */}
+            {onGapEnter ? (
+                <div
+                    data-canvas-panel-sense-band="true"
+                    aria-hidden="true"
+                    className="pointer-events-auto absolute inset-x-0 top-0 z-10 h-5"
+                    onMouseEnter={() => onGapEnter(node.id)}
+                />
+            ) : null}
             {children}
         </div>
     );

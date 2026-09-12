@@ -2589,7 +2589,8 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                     {displayPanelNode && !selectionBox && !isCanvasNodeMoving ? (
                         <AffordanceSurface
                             level={composerLevel}
-                            className="canvas-node-panel-affordance absolute inset-0 pointer-events-none"
+                            className="canvas-node-panel-affordance absolute inset-0"
+                            style={{ pointerEvents: "none" }}
                             onMouseEnter={() => setComposerHover(true)}
                             onMouseLeave={() => setComposerHover(false)}
 闪隐)
