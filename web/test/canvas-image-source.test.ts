@@ -40,7 +40,8 @@ describe("上传图片是输入素材", () => {
         expect(canGenerateImageInPlace(source)).toBe(false);
     });
     test("页面和工具入口共享素材判定，人物质感接入原图连线", () => {
-        expect(read("pages/canvas/project.tsx")).toContain("dialogNode && !isCanvasImageSourceNode(dialogNode)");
+        // 微供给重构(2026-09-12): 面板目标节点改为 panelCandidate(dialog 优先/hover 回落), 判定语义不变。
+        expect(read("pages/canvas/project.tsx")).toContain("!isCanvasImageSourceNode(panelCandidate)");
         expect(read("lib/canvas/tool-registry/definitions/node-hover-tools.tsx")).toContain("!isCanvasImageSourceNode(ctx.node)");
         const mediaTools = read("pages/canvas/use-canvas-media-tools.ts");
         const portrait = mediaTools.slice(mediaTools.indexOf("const openPortraitTextureEditor"), mediaTools.indexOf("const cropImageNode"));
