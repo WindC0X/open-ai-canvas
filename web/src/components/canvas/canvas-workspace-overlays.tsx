@@ -137,7 +137,7 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             ref={panelRef}
             data-canvas-no-zoom
             data-canvas-node-panel
-            className={`thin-scrollbar absolute max-w-[calc(100%_-_24px)] ${allowOverflow ? "overflow-visible" : "overflow-y-auto"}`}
+            className={`thin-scrollbar pointer-events-auto absolute max-w-[calc(100%_-_24px)] ${allowOverflow ? "overflow-visible" : "overflow-y-auto"}`}
             style={{ left: 0, top: 0, transform: `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0)`, width: initialWidth, maxHeight: allowOverflow ? "none" : "calc(100% - 84px)", zIndex }}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDownCapture={bringToFront}

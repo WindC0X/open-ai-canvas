@@ -176,10 +176,7 @@ export function CanvasNodeToolbar({
                 else if (panelTop >= toolbarHeight + 16) top = panelTop - 8;
                 else if (containerRect.height - panelBottom >= toolbarHeight + 16) top = panelBottom + toolbarHeight + 8;
             }
-            if (toolbarRef.current) {
-                toolbarRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
-                return;
-            }
+            // anchor 只经 state 单轨下发(根元素 transform): 内层 toolbarRef 直写会与根 transform 叠加成双重位移
             setAnchor((current) => current?.left === left && current.top === top ? current : { left, top });
         };
         const scheduleUpdate = () => {
@@ -300,7 +297,7 @@ export function CanvasNodeToolbar({
     return (
         <AffordanceSurface
             level={level}
-            className="canvas-node-toolbar absolute z-[var(--z-node-toolbar)]"
+            className="canvas-node-toolbar absolute z-[var(--z-node-toolbar)] -translate-x-1/2 -translate-y-full"
             style={{ left: 0, top: 0, transform: `translate3d(${anchor.left}px, ${anchor.top}px, 0)`, width: "max-content", maxWidth: "calc(100% - 20px)", color: theme.node.text }}
             onMouseEnter={() => onHoverChange(true)}
             onMouseLeave={() => onHoverChange(false)}
