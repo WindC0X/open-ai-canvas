@@ -1787,6 +1787,10 @@ v2（用户反馈首版难看后重做）：菜单改用 antd Dropdown（placeme
 
 节点悬浮工具栏接入 flora 玻璃材质族（rgba(32,32,32,.9)+blur16+radius14+无阴影，与模型菜单/参数面板同源），显隐生命周期替换为微供给状态机（`lib/canvas/affordance.ts` 纯函数 + `AffordanceSurface` 原语）：idle 不显示 / hover 节点双微（0.45 不透明+降饱和）/ hover 到某供给该供给全显（只动 opacity/filter，渐显不变形）/ 选中即全显常驻。composer 面板随 hover 未选中节点微浮现（用户拍板完整面板微浮现），与选中面板并存（不同节点）。旧 `toolbarNodeId`+220ms timer 双轨状态机退役；220ms 宽限语义保留为 hover 离开的延迟清空（物理间隙期供给保持挂载）。工具栏入场动画 canvas-panel-in 退役（与 opacity 过渡互压）。9 格状态表真机验证 7 格通过（CDP hidden 限制下框选/拖拽 2 格由单测覆盖）。全量测试基线对照：本任务零新增产品失败；新增测试文件改变 bun 模块加载顺序，暴露 17 个顺序敏感文件的预存状态泄漏失败（editor slot/materializer/Agent store/诊断缓冲，单独跑全过），登记为测试基建债务。
 
+### 微供给 code-review 修复批（2026-09-12 深夜，review skill 全量审查后）
+
+code-review-expert 审查任务范围（23 文件 +731/-250）发现 P1×2/P2×4/P3×2，全部处理：两处悬空未提交改动补提交（AffordanceSurface rest 透传、normalizeImageValue 未定义引用清除）；双实例同节点叠影边界修复（hover 实例排除 selected-single 工具栏节点）；感应带 full 态放行（不再拦截面板顶部 20px 点击）；锚定间隙 30px 常量化（anchor 计算与间隙桥共用）；宽限注释对齐两段式实现；nodes.find 合并 useMemo。遗留（defer with plan）：渲染层实例组装逻辑的单元测试（当前仅真机验证，抽纯函数需避免为测试而测试的注入式签名）。
+
 ### 微供给空间展开动画（2026-09-12 深夜二批，用户指出缺展开动画后）
 
 affordance-in 只覆盖透明度渐显，缺空间展开。补 og 语法（`translateY(±offset) scale(0.97)` 从节点方向滑出）：工具栏从下方上来（+12px）、composer 从上方下来（-10px），绑内层（.canvas-node-toolbar-surface / .canvas-node-panel-enter wrapper）避免与外层定位 transform 冲突；退场 expand-out（收拢渐隐 160ms forwards）与卸载延迟精确匹配；micro↔full 切换不重播（选择器恒匹配），hidden 边界穿越才重启；reduced-motion 全关。机检：挂载实例 animationName=affordance-expand-in、方向变量 ±正确、退场期 expand-out 挂上、160ms 后卸载。
