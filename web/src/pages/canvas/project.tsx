@@ -330,7 +330,17 @@ function InfiniteCanvasPage() {
             if (!el) return;
             const r = el.getBoundingClientRect();
             const inside = event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom;
-            if (!inside) setHoveredNodeId((c) => (c === current ? null : c));
+            if (inside) return;
+            // 供给豁免: 指针在该节点的工具栏/composer 上时保持 hover(间隙保持语义)
+            for (const supply of document.querySelectorAll(`[data-supply-node="${CSS.escape(current)}"]`)) {
+                const target = supply.classList.contains("canvas-node-panel-affordance")
+                    ? supply.querySelector("[data-canvas-node-panel]")
+                    : supply;
+                if (!target) continue;
+                const sr = target.getBoundingClientRect();
+                if (event.clientX >= sr.left && event.clientX <= sr.right && event.clientY >= sr.top && event.clientY <= sr.bottom) return;
+            }
+            setHoveredNodeId((c) => (c === current ? null : c));
         };
         window.addEventListener("mousemove", onMove, { passive: true });
         return () => window.removeEventListener("mousemove", onMove);
@@ -2219,10 +2229,53 @@ const {
         setExitingNodeId((current) => (current === nodeId ? null : current));
         setHoveredNodeId(nodeId);
     }, []);
+    // 最后已知指针位置: hover end 判定时供给几何检查需要(指针可能静止, mousemove 校准不触发)
+    const lastPointerRef = useRef<{ x: number; y: number }>({ x: -1, y: -1 });
+    // 供给 selfHover 几何校准: 供给被 transform 移走/快速滑动时浏览器不补发 mouseleave,
+    // toolbarHoverId/composerHoverId 残留会让对应供给恒 full — mousemove 按供给矩形同步清除。
+    useEffect(() => {
+        const onMove = (event: MouseEvent) => {
+            lastPointerRef.current = { x: event.clientX, y: event.clientY };
+            const check = (setter: React.Dispatch<React.SetStateAction<string | null>>) => {
+                setter((current) => {
+                    if (!current) return current;
+                    const supply = document.querySelector('[data-supply-node="' + CSS.escape(current) + '"]');
+                    if (!supply) return current;
+                    const target = supply.classList.contains("canvas-node-panel-affordance")
+                        ? supply.querySelector("[data-canvas-node-panel]")
+                        : supply;
+                    if (!target) return current;
+                    const rect = target.getBoundingClientRect();
+                    const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+                    return inside ? current : null;
+                });
+            };
+            check(setToolbarHoverId);
+            check(setComposerHoverId);
+        };
+        window.addEventListener("mousemove", onMove, { passive: true, capture: true });
+        return () => window.removeEventListener("mousemove", onMove, { capture: true });
+    }, []);
+    const pointerOverSupply = useCallback((nodeId: string) => {
+        const pt = lastPointerRef.current;
+        if (pt.x < 0) return false;
+        for (const supply of document.querySelectorAll('[data-supply-node="' + CSS.escape(nodeId) + '"]')) {
+            const target = supply.classList.contains("canvas-node-panel-affordance")
+                ? supply.querySelector("[data-canvas-node-panel]")
+                : supply;
+            if (!target) continue;
+            const sr = target.getBoundingClientRect();
+            if (pt.x >= sr.left && pt.x <= sr.right && pt.y >= sr.top && pt.y <= sr.bottom) return true;
+        }
+        return false;
+    }, []);
     const handleCanvasNodeHoverEnd = useCallback((nodeId: string) => {
         if (hoverGraceRef.current) clearTimeout(hoverGraceRef.current);
         hoverGraceRef.current = setTimeout(() => {
             hoverGraceRef.current = null;
+            // grace 到点时指针若已落在本节点供给(工具栏/composer)上, hover 保持不断 —
+            // 否则"移向供给途中"节点 mouseout 先到, 供给升级后 hover 域断裂。
+            if (pointerOverSupply(nodeId)) return;
             setHoveredNodeId((current) => (current === nodeId ? null : current));
             if (exitGraceRef.current) clearTimeout(exitGraceRef.current);
             setExitingNodeId(nodeId);
@@ -2231,7 +2284,7 @@ const {
                 setExitingNodeId((current) => (current === nodeId ? null : current));
             }, 160);
         }, 220);
-    }, []);
+    }, [pointerOverSupply]);
 
     // 微供给双实例(og-canvas pinned+hover 同构): selected 节点的工具栏/composer 常驻 full,
     // hover 其它节点时第二实例微浮现 —— 两者并存互不抢占(单例会抢走选中节点的常驻供给)。
@@ -2650,6 +2703,7 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                         <AffordanceSurface
                             key={`composer-${instance.node.id}`}
                             level={instance.level}
+                            data-supply-node={instance.node.id}
                             className="canvas-node-panel-affordance absolute inset-0"
                             style={{ pointerEvents: "none" }}
                             onMouseEnter={() => setComposerHoverId(instance.node.id)}

@@ -119,24 +119,45 @@ export const CanvasNode = React.memo(function CanvasNode({
     onHoverEndRef.current = onHoverEnd;
     // hover 残留自清: 快速滑动/节点尺寸变化/浮层开关瞬间, 浏览器可能不给本节点派发 mouseleave,
     // 而 CSS :hover 会立即修正 — 用同一几何判定同步 JS state(120ms 节流), 防跨节点 hover 残留。
+    // hover 双向校准: mouseenter/leave 在节点 transform 移动、浮层开合、快速滑动时会丢事件,
+    // 而 CSS :hover 永远正确 — mousemove 节流地按同一几何规则(节点矩形 ∪ 本节点供给矩形)同步 JS state。
     useEffect(() => {
-        if (!hovered) return;
         let lastCheck = 0;
         const onMove = (event: MouseEvent) => {
             const now = performance.now();
-            if (now - lastCheck < 120) return;
-            lastCheck = now;
+            const throttled = now - lastCheck < 120;
             const shell = shellRef.current;
             if (!shell) return;
             const r = shell.getBoundingClientRect();
-            if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) {
+            const inside = event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom;
+            if (throttled && inside) return;
+            let overSupply = false;
+            if (!inside) {
+                for (const supply of document.querySelectorAll(`[data-supply-node="${CSS.escape(data.id)}"]`)) {
+                    const target = supply.classList.contains("canvas-node-panel-affordance")
+                        ? supply.querySelector("[data-canvas-node-panel]")
+                        : supply;
+                    if (!target) continue;
+                    const sr = target.getBoundingClientRect();
+                    if (event.clientX >= sr.left && event.clientX <= sr.right && event.clientY >= sr.top && event.clientY <= sr.bottom) {
+                        overSupply = true;
+                        break;
+                    }
+                }
+            }
+            lastCheck = now;
+            const shouldHover = inside || overSupply;
+            if (shouldHover && !hovered) {
+                setHovered(true);
+                onHoverStart(data.id);
+            } else if (!shouldHover && hovered) {
                 setHovered(false);
                 onHoverEndRef.current?.(data.id);
             }
         };
         window.addEventListener("mousemove", onMove, { passive: true });
         return () => window.removeEventListener("mousemove", onMove);
-    }, [hovered, data.id]);
+    });
     const [isEditingContent, setIsEditingContent] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState(data.title);
@@ -313,7 +334,11 @@ export const CanvasNode = React.memo(function CanvasNode({
                 setHovered(true);
                 onHoverStart(data.id);
             }}
-            onMouseLeave={() => {
+            onMouseLeave={(event) => {
+                // leave 的 relatedTarget 落在本节点供给(工具栏/composer)内时忽略 —
+                // 指针从节点移向供给, hover 域经供给连续, 立即清会让供给升级后节点状态断裂。
+                const related = event.relatedTarget;
+                if (related instanceof Element && related.closest('[data-supply-node="' + data.id + '"]')) return;
                 setHovered(false);
                 onHoverEnd(data.id);
             }}

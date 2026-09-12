@@ -304,6 +304,7 @@ export function CanvasNodeToolbar({
     return (
         <AffordanceSurface
             level={level}
+            data-supply-node={node.id}
             className="canvas-node-toolbar absolute z-[var(--z-node-toolbar)] -translate-x-1/2 -translate-y-full"
             style={{ left: 0, top: 0, transform: `translate3d(${anchor.left}px, ${anchor.top}px, 0)`, width: "max-content", maxWidth: "calc(100% - 20px)", color: theme.node.text }}
             onMouseEnter={() => onHoverChange(true)}
