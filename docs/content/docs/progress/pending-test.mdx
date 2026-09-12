@@ -1787,6 +1787,10 @@ v2（用户反馈首版难看后重做）：菜单改用 antd Dropdown（placeme
 
 节点悬浮工具栏接入 flora 玻璃材质族（rgba(32,32,32,.9)+blur16+radius14+无阴影，与模型菜单/参数面板同源），显隐生命周期替换为微供给状态机（`lib/canvas/affordance.ts` 纯函数 + `AffordanceSurface` 原语）：idle 不显示 / hover 节点双微（0.45 不透明+降饱和）/ hover 到某供给该供给全显（只动 opacity/filter，渐显不变形）/ 选中即全显常驻。composer 面板随 hover 未选中节点微浮现（用户拍板完整面板微浮现），与选中面板并存（不同节点）。旧 `toolbarNodeId`+220ms timer 双轨状态机退役；220ms 宽限语义保留为 hover 离开的延迟清空（物理间隙期供给保持挂载）。工具栏入场动画 canvas-panel-in 退役（与 opacity 过渡互压）。9 格状态表真机验证 7 格通过（CDP hidden 限制下框选/拖拽 2 格由单测覆盖）。全量测试基线对照：本任务零新增产品失败；新增测试文件改变 bun 模块加载顺序，暴露 17 个顺序敏感文件的预存状态泄漏失败（editor slot/materializer/Agent store/诊断缓冲，单独跑全过），登记为测试基建债务。
 
+### 微供给 hover 域连续性修复（2026-09-12 深夜四轮，用户"移向供给途中掉 hover / 双供给显示错位"反馈触发）
+
+用户实测暴露微供给状态机的 hover 域断裂：hover 节点后移向工具栏/composer 途中 hover 态提前消失；指针在节点上时两供给一 full 一 micro 错乱。根因有四层：(1) micro 面板主体 pointer-events:none 使指针穿透到下层节点，浏览器补发节点 mouseout，hover 域在供给处断裂且面板永远无法经主体 hover 升级 full（只剩 20px 感应带）——改为 micro 主体 pe:auto；(2) 节点 onMouseLeave 立即清 hover，指针移向供给时 leave 先到——leave 的 relatedTarget 在本节点供给内时忽略；(3) hoverEnd 220ms grace 到点时指针可能已落在供给上——回调内按 lastPointer + 供给矩形豁免；(4) 供给被 transform 移走时浏览器不补发 leave，toolbarHoverId/composerHoverId 残留致供给恒 full——mousemove 按供给矩形几何校准三套 hover 状态（canvas-node 本地 hovered 双向校准 + project 层 hoveredNodeId 间隙保持校准 + 供给 selfHover 校准）。供给归属用 data-supply-node 标记（AffordanceSurface wrapper），可见面板矩形取 [data-canvas-node-panel]。真机回归：hover 节点(双 micro) → 移到面板(面板 full、节点 hover 保持、工具栏 micro) → 移回节点(面板回 micro) → 移到工具栏(工具栏 full) 全链通过。
+
 ### 三连修复批（2026-09-12 深夜三轮，用户截图 4 张触发）
 
 (1) **参数面板开启不再隐藏工具栏**：settingsOpen guard 退役（面板 320px 从 composer 底栏弹出，与节点上方工具栏无几何重叠），修复"点击参数面板，工具栏收起"。
