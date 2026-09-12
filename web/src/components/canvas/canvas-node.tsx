@@ -114,6 +114,29 @@ export const CanvasNode = React.memo(function CanvasNode({
 }: CanvasNodeProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const [hovered, setHovered] = useState(false);
+    const shellRef = useRef<HTMLDivElement | null>(null);
+    const onHoverEndRef = useRef(onHoverEnd);
+    onHoverEndRef.current = onHoverEnd;
+    // hover 残留自清: 快速滑动/节点尺寸变化/浮层开关瞬间, 浏览器可能不给本节点派发 mouseleave,
+    // 而 CSS :hover 会立即修正 — 用同一几何判定同步 JS state(120ms 节流), 防跨节点 hover 残留。
+    useEffect(() => {
+        if (!hovered) return;
+        let lastCheck = 0;
+        const onMove = (event: MouseEvent) => {
+            const now = performance.now();
+            if (now - lastCheck < 120) return;
+            lastCheck = now;
+            const shell = shellRef.current;
+            if (!shell) return;
+            const r = shell.getBoundingClientRect();
+            if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) {
+                setHovered(false);
+                onHoverEndRef.current?.(data.id);
+            }
+        };
+        window.addEventListener("mousemove", onMove, { passive: true });
+        return () => window.removeEventListener("mousemove", onMove);
+    }, [hovered, data.id]);
     const [isEditingContent, setIsEditingContent] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState(data.title);
@@ -294,6 +317,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 setHovered(false);
                 onHoverEnd(data.id);
             }}
+
             onContextMenu={(event) => onContextMenu(event, data.id)}
         >
             <NodeExternalHeader
@@ -313,6 +337,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 onCancel={() => { setTitleDraft(data.title); setIsEditingTitle(false); }}
             />
             <div
+                ref={shellRef}
                 className={`canvas-node-shell relative h-full w-full overflow-visible rounded-[var(--node-radius)] ${data.metadata?.status === "loading" && !hasImageContent && !hasVideoContent ? "node-generating-border" : ""}`}
                 data-node-state={nodeState}
                 data-connection-tilt={connectionTilt ? "true" : undefined}

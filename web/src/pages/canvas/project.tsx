@@ -313,6 +313,28 @@ function InfiniteCanvasPage() {
     const [toolbarMenuOpenId, setToolbarMenuOpenId] = useState<string | null>(null);
     // 退场动画(og 两段式): hover 宽限到期先以 hidden 渲染保留(opacity 过渡), 播完再真正卸载
     const [exitingNodeId, setExitingNodeId] = useState<string | null>(null);
+
+    // hover 串节点校准: 节点尺寸/位置变化(或快速滑动)时浏览器可能不派发旧节点 mouseleave,
+    // hoveredNodeId 残留指向指针已不在的节点; mousemove 节流校准以指针命中元素为准修正。
+    const hoveredNodeRef = useRef<string | null>(null);
+    hoveredNodeRef.current = hoveredNodeId;
+    useEffect(() => {
+        let lastCheck = 0;
+        const onMove = (event: MouseEvent) => {
+            const now = performance.now();
+            if (now - lastCheck < 120) return;
+            lastCheck = now;
+            const current = hoveredNodeRef.current;
+            if (!current) return;
+            const el = document.querySelector(`[data-node-id="${CSS.escape(current)}"]`);
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            const inside = event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom;
+            if (!inside) setHoveredNodeId((c) => (c === current ? null : c));
+        };
+        window.addEventListener("mousemove", onMove, { passive: true });
+        return () => window.removeEventListener("mousemove", onMove);
+    }, []);
     // 活动任务面板实测高度(含展开态):右侧同锚的对象 HUD 用它动态下移,避免两浮层重叠(S06)。
     const [activeTaskPanelHeight, setActiveTaskPanelHeight] = useState(0);
     const [arkPrivateAssetUploadNodeId, setArkPrivateAssetUploadNodeId] = useState<string | null>(null);
