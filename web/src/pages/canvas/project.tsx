@@ -2642,7 +2642,7 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                                 isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(instance.node.id))}
                             >
                                 {/* 按节点强重建(issue-1 根修): 复用实例会让旧节点曾打开的 ModelPicker 菜单 open state 跨节点残留。 */}
-                                <div key={instance.node.id}>{renderCanvasNodePanel(instance.node)}</div>
+                                <div key={instance.node.id} className="canvas-node-panel-enter">{renderCanvasNodePanel(instance.node)}</div>
                             </CanvasNodePanelOverlay>
                         </AffordanceSurface>
                     ))}

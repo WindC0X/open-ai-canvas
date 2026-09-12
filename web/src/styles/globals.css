@@ -325,6 +325,10 @@
         transition: none !important;
         animation: none !important;
     }
+    .canvas-node-toolbar-surface,
+    .canvas-node-panel-affordance .canvas-node-panel-enter {
+        animation: none !important;
+    }
 }
 .no-motion [data-affordance] {
     transition: none !important;
@@ -8231,6 +8235,34 @@
         from {
             opacity: 0;
         }
+    }
+
+    /* 空间展开动画(og-canvas 语法: 从节点方向滑出 + scale 收放), 绑内层避免与外层定位 transform 冲突。
+       工具栏在节点上方 => 从下方上来(+12px); composer 在节点下方 => 从上方下来(-10px)。 */
+    @keyframes affordance-expand-in {
+        from {
+            opacity: 0;
+            transform: translateY(var(--affordance-enter-offset, 12px)) scale(0.97);
+        }
+    }
+    @keyframes affordance-expand-out {
+        to {
+            opacity: 0;
+            transform: translateY(var(--affordance-enter-offset, 12px)) scale(0.97);
+        }
+    }
+    .canvas-node-toolbar-surface {
+        --affordance-enter-offset: 12px;
+        animation: affordance-expand-in 180ms var(--motion-ease-out) backwards;
+    }
+    .canvas-node-panel-affordance .canvas-node-panel-enter {
+        --affordance-enter-offset: -10px;
+        animation: affordance-expand-in 180ms var(--motion-ease-out) backwards;
+    }
+    /* 退场(hidden 期, 与卸载延迟 160ms 匹配): 向节点方向收拢渐隐 */
+    .canvas-node-toolbar[data-affordance="hidden"] .canvas-node-toolbar-surface,
+    .canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter {
+        animation: affordance-expand-out 160ms var(--motion-ease-in) forwards;
     }
     [data-affordance="micro"],
     [data-affordance="full"] {
