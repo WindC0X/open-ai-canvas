@@ -6,6 +6,7 @@ import { Camera, Check, ChevronDown, ChevronRight, Ellipsis, Images, Plus, Slide
 import { ASSET_CATEGORY_OPTIONS } from "@/lib/asset-category";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { resolveNodeToolbarPlacement, resolveToolbarTools, type NodeToolbarGroup, type ToolContext, type ToolbarHandlers } from "@/lib/canvas/tool-registry";
+import { CanvasNodeToolbarGapBridge } from "./canvas-node-toolbar-gap-bridge";
 import { AffordanceSurface, type AffordanceLevel } from "@/components/canvas/primitives";
 import { subscribeCanvasGraphicsViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { canvasNodeAssetCategory } from "@/lib/canvas/canvas-node-asset";
@@ -28,6 +29,8 @@ type CanvasNodeToolbarProps = {
     onHoverChange: (hovering: boolean) => void;
     /** 下拉菜单开合(开启期间工具栏保持 full) */
     onMenuOpenChange?: (open: boolean) => void;
+    /** 指针穿过节点↔工具栏间隙桥: hover 归还源节点(og-canvas gap-bridge 同构) */
+    onGapEnter?: (nodeId: string) => void;
     onInfo: (node: CanvasNodeData) => void;
     onEditText: (node: CanvasNodeData) => void;
     onDecreaseFont: (node: CanvasNodeData) => void;
@@ -90,6 +93,7 @@ export function CanvasNodeToolbar({
     level,
     onHoverChange,
     onMenuOpenChange,
+    onGapEnter,
     onInfo,
     onEditText,
     onDecreaseFont,
@@ -308,6 +312,14 @@ export function CanvasNodeToolbar({
             onFocus={() => onHoverChange(true)}
             onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onHoverChange(false); }}
         >
+            {onGapEnter ? (
+                <CanvasNodeToolbarGapBridge
+                    nodeId={node.id}
+                    gapPx={30}
+                    direction="down"
+                    onEnter={onGapEnter}
+                />
+            ) : null}
             <div ref={toolbarRef}>
                 <div
                     role="toolbar"

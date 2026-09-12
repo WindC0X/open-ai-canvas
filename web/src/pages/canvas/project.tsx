@@ -2599,6 +2599,8 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                                 viewport={viewport}
                                 containerRef={containerRef}
                                 allowOverflow={displayPanelNode.type !== CanvasNodeType.Config}
+                            gapPx={10}
+                            onGapEnter={handleCanvasNodeHoverStart}
                                 dragOffset={dragPreview?.nodeIds.has(displayPanelNode.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
                                 isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(displayPanelNode.id))}
                             >
@@ -2685,6 +2687,7 @@ beb8b048 (fix(canvas): 浮层重叠 - 对象HUD按活动任务面板实测高度
                     <CanvasNodeToolbar
                         node={emotionNodeId ? null : displayToolbarNode}
                         level={toolbarLevel}
+                        onGapEnter={handleCanvasNodeHoverStart}
                         workspaceMode={workspaceMode}
                         viewport={viewport}
                         containerRef={containerRef}

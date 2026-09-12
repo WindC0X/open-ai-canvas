@@ -8,6 +8,7 @@ import { aceternityMotion } from "@/lib/aceternity-motion";
 import { subscribeCanvasGraphicsViewportPreview, subscribeCanvasNodeDragPreview, subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasNodeType, type CanvasNodeData, type ConnectionHandle, type Position, type ViewportTransform } from "@/types/canvas";
+import { CanvasNodeToolbarGapBridge } from "./canvas-node-toolbar-gap-bridge";
 
 export type PendingConnectionCreate = {
     connection: ConnectionHandle;
@@ -87,7 +88,7 @@ export function CanvasSelectionToolbar({ anchorRef, containerRef, count, childre
     );
 }
 
-export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidth, panelHeight = 190, dragOffset, isDragging = false, allowOverflow = false, children }: { node: CanvasNodeData; viewport: ViewportTransform; containerRef: RefObject<HTMLDivElement | null>; panelWidth?: number; panelHeight?: number; dragOffset?: Position | null; isDragging?: boolean; allowOverflow?: boolean; children: ReactNode }) {
+export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidth, panelHeight = 190, dragOffset, isDragging = false, allowOverflow = false, gapPx, onGapEnter, children }: { node: CanvasNodeData; viewport: ViewportTransform; containerRef: RefObject<HTMLDivElement | null>; panelWidth?: number; panelHeight?: number; dragOffset?: Position | null; isDragging?: boolean; allowOverflow?: boolean; gapPx?: number; onGapEnter?: (nodeId: string) => void; children: ReactNode }) {
     const panelRef = useRef<HTMLDivElement>(null);
     const { bringToFront, zIndex } = useCanvasOverlayLayer(`node-panel:${node.id}`, "var(--z-modal-overlay)");
     const initialWidth = resolveNodePanelWidth(node, viewport, panelWidth);
@@ -144,6 +145,7 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             onFocusCapture={bringToFront}
             onPointerDown={(event) => event.stopPropagation()}
         >
+            {gapPx && onGapEnter ? <CanvasNodeToolbarGapBridge nodeId={node.id} gapPx={gapPx} direction="up" onEnter={onGapEnter} /> : null}
             {children}
         </div>
     );
