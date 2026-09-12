@@ -8170,19 +8170,36 @@
 
     /* composer 底部按钮面板展开/关闭动画统一(2026-09-11): antd 浮层(模型菜单/智能引用等)
        的 rc-motion zoom-big 时长/缓动/位移全部对齐自建面板 canvas-panel-in/out
-       (150ms ease-out + 上浮6px + scale0.97), 首开(appear)/复开(enter)/收起(leave)三态全覆盖。 */
-    .ant-popover .ant-zoom-big-appear-active,
-    .ant-popover .ant-zoom-big-enter-active,
-    .ant-popover .ant-zoom-big-leave-active {
+       (150ms ease-out + 上浮6px + scale0.97), 首开(appear)/复开(enter)/收起(leave)三态全覆盖;
+       dropdown 的 motion 类为 slide-up/down(placement 决定), 单独在下方对齐时长。 */
+    /* rc-motion 的 motion 类挂在 .ant-popover/.ant-dropdown 根元素自身 —— 必须用复合选择器
+       (历史教训: 写成后代选择器从未命中, 所有浮层一直跑 antd 默认 0.2s 动画)。 */
+    .ant-popover.ant-zoom-big-appear-active,
+    .ant-popover.ant-zoom-big-enter-active,
+    .ant-popover.ant-zoom-big-leave-active,
+    .ant-dropdown.ant-zoom-big-appear-active,
+    .ant-dropdown.ant-zoom-big-enter-active,
+    .ant-dropdown.ant-zoom-big-leave-active {
         transition-duration: var(--motion-dur-fast-calc) !important;
         transition-timing-function: var(--motion-ease-out) !important;
         transition-property: opacity, transform !important;
     }
-    .ant-popover .ant-zoom-big-appear-prepare,
-    .ant-popover .ant-zoom-big-enter-prepare,
-    .ant-popover .ant-zoom-big-leave-active {
+    .ant-popover.ant-zoom-big-appear-prepare,
+    .ant-popover.ant-zoom-big-enter-prepare,
+    .ant-popover.ant-zoom-big-leave-active {
         opacity: 0 !important;
         transform: translateY(6px) scale(0.97) !important;
+    }
+    /* Dropdown 按 placement 用 slide-up/down motion(类名非 zoom-big), 只对齐时长/缓动,
+       slide 位移语义保留 antd 自带值(强制 translateY 会与滑入冲突)。 */
+    .ant-dropdown.ant-slide-up-appear-active,
+    .ant-dropdown.ant-slide-up-enter-active,
+    .ant-dropdown.ant-slide-up-leave-active,
+    .ant-dropdown.ant-slide-down-appear-active,
+    .ant-dropdown.ant-slide-down-enter-active,
+    .ant-dropdown.ant-slide-down-leave-active {
+        transition-duration: var(--motion-dur-fast-calc) !important;
+        transition-timing-function: var(--motion-ease-out) !important;
     }
 
     /* 设置气泡统一关闭动画: open=false 后 150ms exit 窗口内加 .canvas-settings-popover-closing (usePopoverExit)。 */
