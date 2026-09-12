@@ -2177,12 +2177,24 @@ const {
         ],
     );
 
+    // hover 离开节点的 220ms 宽限: 节点与微供给(工具栏/composer)之间存在物理间隙, 立即清空
+    // hoveredNodeId 会让供给在指针穿过间隙时卸载, 永远无法进入供给升级 full(旧 220ms timer 的语义等价物,
+    // 单一 hoveredNodeId 源 + 单一 grace, 非旧双轨状态机)。
+    const hoverGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleCanvasNodeHoverStart = useCallback((nodeId: string) => {
         if (nodeDraggingRef.current) return;
+        if (hoverGraceRef.current) {
+            clearTimeout(hoverGraceRef.current);
+            hoverGraceRef.current = null;
+        }
         setHoveredNodeId(nodeId);
     }, []);
     const handleCanvasNodeHoverEnd = useCallback((nodeId: string) => {
-        setHoveredNodeId((current) => (current === nodeId ? null : current));
+        if (hoverGraceRef.current) clearTimeout(hoverGraceRef.current);
+        hoverGraceRef.current = setTimeout(() => {
+            hoverGraceRef.current = null;
+            setHoveredNodeId((current) => (current === nodeId ? null : current));
+        }, 220);
     }, []);
 
     // 微供给: 工具栏单例锚定 hover 优先(指针注意力), 无 hover 时回落到选中节点(常驻 full)。

@@ -8087,7 +8087,8 @@
 
     .canvas-floating-dock,
     .canvas-floating-panel,
-    .canvas-node-toolbar,
+    /* .canvas-node-toolbar 已改由微供给 AffordanceSurface 管显隐(2026-09-12): opacity 过渡与
+       canvas-panel-in 动画(fill both 锁帧)互相压制, 入场动画随之退役 */
     .canvas-image-settings-popover,
     .canvas-video-settings-popover,
     .canvas-text-settings-popover,
