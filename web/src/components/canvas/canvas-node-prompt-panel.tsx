@@ -446,7 +446,9 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                             placement={expanded ? "topRight" : "topLeft"}
                             buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
                         />
-                    ) : mode === "image" && countProfile.maxOutputs > 1 ? (
+                    ) : mode === "image" ? (
+                        // 份数入口恒显示: maxOutputs=1 的模型(如 Grok)列表只有 1 行, 入口消失会让用户找不到份数设置。
+
                         <CanvasCountSettingsPopover
                             value={Number(config.count) || 1}
                             onChange={(value) => onConfigChange(node.id, { count: value })}
