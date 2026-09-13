@@ -88,7 +88,7 @@ export function CanvasSelectionToolbar({ anchorRef, containerRef, count, childre
     );
 }
 
-export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidth, panelHeight = 190, dragOffset, isDragging = false, allowOverflow = false, gapPx, onGapEnter, children }: { node: CanvasNodeData; viewport: ViewportTransform; containerRef: RefObject<HTMLDivElement | null>; panelWidth?: number; panelHeight?: number; dragOffset?: Position | null; isDragging?: boolean; allowOverflow?: boolean; gapPx?: number; onGapEnter?: (nodeId: string) => void; children: ReactNode }) {
+export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidth, panelHeight = 190, dragOffset, isDragging = false, allowOverflow = false, gapPx, children }: { node: CanvasNodeData; viewport: ViewportTransform; containerRef: RefObject<HTMLDivElement | null>; panelWidth?: number; panelHeight?: number; dragOffset?: Position | null; isDragging?: boolean; allowOverflow?: boolean; gapPx?: number; children: ReactNode }) {
     const panelRef = useRef<HTMLDivElement>(null);
     const { bringToFront, zIndex } = useCanvasOverlayLayer(`node-panel:${node.id}`, "var(--z-modal-overlay)");
     const initialWidth = resolveNodePanelWidth(node, viewport, panelWidth);
@@ -145,17 +145,20 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             onFocusCapture={bringToFront}
             onPointerDown={(event) => event.stopPropagation()}
         >
-            {gapPx && onGapEnter ? <CanvasNodeToolbarGapBridge nodeId={node.id} gapPx={gapPx} direction="up" onEnter={onGapEnter} /> : null}
-            {/* 微态感应带: 面板主体在微态不拦截点击(pointer-events:none 由 CSS 控制), 指针到达顶部
-                感应带即归还 hover 并经冒泡升级 full, 主体随之恢复可交互 */}
-            {onGapEnter ? (
-                <div
-                    data-canvas-panel-sense-band="true"
-                    aria-hidden="true"
-                    className="pointer-events-auto absolute inset-x-0 top-0 z-10 h-5"
-                    onMouseEnter={() => onGapEnter(node.id)}
-                />
-            ) : null}
+            {gapPx ? <CanvasNodeToolbarGapBridge nodeId={node.id} gapPx={gapPx} direction="up" /> : null}
+            {/* 微态感应带: 面板主体在微态不拦截点击(pointer-events:none 由 CSS 控制)。
+                感应带是归属判定里的供给面(kind=sense-band, M2 级别过滤), 不再承担事件回调 */}
+            <div
+                data-canvas-panel-sense-band="true"
+                aria-hidden="true"
+                className="pointer-events-auto absolute top-0 z-10 h-5"
+                style={{
+                    // 宽度收窄(审计裁决): 感应带 clamp 到节点显示宽(模型宽×scale)居中, 防横向越界劫持邻居 hover
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: node.width * viewport.k,
+                }}
+            />
             {children}
         </div>
     );

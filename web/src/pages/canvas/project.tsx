@@ -2247,8 +2247,6 @@ const {
     };
     // 兼容桩: 旧 onNodeHoverEnd 事件在状态机接管后是冗余信息(机器每帧现算归属), 第 4 步随事件链一并删除
     const handleCanvasNodeHoverEndCompat = useCallback((_nodeId: string) => {}, []);
-    // 旧事件层写入者已全部退役(状态机唯一写入, 裁决第 2 步): 桩保 prop 兼容, 第 4 步随回调链删除
-    const handleCanvasNodeHoverStart = useCallback((_nodeId: string) => {}, []);
     // (lastPointerRef/校准#2/pointerOverSupply/hoverEnd 定时器/handleSupplyLeave 已删: 全部内化为状态机)
 
 
@@ -2677,7 +2675,6 @@ onViewportChange={handleViewportChange}
                                 containerRef={containerRef}
                                 allowOverflow={instance.node.type !== CanvasNodeType.Config}
                                 gapPx={10}
-                                onGapEnter={handleCanvasNodeHoverStart}
                                 dragOffset={dragPreview?.nodeIds.has(instance.node.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
                                 isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(instance.node.id))}
                             >
@@ -2768,7 +2765,6 @@ onViewportChange={handleViewportChange}
                             key={`toolbar-${instance.node.id}`}
                             node={emotionNodeId ? null : instance.node}
                             level={instance.level}
-                            onGapEnter={handleCanvasNodeHoverStart}
                             workspaceMode={workspaceMode}
                         viewport={viewport}
                         containerRef={containerRef}

@@ -43,7 +43,6 @@ export default function SharedCanvasPage() {
     const [viewport, setViewport] = useState<ViewportTransform>({ x: 0, y: 0, k: 1 });
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [infoNodeId, setInfoNodeId] = useState<string | null>(null);
-    const [toolbarHover, setToolbarHover] = useState(false);
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     // 只读分享页无状态机: 节点级本地 hover 自持(主画布走 useCanvasHoverAttribution)
     const handleSharedNodeHover = useCallback((nodeId: string, hovering: boolean) => setHoveredNodeId(hovering ? nodeId : (current) => (current === nodeId ? null : current)), []);
@@ -232,7 +231,7 @@ const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.t
     const selectedToolbarNode = selectedNodeId ? nodeById.get(selectedNodeId) || null : null;
     const hoverToolbarTarget = hoveredNodeId && hoveredNodeId !== selectedNodeId ? nodeById.get(hoveredNodeId) || null : null;
     const toolbarLevels = (node: CanvasNodeData): AffordanceLevel => deriveToolbarAffordance(
-        { nodeId: node.id, hoveredNodeId, dialogNodeId: selectedNodeId, selfHover: toolbarHover && hoveredNodeId === node.id },
+        { nodeId: node.id, hoveredNodeId, dialogNodeId: selectedNodeId, selfHover: false },
         { nodeDragging: false, selectionBoxActive: false, settingsOpen: false },
     );
 4d070fc5 (fix(canvas): 二次review修复 - exitTimer单飞清竞态/shared页双实例对齐主画布语义/hoverTarget命名)
@@ -279,7 +278,7 @@ const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.t
                 { node: selectedToolbarNode, level: selectedToolbarNode ? toolbarLevels(selectedToolbarNode) : null },
                 { node: hoverToolbarTarget, level: hoverToolbarTarget ? toolbarLevels(hoverToolbarTarget) : null },
             ].filter((instance): instance is { node: CanvasNodeData; level: AffordanceLevel } => instance.node !== null).map((instance) => (
-                <CanvasNodeToolbar key={`shared-toolbar-${instance.node.id}`} node={instance.node} level={instance.level} viewport={viewport} containerRef={containerRef} onHoverChange={setToolbarHover} onInfo={(node) => setInfoNodeId(node.id)} onEditText={unauthorized} onDecreaseFont={unauthorized} onIncreaseFont={unauthorized} onToggleDialog={unauthorized} onAnnotate={unauthorized} onGenerateImage={unauthorized} onUpload={unauthorized} onDownload={unauthorized} onSaveAsset={unauthorized} onMaskEdit={unauthorized} onEmotion={unauthorized} onPortraitTexture={unauthorized} onCrop={unauthorized} onSplit={unauthorized} onUpscale={unauthorized} onSuperResolve={unauthorized} onAngle={unauthorized} onLighting={unauthorized} onPanorama={unauthorized} onViewImage={unauthorized} onExtractVideoFrames={unauthorized} onExtractAudioFromVideo={unauthorized} onTrimVideoSegments={unauthorized} extractingVideoFrames={false} extractingAudio={false} trimmingVideo={false} onSubtitles={unauthorized} onTimeline={unauthorized} onReversePrompt={unauthorized} onRetry={unauthorized} onToggleFreeResize={unauthorized} onToggleLocked={unauthorized} onDelete={unauthorized} />
+                <CanvasNodeToolbar key={`shared-toolbar-${instance.node.id}`} node={instance.node} level={instance.level} viewport={viewport} containerRef={containerRef} onInfo={(node) => setInfoNodeId(node.id)} onEditText={unauthorized} onDecreaseFont={unauthorized} onIncreaseFont={unauthorized} onToggleDialog={unauthorized} onAnnotate={unauthorized} onGenerateImage={unauthorized} onUpload={unauthorized} onDownload={unauthorized} onSaveAsset={unauthorized} onMaskEdit={unauthorized} onEmotion={unauthorized} onPortraitTexture={unauthorized} onCrop={unauthorized} onSplit={unauthorized} onUpscale={unauthorized} onSuperResolve={unauthorized} onAngle={unauthorized} onLighting={unauthorized} onPanorama={unauthorized} onViewImage={unauthorized} onExtractVideoFrames={unauthorized} onExtractAudioFromVideo={unauthorized} onTrimVideoSegments={unauthorized} extractingVideoFrames={false} extractingAudio={false} trimmingVideo={false} onSubtitles={unauthorized} onTimeline={unauthorized} onReversePrompt={unauthorized} onRetry={unauthorized} onToggleFreeResize={unauthorized} onToggleLocked={unauthorized} onDelete={unauthorized} />
             ))}
 
             <div className="absolute bottom-5 left-5 z-[var(--z-panel-floating)]"><CanvasZoomControls scale={viewport.k} containerRef={containerRef} onScaleChange={setZoom} onFitContent={resetViewport} isMiniMapOpen={false} onToggleMiniMap={unauthorized} onOpenShortcuts={unauthorized} /></div>

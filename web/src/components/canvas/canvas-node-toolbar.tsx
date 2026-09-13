@@ -29,12 +29,9 @@ type CanvasNodeToolbarProps = {
     /** 微供给存在感级别(状态机推导,见 lib/canvas/affordance.ts) */
     level: AffordanceLevel;
     /** 指针/键盘焦点进入或离开工具栏(微供给 full 升级路径) */
-    onHoverChange?: (hovering: boolean) => void;
     /** 下拉菜单开合(开启期间工具栏保持 full) */
     onMenuOpenChange?: (open: boolean) => void;
     /** 指针穿过节点↔工具栏间隙桥: hover 归还源节点(og-canvas gap-bridge 同构) */
-    onGapEnter?: (nodeId: string) => void;
-    onSupplyLeave?: (nodeId: string, event?: React.MouseEvent) => void;
     onInfo: (node: CanvasNodeData) => void;
     onEditText: (node: CanvasNodeData) => void;
     onDecreaseFont: (node: CanvasNodeData) => void;
@@ -95,10 +92,7 @@ export function CanvasNodeToolbar({
     viewport,
     containerRef,
     level,
-    onHoverChange,
     onMenuOpenChange,
-    onGapEnter,
-    onSupplyLeave,
     onInfo,
     onEditText,
     onDecreaseFont,
@@ -167,6 +161,8 @@ export function CanvasNodeToolbar({
         let toolbarHeight = toolbarRef.current?.offsetHeight || 44;
         const update = () => {
             const nodeRect = element.getBoundingClientRect();
+            // 节点宽下发给间隙桥: 桥宽度 clamp 到节点宽, 防横向越界劫持邻居 hover
+            element.style.setProperty("--bridge-node-width", nodeRect.width + "px");
             const preferredLeft = nodeRect.left - containerRect.left + nodeRect.width / 2;
             const halfToolbar = toolbarWidth / 2;
             const canClamp = toolbarWidth > 0 && toolbarWidth <= containerRect.width - 20;
@@ -309,23 +305,16 @@ export function CanvasNodeToolbar({
             data-supply-node={node.id}
             className="canvas-node-toolbar absolute z-[var(--z-node-toolbar)] -translate-x-1/2 -translate-y-full"
             style={{ left: 0, top: 0, transform: `translate3d(${anchor.left}px, ${anchor.top}px, 0)`, width: "max-content", maxWidth: "calc(100% - 20px)", color: theme.node.text }}
-            onMouseEnter={() => onHoverChange?.(true)}
-            onMouseLeave={() => onHoverChange?.(false)}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
             data-canvas-no-zoom
             onKeyDown={(event) => event.stopPropagation()}
-            onFocus={() => onHoverChange?.(true)}
-            onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onHoverChange?.(false); }}
         >
-            {onGapEnter ? (
-                <CanvasNodeToolbarGapBridge
-                    nodeId={node.id}
-                    gapPx={CANVAS_NODE_TOOLBAR_ANCHOR_GAP_PX}
-                    direction="down"
-                    onEnter={onGapEnter}
-                />
-            ) : null}
+            <CanvasNodeToolbarGapBridge
+                nodeId={node.id}
+                gapPx={CANVAS_NODE_TOOLBAR_ANCHOR_GAP_PX}
+                direction="down"
+            />
             <div ref={toolbarRef}>
                 <div
                     role="toolbar"
