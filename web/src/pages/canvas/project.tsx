@@ -1116,7 +1116,10 @@ function InfiniteCanvasPage() {
 
     const handleNodeInteractionStart = useCallback((selectionModifier: boolean) => {
         setContextMenu(null);
-        setHoveredNodeId(null);
+        // 不再无条件 setHoveredNodeId(null)：hover 是归属状态机的镜像，mousedown 直打 null
+        // 会让 hover 供给实例在点击瞬间卸载、selected 实例重挂并重播进场动画（用户实测
+        // hover→selected"闪一下"的根因之二）。拖拽中供给由 toolbar/composer 的 nodeDragging
+        // guard 接管隐藏，hover 的自然退出由 leaving 相位兜底。
         if (selectionModifier) setDialogNodeId(null);
     }, []);
 
@@ -2734,7 +2737,13 @@ onViewportChange={handleViewportChange}
                     {[
                         { node: selectedPanelNode, level: selectedComposerLevel },
                         { node: hoverPanelNode, level: hoverComposerLevel },
-                    ].filter((instance): instance is { node: CanvasNodeData; level: AffordanceLevel } => instance.node !== null).map((instance) => (
+                    ].filter((instance): instance is { node: CanvasNodeData; level: AffordanceLevel } => instance.node !== null)
+                        // hover→selected 转换帧两个槽位可能是同一节点(hover 镜像经 effect 同步,
+                        // 滞后于 dialogNodeId 的同步 setState), 同 id 双实例会以 duplicate key
+                        // 强制 React 重挂 → 进场动画重播(用户实测"闪一下"根因之三)。
+                        // 同 id 去重并保留 selected 槽位(full 常驻语义), 实例连续存活。
+                        .filter((instance, index, all) => all.findIndex((other) => other.node!.id === instance.node!.id) === index)
+                        .map((instance) => (
                         <AffordanceSurface
                             key={`composer-${instance.node.id}`}
                             level={instance.level}
