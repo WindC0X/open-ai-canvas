@@ -107,8 +107,21 @@ export function useCanvasHoverAttribution(options: {
         // 若不在任何节点/供给/豁免子树内, 本帧归属判空(指针被无关浮层占用)。
         // pe:none 元素不会被 elementFromPoint 命中, 透明供给 wrapper 天然不误伤。
         const hit = document.elementFromPoint(pointer.x, pointer.y);
-        // 归属有效域: 节点本体、登记供给、以及供给域延伸的浮层(模型菜单/L2 flyout —
-        // 从供给触发, 指针在其上 composer 保持 selfHover full, 语义与设置气泡钉 full 一致)。
+        const nodeHits: NodeHit[] = [];
+        for (const node of nodes) {
+            const el = document.querySelector('[data-node-id="' + window.CSS.escape(node.id) + '"]');
+            if (!el) continue;
+            const rect = el.getBoundingClientRect();
+            nodeHits.push({ id: node.id, rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }, stackRank: rank(node.id) });
+        }
+        const supplyHits = supplies();
+        // 遮挡门(2026-09-14): 归属采样是纯几何(坐标 vs 节点/供给矩形), 无 DOM 命中感知 —
+        // 指针悬在全局面板(画布命令面板/拉线创建菜单/相机对话框遮罩/底部 dock 弹层)上时,
+        // 坐标仍落在下层节点矩形内, 误触发底层节点 hover 态。命中元素祖先链不在
+        // 节点/供给/模型菜单豁免域内 → 本帧归属判空(指针被无关浮层占用, 走 leaving grace)。
+        // 门前先放行"几何供给域": micro composer 面板体是 pe:none, elementFromPoint 会跳过
+        // 它命中画布背景 — 不放行则面板体升级路径被门截杀(300b8b9b 语义回归 2026-09-14);
+        // 指针落点在任一供给矩形内即视为域内, 交给 attributeHover 按 kind/level 决胜。
         let inDomain = false;
         if (hit) {
             for (let el: Element | null = hit; el; el = el.parentElement) {
@@ -118,19 +131,20 @@ export function useCanvasHoverAttribution(options: {
                     break;
                 }
             }
+            if (!inDomain) {
+                for (const supply of supplyHits) {
+                    if (supply.level !== "hidden" && pointer.x >= supply.rect.left && pointer.x <= supply.rect.right && pointer.y >= supply.rect.top && pointer.y <= supply.rect.bottom) {
+                        inDomain = true;
+                        break;
+                    }
+                }
+            }
         }
         if (hit && !inDomain) {
             if (phaseRef.current.kind === "active") enterLeavingPhase();
             return;
         }
-        const nodeHits: NodeHit[] = [];
-        for (const node of nodes) {
-            const el = document.querySelector('[data-node-id="' + window.CSS.escape(node.id) + '"]');
-            if (!el) continue;
-            const rect = el.getBoundingClientRect();
-            nodeHits.push({ id: node.id, rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }, stackRank: rank(node.id) });
-        }
-        const attribution = attributeHover(nodeHits, supplies(), pointer.x, pointer.y);
+        const attribution = attributeHover(nodeHits, supplyHits, pointer.x, pointer.y);
         const current = phaseRef.current;
         if (attribution.nodeId) {
             // 同 owner 但 phase 不在 active(leaving grace 期回 owner / exiting 退场期回 owner):
