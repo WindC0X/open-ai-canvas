@@ -38,10 +38,10 @@ describe("attributeHover", () => {
         expect(r).toEqual({ nodeId: "a", surface: "bridge" });
     });
 
-    test("M2: micro composer 面板本体不进候选(视觉空白不劫持)", () => {
+    test("micro composer 面板本体进候选(可见面, 直落主体即升级; 2026-09-13 修订原 M2)", () => {
+        // 面板微态可见(0.45), 排除会让指针越过窄感应带时归属空、面板退场(升级大面积失败)
         const r = attributeHover([node("a", 0, 0, 100, 100)], [supply("a", "composer", 0, 100, 300, 300, "micro")], 250, 200);
-        expect(r.nodeId).toBeNull();
-        expect(r.surface).toBe("outside");
+        expect(r).toEqual({ nodeId: "a", surface: "composer" });
     });
 
     test("full composer 面板本体参与归属", () => {

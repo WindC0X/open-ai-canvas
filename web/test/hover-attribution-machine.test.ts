@@ -44,9 +44,9 @@ describe("hover 状态机 reducer", () => {
 });
 
 describe("attributeHover 供给域(M2 级别过滤)", () => {
-    test("micro composer 主体不进候选但 full 进", () => {
+    test("micro composer 主体进候选(可见面直落升级; 2026-09-13 修订), full 同", () => {
         const supplies = [supply("a", "composer", "micro")];
-        expect(attributeHover([node("a")], supplies, 100, 120).surface).toBe("outside");
+        expect(attributeHover([node("a")], supplies, 100, 120).surface).toBe("composer");
         expect(attributeHover([node("a")], [supply("a", "composer", "full")], 100, 120).surface).toBe("composer");
     });
 

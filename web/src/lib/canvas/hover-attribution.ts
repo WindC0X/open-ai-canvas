@@ -38,14 +38,16 @@ function rectContains(rect: Rect, x: number, y: number): boolean {
 }
 
 export function attributeHover(nodes: NodeHit[], supplies: SupplyHit[], x: number, y: number): HoverAttribution {
-    // 规则①: 供给优先(浮层层 z-node-toolbar/panel 恒高于节点层, 与 DOM 命中一致);
-    // micro composer 面板本体不进候选(pe:none, M2)。多供给重叠时取 z 序更高者,
-    // 简化: 桥/感应带/工具栏同属一个节点的供给, 同节点内按 kind 优先级即可。
+    // 规则①: 供给优先(浮层层 z-node-toolbar/panel 恒高于节点层, 与 DOM 命中一致)。
+    // micro composer 面板本体进候选(2026-09-13 用户复验): 面板微态是可见面(0.45 半透明),
+    // 不是"inset-0 隐形 wrapper"那种视觉空白域 — 排除它会导致指针越过 20px 感应带直落
+    // 主体时归属空、面板退场, 升级只能靠慢速滑动碰窄带(大部分触发失败)。主体仍 pe:none
+    // (点击穿透), 但 mousemove 采样按矩形归属 → 指针到达主体即升级 full, 几何域与
+    // full 态点击域一致。多供给重叠时按 kind 优先级。
     const kindPriority: Record<SupplyKind, number> = { toolbar: 3, "sense-band": 2, bridge: 1, composer: 0 };
     let best: { nodeId: string; surface: HoverSurface; priority: number } | null = null;
     for (const supply of supplies) {
         if (supply.level === "hidden") continue;
-        if (supply.kind === "composer" && supply.level === "micro") continue;
         if (!rectContains(supply.rect, x, y)) continue;
         const priority = kindPriority[supply.kind];
         if (!best || priority > best.priority) {
