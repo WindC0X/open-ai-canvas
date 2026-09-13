@@ -26,9 +26,14 @@ export type SupplyHit = {
     nodeId: string;
     kind: SupplyKind;
     rect: { left: number; top: number; right: number; bottom: number };
-    /** 供给当前存在感级别: micro 的 composer 面板主体 pe:none(几何域与点击域同源, 裁决 M2),
-     *  不参与归属 — 否则"视觉空白、几何是域"的语义矛盾会复燃层级抢夺。 */
+    /** 供给当前存在感级别(2026-09-13 修订原 M2):
+     *  - hidden: 不参与归属;
+     *  - micro: 参与归属但 pe:none(点击穿透) — 微态面板是可见面(0.45), 排除会让指针越过
+     *    20px 感应带直落主体时归属空、面板退场(升级大面积失败);
+     *  - full: 参与归属且可交互。 */
     level: "hidden" | "micro" | "full";
+    /** 所属节点绘制序: 不同节点的同 kind 供给矩形重叠时, 归属视觉上层节点(与节点本体遮挡规则一致)。 */
+    stackRank: number;
 };
 
 type Rect = NodeHit["rect"];
@@ -45,13 +50,14 @@ export function attributeHover(nodes: NodeHit[], supplies: SupplyHit[], x: numbe
     // (点击穿透), 但 mousemove 采样按矩形归属 → 指针到达主体即升级 full, 几何域与
     // full 态点击域一致。多供给重叠时按 kind 优先级。
     const kindPriority: Record<SupplyKind, number> = { toolbar: 3, "sense-band": 2, bridge: 1, composer: 0 };
-    let best: { nodeId: string; surface: HoverSurface; priority: number } | null = null;
+    let best: { nodeId: string; surface: HoverSurface; priority: number; stackRank: number } | null = null;
     for (const supply of supplies) {
         if (supply.level === "hidden") continue;
         if (!rectContains(supply.rect, x, y)) continue;
         const priority = kindPriority[supply.kind];
-        if (!best || priority > best.priority) {
-            best = { nodeId: supply.nodeId, surface: supply.kind === "bridge" || supply.kind === "sense-band" ? supply.kind : supply.kind, priority };
+        // 同 kind 的不同节点供给重叠时(DOM 序与视觉序无关), 归属绘制序更高的节点
+        if (!best || priority > best.priority || (priority === best.priority && supply.stackRank > best.stackRank)) {
+            best = { nodeId: supply.nodeId, surface: supply.kind, priority, stackRank: supply.stackRank };
         }
     }
     if (best) return { nodeId: best.nodeId, surface: best.surface };

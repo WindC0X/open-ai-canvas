@@ -5,6 +5,7 @@ import { attributeHover, type NodeHit, type SupplyHit } from "../src/lib/canvas/
 const node = (id: string, stackRank = 0): NodeHit => ({ id, rect: { left: 0, top: 0, right: 100, bottom: 100 }, stackRank });
 const supply = (nodeId: string, kind: SupplyHit["kind"], level: SupplyHit["level"] = "micro"): SupplyHit => ({
     nodeId, kind, rect: { left: 0, top: 100, right: 200, bottom: 132 }, level,
+    stackRank: 0,
 });
 
 describe("hover 状态机 reducer", () => {

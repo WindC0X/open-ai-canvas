@@ -12,6 +12,7 @@ const supply = (nodeId: string, kind: SupplyHit["kind"], left: number, top: numb
     kind,
     rect: { left, top, right, bottom },
     level,
+    stackRank: 0,
 });
 
 describe("attributeHover", () => {
@@ -95,5 +96,19 @@ describe("重叠归属与真实绘制序(2026-09-13 回归)", () => {
         const bottom = { id: "bottom", rect: rect(0, 0, 200, 100), stackRank: 0 };
         const top = { id: "top", rect: rect(0, 0, 100, 100), stackRank: 1 };
         expect(attributeHover([bottom, top], [], 150, 50).nodeId).toBe("bottom");
+    });
+
+    test("selected-full 与 hovered-micro 的 composer 重叠: 归属绘制序高的节点(2026-09-13 C2)", () => {
+        // selected 实例 DOM 序在前, hover 实例在后; 若 hover 节点视觉上层, 归属必须给 hover 节点
+        const a = { id: "a", rect: rect(0, 0, 400, 300), stackRank: 0 };
+        const b = { id: "b", rect: rect(0, 0, 450, 350), stackRank: 1 };
+        const supplies = [
+            { nodeId: "a", kind: "composer" as const, rect: rect(0, 0, 400, 300), level: "full" as const, stackRank: 0 },
+            { nodeId: "b", kind: "composer" as const, rect: rect(50, 50, 450, 350), level: "micro" as const, stackRank: 1 },
+        ];
+        expect(attributeHover([a, b], supplies, 200, 200).nodeId).toBe("b");
+        // 反转 stackRank 后归属跟随视觉上层
+        const supplies2 = supplies.map((s0) => ({ ...s0, stackRank: s0.stackRank === 0 ? 1 : 0 }));
+        expect(attributeHover([a, b], supplies2, 200, 200).nodeId).toBe("a");
     });
 });

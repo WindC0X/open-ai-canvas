@@ -2195,22 +2195,23 @@ const {
         ],
     );
 
+    // 绘制序预计算(每帧采样按 nodeId 查表): 必须复刻真实绘制序(canvas-project-world-layers 的
+    // sortCanvasNodesByStackOrder 结果), 而非 nodes 数组序 — 交互置顶(nodeStackOrder)与数组序无关;
+    // 同层内绘制序后者在上; 选中节点 z-node-active(20) 高于未选中层(z-node 10), 遮挡归属跟随视觉。
+    const stackRankMap = useMemo(() => {
+        const sorted = sortCanvasNodesByStackOrder(nodes, nodeStackOrder);
+        const map = new Map<string, number>();
+        sorted.forEach((item, index) => {
+            map.set(item.id, index + (dialogNodeId === item.id ? nodes.length : 0));
+        });
+        return map;
+    }, [nodes, nodeStackOrder, dialogNodeId]);
     // hover 生命周期唯一写入者: useCanvasHoverAttribution 状态机(2026-09-13 审计裁决)。
     // 事件层(节点 enter/leave、桥 onEnter、供给 enter/leave、校准 effect)全部退役, 只保留坐标采样;
     // 归属由 hover-attribution 纯函数每帧现算(节点 z 序+供给 kind), grace/退场为状态机内部 phase。
     const attribution = useCanvasHoverAttribution({
         visibleNodes: nodes,
-        stackRankOf: useCallback((nodeId: string) => {
-            // 必须复刻真实绘制序(canvas-project-world-layers 的 sortCanvasNodesByStackOrder 结果),
-            // 而非 nodes 数组序 — 交互置顶(nodeStackOrder)与数组序无关; 同层内绘制序后者在上。
-            const rankById = new Map(nodeStackOrder.map((id, index) => [id, index]));
-            const sorted = sortCanvasNodesByStackOrder(nodes, nodeStackOrder);
-            const drawIndex = sorted.findIndex((item) => item.id === nodeId);
-            if (drawIndex < 0) return 0;
-            // 选中节点 z-node-active(20) 高于未选中层(z-node 10): 遮挡归属跟随视觉
-            const selected = dialogNodeId === nodeId;
-            return drawIndex + (selected ? nodes.length : 0);
-        }, [nodes, nodeStackOrder, dialogNodeId]),
+        stackRankOf: useCallback((nodeId: string) => stackRankMap.get(nodeId) ?? 0, [stackRankMap]),
         getSupplies: useCallback(() => {
             const hits: SupplyHit[] = [];
             for (const supply of document.querySelectorAll("[data-supply-node]")) {
@@ -2237,6 +2238,7 @@ const {
                         kind: target === supply ? "toolbar" : target.getAttribute("data-canvas-panel-sense-band") !== null ? "sense-band" : target.classList.contains("canvas-node-toolbar-gap-bridge") || target.hasAttribute("data-node-toolbar-gap-bridge") ? "bridge" : "composer",
                         rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
                         level,
+                        stackRank: stackRankMap.get(nodeId) ?? 0,
                     });
                 }
             }
