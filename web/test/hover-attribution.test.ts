@@ -79,3 +79,21 @@ describe("attributeHover", () => {
         expect(r.nodeId).toBe("a");
     });
 });
+describe("重叠归属与真实绘制序(2026-09-13 回归)", () => {
+    const rect = (l: number, t: number, r: number, b: number) => ({ left: l, top: t, right: r, bottom: b });
+    const node = (id: string, rank: number) => ({ id, rect: rect(0, 0, 100, 100), stackRank: rank });
+
+    test("数组序低但绘制序高的节点赢归属(遮挡跟随视觉)", () => {
+        // A 数组序在前(视觉底层), B 绘制序在后(视觉上层): 归属必须给 B
+        const a = node("a", 0);
+        const b = node("b", 1);
+        expect(attributeHover([a, b], [], 50, 50).nodeId).toBe("b");
+        expect(attributeHover([b, a], [], 50, 50).nodeId).toBe("b");
+    });
+
+    test("绘制序高者边界外回落底层(合法视觉命中)", () => {
+        const bottom = { id: "bottom", rect: rect(0, 0, 200, 100), stackRank: 0 };
+        const top = { id: "top", rect: rect(0, 0, 100, 100), stackRank: 1 };
+        expect(attributeHover([bottom, top], [], 150, 50).nodeId).toBe("bottom");
+    });
+});
