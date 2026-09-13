@@ -8215,19 +8215,19 @@
         animation-timing-function: var(--motion-ease-out) !important;
         animation-fill-mode: both !important;
     }
+    /* 仅覆盖出现态初值(appear/enter-prepare): prepare 是动画起点, 用 important 钉初值安全。
+       leave-active 绝不能进本块 —— important 声明在级联上压过 @keyframes 动画值,
+       钉住即杀死 canvas-panel-out 收起动画(收起瞬闪消失, 开合不对称感来源; 2026-09-13 根修)。 */
     .ant-popover.ant-zoom-big-appear-prepare,
     .ant-popover.ant-zoom-big-enter-prepare,
-    .ant-popover.ant-zoom-big-leave-active,
     .ant-dropdown.ant-slide-up-appear-prepare,
     .ant-dropdown.ant-slide-up-enter-prepare,
     .ant-dropdown.ant-slide-down-appear-prepare,
-    .ant-dropdown.ant-slide-down-enter-prepare,
-    .ant-dropdown.ant-slide-up-leave-active,
-    .ant-dropdown.ant-slide-down-leave-active {
+    .ant-dropdown.ant-slide-down-enter-prepare {
         opacity: 0 !important;
         /* 覆盖 antd zoom 的 scale(0.8)(origin 远端, 大面板打开时底边收放可达百px)
-           与 slide 的 ±100% 整面板滑入: 统一为 6px 微浮, 几何零跳变。 */
-        transform: translateY(6px) !important;
+           与 slide 的 ±100% 整面板滑入: 统一为微浮, 几何零跳变。 */
+        transform: translateY(var(--panel-float-y, 6px)) !important;
     }
     /* Dropdown 按 placement 用 slide-up/down motion(类名非 zoom-big), 只对齐时长/缓动,
        slide 位移语义保留 antd 自带值(强制 translateY 会与滑入冲突)。 */
@@ -8253,8 +8253,19 @@
         }
         to {
             opacity: 0;
-            transform: translateY(6px);
+            transform: translateY(var(--panel-float-y, 6px));
         }
+    }
+
+    /* antd placement 方向映射: bottom* = 面板在触发器下方 => 锚点在上方, 微浮取 -6px;
+       top* 维持默认 +6px。 */
+    .ant-popover.ant-popover-placement-bottom,
+    .ant-popover.ant-popover-placement-bottomLeft,
+    .ant-popover.ant-popover-placement-bottomRight,
+    .ant-dropdown.ant-dropdown-placement-bottom,
+    .ant-dropdown.ant-dropdown-placement-bottomLeft,
+    .ant-dropdown.ant-dropdown-placement-bottomRight {
+        --panel-float-y: -6px;
     }
 
     /* 选项亮度语义(用户拍板 2026-09-11, flora 参考): 选中不靠边框, 靠内部+文字亮度。
@@ -11121,11 +11132,14 @@
     /* 动画只用位移不用缩放: scale 的几何效应 = 远离 origin 端的边位移 高度×(1-scale),
        大面板(模型菜单 552px)在 top placement 下表现为"打开瞬间与触发按钮间隔大,
        动画中底边下沉贴上"的跳变; 纯 translateY(6px) 与 origin 无关, 两端零跳变。 */
+    /* --panel-float-y = 微浮方向(锚点方向, 逐面板覆写): 面板在锚点上方(向上展开)取 +6px
+       (从锚点一侧浮入/收回锚点); 向下展开(bottom placement/自建气泡降级)取 -6px。
+       固定 +6px 会让向下展开的面板开合都背离锚点(漂离感)。 */
     @keyframes canvas-panel-in {
         from {
             opacity: 0;
             filter: saturate(0.92);
-            transform: translateY(6px);
+            transform: translateY(var(--panel-float-y, 6px));
         }
 
         to {

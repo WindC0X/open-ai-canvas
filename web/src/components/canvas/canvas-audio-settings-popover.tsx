@@ -14,6 +14,9 @@ import type { AiConfig } from "@/stores/use-config-store";
 export type CanvasAudioSettingKey = "audioVoice" | "audioFormat" | "audioSpeed" | "audioInstructions";
 
 type CanvasAudioSettingsPopoverProps = {
+    /** 归属供给标注: 打开的气泡面板纳入 hover 归属域(面板/触发器双标), 指针在面板上时
+        composer 归属不判空, 防面板连着 composer 一起退场(2026-09-13 报告 P2-4 根修)。 */
+    supplyNodeId?: string;
     config: AiConfig;
     onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
     buttonClassName?: string;
@@ -27,12 +30,12 @@ export function audioSettingsSummary(config: AiConfig): string {
     return `${audioVoiceLabel(config.audioVoice)} · ${audioFormatLabel(config.audioFormat)} · ${audioSpeedLabel(config.audioSpeed)}`;
 }
 
-export function CanvasAudioSettingsPopover({ config, onConfigChange, buttonClassName, placement = "topLeft", iconOnly = false }: CanvasAudioSettingsPopoverProps) {
+export function CanvasAudioSettingsPopover({ supplyNodeId, config, onConfigChange, buttonClassName, placement = "topLeft", iconOnly = false }: CanvasAudioSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    useExclusiveSettings("audio-settings", open, setOpen);
+    useExclusiveSettings("audio-settings", open, setOpen, supplyNodeId);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const { shouldRender, closing } = usePopoverExit(open);
     const summary = audioSettingsSummary(config);
@@ -65,7 +68,7 @@ export function CanvasAudioSettingsPopover({ config, onConfigChange, buttonClass
         };
     }, [shouldRender]);
 
-    const panel = shouldRender && buttonRect ? <AudioSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} closing={closing} /> : null;
+    const panel = shouldRender && buttonRect ? <AudioSettingsPortal supplyNodeId={supplyNodeId} buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} closing={closing} /> : null;
 
     return (
         <>
@@ -92,6 +95,7 @@ function AudioSettingsPortal({
     config,
     onConfigChange,
     closing,
+    supplyNodeId,
 }: {
     buttonRect: DOMRect;
     panelRef: RefObject<HTMLDivElement | null>;
@@ -100,6 +104,7 @@ function AudioSettingsPortal({
     config: AiConfig;
     onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
     closing: boolean;
+    supplyNodeId?: string;
 }) {
     const width = 320;
     const gap = 8;
@@ -112,8 +117,9 @@ function AudioSettingsPortal({
     const preferAbove = aboveTop >= 240;
     const style = {
         position: "fixed",
-        // 开合锚触发器(emil): 从触发器方向缩放, 而非恒 bottom center。
-        transformOrigin: placement?.endsWith("Right") ? "bottom right" : placement === "top" || placement === "bottom" ? "bottom center" : "bottom left",
+        // 微浮方向锚定触发器: 向下展开(top 定位)时锚点在上方, 微浮取负向;
+        // transformOrigin 在纯位移动画语法下无作用, 一并退役。
+        "--panel-float-y": preferAbove ? "6px" : "-6px",
         zIndex: "var(--z-dialog-popover)",
         width,
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
@@ -128,6 +134,8 @@ function AudioSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
+            data-supply-node={supplyNodeId}
+            data-affordance="full"
             className={`canvas-audio-settings-popover aceternity-floating-panel canvas-settings-scroll${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}

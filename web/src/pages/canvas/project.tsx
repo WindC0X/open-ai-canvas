@@ -332,6 +332,41 @@ function InfiniteCanvasPage() {
     const [activeTaskPanelHeight, setActiveTaskPanelHeight] = useState(0);
     const [arkPrivateAssetUploadNodeId, setArkPrivateAssetUploadNodeId] = useState<string | null>(null);
     const [nodeImageSettingsOpen, setNodeImageSettingsOpen] = useState(false);
+    // 当前打开着参数设置气泡(份数/图像/视频/音频)的节点: composer 钉 full 的对称边(见 affordance.ts)。
+    // 打开侧走互斥广播(带节点 id); 关闭侧气泡卸载无事件, 由挂载对账 effect 按供给 DOM 清除。
+    const [settingsBubbleNodeId, setSettingsBubbleNodeId] = useState<string | null>(null);
+    useEffect(() => {
+        const nodeIdOf = (event: Event) => {
+            const detail = (event as CustomEvent).detail;
+            return typeof detail === "object" && detail !== null ? detail.nodeId : null;
+        };
+        const onOpen = (event: Event) => {
+            const nodeId = nodeIdOf(event);
+            if (nodeId) setSettingsBubbleNodeId(nodeId);
+        };
+        const onClose = (event: Event) => {
+            const nodeId = nodeIdOf(event);
+            if (nodeId) setSettingsBubbleNodeId((current) => (current === nodeId ? null : current));
+        };
+        window.addEventListener("canvas-settings-exclusive-open", onOpen);
+        window.addEventListener("canvas-settings-exclusive-open-close", onClose);
+        return () => {
+            window.removeEventListener("canvas-settings-exclusive-open", onOpen);
+            window.removeEventListener("canvas-settings-exclusive-open-close", onClose);
+        };
+    }, []);
+    // 无事件卸载路径(节点切换/删除导致气泡随 composer 卸载)兜底: 打开后延迟复查,
+    // 供给 DOM 已不在则清钉边。常规关闭走 -close 广播, 不依赖本 effect。
+    useEffect(() => {
+        if (!settingsBubbleNodeId) return;
+        const probe = () => {
+            const mounted = Array.from(document.querySelectorAll("[data-supply-node]"))
+                .some((el) => el.getAttribute("data-supply-node") === settingsBubbleNodeId && (el.classList.contains("canvas-image-settings-popover") || el.classList.contains("canvas-video-settings-popover") || el.classList.contains("canvas-audio-settings-popover") || el.classList.contains("canvas-count-settings-popover")));
+            if (!mounted) setSettingsBubbleNodeId(null);
+        };
+        const t = setTimeout(probe, 400);
+        return () => clearTimeout(t);
+    }, [settingsBubbleNodeId]);
     const [dialogNodeId, setDialogNodeId] = useState<string | null>(null);
     const [textEditorNodeId, setTextEditorNodeId] = useState<string | null>(null);
     const [characterReferenceNodeId, setCharacterReferenceNodeId] = useState<string | null>(null);
@@ -2218,13 +2253,25 @@ const {
                 const nodeId = supply.getAttribute("data-supply-node");
                 if (!nodeId) continue;
                 const level = (supply.getAttribute("data-affordance") ?? "hidden") as SupplyHit["level"];
-                const kind = supply.classList.contains("canvas-node-panel-affordance") ? "composer" : "toolbar";
+                // 供给三类宿主: composer 浮层面板(含其内部 sense band)、节点工具栏、以及
+                // 打开的参数设置气泡(canvas-*-settings-popover, 主动标注 supplyNodeId)。
+                // 设置气泡归属按 composer 计: 指针在气泡上时 composer 保持 selfHover full,
+                // 气泡连着 composer 一起退场的老问题由此关闭。
+                const isSettingBubble = supply.classList.contains("canvas-image-settings-popover")
+                    || supply.classList.contains("canvas-video-settings-popover")
+                    || supply.classList.contains("canvas-audio-settings-popover")
+                    || supply.classList.contains("canvas-count-settings-popover");
+                const kind = supply.classList.contains("canvas-node-panel-affordance") || isSettingBubble ? "composer" : "toolbar";
                 const targets: Element[] = [];
                 if (kind === "composer") {
-                    const panel = supply.querySelector("[data-canvas-node-panel]");
-                    if (panel) targets.push(panel);
-                    const band = supply.querySelector("[data-canvas-panel-sense-band]");
-                    if (band) targets.push(band);
+                    if (isSettingBubble) {
+                        targets.push(supply);
+                    } else {
+                        const panel = supply.querySelector("[data-canvas-node-panel]");
+                        if (panel) targets.push(panel);
+                        const band = supply.querySelector("[data-canvas-panel-sense-band]");
+                        if (band) targets.push(band);
+                    }
                 } else {
                     targets.push(supply);
                     const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
@@ -2235,7 +2282,9 @@ const {
                     if (rect.width <= 0 && rect.height <= 0) continue;
                     hits.push({
                         nodeId,
-                        kind: target === supply ? "toolbar" : target.getAttribute("data-canvas-panel-sense-band") !== null ? "sense-band" : target.classList.contains("canvas-node-toolbar-gap-bridge") || target.hasAttribute("data-node-toolbar-gap-bridge") ? "bridge" : "composer",
+                        // kind 已按供给宿主判好(气泡=composer): target===supply 仅在 toolbar/气泡两类。
+                        // 气泡绝不能落进 "toolbar" — 那会夺走 composer 的 selfHover(full)资格。
+                        kind: isSettingBubble ? "composer" : target === supply ? "toolbar" : target.getAttribute("data-canvas-panel-sense-band") !== null ? "sense-band" : target.classList.contains("canvas-node-toolbar-gap-bridge") || target.hasAttribute("data-node-toolbar-gap-bridge") ? "bridge" : "composer",
                         rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
                         level,
                         stackRank: stackRankMap.get(nodeId) ?? 0,
@@ -2297,13 +2346,13 @@ const {
     const selectedComposerLevel: AffordanceLevel = !selectedPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === selectedPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === selectedPanelNode.id && hoverSurfaceKind === "bridge" },
+            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === selectedPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === selectedPanelNode.id && hoverSurfaceKind === "bridge", settingsBubbleOpen: settingsBubbleNodeId === selectedPanelNode.id },
             composerGuards,
         );
     const hoverComposerLevel: AffordanceLevel = !hoverPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === hoverPanelNode.id && hoverSurfaceKind === "bridge" },
+            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === hoverPanelNode.id && hoverSurfaceKind === "bridge", settingsBubbleOpen: settingsBubbleNodeId === hoverPanelNode.id },
             composerGuards,
         );
     // toolbarMenuOpenId 反向边(审计裁决): 菜单 open 的节点一旦不再持有工具栏实例(hover 切走/卸载/

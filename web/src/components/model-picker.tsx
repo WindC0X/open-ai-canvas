@@ -74,6 +74,15 @@ export function ModelPicker({
     const rawTheme = useThemeStore((state) => state.theme);
     const theme = (canvasThemes[rawTheme as keyof typeof canvasThemes] ?? canvasThemes.dark) as CanvasTheme;
     const [open, setOpen] = useState(false);
+    // 收起动画期间不得注入 ant-popover-hidden(display:none 会瞬间抹掉 canvas-panel-out 收起动画,
+    // 模型菜单"关=瞬闪消失"); hidden 必须走 props 注入(rc-motion 启动 leave 时按 props 重算 root
+    // className, DOM 副作用加的类会被整体抹掉), 因此用 afterOpenChange 门控: 动画走完再隐。
+    // 后台 tab 冻结时 afterOpenChange 不触发, 面板停在收起首帧(隐藏 tab 不可见), 恢复后动画补完。
+    const [hiddenAfterLeave, setHiddenAfterLeave] = useState(true);
+    useEffect(() => {
+        if (open) setHiddenAfterLeave(false);
+        else if (typeof document !== "undefined" && document.hidden) setHiddenAfterLeave(true);
+    }, [open]);
     const [pinnedModels, setPinnedModels] = useState<string[]>(loadPinnedModels);
     const togglePinned = (model: string) => {
         setPinnedModels((prev) => {
@@ -597,6 +606,11 @@ export function ModelPicker({
             <Popover
                 open={open}
                 onOpenChange={setPickerOpen}
+                afterOpenChange={(next) => {
+                    // leave 动画结束后才允许 hidden 类生效(见 hiddenAfterLeave 注释);
+                    // destroyOnHidden 仍在 open 翻 false 后的动画结束点卸载内容层, 残留防线不变。
+                    if (!next) setHiddenAfterLeave(true);
+                }}
                 trigger="click"
                 placement={placementProp ?? "bottomLeft"}
                 arrow={false}
@@ -607,7 +621,7 @@ export function ModelPicker({
                 destroyOnHidden
                 content={content}
                 classNames={{
-                    root: cn("canvas-model-picker-popover", creationVariant && "creation-model-picker-popover", popoverClassName, !open && "ant-popover-hidden"),
+                    root: cn("canvas-model-picker-popover", creationVariant && "creation-model-picker-popover", popoverClassName, !open && hiddenAfterLeave && "ant-popover-hidden"),
                     container: cn("canvas-composer-popover-surface", creationVariant && "creation-model-picker-surface"),
                     content: "canvas-composer-popover-content",
                 }}

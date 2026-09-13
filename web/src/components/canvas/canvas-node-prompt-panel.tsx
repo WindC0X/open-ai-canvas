@@ -402,6 +402,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                                     />
                                     <span aria-hidden className="canvas-node-composer-divider shrink-0" />
                                     <CanvasImageSettingsPopover
+                                        supplyNodeId={node.id}
                                         config={config}
                                         placement={expanded ? "topRight" : "topLeft"}
                                         buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
@@ -412,6 +413,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                                 </>
                             ) : mode === "video" ? (
                                 <CanvasVideoSettingsPopover
+                                    supplyNodeId={node.id}
                                     config={config}
                                     placement={expanded ? "topRight" : "topLeft"}
                                     buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
@@ -419,6 +421,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                                 />
                             ) : (
                                 <CanvasAudioSettingsPopover
+                                    supplyNodeId={node.id}
                                     config={config}
                                     placement={expanded ? "topRight" : "topLeft"}
                                     buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
@@ -441,6 +444,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     <span aria-hidden className="canvas-node-composer-divider" />
                     {mode === "text" ? (
                         <CanvasTextSettingsPopover
+                            supplyNodeId={node.id}
                             value={Math.max(1, Math.min(15, Math.floor(Math.abs(Number(node.metadata?.textCount) || 1))))}
                             onChange={(value) => onConfigChange(node.id, { textCount: value })}
                             placement={expanded ? "topRight" : "topLeft"}
@@ -450,6 +454,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                         // 份数入口恒显示: maxOutputs=1 的模型(如 Grok)列表只有 1 行, 入口消失会让用户找不到份数设置。
 
                         <CanvasCountSettingsPopover
+                            supplyNodeId={node.id}
                             value={Number(config.count) || 1}
                             onChange={(value) => onConfigChange(node.id, { count: value })}
                             max={Math.min(15, countProfile.maxOutputs)}
@@ -460,6 +465,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     ) : mode === "video" || mode === "audio" ? (
                         // UI 先行(用户拍板): video/audio 份数仅存储展示, count>1 提交仍按单生成, 链路后补。
                         <CanvasCountSettingsPopover
+                            supplyNodeId={node.id}
                             value={Number(node.metadata?.[mode === "video" ? "videoGenerationCount" : "audioGenerationCount"]) || 1}
                             onChange={(value) => onConfigChange(node.id, mode === "video" ? { videoGenerationCount: value } : { audioGenerationCount: value })}
                             max={4}

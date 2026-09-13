@@ -18,6 +18,9 @@ export function normalizeCount(value: number | string | null | undefined): numbe
 }
 
 type CanvasCountSettingsPopoverProps = {
+    /** 归属供给标注: 打开的气泡面板纳入 hover 归属域(面板/触发器双标), 指针在面板上时
+        composer 归属不判空, 防面板连着 composer 一起退场(2026-09-13 报告 P2-4 根修)。 */
+    supplyNodeId?: string;
     value: number;
     onChange: (value: number) => void;
     max?: number;
@@ -31,12 +34,12 @@ type CanvasCountSettingsPopoverProps = {
  * 份数独立气泡(用户三轮拍板 2026-09-11): 纯竖滚列表(1..max, 限高 4 行, 其余滚动)。
  * 快捷档行与自定义行均已删(重复/冗余)。文本/图像/视频/音频模式共用,量词随调用方(张/个/份)。
  */
-export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, label = "份", placement = "topLeft", buttonClassName }: CanvasCountSettingsPopoverProps) {
+export function CanvasCountSettingsPopover({ supplyNodeId, value, onChange, max = COUNT_MAX, label = "份", placement = "topLeft", buttonClassName }: CanvasCountSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    useExclusiveSettings("count-settings", open, setOpen);
+    useExclusiveSettings("count-settings", open, setOpen, supplyNodeId);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const { shouldRender, closing } = usePopoverExit(open);
     const count = Math.max(1, Math.min(max, normalizeCount(value)));
@@ -74,7 +77,7 @@ export function CanvasCountSettingsPopover({ value, onChange, max = COUNT_MAX, l
         };
     }, [shouldRender]);
 
-    const panel = shouldRender && buttonRect ? <CountSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} value={count} max={max} label={label} onChange={handleSelect} closing={closing} /> : null;
+    const panel = shouldRender && buttonRect ? <CountSettingsPortal supplyNodeId={supplyNodeId} buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} value={count} max={max} label={label} onChange={handleSelect} closing={closing} /> : null;
 
     return (
         <>
@@ -104,6 +107,7 @@ function CountSettingsPortal({
     label,
     onChange,
     closing,
+    supplyNodeId,
 }: {
     buttonRect: DOMRect;
     panelRef: RefObject<HTMLDivElement | null>;
@@ -114,6 +118,7 @@ function CountSettingsPortal({
     label: string;
     onChange: (value: number) => void;
     closing: boolean;
+    supplyNodeId?: string;
 }) {
     const gap = 8;
     const margin = 12;
@@ -128,7 +133,7 @@ function CountSettingsPortal({
     const style = {
         position: "fixed",
         // 开合锚触发器(emil): 从触发器方向缩放; 向上翻转后锚点换 top。
-        transformOrigin: (topPlacement ? "bottom " : "top ") + (alignRight ? "right" : alignCenter ? "center" : "left"),
+        "--panel-float-y": topPlacement ? "6px" : "-6px",
         zIndex: "var(--z-dialog-popover)",
         width: PANEL_WIDTH,
         left: Math.max(margin, Math.min(window.innerWidth - PANEL_WIDTH - margin, left)),
@@ -152,6 +157,8 @@ function CountSettingsPortal({
     return createPortal(
         <div
             ref={panelRef}
+            data-supply-node={supplyNodeId}
+            data-affordance="full"
             className={`canvas-count-settings-popover aceternity-floating-panel${closing ? " canvas-settings-popover-closing" : ""}`}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}

@@ -8,6 +8,8 @@ export function normalizeTextCount(value: number | string | null | undefined): n
 }
 
 type CanvasTextSettingsPopoverProps = {
+    /** 归属供给标注(透传 CanvasCountSettingsPopover, 见其文档)。 */
+    supplyNodeId?: string;
     value: number;
     onChange: (value: number) => void;
     placement?: "topLeft" | "topRight" | "top" | "bottom";
@@ -15,8 +17,8 @@ type CanvasTextSettingsPopoverProps = {
 };
 
 /** 文本份数气泡(兼容包装): 词汇表/滚动行为已收敛到 canvas-count-settings-popover 通用组件。 */
-export function CanvasTextSettingsPopover({ value, onChange, placement, buttonClassName }: CanvasTextSettingsPopoverProps) {
+export function CanvasTextSettingsPopover({ supplyNodeId, value, onChange, placement, buttonClassName }: CanvasTextSettingsPopoverProps) {
     return (
-        <CanvasCountSettingsPopover value={value} onChange={onChange} max={TEXT_COUNT_MAX} label="份" placement={placement} buttonClassName={buttonClassName} />
+        <CanvasCountSettingsPopover supplyNodeId={supplyNodeId} value={value} onChange={onChange} max={TEXT_COUNT_MAX} label="份" placement={placement} buttonClassName={buttonClassName} />
     );
 }

@@ -24,6 +24,9 @@ export type AffordanceInput = {
     selfHover: boolean;
     /** 同节点的另一供给被悬停: 指针在节点与本供给之间的间隙时保持 micro, 避免闪隐(旧 220ms timer 的语义等价物) */
     siblingHover?: boolean;
+    /** 本节点的参数设置气泡(份数/图像/视频/音频)处于打开态: composer 恒 full,
+        与工具栏 toolbarMenuOpenId 钉 full 对称(否则指针回节点时底栏在气泡脚下变暗)。 */
+    settingsBubbleOpen?: boolean;
 };
 
 export type ToolbarGuardInput = {
@@ -39,12 +42,12 @@ export type ComposerGuardInput = {
 };
 
 function deriveLevel(
-    { nodeId, hoveredNodeId, dialogNodeId, selfHover, siblingHover }: AffordanceInput,
+    { nodeId, hoveredNodeId, dialogNodeId, selfHover, siblingHover, settingsBubbleOpen }: AffordanceInput,
     guarded: boolean,
 ): AffordanceLevel {
     if (guarded) return "hidden";
     if (dialogNodeId === nodeId) return "full";
-    if (selfHover) return "full";
+    if (selfHover || settingsBubbleOpen) return "full";
     if (hoveredNodeId === nodeId || siblingHover) return "micro";
     return "hidden";
 }

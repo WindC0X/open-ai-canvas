@@ -77,4 +77,13 @@ describe("deriveComposerAffordance", () => {
     test("间隙保持与 selected 并存时 selected 优先", () => {
         expect(deriveComposerAffordance({ ...base, dialogNodeId: NODE, siblingHover: true }, cmGuards)).toBe("full");
     });
+
+    test("参数设置气泡打开 → composer 钉 full(与 toolbarMenuOpenId 对称)", () => {
+        const base = { nodeId: "n", hoveredNodeId: null, dialogNodeId: null, selfHover: false };
+        expect(deriveComposerAffordance({ ...base, settingsBubbleOpen: true }, { selectionBoxActive: false })).toBe("full");
+        // 指针回节点本体(归属 node)时气泡仍钉 full, 底栏不在气泡脚下变暗
+        expect(deriveComposerAffordance({ ...base, hoveredNodeId: "n", settingsBubbleOpen: true }, { selectionBoxActive: false })).toBe("full");
+        // guard 仍最高: 框选中气泡钉不住
+        expect(deriveComposerAffordance({ ...base, settingsBubbleOpen: true }, { selectionBoxActive: true })).toBe("hidden");
+    });
 });
