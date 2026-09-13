@@ -115,7 +115,9 @@ import { CanvasProjectSelectionToolbar } from "./canvas-project-selection-toolba
 import { CanvasProjectStatusDialogs } from "./canvas-project-status-dialogs";
 import { CanvasProjectWorldLayers } from "./canvas-project-world-layers";
 import { CanvasNodeActionContext, type CanvasNodeActionContextValue } from "@/components/canvas/canvas-node-action-context";
-import { bringCanvasNodeToFront, type CanvasNodeStackOrder } from "@/lib/canvas/canvas-node-stack-order";
+import { bringCanvasNodeToFront, type CanvasNodeStackOrder, sortCanvasNodesByStackOrder } from "@/lib/canvas/canvas-node-stack-order";
+import { PortraitClearanceModal } from "@/components/canvas/portrait-clearance/portrait-clearance-modal";
+3f5c4137 (fix(canvas): hover遮挡归属按真实绘制序 + composer感应带full升级链 - stackRank复刻sortCanvasNodesByStackOrder+选中z层, sense-band计入composer selfHover(修复面板不升级/重叠区误归属))
 import { AiArtCritiqueModal } from "@/components/canvas/art-critique/ai-art-critique-modal";
 import { CanvasNodeGraphContext, type CanvasNodeGraphContextValue } from "@/components/canvas/canvas-node-graph-context";
 import { CanvasRefreshShell } from "./canvas-refresh-shell";
@@ -2199,9 +2201,16 @@ const {
     const attribution = useCanvasHoverAttribution({
         visibleNodes: nodes,
         stackRankOf: useCallback((nodeId: string) => {
-            const index = nodes.findIndex((item) => item.id === nodeId);
-            return index < 0 ? 0 : index;
-        }, [nodes]),
+            // 必须复刻真实绘制序(canvas-project-world-layers 的 sortCanvasNodesByStackOrder 结果),
+            // 而非 nodes 数组序 — 交互置顶(nodeStackOrder)与数组序无关; 同层内绘制序后者在上。
+            const rankById = new Map(nodeStackOrder.map((id, index) => [id, index]));
+            const sorted = sortCanvasNodesByStackOrder(nodes, nodeStackOrder);
+            const drawIndex = sorted.findIndex((item) => item.id === nodeId);
+            if (drawIndex < 0) return 0;
+            // 选中节点 z-node-active(20) 高于未选中层(z-node 10): 遮挡归属跟随视觉
+            const selected = dialogNodeId === nodeId;
+            return drawIndex + (selected ? nodes.length : 0);
+        }, [nodes, nodeStackOrder, dialogNodeId]),
         getSupplies: useCallback(() => {
             const hits: SupplyHit[] = [];
             for (const supply of document.querySelectorAll("[data-supply-node]")) {
@@ -2286,13 +2295,13 @@ const {
     const selectedComposerLevel: AffordanceLevel = !selectedPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === selectedPanelNode.id && hoverSurfaceKind === "composer", siblingHover: hoverSurfaceId === selectedPanelNode.id && (hoverSurfaceKind === "bridge" || hoverSurfaceKind === "sense-band") },
+            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === selectedPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === selectedPanelNode.id && hoverSurfaceKind === "bridge" },
             composerGuards,
         );
     const hoverComposerLevel: AffordanceLevel = !hoverPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverPanelNode.id && hoverSurfaceKind === "composer", siblingHover: hoverSurfaceId === hoverPanelNode.id && (hoverSurfaceKind === "bridge" || hoverSurfaceKind === "sense-band") },
+            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === hoverPanelNode.id && hoverSurfaceKind === "bridge" },
             composerGuards,
         );
     // toolbarMenuOpenId 反向边(审计裁决): 菜单 open 的节点一旦不再持有工具栏实例(hover 切走/卸载/
