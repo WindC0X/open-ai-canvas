@@ -1787,6 +1787,10 @@ v2（用户反馈首版难看后重做）：菜单改用 antd Dropdown（placeme
 
 节点悬浮工具栏接入 flora 玻璃材质族（rgba(32,32,32,.9)+blur16+radius14+无阴影，与模型菜单/参数面板同源），显隐生命周期替换为微供给状态机（`lib/canvas/affordance.ts` 纯函数 + `AffordanceSurface` 原语）：idle 不显示 / hover 节点双微（0.45 不透明+降饱和）/ hover 到某供给该供给全显（只动 opacity/filter，渐显不变形）/ 选中即全显常驻。composer 面板随 hover 未选中节点微浮现（用户拍板完整面板微浮现），与选中面板并存（不同节点）。旧 `toolbarNodeId`+220ms timer 双轨状态机退役；220ms 宽限语义保留为 hover 离开的延迟清空（物理间隙期供给保持挂载）。工具栏入场动画 canvas-panel-in 退役（与 opacity 过渡互压）。9 格状态表真机验证 7 格通过（CDP hidden 限制下框选/拖拽 2 格由单测覆盖）。全量测试基线对照：本任务零新增产品失败；新增测试文件改变 bun 模块加载顺序，暴露 17 个顺序敏感文件的预存状态泄漏失败（editor slot/materializer/Agent store/诊断缓冲，单独跑全过），登记为测试基建债务。
 
+### composer 升级两阶段真根修（2026-09-13 下午，用户复验"依旧有问题"）
+
+四份 Claude code 审计报告核查采纳之外，真机分场景复现钉死两个此前所有轮次都漏掉的确定性根因：(1) **状态机 leaving/exiting 相的归属恢复缺失**——sample 的归属命中分支只在 changed（换 owner）或 active 相 surface 变化时 dispatch，grace 期指针回到 owner/供给时 reducer 永远收不到 attribute，phase 卡在 leaving 直到 380ms 到点退场卸载：指针已回到面板上面板却消失（"整个节点回到默认态"），快扫中途一帧归属空即触发，解释"大部分失败"；修复为非 active 相收到归属必须 dispatch 推回 active（reducer 各相收敛已验证，含 exiting 复活）。(2) **selected full 面板截断 hover 升级路径**——selected 节点的 full composer 常驻浮层几何盖住相邻 hover 节点的 micro composer，供给决胜只有 kind 维度时同 kind 按 DOM 序（selected 实例恒在前）或 stackRank（selected 恒最高）都归 selected，指针移向 hover 节点面板的整条行程全被截走；修复为决胜序 kind > level > stackRank，micro 意图面优先于 full 常驻面（full 面板独占区操作不受影响）。真机（用户画布 s8201 hover + ai86j selected 重叠布局）：重叠区跳转 s8201 面板 full、独占区归 ai86j、离开回归微观均正确。另采纳报告修复：供给 stackRank 决胜、stackRankMap 预计算（删每帧全量排序）、供给三元死代码、M2 过时注释。
+
 ### composer 升级大面积失败根修（2026-09-13，用户复验"有时可以触发有时不行，不行占绝大部分"）
 
 上一轮只打通了感应带入口，但感应带只有面板顶部 20px 且 micro 主体仍被排除出归属候选：指针一次 mousemove 从节点直落面板主体中部时跳过窄带，归属为空 → 380ms 后面板退场——慢速滑动必然经过窄带所以偶尔成功，正常速度大面积失败，完美解释"时好时坏且坏占多数"。根修：micro composer 面板主体回归归属候选——面板微态是可见面（0.45 半透明），不属于原 M2 要排除的"inset-0 隐形 wrapper 视觉空白域"；主体保持 pe:none（点击穿透不变），但 mousemove 按矩形归属 → 指针到达主体即升级 full，几何归属域与 full 态点击域一致。劫持防线复核：面板覆盖邻居时供给优先仍归本节点；快扫穿越面板区后正确收敛到目标节点。真机：节点直落主体中部 → full(opacity 1)、往返循环 full、邻居重叠区归供给节点、快扫三连跳收敛。单测同步修订（原 M2 排除断言反转为进候选断言）。
