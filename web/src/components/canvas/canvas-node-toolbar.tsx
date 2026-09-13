@@ -28,10 +28,10 @@ type CanvasNodeToolbarProps = {
     containerRef: RefObject<HTMLDivElement | null>;
     /** 微供给存在感级别(状态机推导,见 lib/canvas/affordance.ts) */
     level: AffordanceLevel;
-    /** 指针/键盘焦点进入或离开工具栏(微供给 full 升级路径) */
     /** 下拉菜单开合(开启期间工具栏保持 full) */
     onMenuOpenChange?: (open: boolean) => void;
-    /** 指针穿过节点↔工具栏间隙桥: hover 归还源节点(og-canvas gap-bridge 同构) */
+    /** 键盘焦点进入/离开工具栏(M3 审计裁决): Tab 导航到按钮时 full 升级, 不依赖指针坐标 */
+    onFocusChange?: (nodeId: string, focused: boolean) => void;
     onInfo: (node: CanvasNodeData) => void;
     onEditText: (node: CanvasNodeData) => void;
     onDecreaseFont: (node: CanvasNodeData) => void;
@@ -93,6 +93,7 @@ export function CanvasNodeToolbar({
     containerRef,
     level,
     onMenuOpenChange,
+    onFocusChange,
     onInfo,
     onEditText,
     onDecreaseFont,
@@ -306,6 +307,8 @@ export function CanvasNodeToolbar({
             className="canvas-node-toolbar absolute z-[var(--z-node-toolbar)] -translate-x-1/2 -translate-y-full"
             style={{ left: 0, top: 0, transform: `translate3d(${anchor.left}px, ${anchor.top}px, 0)`, width: "max-content", maxWidth: "calc(100% - 20px)", color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
+            onFocusCapture={() => onFocusChange?.(node.id, true)}
+            onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onFocusChange?.(node.id, false); }}
             onPointerDown={(event) => event.stopPropagation()}
             data-canvas-no-zoom
             onKeyDown={(event) => event.stopPropagation()}

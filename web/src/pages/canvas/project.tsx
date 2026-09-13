@@ -315,6 +315,8 @@ function InfiniteCanvasPage() {
     const [tapNowImportOpen, setTapNowImportOpen] = useState(false);
     const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
     const [toolbarMenuOpenId, setToolbarMenuOpenId] = useState<string | null>(null);
+    // M3 焦点通道: 键盘 Tab 进入工具栏按钮时 full 升级(状态机归属是几何链路, 键盘无坐标)
+    const [focusToolbarId, setFocusToolbarId] = useState<string | null>(null);
     // hover 生命周期唯一写入者是下方 useCanvasHoverAttribution 状态机(2026-09-13 审计裁决):
     // 事件层只喂坐标与边界时机, 状态机每帧用 hover-attribution 纯函数现算归属后同步到这两个镜像。
     // exitingNodeId 为状态机 exiting 相投影(380ms grace → 160ms hidden 退场)。
@@ -879,6 +881,8 @@ function InfiniteCanvasPage() {
         (removedIds: Set<string>, nextNodes: CanvasNodeData[], removedNodes: CanvasNodeData[]) => {
             const clearDeletedId = (current: string | null) => (current && removedIds.has(current) ? null : current);
             setHoveredNodeId(clearDeletedId);
+            setExitingNodeId(clearDeletedId);
+            setToolbarMenuOpenId(clearDeletedId);
             setDialogNodeId(clearDeletedId);
             setTextEditorNodeId(clearDeletedId);
             setCharacterReferenceNodeId(clearDeletedId);
@@ -2268,7 +2272,7 @@ const {
     const selectedToolbarLevel: AffordanceLevel = !toolbarNode || emotionNodeId
         ? "hidden"
         : deriveToolbarAffordance(
-            { nodeId: toolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === toolbarNode.id && hoverSurfaceKind === "toolbar" },
+            { nodeId: toolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: (hoverSurfaceId === toolbarNode.id && hoverSurfaceKind === "toolbar") || focusToolbarId === toolbarNode.id },
             toolbarGuards,
         );
     const hoverToolbarLevel: AffordanceLevel = !hoverToolbarNode || emotionNodeId
@@ -2276,7 +2280,7 @@ const {
         : toolbarMenuOpenId === hoverToolbarNode.id
             ? "full"
             : deriveToolbarAffordance(
-                { nodeId: hoverToolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverToolbarNode.id && hoverSurfaceKind === "toolbar" },
+                { nodeId: hoverToolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: (hoverSurfaceId === hoverToolbarNode.id && hoverSurfaceKind === "toolbar") || focusToolbarId === hoverToolbarNode.id },
                 toolbarGuards,
             );
     const selectedComposerLevel: AffordanceLevel = !selectedPanelNode || emotionNodeId
@@ -2291,6 +2295,15 @@ const {
             { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverPanelNode.id && hoverSurfaceKind === "composer", siblingHover: hoverSurfaceId === hoverPanelNode.id && (hoverSurfaceKind === "bridge" || hoverSurfaceKind === "sense-band") },
             composerGuards,
         );
+    // toolbarMenuOpenId 反向边(审计裁决): 菜单 open 的节点一旦不再持有工具栏实例(hover 切走/卸载/
+    // 节点删除), 实例卸载不会触发 onMenuOpenChange(false) — 在此对账清除, 防残留 full 升级
+    const mountedToolbarIds = useMemo(
+        () => new Set([toolbarNode?.id, hoverToolbarNode?.id].filter((id): id is string => Boolean(id))),
+        [toolbarNode?.id, hoverToolbarNode?.id],
+    );
+    useEffect(() => {
+        setToolbarMenuOpenId((current) => (current && !mountedToolbarIds.has(current) ? null : current));
+    }, [mountedToolbarIds]);
     const retryCanvasNode = useCallback(
         (node: CanvasNodeData) => {
             if (node.type === CanvasNodeType.Script) {
@@ -2769,6 +2782,7 @@ onViewportChange={handleViewportChange}
                         viewport={viewport}
                         containerRef={containerRef}
                             onMenuOpenChange={(open) => setToolbarMenuOpenId((current) => (open ? instance.node.id : current === instance.node.id ? null : current))}
+                            onFocusChange={(nodeId, focused) => setFocusToolbarId((current) => (focused ? nodeId : current === nodeId ? null : current))}
                         onInfo={(node) => (node.metadata?.workflowKind === "character" && node.metadata.characterAssetId ? openTextNodeEditor(node) : setInfoNodeId(node.id))}
                         onEditText={openTextNodeEditor}
                         onDecreaseFont={(node) => handleFontSizeChange(node.id, Math.max(10, (node.metadata?.fontSize || 14) - 2))}

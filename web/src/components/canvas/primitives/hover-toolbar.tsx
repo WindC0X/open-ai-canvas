@@ -10,7 +10,7 @@ export type AffordanceSurfaceProps = {
     style?: CSSProperties;
     role?: string;
     ariaLabel?: string;
-} & Pick<HTMLAttributes<HTMLDivElement>, "onMouseEnter" | "onMouseLeave" | "onFocus" | "onBlur" | "onMouseDown" | "onPointerDown" | "onKeyDown">;
+} & Pick<HTMLAttributes<HTMLDivElement>, "onMouseEnter" | "onMouseLeave" | "onFocus" | "onBlur" | "onFocusCapture" | "onBlurCapture" | "onMouseDown" | "onPointerDown" | "onKeyDown">;
 
 /**
  * 微供给容器:节点工具栏/composer 共用的存在感外壳。
