@@ -82,6 +82,19 @@ export function useCanvasHoverAttribution(options: {
         exitTimerRef.current = null;
     }, []);
 
+    // active → leaving(启动 grace): 遮挡门与几何归属空两条路径共用同一套定时器搭建,
+    // 抽取以防 grace 时长/相位机调整时两处漂移。
+    const enterLeavingPhase = useCallback(() => {
+        dispatch({ type: "attribute", nodeId: null, surface: "outside" });
+        if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
+        graceTimerRef.current = setTimeout(() => {
+            graceTimerRef.current = null;
+            dispatch({ type: "graceExpired" });
+            if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+            exitTimerRef.current = setTimeout(() => dispatch({ type: "exitDone" }), EXIT_HIDDEN_MS);
+        }, NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS);
+    }, []);
+
     const sample = useCallback(() => {
         rafRef.current = null;
         const { visibleNodes: nodes, stackRankOf: rank, getSupplies: supplies, enabled: on } = depsRef.current;
@@ -100,16 +113,7 @@ export function useCanvasHoverAttribution(options: {
             || hit.closest('.canvas-model-picker-popover')
             || hit.closest('.canvas-model-picker-flyout'));
         if (hit && !inDomain) {
-            if (phaseRef.current.kind === "active") {
-                dispatch({ type: "attribute", nodeId: null, surface: "outside" });
-                if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
-                graceTimerRef.current = setTimeout(() => {
-                    graceTimerRef.current = null;
-                    dispatch({ type: "graceExpired" });
-                    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
-                    exitTimerRef.current = setTimeout(() => dispatch({ type: "exitDone" }), EXIT_HIDDEN_MS);
-                }, NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS);
-            }
+            if (phaseRef.current.kind === "active") enterLeavingPhase();
             return;
         }
         const nodeHits: NodeHit[] = [];
@@ -142,17 +146,8 @@ export function useCanvasHoverAttribution(options: {
             return;
         }
         // 归属为空: active → leaving(启动 grace)
-        if (current.kind === "active") {
-            dispatch({ type: "attribute", nodeId: null, surface: "outside" });
-            if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
-            graceTimerRef.current = setTimeout(() => {
-                graceTimerRef.current = null;
-                dispatch({ type: "graceExpired" });
-                if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
-                exitTimerRef.current = setTimeout(() => dispatch({ type: "exitDone" }), EXIT_HIDDEN_MS);
-            }, NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS);
-        }
-    }, [clearTimers]);
+        if (current.kind === "active") enterLeavingPhase();
+    }, [clearTimers, enterLeavingPhase]);
 
     useEffect(() => {
         // rAF 合帧为主; rAF 停发时(标签不可见: 后台/遮挡/最小化, Chrome 对 hidden 直接停发,
