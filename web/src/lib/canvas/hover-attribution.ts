@@ -42,6 +42,16 @@ function rectContains(rect: Rect, x: number, y: number): boolean {
     return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 }
 
+/**
+ * 遮挡门域判定(2026-09-14): 指针命中元素的祖先类名链是否属于归属有效域。
+ * chainClasses = 命中元素自身及所有祖先的 class 列表(扁平), 由 hook 从
+ * closest 遍历提取; 数据属性域(node/supply)在 hook 侧用 closest 判, 这里只收敛
+ * 供给域延伸浮层的类名豁免(模型菜单/L2 flyout), 保证类名单一来源。
+ */
+export function pointerInSupplyDomainExtension(chainClasses: string[], popoverClass: string, flyoutClass: string): boolean {
+    return chainClasses.includes(popoverClass) || chainClasses.includes(flyoutClass);
+}
+
 export function attributeHover(nodes: NodeHit[], supplies: SupplyHit[], x: number, y: number): HoverAttribution {
     // 规则①: 供给优先(浮层层 z-node-toolbar/panel 恒高于节点层, 与 DOM 命中一致)。
     // micro composer 面板本体进候选(2026-09-13 用户复验): 面板微态是可见面(0.45 半透明),

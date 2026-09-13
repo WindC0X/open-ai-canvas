@@ -7,7 +7,8 @@
  * 输出 hoveredNodeId/exitingNodeId 与旧消费面(derive 函数与双实例渲染)兼容。
  */
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import { attributeHover, type NodeHit, type SupplyHit } from "@/lib/canvas/hover-attribution";
+import { MODEL_PICKER_FLYOUT_CLASS, MODEL_PICKER_POPOVER_CLASS } from "@/components/model-picker";
+import { attributeHover, pointerInSupplyDomainExtension, type NodeHit, type SupplyHit } from "@/lib/canvas/hover-attribution";
 import type { CanvasNodeData } from "@/types/canvas";
 
 export type HoverAttributionState = {
@@ -108,10 +109,16 @@ export function useCanvasHoverAttribution(options: {
         const hit = document.elementFromPoint(pointer.x, pointer.y);
         // 归属有效域: 节点本体、登记供给、以及供给域延伸的浮层(模型菜单/L2 flyout —
         // 从供给触发, 指针在其上 composer 保持 selfHover full, 语义与设置气泡钉 full 一致)。
-        const inDomain = hit && (hit.closest('[data-node-id]')
-            || hit.closest('[data-supply-node]')
-            || hit.closest('.canvas-model-picker-popover')
-            || hit.closest('.canvas-model-picker-flyout'));
+        let inDomain = false;
+        if (hit) {
+            for (let el: Element | null = hit; el; el = el.parentElement) {
+                if (el.hasAttribute("data-node-id") || el.hasAttribute("data-supply-node")
+                    || pointerInSupplyDomainExtension(Array.from(el.classList), MODEL_PICKER_POPOVER_CLASS, MODEL_PICKER_FLYOUT_CLASS)) {
+                    inDomain = true;
+                    break;
+                }
+            }
+        }
         if (hit && !inDomain) {
             if (phaseRef.current.kind === "active") enterLeavingPhase();
             return;

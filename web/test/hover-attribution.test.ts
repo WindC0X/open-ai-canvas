@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { attributeHover, type NodeHit, type SupplyHit } from "../src/lib/canvas/hover-attribution";
+import { attributeHover, pointerInSupplyDomainExtension, type NodeHit, type SupplyHit } from "../src/lib/canvas/hover-attribution";
 
 const node = (id: string, left: number, top: number, right: number, bottom: number, stackRank = 0): NodeHit => ({
     id,
@@ -13,6 +13,18 @@ const supply = (nodeId: string, kind: SupplyHit["kind"], left: number, top: numb
     rect: { left, top, right, bottom },
     level,
     stackRank: 0,
+});
+
+describe("pointerInSupplyDomainExtension", () => {
+    test("命中链含模型菜单/flyout 类名 → 域内豁免", () => {
+        expect(pointerInSupplyDomainExtension(["ant-popover", "canvas-model-picker-popover"], "canvas-model-picker-popover", "canvas-model-picker-flyout")).toBe(true);
+        expect(pointerInSupplyDomainExtension(["canvas-model-picker-flyout", "canvas-model-picker-menu"], "canvas-model-picker-popover", "canvas-model-picker-flyout")).toBe(true);
+    });
+    test("无关浮层类名链 → 域外(遮挡门判空)", () => {
+        expect(pointerInSupplyDomainExtension(["aceternity-floating-panel", "canvas-context-menu"], "canvas-model-picker-popover", "canvas-model-picker-flyout")).toBe(false);
+        expect(pointerInSupplyDomainExtension(["ant-modal-mask"], "canvas-model-picker-popover", "canvas-model-picker-flyout")).toBe(false);
+        expect(pointerInSupplyDomainExtension([], "canvas-model-picker-popover", "canvas-model-picker-flyout")).toBe(false);
+    });
 });
 
 describe("attributeHover", () => {

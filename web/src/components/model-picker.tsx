@@ -16,6 +16,10 @@ import { quoteLogicalModel, type CapabilitySpec, type LogicalModelQuote } from "
 
 // flora 语法: 模型置顶(Pinned models 组)。影策无账号级收藏服务, 前端 localStorage 持久化(按浏览器/用户代理隔离)。
 const MODEL_PICKER_PINNED_KEY = "canvas-model-picker-pinned";
+/** 供给域延伸浮层类名(hover 归属遮挡门豁免域): 指针在模型菜单/L2 flyout 上时
+    composer 保持 full(与设置气泡钉 full 同语义)。归属侧按此常量匹配, 改类名两处同步。 */
+export const MODEL_PICKER_POPOVER_CLASS = "canvas-model-picker-popover";
+export const MODEL_PICKER_FLYOUT_CLASS = "canvas-model-picker-flyout";
 function loadPinnedModels(): string[] {
     try {
         const raw = localStorage.getItem(MODEL_PICKER_PINNED_KEY);
@@ -621,7 +625,7 @@ export function ModelPicker({
                 destroyOnHidden
                 content={content}
                 classNames={{
-                    root: cn("canvas-model-picker-popover", creationVariant && "creation-model-picker-popover", popoverClassName, !open && hiddenAfterLeave && "ant-popover-hidden"),
+                    root: cn(MODEL_PICKER_POPOVER_CLASS, creationVariant && "creation-model-picker-popover", popoverClassName, !open && hiddenAfterLeave && "ant-popover-hidden"),
                     container: cn("canvas-composer-popover-surface", creationVariant && "creation-model-picker-surface"),
                     content: "canvas-composer-popover-content",
                 }}
@@ -658,7 +662,7 @@ export function ModelPicker({
                     <div
                         ref={flyoutRef}
                         className={cn(
-                            "canvas-model-picker-flyout canvas-model-picker-menu",
+                            MODEL_PICKER_FLYOUT_CLASS + " canvas-model-picker-menu",
                             // 与 L1 同源: 画布 composer 传 variant=creation 时 L1 菜单挂 creation 类,
                             // flyout 也必须同挂, 否则两套容器/行外观(padding/gap/字号) → L1/L2 不一致(2026-09-08 实测)
                             creationVariant && "creation-model-picker-menu",
