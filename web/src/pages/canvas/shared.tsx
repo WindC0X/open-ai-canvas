@@ -45,6 +45,8 @@ export default function SharedCanvasPage() {
     const [infoNodeId, setInfoNodeId] = useState<string | null>(null);
     const [toolbarHover, setToolbarHover] = useState(false);
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+    // 只读分享页无状态机: 节点级本地 hover 自持(主画布走 useCanvasHoverAttribution)
+    const handleSharedNodeHover = useCallback((nodeId: string, hovering: boolean) => setHoveredNodeId(hovering ? nodeId : (current) => (current === nodeId ? null : current)), []);
     const [dragOffset, setDragOffset] = useState<Position | null>(null);
     const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
     const [loading, setLoading] = useState(true);
@@ -261,7 +263,7 @@ const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.t
                     const dragged = [node, ...(frameChildrenById.get(nodeId) || [])];
                     dragRef.current = { primaryId: nodeId, nodeIds: dragged.map((item) => item.id), startX: event.clientX, startY: event.clientY, origins: new Map(dragged.map((item) => [item.id, item.position])), moved: false };
                     document.body.style.cursor = "grabbing";
-                }} onResize={() => undefined} onToggleCollapsed={toggleFrame} onFolderStyleChange={() => undefined} onTitleChange={unauthorized} onHoverStart={setHoveredNodeId} onHoverEnd={(id) => setHoveredNodeId((current) => (current === id ? null : current))} onContextMenu={(event, nodeId) => openContextMenu(event, nodeId)} /> : <CanvasNode key={node.id} data={node} dragOffset={dragRef.current?.nodeIds.includes(node.id) && dragOffset ? dragOffset : undefined} scale={viewport.k} isSelected={selectedNodeId === node.id} isRelated={false} isFocusRelated={false} isConnectionTarget={false} showImageInfo={false} readOnly renderNodeContent={renderSharedNode} onMouseDown={(event, nodeId) => {
+                }} onResize={() => undefined} onToggleCollapsed={toggleFrame} onFolderStyleChange={() => undefined} onTitleChange={unauthorized} isHovered={hoveredNodeId === node.id} onLocalHoverChange={handleSharedNodeHover} onContextMenu={(event, nodeId) => openContextMenu(event, nodeId)} /> : <CanvasNode key={node.id} data={node} dragOffset={dragRef.current?.nodeIds.includes(node.id) && dragOffset ? dragOffset : undefined} scale={viewport.k} isSelected={selectedNodeId === node.id} isRelated={false} isFocusRelated={false} isConnectionTarget={false} showImageInfo={false} readOnly renderNodeContent={renderSharedNode} onMouseDown={(event, nodeId) => {
                     event.stopPropagation();
                     if (event.button !== 0) return;
                     const target = nodes.find((item) => item.id === nodeId);
@@ -270,7 +272,7 @@ const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.t
                     setContextMenu(null);
                     dragRef.current = { primaryId: nodeId, nodeIds: [nodeId], startX: event.clientX, startY: event.clientY, origins: new Map([[nodeId, target.position]]), moved: false };
                     document.body.style.cursor = "grabbing";
-                }} onHoverStart={setHoveredNodeId} onHoverEnd={(id) => setHoveredNodeId((current) => (current === id ? null : current))} onConnectStart={unauthorized} onResize={() => undefined} onContentChange={unauthorized} onRetry={unauthorized} onOpenTaskDetails={unauthorized} onViewImage={(target) => setInfoNodeId(target.id)} onContextMenu={(event, nodeId) => openContextMenu(event, nodeId)} />)}
+                }} isHovered={hoveredNodeId === node.id} onLocalHoverChange={handleSharedNodeHover} onConnectStart={unauthorized} onResize={() => undefined} onContentChange={unauthorized} onRetry={unauthorized} onOpenTaskDetails={unauthorized} onViewImage={(target) => setInfoNodeId(target.id)} onContextMenu={(event, nodeId) => openContextMenu(event, nodeId)} />)}
             </InfiniteCanvas>
 
             {[

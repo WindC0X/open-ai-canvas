@@ -2517,8 +2517,7 @@ onViewportChange={handleViewportChange}
                                         setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId });
                                     }}
                                     onNodeMouseDown={handleNodeMouseDown}
-                                    onNodeHoverStart={handleCanvasNodeHoverStart}
-                                    onNodeHoverEnd={handleCanvasNodeHoverEndCompat}
+                                    hoveredNodeId={hoveredNodeId}
                                     onConnectStart={handleConnectStart}
                                     onNodeResize={handleNodeResize}
                                     onToggleFrame={handleFrameToggle}

@@ -27,8 +27,7 @@ export const CanvasFrameNode = React.memo(function CanvasFrameNode({
     onTitleChange,
     onContextMenu,
     readOnly = false,
-    onHoverStart,
-    onHoverEnd,
+    onLocalHoverChange,
 }: {
     data: CanvasNodeData;
     dragOffset?: Position;
@@ -44,8 +43,9 @@ export const CanvasFrameNode = React.memo(function CanvasFrameNode({
     onTitleChange: (nodeId: string, title: string) => void;
     onContextMenu: (event: ReactMouseEvent, nodeId: string) => void;
     readOnly?: boolean;
-    onHoverStart?: (nodeId: string) => void;
-    onHoverEnd?: (nodeId: string) => void;
+    /** hover 归属状态机判定结果(主画布); 只读分享页以 onLocalHoverChange 自持 */
+    isHovered?: boolean;
+    onLocalHoverChange?: (nodeId: string, hovering: boolean) => void;
 }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const collapsed = Boolean(data.metadata?.frame?.collapsed);
@@ -170,8 +170,8 @@ export const CanvasFrameNode = React.memo(function CanvasFrameNode({
                 event.preventDefault();
                 onToggleCollapsed(data.id);
             }}
-            onMouseEnter={() => onHoverStart?.(data.id)}
-            onMouseLeave={() => onHoverEnd?.(data.id)}
+            onMouseEnter={onLocalHoverChange ? () => onLocalHoverChange(data.id, true) : undefined}
+            onMouseLeave={onLocalHoverChange ? () => onLocalHoverChange(data.id, false) : undefined}
         >
             {/* 帧节点同样禁用指针跟随 3D 位移，hover 使用 CSS 静态抬升 */}
             <CometCard

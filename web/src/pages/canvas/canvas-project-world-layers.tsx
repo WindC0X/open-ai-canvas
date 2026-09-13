@@ -55,8 +55,7 @@ type CanvasProjectWorldLayersProps = {
     onConnectionSelect: (connectionId: string) => void;
     onConnectionContextMenu: (event: ReactMouseEvent<SVGPathElement>, connectionId: string) => void;
     onNodeMouseDown: (event: ReactMouseEvent, nodeId: string) => void;
-    onNodeHoverStart: (nodeId: string) => void;
-    onNodeHoverEnd: (nodeId: string) => void;
+    hoveredNodeId: string | null;
     onConnectStart: (event: ReactPointerEvent, nodeId: string, handleType: "source" | "target", handleId?: string, anchorRatio?: number) => void;
     onNodeResize: (nodeId: string, width: number, height: number, position?: Position) => void;
     onToggleFrame: (nodeId: string) => void;
@@ -178,8 +177,7 @@ export const CanvasProjectWorldLayers = memo(function CanvasProjectWorldLayers(p
                         renderNodeContent={props.renderCanvasNodeContent}
                         drawingProjectId={props.projectId}
                         onMouseDown={props.onNodeMouseDown}
-                        onHoverStart={props.onNodeHoverStart}
-                        onHoverEnd={props.onNodeHoverEnd}
+                        isHovered={props.hoveredNodeId === node.id}
                         onConnectStart={props.onConnectStart}
                         onResize={props.onNodeResize}
                         onTitleChange={props.onNodeTitleChange}

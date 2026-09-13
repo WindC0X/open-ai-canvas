@@ -45,8 +45,10 @@ type CanvasNodeProps = {
     batchPrimary?: boolean;
     batchMotion?: { x: number; y: number; index: number };
     onMouseDown: (event: React.MouseEvent, nodeId: string) => void;
-    onHoverStart: (nodeId: string) => void;
-    onHoverEnd: (nodeId: string) => void;
+    /** hover 归属由 useCanvasHoverAttribution 状态机唯一判定(world layers 下发), 节点侧不再自持状态 */
+    isHovered?: boolean;
+    /** 只读分享页(shared)无状态机, 以节点级 enter/leave 自持本地 hover; 主画布不传 */
+    onLocalHoverChange?: (nodeId: string, hovering: boolean) => void;
     onConnectStart: (event: React.PointerEvent, nodeId: string, handleType: "source" | "target", handleId?: string, anchorRatio?: number) => void;
     onResize: (nodeId: string, width: number, height: number, position?: Position) => void;
     onTitleChange?: (nodeId: string, title: string) => void;
@@ -93,8 +95,8 @@ export const CanvasNode = React.memo(function CanvasNode({
     batchPrimary = false,
     batchMotion,
     onMouseDown,
-    onHoverStart,
-    onHoverEnd,
+    isHovered,
+    onLocalHoverChange,
     onConnectStart,
     onResize,
     onTitleChange,
@@ -113,68 +115,13 @@ export const CanvasNode = React.memo(function CanvasNode({
     onContextMenu,
 }: CanvasNodeProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const [hovered, setHovered] = useState(false);
+    // hover 归属由 useCanvasHoverAttribution 状态机唯一判定(isHovered prop 下发), 节点侧零状态
+    const hovered = Boolean(isHovered);
     const shellRef = useRef<HTMLDivElement | null>(null);
-    const onHoverEndRef = useRef(onHoverEnd);
-    onHoverEndRef.current = onHoverEnd;
-    // hover 残留自清: 快速滑动/节点尺寸变化/浮层开关瞬间, 浏览器可能不给本节点派发 mouseleave,
-    // 而 CSS :hover 会立即修正 — 用同一几何判定同步 JS state(120ms 节流), 防跨节点 hover 残留。
-    // hover 双向校准: mouseenter/leave 在节点 transform 移动、浮层开合、快速滑动时会丢事件,
-    // 而 CSS :hover 永远正确 — mousemove 节流地按同一几何规则(节点矩形 ∪ 本节点供给矩形)同步 JS state。
-    useEffect(() => {
-        let lastCheck = 0;
-        const onMove = (event: MouseEvent) => {
-            const now = performance.now();
-            const throttled = now - lastCheck < 120;
-            const shell = shellRef.current;
-            if (!shell) return;
-            const r = shell.getBoundingClientRect();
-            const inside = event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom;
-            if (throttled && inside) return;
-            let overSupply = false;
-            if (!inside) {
-                for (const supply of document.querySelectorAll(`[data-supply-node="${CSS.escape(data.id)}"]`)) {
-                    // 命中域含间隙桥(og-canvas: 桥是 hover 域的物理组成部分)。
-                    // composer wrapper 是 inset-0 全屏坐标容器(pe:none), 其矩形不是 hover 域 —
-                    // 计入会让节点外任意点判为供给命中, 本地 hovered 永不释放。
-                    const targets: Element[] = [];
-                    if (supply.classList.contains("canvas-node-panel-affordance")) {
-                        const panel = supply.querySelector("[data-canvas-node-panel]");
-                        if (panel) targets.push(panel);
-                    } else {
-                        targets.push(supply as Element);
-                    }
-                    const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
-                    if (bridge) targets.push(bridge);
-                    const senseBand = supply.querySelector("[data-canvas-panel-sense-band]");
-                    if (senseBand) targets.push(senseBand);
-                    for (const target of targets) {
-                        const sr = target.getBoundingClientRect();
-                        if (event.clientX >= sr.left && event.clientX <= sr.right && event.clientY >= sr.top && event.clientY <= sr.bottom) {
-                            overSupply = true;
-                            break;
-                        }
-                    }
-                    if (overSupply) break;
-                }
-            }
-            lastCheck = now;
-            const shouldHover = inside || overSupply;
-            if (shouldHover && !hovered) {
-                setHovered(true);
-                onHoverStart(data.id);
-            } else if (!shouldHover && hovered) {
-                setHovered(false);
-                onHoverEndRef.current?.(data.id);
-            }
-        };
-        window.addEventListener("mousemove", onMove, { passive: true });
-        return () => window.removeEventListener("mousemove", onMove);
-    });
+    const { download: downloadNode, duplicate: duplicateNode, deleteNode } = useCanvasNodeActions();
     const [isEditingContent, setIsEditingContent] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState(data.title);
-    const { download: downloadNode, duplicate: duplicateNode, deleteNode } = useCanvasNodeActions();
     const hasImageContent = data.type === CanvasNodeType.Image && Boolean(data.metadata?.content);
     const hasVideoContent = data.type === CanvasNodeType.Video && Boolean(data.metadata?.content);
     const hasAudioContent = data.type === CanvasNodeType.Audio && Boolean(data.metadata?.content || data.metadata?.storageKey);
@@ -343,19 +290,8 @@ export const CanvasNode = React.memo(function CanvasNode({
                 // 用户手拖手缩(resizeActive/dragOffset)即时跟手。拖拽只动 transform, width 不变, 无需排除。
                 transition: resizeActive ? "none" : "width 420ms cubic-bezier(0.22, 1, 0.36, 1), height 420ms cubic-bezier(0.22, 1, 0.36, 1)", // 用户 2026-09-11: 比例切换过渡放慢(300→420ms)
             }}
-            onMouseEnter={() => {
-                setHovered(true);
-                onHoverStart(data.id);
-            }}
-            onMouseLeave={(event) => {
-                // leave 的 relatedTarget 落在本节点供给(工具栏/composer)内时忽略 —
-                // 指针从节点移向供给, hover 域经供给连续, 立即清会让供给升级后节点状态断裂。
-                const related = event.relatedTarget;
-                if (related instanceof Element && related.closest('[data-supply-node="' + data.id + '"]')) return;
-                setHovered(false);
-                onHoverEnd(data.id);
-            }}
-
+            onMouseEnter={onLocalHoverChange ? () => onLocalHoverChange(data.id, true) : undefined}
+            onMouseLeave={onLocalHoverChange ? () => onLocalHoverChange(data.id, false) : undefined}
             onContextMenu={(event) => onContextMenu(event, data.id)}
         >
             <NodeExternalHeader
@@ -596,8 +532,7 @@ function areCanvasNodePropsEqual(previous: CanvasNodeProps, next: CanvasNodeProp
         previous.batchMotion?.y === next.batchMotion?.y &&
         previous.batchMotion?.index === next.batchMotion?.index &&
         previous.onMouseDown === next.onMouseDown &&
-        previous.onHoverStart === next.onHoverStart &&
-        previous.onHoverEnd === next.onHoverEnd &&
+        previous.isHovered === next.isHovered &&
         previous.onConnectStart === next.onConnectStart &&
         previous.onResize === next.onResize &&
         previous.onTitleChange === next.onTitleChange &&

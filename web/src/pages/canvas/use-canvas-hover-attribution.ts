@@ -22,8 +22,8 @@ export type HoverAttributionState = {
 type Phase =
     | { kind: "idle" }
     | { kind: "active"; ownerId: string; surface: HoverAttributionState["hoverSurface"] }
-    | { kind: "leaving"; ownerId: string }
-    | { kind: "exiting"; ownerId: string };
+    | { kind: "leaving"; ownerId: string; since: number }
+    | { kind: "exiting"; ownerId: string; since: number };
 
 type Action =
     | { type: "attribute"; nodeId: string | null; surface: HoverAttributionState["hoverSurface"] }
@@ -31,7 +31,7 @@ type Action =
     | { type: "exitDone" }
     | { type: "reset" };
 
-function reducer(state: Phase, action: Action): Phase {
+export function reducer(state: Phase, action: Action): Phase {
     switch (action.type) {
         case "attribute": {
             if (action.nodeId) {
@@ -41,11 +41,11 @@ function reducer(state: Phase, action: Action): Phase {
                 // grace 期回到 owner → 取消 leaving; 换节点 → 直接换 owner
                 return { kind: "active", ownerId: action.nodeId, surface: action.surface };
             }
-            if (state.kind === "active") return { kind: "leaving", ownerId: state.ownerId };
+            if (state.kind === "active") return { kind: "leaving", ownerId: state.ownerId, since: Date.now() };
             return state;
         }
         case "graceExpired":
-            return state.kind === "leaving" ? { kind: "exiting", ownerId: state.ownerId } : state;
+            return state.kind === "leaving" ? { kind: "exiting", ownerId: state.ownerId, since: Date.now() } : state;
         case "exitDone":
             return state.kind === "exiting" ? { kind: "idle" } : state;
         case "reset":
@@ -54,7 +54,7 @@ function reducer(state: Phase, action: Action): Phase {
 }
 
 export const NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS = 380;
-const EXIT_HIDDEN_MS = 160;
+export const EXIT_HIDDEN_MS = 160;
 
 export function useCanvasHoverAttribution(options: {
     visibleNodes: CanvasNodeData[];
@@ -106,6 +106,16 @@ export function useCanvasHoverAttribution(options: {
             }
             return;
         }
+        // timer 冻结/后台节流兜底: 指针回归时若 leaving/exiting 已超期, 直接按应到的 phase 结算
+        if (current.kind === "leaving" && Date.now() - current.since >= NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS + EXIT_HIDDEN_MS) {
+            dispatch({ type: "graceExpired" });
+            dispatch({ type: "exitDone" });
+            return;
+        }
+        if (current.kind === "exiting" && Date.now() - current.since >= EXIT_HIDDEN_MS) {
+            dispatch({ type: "exitDone" });
+            return;
+        }
         // 归属为空: active → leaving(启动 grace)
         if (current.kind === "active") {
             dispatch({ type: "attribute", nodeId: null, surface: "outside" });
@@ -139,11 +149,14 @@ export function useCanvasHoverAttribution(options: {
                     lastSync = performance.now();
                     sample();
                 });
-                // rAF 冻结兜底: 33ms 内未触发则下次 mousemove 直接同步采样
+                // rAF 冻结/节流兜底: 33ms 内 rAF 未触发则取消并直接同步采样,
+                // 否则归属链在采样停摆期间整体冻结(hover 不进不退)
                 setTimeout(() => {
                     if (!fired && rafRef.current !== null) {
                         cancelAnimationFrame(rafRef.current);
                         rafRef.current = null;
+                        lastSync = performance.now();
+                        sample();
                     }
                 }, 33);
             }
