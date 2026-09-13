@@ -107,7 +107,7 @@ function AudioSettingsPortal({
     supplyNodeId?: string;
 }) {
     const width = 320;
-    const gap = 8;
+    const gap = 4;
     const margin = 12;
     const alignRight = placement?.endsWith("Right");
     const alignCenter = placement === "top" || placement === "bottom";
@@ -119,7 +119,6 @@ function AudioSettingsPortal({
         position: "fixed",
         // 微浮方向锚定触发器: 向下展开(top 定位)时锚点在上方, 微浮取负向;
         // transformOrigin 在纯位移动画语法下无作用, 一并退役。
-        "--panel-float-y": preferAbove ? "6px" : "-6px",
         zIndex: "var(--z-dialog-popover)",
         width,
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),

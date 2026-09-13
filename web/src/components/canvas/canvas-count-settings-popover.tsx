@@ -120,7 +120,7 @@ function CountSettingsPortal({
     closing: boolean;
     supplyNodeId?: string;
 }) {
-    const gap = 8;
+    const gap = 4;
     const margin = 12;
     const listMax = Math.min(LIST_VISIBLE_ROWS, Math.max(1, max)) * ROW + 8;
     const alignRight = placement?.endsWith("Right");
@@ -133,7 +133,6 @@ function CountSettingsPortal({
     const style = {
         position: "fixed",
         // 开合锚触发器(emil): 从触发器方向缩放; 向上翻转后锚点换 top。
-        "--panel-float-y": topPlacement ? "6px" : "-6px",
         zIndex: "var(--z-dialog-popover)",
         width: PANEL_WIDTH,
         left: Math.max(margin, Math.min(window.innerWidth - PANEL_WIDTH - margin, left)),

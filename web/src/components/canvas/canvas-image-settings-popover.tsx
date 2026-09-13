@@ -137,7 +137,7 @@ function ImageSettingsPortal({
     closing: boolean;
     supplyNodeId?: string;
 }) {
-    const gap = 8;
+    const gap = 4;
     const margin = 12;
     const width = Math.min(320, window.innerWidth - margin * 2);
     const alignRight = placement?.endsWith("Right");
@@ -150,7 +150,6 @@ function ImageSettingsPortal({
         position: "fixed",
         // 微浮方向锚定触发器: 向下展开(top 定位)时锚点在上方, 微浮取负向;
         // transformOrigin 在纯位移动画语法下无作用, 一并退役。
-        "--panel-float-y": preferAbove ? "6px" : "-6px",
         zIndex: "var(--z-dialog-popover)",
         width,
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
