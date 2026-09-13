@@ -27,7 +27,9 @@ export function AffordanceSurface({ level, children, className, style, role, ari
         opacity: level === "hidden" ? 0 : level === "micro" ? "var(--affordance-micro-opacity)" : 1,
         filter: level === "micro" ? "saturate(var(--affordance-micro-saturate))" : undefined,
         pointerEvents: level === "hidden" ? "none" : "auto",
-        transition: "opacity var(--motion-dur-base) var(--motion-ease-out), filter var(--motion-dur-base) var(--motion-ease-out)",
+        // micro↔full 的确认感与 canvas-panel-in(150ms)同速: base 250ms 在 hover→selected
+        // 的确认瞬间被感知为"慢半拍"(真机采样 op 0.45→1.0 实测 ~300ms 才到位)。
+        transition: "opacity var(--motion-dur-fast) var(--motion-ease-out), filter var(--motion-dur-fast) var(--motion-ease-out)",
         ...style,
     };
     return (
