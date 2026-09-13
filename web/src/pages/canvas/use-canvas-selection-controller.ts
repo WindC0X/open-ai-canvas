@@ -87,8 +87,6 @@ export function useCanvasSelectionController({
     const pendingSelectionPointRef = useRef<Position | null>(null);
     const selectionGestureRef = useRef<SelectionGestureState>({ phase: "idle" });
     const nodeDraggingRef = useRef(false);
-    // 拖拽视觉态(React)是否已进入: hasMoved 越阈值置位, mouseup 复位(与 isNodeDragging state 同步)。
-    const visualDraggingRef = useRef(false);
     const dragRef = useRef<DragState>({ ...EMPTY_DRAG_STATE });
     const frameDropIndexRef = useRef(buildCanvasFrameDropIndex([]));
     const draggedNodesRef = useRef<CanvasNodeData[]>([]);
@@ -209,10 +207,10 @@ export function useCanvasSelectionController({
         pendingNodeDragRef.current = { x: 0, y: 0 };
         alignmentContextRef.current = createNodeAlignmentContext(currentNodes, initialSelectedNodes);
         lastFrameDropCheckRef.current = 0;
-        // 拖拽视觉态延迟到实际移动(hasMoved, 3px 阈值)才进入: 纯点击的 mousedown→mouseup
-        // 若立即 isNodeDragging=true, 供给 guard(dragging→hidden)会让工具栏/composer 在
-        // 选中瞬间闪隐一次(hover→selected"跳一下"的根因)。DOM 预览同步由
-        // handleNodeDragMove 的 rAF 循环在越阈值后接管。
+        setIsNodeDragging(true);
+        setAlignmentGuides({});
+        setDragPreview({ x: 0, y: 0, nodeIds: draggedRenderNodeIdSet });
+        applyCanvasNodeDragPreview(containerRef.current, { x: 0, y: 0, nodeIds: draggedRenderNodeIdSet });
     }, [containerRef, historyPausedRef, nodesRef, onBatchConnectionTarget, onNodeBringToFront, onNodeClick, onNodeInteractionStart, selectedNodeIdsRef, setSelectedConnectionId, setSelectedNodeIds]);
 
     const finishNodeDrag = useCallback((clientX?: number, clientY?: number) => {
@@ -233,7 +231,6 @@ export function useCanvasSelectionController({
         historyPausedRef.current = false;
         nodeDraggingRef.current = false;
         applyCanvasNodeDragPreview(containerRef.current, null);
-        visualDraggingRef.current = false;
         setIsNodeDragging(false);
         setDragPreview(null);
         setAlignmentGuides({});
@@ -266,13 +263,6 @@ export function useCanvasSelectionController({
         const currentViewport = viewportRef.current;
         pendingNodeDragRef.current = { x: (event.clientX - dragRef.current.startX) / currentViewport.k, y: (event.clientY - dragRef.current.startY) / currentViewport.k };
         if (Math.abs(event.clientX - dragRef.current.startX) > 3 || Math.abs(event.clientY - dragRef.current.startY) > 3) dragRef.current.hasMoved = true;
-        // 越过拖拽阈值后一次性进入拖拽视觉态(isNodeDragging→供给 hidden 跟手,
-        // dragPreview 挂载预览链), 点击路径永不经过这里。
-        if (dragRef.current.hasMoved && !visualDraggingRef.current) {
-            visualDraggingRef.current = true;
-            setIsNodeDragging(true);
-            setDragPreview({ x: pendingNodeDragRef.current.x, y: pendingNodeDragRef.current.y, nodeIds: dragRef.current.draggedRenderNodeIdSet });
-        }
         if (dragFrameRef.current) return;
         dragFrameRef.current = requestAnimationFrame(() => {
             const aligned = calculateNodeAlignment(alignmentContextRef.current, pendingNodeDragRef.current, 7 / viewportRef.current.k);

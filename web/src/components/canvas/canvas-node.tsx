@@ -320,20 +320,12 @@ export const CanvasNode = React.memo(function CanvasNode({
                 data-node-selection={isSelected ? "selected" : hovered ? "hover" : "idle"}
                 style={{
                     background: hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
-                    // 固定占位：边框宽度恒 1px，选中描边由颜色(activeBorder)+内侧 0.5px 阴影环合成
-                    // （宽度 1→1.5px 的突变曾造成内容区重排, 用户实测 hover→selected"跳一下"）。
-                    // 生成中以旋转渐变环替代（.node-generating-border）。
+                    // 固定占位；选中以描边表达（原语语义对齐），避免边框宽度变化造成白边跳动。生成中以旋转渐变环替代（.node-generating-border）。
                     // hover 过渡: 快速指针进出供给间隙时 hovered 短暂翻转, 无过渡则边框/阴影跳变(用户实测"闪烁")。
                     transition: resizeActive ? "none" : "border-color 150ms var(--motion-ease-out), box-shadow 150ms var(--motion-ease-out)",
-                    border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "0" : `1px solid ${isSelected ? theme.node.activeBorder : theme.node.stroke}`,
+                    border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "0" : isSelected ? `1.5px solid ${theme.node.activeBorder}` : `1px solid ${theme.node.stroke}`,
                     // 安静化（DESIGN.md 表面补录）：阴影保持常规档，hover 才升到 hoverShadow。首次空白生成的边框让位给旋转渐变环。
-                    boxShadow: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent)
-                        ? "none"
-                        : isSelected
-                            ? `${theme.node.shadow}, inset 0 0 0 0.5px ${theme.node.activeBorder}`
-                            : hovered
-                                ? theme.node.hoverShadow
-                                : theme.node.shadow,
+                    boxShadow: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "none" : hovered && !isSelected ? theme.node.hoverShadow : theme.node.shadow,
                 }}
                 onMouseDown={(event) => onMouseDown(event, data.id)}
                 onDoubleClick={(event) => {
