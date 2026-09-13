@@ -141,6 +141,8 @@ import { useCanvasNodeEditor } from "./use-canvas-node-editor";
 import { useCanvasNodeOperations } from "./use-canvas-node-operations";
 import { useCanvasProjectLifecycle } from "./use-canvas-project-lifecycle";
 import { useCanvasRenderModel } from "./use-canvas-render-model";
+import { useCanvasHoverAttribution } from "./use-canvas-hover-attribution";
+import type { SupplyHit } from "@/lib/canvas/hover-attribution";
 import { useCanvasSelectionController } from "./use-canvas-selection-controller";
 import { useCanvasShortDrama } from "./use-canvas-short-drama";
 import { useCanvasStoryboard } from "./use-canvas-storyboard";
@@ -174,32 +176,8 @@ const CanvasDrawingEditorModal = lazy(() => import("@/components/canvas/canvas-d
 
 const NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS = 380;
 
-// 供给命中域 = 工具栏/面板本体 ∪ 间隙桥 ∪ 感应带(og-canvas: 桥是 hover 域的物理组成部分,
-// 慢速穿越 gap 时指针在桥上, 不算离开节点 hover 域)。所有 hover 域判定统一走这一个谓词,
-// 防止多处内联循环各自为政(历史上校准漏桥导致 hover 一票否决, 闪烁根因 R1)。
-function supplyRectsContain(nodeId: string, x: number, y: number): boolean {
-    for (const supply of document.querySelectorAll('[data-supply-node="' + CSS.escape(nodeId) + '"]')) {
-        const targets: Element[] = [];
-        // composer wrapper(canvas-node-panel-affordance) 是 inset-0 全屏坐标容器(inline pe:none 不拦截指针),
-        // 其矩形绝不是 hover 域 — 计入会让"任意空白画布点"判为供给命中(hover 常驻/层级抢夺的根源)。
-        // 只算真实交互面: 面板本体(pe:auto)、间隙桥、感应带; 工具栏(surface 自身 pe:auto)以 supply 本体计。
-        if (!supply.classList.contains("canvas-node-panel-affordance")) {
-            targets.push(supply);
-        } else {
-            const panel = supply.querySelector("[data-canvas-node-panel]");
-            if (panel) targets.push(panel);
-        }
-        const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
-        if (bridge) targets.push(bridge);
-        const senseBand = supply.querySelector("[data-canvas-panel-sense-band]");
-        if (senseBand) targets.push(senseBand);
-        for (const target of targets) {
-            const rect = target.getBoundingClientRect();
-            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return true;
-        }
-    }
-    return false;
-}
+// supplyRectsContain 已删(命中域内化为 hover-attribution 纯函数+状态机测量层)
+
 
 const NODE_STATUS_SUCCESS = "success" as const;
 const EMPTY_RESOURCE_REFERENCES: CanvasResourceReference[] = [];
@@ -323,7 +301,6 @@ function InfiniteCanvasPage() {
     const [size, setSize] = useState({ width: 1200, height: 720 });
     const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
     const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-    const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
     const [isMiniMapOpen, setIsMiniMapOpen] = useState(false);
     const [canvasAppearance, setCanvasAppearance] = useState<CanvasAppearance>(() => canvasAppearanceForTheme(colorTheme));
@@ -337,37 +314,16 @@ function InfiniteCanvasPage() {
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [tapNowImportOpen, setTapNowImportOpen] = useState(false);
     const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
-    const [toolbarHoverId, setToolbarHoverId] = useState<string | null>(null);
-    const [composerHoverId, setComposerHoverId] = useState<string | null>(null);
     const [toolbarMenuOpenId, setToolbarMenuOpenId] = useState<string | null>(null);
-    // 退场动画(og 两段式): hover 宽限到期先以 hidden 渲染保留(opacity 过渡), 播完再真正卸载
+    // hover 生命周期唯一写入者是下方 useCanvasHoverAttribution 状态机(2026-09-13 审计裁决):
+    // 事件层只喂坐标与边界时机, 状态机每帧用 hover-attribution 纯函数现算归属后同步到这两个镜像。
+    // exitingNodeId 为状态机 exiting 相投影(380ms grace → 160ms hidden 退场)。
+    const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [exitingNodeId, setExitingNodeId] = useState<string | null>(null);
+    const [hoverSurfaceId, setHoverSurfaceId] = useState<string | null>(null);
+    const [hoverSurfaceKind, setHoverSurfaceKind] = useState<"node" | "toolbar" | "composer" | "bridge" | "sense-band" | "outside">("outside");
 
-    // hover 串节点校准: 节点尺寸/位置变化(或快速滑动)时浏览器可能不派发旧节点 mouseleave,
-    // hoveredNodeId 残留指向指针已不在的节点; mousemove 节流校准以指针命中元素为准修正。
-    const hoveredNodeRef = useRef<string | null>(null);
-    hoveredNodeRef.current = hoveredNodeId;
-    useEffect(() => {
-        let lastCheck = 0;
-        const onMove = (event: MouseEvent) => {
-            const now = performance.now();
-            if (now - lastCheck < 120) return;
-            lastCheck = now;
-            // leave 正被宽限期宽限时由 grace 到点检查裁决, 校准不抢杀(否则桥+grace 的保活被一票否决)
-            if (hoverGraceRef.current) return;
-            const current = hoveredNodeRef.current;
-            if (!current) return;
-            const el = document.querySelector(`[data-node-id="${CSS.escape(current)}"]`);
-            if (!el) return;
-            const rect = el.getBoundingClientRect();
-            if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) return;
-            // 供给豁免统一走 supplyRectsContain(含间隙桥/感应带)
-            if (supplyRectsContain(current, event.clientX, event.clientY)) return;
-            setHoveredNodeId((c) => (c === current ? null : c));
-        };
-        window.addEventListener("mousemove", onMove, { passive: true });
-        return () => window.removeEventListener("mousemove", onMove);
-    }, []);
+    // (校准 effect 已删: hover 归属由 useCanvasHoverAttribution 状态机每帧现算, 无需校准补丁)
     // 活动任务面板实测高度(含展开态):右侧同锚的对象 HUD 用它动态下移,避免两浮层重叠(S06)。
     const [activeTaskPanelHeight, setActiveTaskPanelHeight] = useState(0);
     const [arkPrivateAssetUploadNodeId, setArkPrivateAssetUploadNodeId] = useState<string | null>(null);
@@ -2233,91 +2189,68 @@ const {
         ],
     );
 
-    // hover 离开的两段延迟(og-canvas 同构同值 380ms): 宽限期供给保持挂载, 慢速穿越间隙由间隙桥接住
-    // (结构化主路径); 宽限到期后 hover 清空并以 hidden 渲染保留 160ms 播退场动画, 之后才真正卸载。
-    // hover 实例与 selected 实例并存, 此处只影响 hover 第二实例的生命周期。
-    const hoverGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const exitGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const handleCanvasNodeHoverStart = useCallback((nodeId: string) => {
-        if (nodeDraggingRef.current) return;
-        if (hoverGraceRef.current) {
-            clearTimeout(hoverGraceRef.current);
-            hoverGraceRef.current = null;
-        }
-        if (exitGraceRef.current) {
-            clearTimeout(exitGraceRef.current);
-            exitGraceRef.current = null;
-        }
-        setExitingNodeId((current) => (current === nodeId ? null : current));
-        setHoveredNodeId(nodeId);
-    }, []);
-    // 最后已知指针位置: hover end 判定时供给几何检查需要(指针可能静止, mousemove 校准不触发)
-    const lastPointerRef = useRef<{ x: number; y: number }>({ x: -1, y: -1 });
-    // 供给 selfHover 几何校准: 供给被 transform 移走/快速滑动时浏览器不补发 mouseleave,
-    // toolbarHoverId/composerHoverId 残留会让对应供给恒 full — mousemove 按供给矩形同步清除。
-    useEffect(() => {
-        const onMove = (event: MouseEvent) => {
-            lastPointerRef.current = { x: event.clientX, y: event.clientY };
-            const check = (setter: React.Dispatch<React.SetStateAction<string | null>>) => {
-                setter((current) => {
-                    if (!current) return current;
-                    const supply = document.querySelector('[data-supply-node="' + CSS.escape(current) + '"]');
-                    if (!supply) return current;
-                    const target = supply.classList.contains("canvas-node-panel-affordance")
-                        ? supply.querySelector("[data-canvas-node-panel]")
-                        : supply;
-                    if (!target) return current;
+    // hover 生命周期唯一写入者: useCanvasHoverAttribution 状态机(2026-09-13 审计裁决)。
+    // 事件层(节点 enter/leave、桥 onEnter、供给 enter/leave、校准 effect)全部退役, 只保留坐标采样;
+    // 归属由 hover-attribution 纯函数每帧现算(节点 z 序+供给 kind), grace/退场为状态机内部 phase。
+    const attribution = useCanvasHoverAttribution({
+        visibleNodes: nodes,
+        stackRankOf: useCallback((nodeId: string) => {
+            const index = nodes.findIndex((item) => item.id === nodeId);
+            return index < 0 ? 0 : index;
+        }, [nodes]),
+        getSupplies: useCallback(() => {
+            const hits: SupplyHit[] = [];
+            for (const supply of document.querySelectorAll("[data-supply-node]")) {
+                const nodeId = supply.getAttribute("data-supply-node");
+                if (!nodeId) continue;
+                const level = (supply.getAttribute("data-affordance") ?? "hidden") as SupplyHit["level"];
+                const kind = supply.classList.contains("canvas-node-panel-affordance") ? "composer" : "toolbar";
+                const targets: Element[] = [];
+                if (kind === "composer") {
+                    const panel = supply.querySelector("[data-canvas-node-panel]");
+                    if (panel) targets.push(panel);
+                    const band = supply.querySelector("[data-canvas-panel-sense-band]");
+                    if (band) targets.push(band);
+                } else {
+                    targets.push(supply);
+                    const bridge = supply.querySelector("[data-node-toolbar-gap-bridge]");
+                    if (bridge) targets.push(bridge);
+                }
+                for (const target of targets) {
                     const rect = target.getBoundingClientRect();
-                    const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
-                    if (inside) return current;
-                    // 矩形判定兜底: 命中链就在本供给内(锚点刚更新/子元素覆盖时矩形可能滞后一帧)不误清
-                    const hit = document.elementFromPoint(event.clientX, event.clientY);
-                    if (hit && hit.closest('[data-supply-node="' + CSS.escape(current) + '"]')) return current;
-                    return null;
-                });
-            };
-            check(setToolbarHoverId);
-            check(setComposerHoverId);
-        };
-        window.addEventListener("mousemove", onMove, { passive: true, capture: true });
-        return () => window.removeEventListener("mousemove", onMove, { capture: true });
-    }, []);
-    const pointerOverSupply = useCallback((nodeId: string) => {
-        const pt = lastPointerRef.current;
-        if (pt.x < 0) return false;
-        return supplyRectsContain(nodeId, pt.x, pt.y);
-    }, []);
-    const handleCanvasNodeHoverEnd = useCallback((nodeId: string) => {
-        if (hoverGraceRef.current) clearTimeout(hoverGraceRef.current);
-        hoverGraceRef.current = setTimeout(() => {
-            hoverGraceRef.current = null;
-            // grace 到点时指针若已落在本节点供给(工具栏/composer)上, hover 保持不断 —
-            // 否则"移向供给途中"节点 mouseout 先到, 供给升级后 hover 域断裂。
-            if (pointerOverSupply(nodeId)) return;
-            setHoveredNodeId((current) => (current === nodeId ? null : current));
-            if (exitGraceRef.current) clearTimeout(exitGraceRef.current);
-            setExitingNodeId(nodeId);
-            exitGraceRef.current = setTimeout(() => {
-                exitGraceRef.current = null;
-                setExitingNodeId((current) => (current === nodeId ? null : current));
-            }, 160);
-        }, NODE_TOOLBAR_HOVER_SAFE_CLOSE_MS);
-    }, [pointerOverSupply]);
+                    if (rect.width <= 0 && rect.height <= 0) continue;
+                    hits.push({
+                        nodeId,
+                        kind: target === supply ? "toolbar" : target.getAttribute("data-canvas-panel-sense-band") !== null ? "sense-band" : target.classList.contains("canvas-node-toolbar-gap-bridge") || target.hasAttribute("data-node-toolbar-gap-bridge") ? "bridge" : "composer",
+                        rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+                        level,
+                    });
+                }
+            }
+            return hits;
+        }, []),
+        enabled: true,
+    });
+    // 机器输出 → 本地镜像(消费面 render model/derive*/world layers 零改动); 外部 setter 保留为边界时机命令。
+    useEffect(() => {
+        setHoveredNodeId(attribution.hoveredNodeId);
+        setExitingNodeId(attribution.exitingNodeId);
+        setHoverSurfaceId(attribution.hoverSurface === "outside" ? null : attribution.hoveredNodeId);
+        setHoverSurfaceKind(attribution.hoverSurface);
+    }, [attribution.hoveredNodeId, attribution.exitingNodeId, attribution.hoverSurface]);
+    // 边界时机命令: 拖拽/框选/取消选中等外部强制清 hover 时喂 reset 给状态机
+    const hoverMachineResetRef = useRef<(() => void) | null>(null);
+    hoverMachineResetRef.current = () => {
+        // 状态机内部无公开 reset — 用"指针置空 + 归属空"等价: 由事件层在未来版本直连; 当前以镜像清空兜底
+        setHoveredNodeId(null);
+        setExitingNodeId(null);
+    };
+    // 兼容桩: 旧 onNodeHoverEnd 事件在状态机接管后是冗余信息(机器每帧现算归属), 第 4 步随事件链一并删除
+    const handleCanvasNodeHoverEndCompat = useCallback((_nodeId: string) => {}, []);
+    // 旧事件层写入者已全部退役(状态机唯一写入, 裁决第 2 步): 桩保 prop 兼容, 第 4 步随回调链删除
+    const handleCanvasNodeHoverStart = useCallback((_nodeId: string) => {}, []);
+    // (lastPointerRef/校准#2/pointerOverSupply/hoverEnd 定时器/handleSupplyLeave 已删: 全部内化为状态机)
 
-    // 供给链最终 leave: 节点 mouseleave 因供给豁免跳过 hoverEnd 后, hover 归属改由供给链续期;
-    // 指针离开所有供给且不在节点矩形内时, 由这里结束 hover 生命周期(否则 hoveredNodeId 永久残留)。
-    const handleSupplyLeave = useCallback((nodeId: string, event?: React.MouseEvent) => {
-        const x = event?.clientX ?? lastPointerRef.current.x;
-        const y = event?.clientY ?? lastPointerRef.current.y;
-        if (x < 0) return;
-        const el = document.querySelector('[data-node-id="' + CSS.escape(nodeId) + '"]');
-        if (el) {
-            const rect = el.getBoundingClientRect();
-            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return;
-        }
-        if (supplyRectsContain(nodeId, x, y)) return;
-        handleCanvasNodeHoverEnd(nodeId);
-    }, [handleCanvasNodeHoverEnd]);
 
     // 微供给双实例(og-canvas pinned+hover 同构): selected 节点的工具栏/composer 常驻 full,
     // hover 其它节点时第二实例微浮现 —— 两者并存互不抢占(单例会抢走选中节点的常驻供给)。
@@ -2337,7 +2270,7 @@ const {
     const selectedToolbarLevel: AffordanceLevel = !toolbarNode || emotionNodeId
         ? "hidden"
         : deriveToolbarAffordance(
-            { nodeId: toolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: toolbarHoverId === toolbarNode.id },
+            { nodeId: toolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === toolbarNode.id && hoverSurfaceKind === "toolbar" },
             toolbarGuards,
         );
     const hoverToolbarLevel: AffordanceLevel = !hoverToolbarNode || emotionNodeId
@@ -2345,19 +2278,19 @@ const {
         : toolbarMenuOpenId === hoverToolbarNode.id
             ? "full"
             : deriveToolbarAffordance(
-                { nodeId: hoverToolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: toolbarHoverId === hoverToolbarNode.id },
+                { nodeId: hoverToolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverToolbarNode.id && hoverSurfaceKind === "toolbar" },
                 toolbarGuards,
             );
     const selectedComposerLevel: AffordanceLevel = !selectedPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: composerHoverId === selectedPanelNode.id, siblingHover: toolbarHoverId === selectedPanelNode.id },
+            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === selectedPanelNode.id && hoverSurfaceKind === "composer", siblingHover: hoverSurfaceId === selectedPanelNode.id && (hoverSurfaceKind === "bridge" || hoverSurfaceKind === "sense-band") },
             composerGuards,
         );
     const hoverComposerLevel: AffordanceLevel = !hoverPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: composerHoverId === hoverPanelNode.id, siblingHover: toolbarHoverId === hoverPanelNode.id },
+            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverPanelNode.id && hoverSurfaceKind === "composer", siblingHover: hoverSurfaceId === hoverPanelNode.id && (hoverSurfaceKind === "bridge" || hoverSurfaceKind === "sense-band") },
             composerGuards,
         );
     const retryCanvasNode = useCallback(
@@ -2585,7 +2518,7 @@ onViewportChange={handleViewportChange}
                                     }}
                                     onNodeMouseDown={handleNodeMouseDown}
                                     onNodeHoverStart={handleCanvasNodeHoverStart}
-                                    onNodeHoverEnd={handleCanvasNodeHoverEnd}
+                                    onNodeHoverEnd={handleCanvasNodeHoverEndCompat}
                                     onConnectStart={handleConnectStart}
                                     onNodeResize={handleNodeResize}
                                     onToggleFrame={handleFrameToggle}
@@ -2738,11 +2671,6 @@ onViewportChange={handleViewportChange}
                             data-supply-node={instance.node.id}
                             className="canvas-node-panel-affordance absolute inset-0"
                             style={{ pointerEvents: "none" }}
-                            onMouseEnter={() => { setComposerHoverId(instance.node.id); handleCanvasNodeHoverStart(instance.node.id); }}
-                            onMouseLeave={(event) => {
-                                setComposerHoverId((current) => (current === instance.node.id ? null : current));
-                                handleSupplyLeave(instance.node.id, event);
-                            }}
                         >
                             <CanvasNodePanelOverlay
                                 node={instance.node}
@@ -2845,8 +2773,6 @@ onViewportChange={handleViewportChange}
                             workspaceMode={workspaceMode}
                         viewport={viewport}
                         containerRef={containerRef}
-                            onHoverChange={(hovering) => setToolbarHoverId((current) => (hovering ? instance.node.id : current === instance.node.id ? null : current))}
-                            onSupplyLeave={(nodeId, event) => handleSupplyLeave(nodeId, event)}
                             onMenuOpenChange={(open) => setToolbarMenuOpenId((current) => (open ? instance.node.id : current === instance.node.id ? null : current))}
                         onInfo={(node) => (node.metadata?.workflowKind === "character" && node.metadata.characterAssetId ? openTextNodeEditor(node) : setInfoNodeId(node.id))}
                         onEditText={openTextNodeEditor}
