@@ -130,7 +130,8 @@ export function useCanvasHoverAttribution(options: {
     }, [clearTimers]);
 
     useEffect(() => {
-        // rAF 合帧为主; rAF 被冻结/节流时(CDP 调试附着、后台节流)退化为 16ms 时间戳节流的同步采样,
+        // rAF 合帧为主; rAF 停发时(标签不可见: 后台/遮挡/最小化, Chrome 对 hidden 直接停发,
+        // debugger 附着无关)退化为 16ms 时间戳节流的同步采样,
         // 保证归属链路在任何环境下都有前进(否则 hover 生命周期在采样停摆时永久冻结)。
         let lastSync = 0;
         const runSample = () => {
@@ -149,7 +150,7 @@ export function useCanvasHoverAttribution(options: {
                     lastSync = performance.now();
                     sample();
                 });
-                // rAF 冻结/节流兜底: 33ms 内 rAF 未触发则取消并直接同步采样,
+                // rAF 停发兜底(hidden 标签): 33ms 内 rAF 未触发则取消并直接同步采样,
                 // 否则归属链在采样停摆期间整体冻结(hover 不进不退)
                 setTimeout(() => {
                     if (!fired && rafRef.current !== null) {
