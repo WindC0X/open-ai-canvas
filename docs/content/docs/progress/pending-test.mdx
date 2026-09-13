@@ -1787,6 +1787,10 @@ v2（用户反馈首版难看后重做）：菜单改用 antd Dropdown（placeme
 
 节点悬浮工具栏接入 flora 玻璃材质族（rgba(32,32,32,.9)+blur16+radius14+无阴影，与模型菜单/参数面板同源），显隐生命周期替换为微供给状态机（`lib/canvas/affordance.ts` 纯函数 + `AffordanceSurface` 原语）：idle 不显示 / hover 节点双微（0.45 不透明+降饱和）/ hover 到某供给该供给全显（只动 opacity/filter，渐显不变形）/ 选中即全显常驻。composer 面板随 hover 未选中节点微浮现（用户拍板完整面板微浮现），与选中面板并存（不同节点）。旧 `toolbarNodeId`+220ms timer 双轨状态机退役；220ms 宽限语义保留为 hover 离开的延迟清空（物理间隙期供给保持挂载）。工具栏入场动画 canvas-panel-in 退役（与 opacity 过渡互压）。9 格状态表真机验证 7 格通过（CDP hidden 限制下框选/拖拽 2 格由单测覆盖）。全量测试基线对照：本任务零新增产品失败；新增测试文件改变 bun 模块加载顺序，暴露 17 个顺序敏感文件的预存状态泄漏失败（editor slot/materializer/Agent store/诊断缓冲，单独跑全过），登记为测试基建债务。
 
+### composer 升级大面积失败根修（2026-09-13，用户复验"有时可以触发有时不行，不行占绝大部分"）
+
+上一轮只打通了感应带入口，但感应带只有面板顶部 20px 且 micro 主体仍被排除出归属候选：指针一次 mousemove 从节点直落面板主体中部时跳过窄带，归属为空 → 380ms 后面板退场——慢速滑动必然经过窄带所以偶尔成功，正常速度大面积失败，完美解释"时好时坏且坏占多数"。根修：micro composer 面板主体回归归属候选——面板微态是可见面（0.45 半透明），不属于原 M2 要排除的"inset-0 隐形 wrapper 视觉空白域"；主体保持 pe:none（点击穿透不变），但 mousemove 按矩形归属 → 指针到达主体即升级 full，几何归属域与 full 态点击域一致。劫持防线复核：面板覆盖邻居时供给优先仍归本节点；快扫穿越面板区后正确收敛到目标节点。真机：节点直落主体中部 → full(opacity 1)、往返循环 full、邻居重叠区归供给节点、快扫三连跳收敛。单测同步修订（原 M2 排除断言反转为进候选断言）。
+
 ### 重叠区误归属与 composer 不升级双根修（2026-09-13，用户复验两截图反馈）
 
 用户复验发现两类残留：(1) 指针在上层节点视觉内贴近重叠边界仍触发底层节点 hover，且层级互换后行为不对称——根因是归属纯函数的 `stackRankOf` 用 nodes 数组序，而真实绘制序由 `sortCanvasNodesByStackOrder`（交互置顶 nodeStackOrder）+ 选中节点 z-node-active(20) 两通道决定，数组序≠视觉序导致遮挡归属说谎；修复为 stackRank 复刻绘制序（排序后数组序 + 选中提升 nodes.length）。(2) hover 态指针移到 composer 面板不升级全显（工具栏正常）——根因是 M2 裁决落地时 micro composer 主体排除出候选后，唯一升级入口感应带的 surface='sense-band' 与派生 selfHover 判定 `hoverSurfaceKind==='composer'` 不匹配，升级链被切断；修复为 sense-band 计入 composer selfHover（bridge 保持 siblingHover），升级链 节点→桥(保持 micro)→感应带(full)→full 主体(kind=composer 续持) 打通。真机回归：重叠区(两节点 ai86j/5vjhr 交叠 x794-906)归属视觉上层 5vjhr、出界 x920 归 ai86j、感应带→面板 full(主体 opacity 1)、主体→节点回 micro 双向切换。
