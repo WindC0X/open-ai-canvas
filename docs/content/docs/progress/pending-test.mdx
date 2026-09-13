@@ -1787,6 +1787,10 @@ v2（用户反馈首版难看后重做）：菜单改用 antd Dropdown（placeme
 
 节点悬浮工具栏接入 flora 玻璃材质族（rgba(32,32,32,.9)+blur16+radius14+无阴影，与模型菜单/参数面板同源），显隐生命周期替换为微供给状态机（`lib/canvas/affordance.ts` 纯函数 + `AffordanceSurface` 原语）：idle 不显示 / hover 节点双微（0.45 不透明+降饱和）/ hover 到某供给该供给全显（只动 opacity/filter，渐显不变形）/ 选中即全显常驻。composer 面板随 hover 未选中节点微浮现（用户拍板完整面板微浮现），与选中面板并存（不同节点）。旧 `toolbarNodeId`+220ms timer 双轨状态机退役；220ms 宽限语义保留为 hover 离开的延迟清空（物理间隙期供给保持挂载）。工具栏入场动画 canvas-panel-in 退役（与 opacity 过渡互压）。9 格状态表真机验证 7 格通过（CDP hidden 限制下框选/拖拽 2 格由单测覆盖）。全量测试基线对照：本任务零新增产品失败；新增测试文件改变 bun 模块加载顺序，暴露 17 个顺序敏感文件的预存状态泄漏失败（editor slot/materializer/Agent store/诊断缓冲，单独跑全过），登记为测试基建债务。
 
+### "CDP 冻结 rAF" 归因修正（2026-09-13，跨会话复核后认账）
+
+另一会话的质疑经本机实测成立：**chrome.debugger 附着本身不冻结 rAF**——同一画布 tab 在 debugger 附着下，`document.visibilityState === "visible"` 时 rAF 61Hz / setTimeout 63Hz 并行满帧率（2s 窗口 121 帧 vs 125 tick）。此前多轮记录的"CDP 附着导致 rAF 冻结/rc-motion 卡 prepare 帧"归因错误，真正的机理是 **Chrome 对不可见标签停发 rAF**（hidden 即归零，窗口被遮挡/最小化同样触发 hidden）；本会话的验证大多落在 hidden 状态的 tab 上，所以读到动画帧停摆、rc-motion 卡在 appear-prepare。同时确认对方指出的死锁链：对 hidden 标签发 awaitPromise 的 rAF 探针 promise 永不 resolve → attach 永不释放 → 后续所有命令报 "Another debugger is already attached"（本会话曾多次重启桥，根因即此）。修正后的动画验收姿势：`Page.bringToFront` → 断言 visibilityState==="visible"（hidden 直接拒绝执行探针）→ rAF 帧间隔分布探针（Promise.race 3s 超时兜底，量 min/avg/p95/掉帧数）。实测注意：visible 状态会被用户正常使用随时打断（第一跑 avg 20.5ms/p95 50ms 为瞬时负载，复测 61Hz），探针需自带超时与 skip 分支。
+
 ### 面板"贴合后瞬间偏移/间隔/不贴合"根修（2026-09-13 深夜，用户 12 图复验）
 
 用户 12 张截图三组症状（工具栏菜单贴合后瞬间上移盖住工具栏 / 模型菜单与一键引用打开瞬间间隔后向下偏移 / 自建面板本身不贴合）统一根因：**6px 微浮位移在"面板紧贴触发器"的几何下被读作位置跳动**——向上展开的菜单（placement top*）prepare/动画起点 +6px 使菜单底越过触发器顶 3px（真机实测 menuBottom 690 vs pillTop 693）；向下展开的菜单 -6px 起点使菜单顶越过工具栏底 2px；自建面板另有 gap 8px 视觉间隔。修复：(1) canvas-panel-in/out 删除全部 translateY 项改纯淡入淡出（渐显不变形契约的最终形态——该契约 2026-09-12 只对 affordance 执行了，面板动画漏改）；(2) prepare 块不再钉 transform（帧不可见则值无意义，类序列异常时 ±6px 残留为稳定偏移的风险被拔除，真机复测 prepare 帧 transform=0/none）；(3) 自建气泡 gap 8→4。真机复测：工具栏菜单对按钮 gap 4、对工具栏不重叠；模型菜单对 pill gap 3 恒定；份数气泡贴上方 4px；三处 prepare/静止帧 transform 均无位移。真机环境限制：rAF 冻结无法播放动画，动画流畅度与"无跳动"的最终目测由用户前台确认。
