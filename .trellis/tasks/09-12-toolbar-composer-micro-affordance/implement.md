@@ -47,3 +47,11 @@
 
 ## 回退点
 每切片一个 commit；S3/S4 接线可独立 revert；S5 删除旧状态机前 S3/S4 已可独立回退到 timer 版。
+
+### S7-S10 工作流审计裁决迁移（2026-09-13，四视角审计后追加）
+- [x] S7 归属纯函数 `lib/canvas/hover-attribution.ts`（供给优先级 toolbar>sense-band>bridge>composer，M2 micro 面板主体排除，节点 stackRank 自由遮挡）+11 单测。Commit: `feat(canvas): hover归属单一权威纯函数...`
+- [x] S8 状态机 hook `use-canvas-hover-attribution.ts`（mousemove→rAF+33ms 兜底采样→reducer idle/active/leaving 380ms/exiting 160ms）；project.tsx 三套校准/事件写入链/宽限计时器/handleSupplyLeave/pointerOverSupply 全删，hoveredNodeId/exitingNodeId 收敛为状态机单向投影。Commit: `refactor(canvas): hover生命周期收敛为状态机唯一写入者...`
+- [x] S9 canvas-node 本地 hovered/双向校准/enter-leave 链删除，isHovered 由 world layers 下发 + React.memo；shared 页 onLocalHoverChange 本地自持。Commit: `refactor(canvas): 节点侧hover双写退役...`
+- [x] S10 供给回调链退役（桥/感应带删 onEnter），桥宽 clamp 节点宽、感应带宽 clamp 模型宽；toolbarMenuOpenId 反向边（实例卸载/节点删除对账）；M3 键盘焦点通道（focusToolbarId 并入 selfHover）。Commits: `refactor(canvas): 供给回调链退役+宽度收窄...` / `feat(canvas): toolbarMenuOpenId反向边+M3键盘焦点通道...`
+- [x] 真机 11 场景回归：idle 空/hover 双微/工具栏 full+面板 micro/桥上>380ms 域连续/出域完整退场/micro 面板主体不劫持归属/选中双 full 常驻/离指针保持 full/双实例共存/focusin micro→full 升级。
+- [x] pending-test.mdx 登记（1facc4f5）。
