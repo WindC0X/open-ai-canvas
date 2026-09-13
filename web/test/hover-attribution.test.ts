@@ -107,8 +107,21 @@ describe("重叠归属与真实绘制序(2026-09-13 回归)", () => {
             { nodeId: "b", kind: "composer" as const, rect: rect(50, 50, 450, 350), level: "micro" as const, stackRank: 1 },
         ];
         expect(attributeHover([a, b], supplies, 200, 200).nodeId).toBe("b");
-        // 反转 stackRank 后归属跟随视觉上层
+        // 反转 stackRank 后仍归 b: level 决胜(micro 意图面)高于 stackRank — full 常驻面不给邻居升级行程让位会截断升级
         const supplies2 = supplies.map((s0) => ({ ...s0, stackRank: s0.stackRank === 0 ? 1 : 0 }));
-        expect(attributeHover([a, b], supplies2, 200, 200).nodeId).toBe("a");
+        expect(attributeHover([a, b], supplies2, 200, 200).nodeId).toBe("b");
+    });
+
+    test("selected-full composer 几何盖住 hover-micro composer 时, hover 节点赢(意图让路规则, 2026-09-13)", () => {
+        // 真实场景: selected 节点 A 的 full 面板(绘制序最高)横在 hover 节点 B 的面板位置上方
+        const nodeRect = (id: string) => ({ id, rect: rect(0, 0, 100, 100), stackRank: 0 });
+        const supplies = [
+            { nodeId: "a", kind: "composer" as const, rect: rect(0, 0, 855, 180), level: "full" as const, stackRank: 11 },
+            { nodeId: "b", kind: "composer" as const, rect: rect(100, 0, 955, 180), level: "micro" as const, stackRank: 3 },
+        ];
+        // 指针在重叠区(仅 B micro 可达): 归 B, 保住升级路径
+        expect(attributeHover([nodeRect("a"), nodeRect("b")], supplies, 700, 90).nodeId).toBe("b");
+        // 指针在 A full 面板独占区: 归 A(操作不受影响)
+        expect(attributeHover([nodeRect("a"), nodeRect("b")], supplies, 50, 90).nodeId).toBe("a");
     });
 });

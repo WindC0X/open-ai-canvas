@@ -50,14 +50,22 @@ export function attributeHover(nodes: NodeHit[], supplies: SupplyHit[], x: numbe
     // (点击穿透), 但 mousemove 采样按矩形归属 → 指针到达主体即升级 full, 几何域与
     // full 态点击域一致。多供给重叠时按 kind 优先级。
     const kindPriority: Record<SupplyKind, number> = { toolbar: 3, "sense-band": 2, bridge: 1, composer: 0 };
-    let best: { nodeId: string; surface: HoverSurface; priority: number; stackRank: number } | null = null;
+    let best: { nodeId: string; surface: HoverSurface; priority: number; stackRank: number; levelPriority: number } | null = null;
     for (const supply of supplies) {
         if (supply.level === "hidden") continue;
         if (!rectContains(supply.rect, x, y)) continue;
+        // 决胜序: kind > level > stackRank。
+        // level 决胜(micro 优先于 full): selected 节点的 full composer 常驻浮层会几何盖住相邻
+        // hover 节点的 micro composer — 若 full 优先, 指针移向 hover 节点面板的整条升级路径都会被
+        // selected 面板截走(hover 节点"回到默认态")。micro 优先 = 用户正在接近的意图面让路规则;
+        // 指针真正落在 full 面板的独占区(非重叠区)时仍归 full 面板, 操作不受影响。
+        const levelPriority = supply.level === "micro" ? 1 : 0;
         const priority = kindPriority[supply.kind];
-        // 同 kind 的不同节点供给重叠时(DOM 序与视觉序无关), 归属绘制序更高的节点
-        if (!best || priority > best.priority || (priority === best.priority && supply.stackRank > best.stackRank)) {
-            best = { nodeId: supply.nodeId, surface: supply.kind, priority, stackRank: supply.stackRank };
+        if (!best
+            || priority > best.priority
+            || (priority === best.priority && levelPriority > best.levelPriority)
+            || (priority === best.priority && levelPriority === best.levelPriority && supply.stackRank > best.stackRank)) {
+            best = { nodeId: supply.nodeId, surface: supply.kind, priority, stackRank: supply.stackRank, levelPriority };
         }
     }
     if (best) return { nodeId: best.nodeId, surface: best.surface };
