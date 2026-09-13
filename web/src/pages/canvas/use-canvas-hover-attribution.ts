@@ -199,5 +199,14 @@ export function useCanvasHoverAttribution(options: {
         }
     }, [phase]);
 
-    return state;
+    // 边界重置: mirror(hoveredNodeId 等)被渲染层在反选/交互开始等时机直打 null 时,
+    // 状态机必须同步复位——否则状态机停留 active 且归属采样不再变化, 单向 mirror
+    // effect 永不重跑, hover 在指针原地(未离节点)时卡死无法重建。
+    const resetBoundary = useCallback(() => {
+        clearTimers();
+        pointerRef.current = null;
+        dispatch({ type: "reset" });
+    }, [clearTimers]);
+
+    return { state, resetBoundary };
 }

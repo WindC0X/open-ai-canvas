@@ -1180,10 +1180,13 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         setDialogNodeId(node.id);
     }, [nodesRef]);
 
+    // 归属状态机在下方 hook 处创建, 此处用 ref 桥接避免声明顺序依赖(运行时按需取最新)。
+    const resetHoverBoundaryRef = useRef<(() => void) | null>(null);
     const handleCanvasDeselect = useCallback(() => {
         setContextMenu(null);
         setHoveredNodeId(null);
         setDialogNodeId(null);
+        resetHoverBoundaryRef.current?.();
     }, []);
 
     const { alignmentGuides, cancelSelectionBox, deselectCanvas, dragPreview, frameDropTargetId, handleCanvasMouseDown, handleNodeMouseDown, isNodeDragging, nodeDraggingRef, selectionBoundsElementRef, selectionBox } = useCanvasSelectionController({
@@ -2247,7 +2250,7 @@ const {
     // hover 生命周期唯一写入者: useCanvasHoverAttribution 状态机(2026-09-13 审计裁决)。
     // 事件层(节点 enter/leave、桥 onEnter、供给 enter/leave、校准 effect)全部退役, 只保留坐标采样;
     // 归属由 hover-attribution 纯函数每帧现算(节点 z 序+供给 kind), grace/退场为状态机内部 phase。
-    const attribution = useCanvasHoverAttribution({
+    const { state: attribution, resetBoundary: resetHoverAttributionBoundary } = useCanvasHoverAttribution({
         visibleNodes: nodes,
         stackRankOf: useCallback((nodeId: string) => stackRankMap.get(nodeId) ?? 0, [stackRankMap]),
         getSupplies: useCallback(() => {
@@ -2305,13 +2308,10 @@ const {
         setHoverSurfaceId(attribution.hoverSurface === "outside" ? null : attribution.hoveredNodeId);
         setHoverSurfaceKind(attribution.hoverSurface);
     }, [attribution.hoveredNodeId, attribution.exitingNodeId, attribution.hoverSurface]);
-    // 边界时机命令: 拖拽/框选/取消选中等外部强制清 hover 时喂 reset 给状态机
-    const hoverMachineResetRef = useRef<(() => void) | null>(null);
-    hoverMachineResetRef.current = () => {
-        // 状态机内部无公开 reset — 用"指针置空 + 归属空"等价: 由事件层在未来版本直连; 当前以镜像清空兜底
-        setHoveredNodeId(null);
-        setExitingNodeId(null);
-    };
+    // 边界时机命令: 反选/删除节点等 mirror 直清点必须同时复位状态机——
+    // 否则状态机停留 active 而归属采样不再变化, mirror effect 永不重跑,
+    // 指针原地时 hover 卡死无法重建(Esc 反选后原地再 hover 复现)。
+    resetHoverBoundaryRef.current = resetHoverAttributionBoundary;
     // 兼容桩: 旧 onNodeHoverEnd 事件在状态机接管后是冗余信息(机器每帧现算归属), 第 4 步随事件链一并删除
     const handleCanvasNodeHoverEndCompat = useCallback((_nodeId: string) => {}, []);
     // (lastPointerRef/校准#2/pointerOverSupply/hoverEnd 定时器/handleSupplyLeave 已删: 全部内化为状态机)
