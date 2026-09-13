@@ -87,7 +87,9 @@ export function useCanvasSelectionController({
     const pendingSelectionPointRef = useRef<Position | null>(null);
     const selectionGestureRef = useRef<SelectionGestureState>({ phase: "idle" });
     const nodeDraggingRef = useRef(false);
-    // 拖拽视觉态(React)是否已进入: hasMoved 越阈值置位, mouseup 复位(与 isNodeDragging state 同步)。
+    // 拖拽视觉态(React)是否已进入: hasMoved 越阈值置位(handleNodeDragMove), 与 isNodeDragging
+    // state 生命周期必须一致——当前复位点: finishNodeDrag(mouseup/pointercancel/blur 全走它)。
+    // 新增拖拽退出路径时必须同步复位本 ref, 否则下次拖拽的"一次性进入"被跳过(视觉态丢失)。
     const visualDraggingRef = useRef(false);
     const dragRef = useRef<DragState>({ ...EMPTY_DRAG_STATE });
     const frameDropIndexRef = useRef(buildCanvasFrameDropIndex([]));
