@@ -33,6 +33,14 @@ describe("hover 状态机 reducer", () => {
         expect(back).toEqual({ kind: "active", ownerId: "a", surface: "toolbar" });
     });
 
+    test("exiting 相归属回到 owner → 直接复活 active(不再退场)", () => {
+        const leaving = reducer({ kind: "active", ownerId: "a", surface: "node" }, { type: "attribute", nodeId: null, surface: "outside" });
+        const exiting = reducer(leaving, { type: "graceExpired" });
+        expect(exiting.kind).toBe("exiting");
+        const revived = reducer(exiting, { type: "attribute", nodeId: "a", surface: "composer" });
+        expect(revived).toEqual({ kind: "active", ownerId: "a", surface: "composer" });
+    });
+
     test("归属换节点 → 直接换 owner(被压节点让位)", () => {
         const next = reducer({ kind: "active", ownerId: "a", surface: "node" }, { type: "attribute", nodeId: "b", surface: "node" });
         expect(next).toEqual({ kind: "active", ownerId: "b", surface: "node" });

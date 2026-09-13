@@ -96,12 +96,12 @@ export function useCanvasHoverAttribution(options: {
         }
         const attribution = attributeHover(nodeHits, supplies(), pointer.x, pointer.y);
         const current = phaseRef.current;
-        if (attribution.nodeId && (current.kind === "idle" || current.kind === "leaving" || current.kind === "active" || current.kind === "exiting")) {
-            const changed = current.kind === "idle" || "ownerId" in current && current.ownerId !== attribution.nodeId;
-            if (changed) {
+        if (attribution.nodeId) {
+            // 同 owner 但 phase 不在 active(leaving grace 期回 owner / exiting 退场期回 owner):
+            // 必须显式 dispatch 让 reducer 把相推回 active — 否则 leaving 卡死到 grace 到点,
+            // 面板在指针已经回到供给的情况下仍被退场卸载(2026-09-13 用户复验的"升级失败"真根因)。
+            if (current.kind !== "active" || current.ownerId !== attribution.nodeId || current.surface !== attribution.surface) {
                 clearTimers();
-                dispatch({ type: "attribute", nodeId: attribution.nodeId, surface: attribution.surface });
-            } else if (current.kind === "active" && current.surface !== attribution.surface) {
                 dispatch({ type: "attribute", nodeId: attribution.nodeId, surface: attribution.surface });
             }
             return;
