@@ -8249,9 +8249,11 @@
     @keyframes canvas-panel-out {
         from {
             opacity: 1;
+            transform: scale(1);
         }
         to {
             opacity: 0;
+            transform: scale(0.96);
         }
     }
 
@@ -8391,8 +8393,13 @@
     .canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter {
         animation: affordance-expand-out 160ms var(--motion-ease-in) forwards;
     }
-    [data-affordance="micro"],
-    [data-affordance="full"] {
+    /* 供给本体(canvas-node-toolbar / canvas-node-panel-affordance)的进场渐显。
+       不用裸 [data-affordance] 属性选择器: 归属域标注(设置气泡面板也带该属性以进 hover
+       归属域)与视觉进场动画是两回事, 裸属性会把气泡的 canvas-panel-in 开合动画覆盖掉。 */
+    .canvas-node-toolbar[data-affordance="micro"],
+    .canvas-node-toolbar[data-affordance="full"],
+    .canvas-node-panel-affordance[data-affordance="micro"],
+    .canvas-node-panel-affordance[data-affordance="full"] {
         animation: affordance-in 180ms var(--motion-ease-out) backwards;
     }
 
@@ -11119,18 +11126,23 @@
     /* 动画只用位移不用缩放: scale 的几何效应 = 远离 origin 端的边位移 高度×(1-scale),
        大面板(模型菜单 552px)在 top placement 下表现为"打开瞬间与触发按钮间隔大,
        动画中底边下沉贴上"的跳变; 纯 translateY(6px) 与 origin 无关, 两端零跳变。 */
-    /* 面板开合 = 纯淡入淡出(渐显不变形, 2026-09-12 契约): 任何位移在"面板紧贴触发器"的
-       几何下都会被读作位置跳动/错位(6px 浮入曾让贴合菜单"瞬间偏移盖住工具栏")。
-       位置由定位层保证恒定, 动画只动透明度与饱和度。 */
+    /* 面板开合 = fade + 轻微 scale 收放(锚定触发器方向的 transform-origin)。
+       契约澄清(2026-09-13 用户): "渐显不变形"只约束供给本体(工具栏/composer), 选项面板
+       应有可感知的开合动画; 但绝对方向位移(±6px translateY)在贴合几何下会被读作位置跳动
+       (曾致"瞬间偏移盖住工具栏"), scale 以 origin 为锚对称收放, 终态与静止态几何一致,
+       不可产生偏移。origin: antd 浮层由 dom-align 原生设置(触发器方向); 自建气泡按
+       placement 传 transformOrigin。 */
     @keyframes canvas-panel-in {
         from {
             opacity: 0;
             filter: saturate(0.92);
+            transform: scale(0.96);
         }
 
         to {
             opacity: 1;
             filter: saturate(1);
+            transform: scale(1);
         }
     }
 

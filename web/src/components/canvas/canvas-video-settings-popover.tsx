@@ -125,6 +125,8 @@ function VideoSettingsPortal({
     const preferAbove = aboveTop >= 240;
     const style = {
         position: "fixed",
+        // 开合 scale 动画的锚点=触发器方向(canvas-panel-in/out 从 origin 收放)。
+        transformOrigin: placement?.endsWith("Right") ? "bottom right" : placement === "top" || placement === "bottom" ? "bottom center" : "bottom left",
         // 微浮方向锚定触发器: 向下展开(top 定位)时锚点在上方, 微浮取负向;
         // transformOrigin 在纯位移动画语法下无作用, 一并退役。
         zIndex: "var(--z-dialog-popover)",

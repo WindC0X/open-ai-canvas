@@ -132,6 +132,8 @@ function CountSettingsPortal({
     const topPlacement = desiredTop ? buttonRect.top - margin * 2 >= panelNaturalHeight : false;
     const style = {
         position: "fixed",
+        // 开合 scale 动画锚点=触发器方向(topPlacement=面板在触发器上方, origin 在底边)。
+        transformOrigin: (topPlacement ? "bottom " : "top ") + (alignRight ? "right" : alignCenter ? "center" : "left"),
         // 开合锚触发器(emil): 从触发器方向缩放; 向上翻转后锚点换 top。
         zIndex: "var(--z-dialog-popover)",
         width: PANEL_WIDTH,
