@@ -42,11 +42,13 @@ describe("canvas visual contrast", () => {
     });
 
     test("standard nodes use fixed-width theme stroke and generating blank yields to the rotating ring", async () => {
-        // flora 语义（原语对齐）：选中以描边表达，边框宽度恒为 1px（避免宽度变化造成跳动）；
+        // flora 语义（原语对齐）：选中以描边表达；边框宽度恒为 1px（宽度 1→1.5px 突变曾造成
+        // 内容重排, hover→selected"跳一下"），选中加内侧 0.5px 阴影环补足描边视觉（2026-09-13）。
         // 首次空白生成边框归零，让位给 .node-generating-border 旋转渐变环（S04 同源条件）。
         const source = await Bun.file(new URL("../src/components/canvas/canvas-node.tsx", import.meta.url)).text();
 
-        expect(source).toContain('border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? "0" : isSelected ? `1.5px solid ${theme.node.activeBorder}` : `1px solid ${theme.node.stroke}`');
+        expect(source).toContain("border: isComposerNode || (isGenerating && !hasImageContent && !hasVideoContent) ? \"0\" : `1px solid ${isSelected ? theme.node.activeBorder : theme.node.stroke}`");
+        expect(source).toContain("inset 0 0 0 0.5px ${theme.node.activeBorder}");
         expect(source).not.toContain('border: isComposerNode ? "0" : "1px solid transparent"');
         expect(source).toContain('node-generating-border');
     });
