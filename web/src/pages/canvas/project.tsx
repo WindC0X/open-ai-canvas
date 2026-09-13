@@ -2337,7 +2337,7 @@ const {
     const selectedToolbarLevel: AffordanceLevel = !toolbarNode || emotionNodeId
         ? "hidden"
         : deriveToolbarAffordance(
-            { nodeId: toolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: (hoverSurfaceId === toolbarNode.id && hoverSurfaceKind === "toolbar") || focusToolbarId === toolbarNode.id },
+            { nodeId: toolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: (hoverSurfaceId === toolbarNode.id && hoverSurfaceKind === "toolbar") || focusToolbarId === toolbarNode.id, selected: selectedNodeIds.has(toolbarNode.id) },
             toolbarGuards,
         );
     const hoverToolbarLevel: AffordanceLevel = !hoverToolbarNode || emotionNodeId
@@ -2345,19 +2345,19 @@ const {
         : toolbarMenuOpenId === hoverToolbarNode.id
             ? "full"
             : deriveToolbarAffordance(
-                { nodeId: hoverToolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: (hoverSurfaceId === hoverToolbarNode.id && hoverSurfaceKind === "toolbar") || focusToolbarId === hoverToolbarNode.id },
+                { nodeId: hoverToolbarNode.id, hoveredNodeId, dialogNodeId, selfHover: (hoverSurfaceId === hoverToolbarNode.id && hoverSurfaceKind === "toolbar") || focusToolbarId === hoverToolbarNode.id, selected: selectedNodeIds.has(hoverToolbarNode.id) },
                 toolbarGuards,
             );
     const selectedComposerLevel: AffordanceLevel = !selectedPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === selectedPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === selectedPanelNode.id && hoverSurfaceKind === "bridge", settingsBubbleOpen: settingsBubbleNodeId === selectedPanelNode.id },
+            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === selectedPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === selectedPanelNode.id && hoverSurfaceKind === "bridge", settingsBubbleOpen: settingsBubbleNodeId === selectedPanelNode.id, selected: selectedNodeIds.has(selectedPanelNode.id) },
             composerGuards,
         );
     const hoverComposerLevel: AffordanceLevel = !hoverPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === hoverPanelNode.id && hoverSurfaceKind === "bridge", settingsBubbleOpen: settingsBubbleNodeId === hoverPanelNode.id },
+            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === hoverPanelNode.id && hoverSurfaceKind === "bridge", settingsBubbleOpen: settingsBubbleNodeId === hoverPanelNode.id, selected: selectedNodeIds.has(hoverPanelNode.id) },
             composerGuards,
         );
     // toolbarMenuOpenId 反向边(审计裁决): 菜单 open 的节点一旦不再持有工具栏实例(hover 切走/卸载/

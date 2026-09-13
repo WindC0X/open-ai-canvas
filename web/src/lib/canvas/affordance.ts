@@ -27,6 +27,10 @@ export type AffordanceInput = {
     /** 本节点的参数设置气泡(份数/图像/视频/音频)处于打开态: composer 恒 full,
         与工具栏 toolbarMenuOpenId 钉 full 对称(否则指针回节点时底栏在气泡脚下变暗)。 */
     settingsBubbleOpen?: boolean;
+    /** 本节点已在单选集合中(mousedown 即真, 不等 mouseup 的 dialog 打开): 供给立即 full。
+        否则按下瞬间节点本体描边已 selected 而供给仍 micro, 被感知为供给"慢半拍"
+        (2026-09-14 用户复验)。拖拽由 guard 接管 hidden, 语义不冲突。 */
+    selected?: boolean;
 };
 
 export type ToolbarGuardInput = {
@@ -42,12 +46,12 @@ export type ComposerGuardInput = {
 };
 
 function deriveLevel(
-    { nodeId, hoveredNodeId, dialogNodeId, selfHover, siblingHover, settingsBubbleOpen }: AffordanceInput,
+    { nodeId, hoveredNodeId, dialogNodeId, selfHover, siblingHover, settingsBubbleOpen, selected }: AffordanceInput,
     guarded: boolean,
 ): AffordanceLevel {
     if (guarded) return "hidden";
     if (dialogNodeId === nodeId) return "full";
-    if (selfHover || settingsBubbleOpen) return "full";
+    if (selected || selfHover || settingsBubbleOpen) return "full";
     if (hoveredNodeId === nodeId || siblingHover) return "micro";
     return "hidden";
 }

@@ -25,6 +25,12 @@ describe("deriveToolbarAffordance", () => {
         expect(deriveToolbarAffordance({ ...base, hoveredNodeId: NODE, selfHover: false }, tbGuards)).toBe("micro");
     });
 
+    test("mousedown 选中(selected=true, dialog 未开) → 供给立即 full, 与节点描边同步", () => {
+        // 按下瞬间节点本体已 selected 描边, 供给若仍 micro 即"慢半拍"(2026-09-14)。
+        expect(deriveToolbarAffordance({ ...base, hoveredNodeId: NODE, selected: true }, tbGuards)).toBe("full");
+        expect(deriveComposerAffordance({ ...base, hoveredNodeId: NODE, selected: true }, cmGuards)).toBe("full");
+    });
+
     test("selected → full(常驻,鼠标离开节点也不收)", () => {
         expect(deriveToolbarAffordance({ ...base, dialogNodeId: NODE }, tbGuards)).toBe("full");
         expect(deriveToolbarAffordance({ ...base, dialogNodeId: NODE }, { ...tbGuards })).toBe("full");
