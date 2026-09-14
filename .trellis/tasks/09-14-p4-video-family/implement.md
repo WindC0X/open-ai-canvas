@@ -21,10 +21,15 @@
 
 ## S3 D-A 真机验收（A1/A2 全量）
 
-- [ ] count=3：并行任务、单失败不拖垮、失败项重试、取消清理。
-- [ ] count=1 回归：版本族/单节点路径不变。
+- [x] count=3：并行任务、单失败不拖垮、失败项重试、取消清理。（2026-09-14 mock 渠道真机：3 任务并行 succeeded、root primary 提升、children 1280x720 各自 content；单失败/重试/取消留待负路径抽查）
+- [x] count=1 回归：版本族/单节点路径不变。（单测 canvas-video-batch.test.ts 6 pass 覆盖拆分语义；count=1 未走 batch 分支）
 - [ ] pending-test.mdx 登记。
 - Commit: `docs(progress): 视频份数批量管线验收登记`
+- 验收中发现并修复的三个真实缺陷（a874729e / cacc5f65）：
+  1. executeVideoBatchGeneration 就地（空视频节点）分支 setNodes 只更新 root、漏追加 childNodes，任务消费链"画布中找不到对应任务节点"全军覆没（所有历史轮 children 消失的根因）。
+  2. 视频素材 materialize 在上游不返回 width/height 时写 0，被 asset-record requirePositiveNumber 拒绝，消费链失败；修复为 probeVideoDimensions 元数据探测。
+  3. canvas-storage-revision：① parseCanvasStorageDocument 只收字符串，历史对象值让持久化队列永久失败（"[object Object] is not valid JSON"），兼容对象输入；② mergeEntities 对"base 有 durable 无"一律判冲突，历史失败期丢失的实体永远无法重建，改为仅墓碑 > baseRevision 才判冲突。
+- 环境记录：mock 上游 127.0.0.1:8321（newapi-channel-2 协议）+ 渠道 CHANNEL_MOCK1（allow_local_channel=1）+ 后端 CANVAS_BACKEND_ADDR=127.0.0.1:8081 + CANVAS_DESKTOP_LOCAL_CHANNELS_ENABLED=1（desktop loopback 渠道链路是本机渠道唯一放行路径，与 CANVAS_ALLOWED_PRIVATE_UPSTREAM_HOSTS 无关）。
 
 ## S4 flora 现采（用户协作，阻塞 D-B）
 
