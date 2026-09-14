@@ -59,7 +59,7 @@ function normalizeTombstones(value: unknown): CanvasStorageTombstones {
     };
 }
 
-export function parseCanvasStorageDocument(value: string | null, fallback: CanvasProject[] = []): CanvasStorageDocument {
+export function parseCanvasStorageDocument(value: string | CanvasStorageDocument | null, fallback: CanvasProject[] = []): CanvasStorageDocument {
     if (!value) {
         return {
             state: { projects: normalizeProjectAssetCategories(fallback) },
@@ -68,7 +68,9 @@ export function parseCanvasStorageDocument(value: string | null, fallback: Canva
             tombstones: emptyTombstones(),
         };
     }
-    const parsed = JSON.parse(value) as {
+    // 历史版本曾把 document 对象直接写入 localforage；读路径必须同时接受字符串与已解析对象，
+    // 否则旧值会让持久化队列永远解析失败（"[object Object]" is not valid JSON）。
+    const parsed = (typeof value === "string" ? JSON.parse(value) : value) as {
         state?: { projects?: unknown };
         version?: unknown;
         storageRevision?: unknown;
@@ -225,7 +227,10 @@ function mergeEntities<T extends { id: string }>(input: {
         if (!local || (base && deepEqual(base, local))) continue;
 
         if (!durable) {
-            if (base || (input.tombstones[id] ?? 0) > input.baseRevision) {
+            // durable 无此实体且确有墓碑 → 远端已删除，本地不得复活；
+            // 但仅有 base 而无墓碑时（历史持久化失败导致的 durable 缺失）不构成删除证据，
+            // 否则本地新增/重建的实体会永远被冲突拦截、无法写入持久层。
+            if ((input.tombstones[id] ?? 0) > input.baseRevision) {
                 input.conflicts.push(input.conflict(id));
                 continue;
             }
