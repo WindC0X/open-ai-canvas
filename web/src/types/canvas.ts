@@ -242,7 +242,7 @@ export type CanvasNodeMetadata = {
     transparentBackground?: string;
     count?: number;
     textCount?: number;
-    /** 视频/音频生成份数(UI 先行, 链路后补: count>1 提交暂按单生成)。 */
+    /** 视频/音频生成份数。视频已接入批量提交链(份数>1 拆 batchRoot+子节点)；音频仍 UI 先行，提交按单次，顺延音频族任务。 */
     videoGenerationCount?: number;
     audioGenerationCount?: number;
     seconds?: string;
@@ -264,6 +264,10 @@ export type CanvasNodeMetadata = {
     batchUsesReferenceImages?: boolean;
     primaryImageId?: string;
     imageBatchExpanded?: boolean;
+    /** 视频批量展开态(与图像的 imageBatchExpanded 同义但不共名，避免语义错位)。 */
+    batchExpanded?: boolean;
+    /** 视频批量根节点当前主内容对应的子节点 id(对应图像的 primaryImageId)。 */
+    primaryVideoId?: string;
     storageKey?: string;
     mimeType?: string;
     bytes?: number;
