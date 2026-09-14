@@ -239,6 +239,42 @@ async function storedGenerationImage(result: NonNullable<BackendGenerationResult
     };
 }
 
+// 视频结果缺失尺寸时从媒体元数据探测：上游协议（如自建 mock/部分中转）不返回 width/height，
+// 而素材记录要求视频必须携带真实尺寸，缺失会把整个生成消费链打失败。
+async function probeVideoDimensions(url: string, signal?: AbortSignal): Promise<{ width: number; height: number } | null> {
+    if (typeof document === "undefined") return null;
+    return new Promise((resolve) => {
+        const video = document.createElement("video");
+        const timer = window.setTimeout(() => {
+            cleanup();
+            resolve(null);
+        }, 8000);
+        const cleanup = () => {
+            window.clearTimeout(timer);
+            video.onloadedmetadata = null;
+            video.onerror = null;
+            video.removeAttribute("src");
+            video.load();
+        };
+        video.onloadedmetadata = () => {
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+            cleanup();
+            resolve(width > 0 && height > 0 ? { width, height } : null);
+        };
+        video.onerror = () => {
+            cleanup();
+            resolve(null);
+        };
+        video.preload = "metadata";
+        signal?.addEventListener("abort", () => {
+            cleanup();
+            resolve(null);
+        }, { once: true });
+        video.src = url;
+    });
+}
+
 async function storedGenerationMedia(dataUrl: string, effectKey: string, mediaType: "video" | "audio", metadata: { width?: number; height?: number; durationMs?: number; bytes?: number; mimeType: string }, scope: string, signal?: AbortSignal) {
     throwIfAborted(signal);
     const storageKey = generationArtifactStorageKey(effectKey, mediaType, scope);
@@ -329,6 +365,16 @@ async function generationOutputAsset(input: Parameters<MaterializeGenerationTask
                   input.signal,
               );
         if (!stored.url) throw new Error("视频结果资源不可用");
+        let videoWidth = stored.width || 0;
+        let videoHeight = stored.height || 0;
+        if (videoWidth <= 0 || videoHeight <= 0) {
+            const probed = await probeVideoDimensions(stored.url, input.signal);
+            if (probed) {
+                videoWidth = probed.width;
+                videoHeight = probed.height;
+            }
+        }
+        if (videoWidth <= 0 || videoHeight <= 0) throw new Error("无法确定视频尺寸，生成结果已保存但无法建立素材");
         return {
             kind: "video",
             title: "生成视频",
@@ -340,8 +386,8 @@ async function generationOutputAsset(input: Parameters<MaterializeGenerationTask
             data: {
                 url: stored.url,
                 storageKey: stored.storageKey,
-                width: stored.width || 0,
-                height: stored.height || 0,
+                width: videoWidth,
+                height: videoHeight,
                 durationMs: stored.durationMs,
                 bytes: stored.bytes,
                 mimeType: stored.mimeType || "video/mp4",

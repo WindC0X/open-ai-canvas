@@ -252,7 +252,13 @@ async function executeVideoBatchGeneration({
     ];
     registerPendingNodeIds(isEmptyVideoNode ? childIds : [rootId, ...childIds]);
     // 空视频节点就地转为 batch root（沿用源节点几何）；已有内容源节点保留原内容不动（是来源不是目标）。
-    setNodes((current) => (isEmptyVideoNode ? current.map((node) => (node.id === rootId ? rootNode : node)) : [...current, rootNode, ...childNodes]));
+    // 就地分支同样必须追加 childNodes：root 复用原节点 id，但批量子节点是新实体，漏加会让任务消费链找不到节点。
+    setNodes((current) => {
+        const rooted = current.map((node) => (node.id === rootId ? rootNode : node));
+        // in-place 时 rootNode 复用原节点（已在 rooted 中）；非 in-place 时 rootNode 是新实体需追加。
+        const withRoot = isEmptyVideoNode ? rooted : [...rooted, rootNode];
+        return [...withRoot, ...childNodes];
+    });
     setConnections((current) => {
         // 非空已有视频源：root 继承源节点的上游连线（与 count=1 的版本并行语义同构）。
         const inherited = isEmptyVideoNode
