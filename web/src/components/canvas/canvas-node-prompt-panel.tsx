@@ -129,12 +129,16 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
         return promptOptimizerPlugin.createPromptOptimizer(createPluginHostContext(promptOptimizerPlugin, promptOptimizerInstallation, globalConfig));
     }, [globalConfig, promptOptimizerEnabled, promptOptimizerInstallation]);
     const generationCount = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
+    // 各族生成份数：价格预估按"真实会提交的任务数"折算（图像/文本/视频已有批量链；音频份数 UI 先行单次提交，不折算）。
+    const videoGenerationCount = Math.max(1, Math.floor(Math.abs(Number(node.metadata?.videoGenerationCount)) || 1));
+    const textGenerationCount = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(node.metadata?.textCount)) || 1)));
+    const batchCount = mode === "image" ? generationCount : mode === "video" ? videoGenerationCount : mode === "text" ? textGenerationCount : 1;
     const priceChannel = resolveModelChannel(config, config.model);
     const configuredCredits = requestCreditCost({
         channelMode: priceChannel.scope === "system" ? "remote" : "local",
         modelCosts: priceChannel.modelCosts,
         model: modelOptionName(config.model),
-        count: mode === "image" ? generationCount : 1,
+        count: batchCount,
         seconds: mode === "video" ? config.videoSeconds : 1,
         capability: mode,
         config,
@@ -143,7 +147,8 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const quoteRequest = modelQuoteRequest(config, config.model, mode, resolvedRequirements);
     const quoteRequestKey = JSON.stringify(quoteRequest || null);
     const [quotedCredits, setQuotedCredits] = useState<number | null>(null);
-    const credits = quotedCredits ?? configuredCredits;
+    // quotedCredits 是远端单次报价；显示价 = 单次价 × 份数（configuredCredits 已在入参折算过 batchCount，不重复乘）。
+    const credits = quotedCredits !== null ? quotedCredits * batchCount : configuredCredits;
     const activeReferenceCount = activeReferences.length;
     const videoFrameOptions = resolvedMentionReferences.filter((item) => item.active && item.kind === "image").map((item) => ({ nodeId: item.nodeId, label: item.label, title: item.title, previewUrl: item.previewUrl }));
     const hasVideoPromptTools = mode === "video" && !simpleMode && videoFrameOptions.length > 0;

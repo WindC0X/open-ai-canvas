@@ -2706,4 +2706,19 @@ b (docs(progress): S08 底栏质感收尾批+wheel关闭同步批登记)
 **真机验收（CDP Input.dispatchMouseEvent 真实指针，tab visible）**：Grok2Api flyout 点 Image Edit → composer 显示切换+flyout 关闭+菜单 expanded=false（无残留/重开）；反向点 Image 2.0 双向切换稳定；换节点后 popover 总数 0 无幽灵、新节点菜单开/Esc 关正常；L1 直出行选择此前已真机过。诊断探针已清理。
 
 **连带收益**：解释了此前多次"L2 修复真机无效/复现非确定"——幽灵层存在性随操作历史变化；enter-prepare 冻结成因（后台 tab rAF 节流）同时是 handoff 记载的 leave 永不完成问题的姊妹症状。
+
 5 (docs(progress): S08 问题一轮登记 - L2 行点击幽灵浮层根修批)
+
+### P4 视频份数价格折算批（份数×单次价，任意 billingMode）
+
+**用户反馈**（2026-09-14 12:30 截图×2）：composer 底栏调整生成份数，发送按钮价格不变。
+
+**根因**：`requestCreditCost` → `creditAmount` 的 `quantity` 在 `per_second` billingMode 下只取 `seconds`（视频按时长计价），`count`（份数）被忽略；`fixed_request` 下只取 `count`。份数在两个分支都不完整：视频份数从未进价格，且两族份数语义割裂（图像靠 count 参数间接×N，文本/视频/音频价格恒为单价）。
+
+**修复**：
+1. `creditAmount`（model-pricing.ts）：拆 `countQuantity`（份数）与 `baseQuantity`（fixed=1 / per_second=seconds）两层，总额 = 单价 × base × 份数——任意 billingMode 都乘份数；
+2. `canvas-node-prompt-panel.tsx`：`batchCount`（image→count / video→videoGenerationCount / text→textCount / audio→1 UI 先行不折算）传入 `requestCreditCost` 的 `count`；远端报价 `quoteLogicalModel` 返回的单次报价同样 ×`batchCount`（报价请求本身不变，份数只做显示层乘法）；
+3. 其余两个调用方（creation-workspace / workflow-production-workbench）传值形态（image count=N / video count=1 + seconds）在新语义下行为不变，无需改动。
+
+**真机验收**（tab 1146061365，fiber 驱动）：视频 Agnes Video 2.5 Flash 单价 0.005/次（5s per_second）→ x1=0.005 / x2=0.01 / x3=0.015 线性；图像节点（fixed_request）x1=0.001 / x2=0.002 单层乘无双乘；验后画布份数已还原 x1。
+2 (fix(canvas): 生成份数价格折算 - creditAmount拆份数/时长双层乘, 远端报价×份数, 视频价格随份数变化)

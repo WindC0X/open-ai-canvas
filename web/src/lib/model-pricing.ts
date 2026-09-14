@@ -97,8 +97,11 @@ export function modelQuoteRequest(config: AiConfig, value: string, capability?: 
 }
 
 function creditAmount(billingMode: "fixed_request" | "per_second", unitPriceMicrocredits: number, count?: string | number, seconds?: string | number) {
-    const quantity = billingMode === "per_second" ? Math.max(1, Math.floor(Math.abs(Number(seconds)) || 1)) : Math.max(1, Math.floor(Math.abs(Number(count)) || 1));
-    return (unitPriceMicrocredits / 1_000_000) * quantity;
+    // count 是份数（提交几次），seconds 是单次时长；两种 billingMode 都要乘份数：
+    // fixed_request = 单价×份数；per_second = 单价×秒×份数。
+    const countQuantity = Math.max(1, Math.floor(Math.abs(Number(count)) || 1));
+    const baseQuantity = billingMode === "per_second" ? Math.max(1, Math.floor(Math.abs(Number(seconds)) || 1)) : 1;
+    return (unitPriceMicrocredits / 1_000_000) * baseQuantity * countQuantity;
 }
 
 function priceSelectorForRequest(capability: ModelCapability | undefined, config: AiConfig, requirements?: ModelRequirements) {
