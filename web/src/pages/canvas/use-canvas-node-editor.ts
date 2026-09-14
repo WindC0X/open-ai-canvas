@@ -9,6 +9,7 @@ import { buildCanvasMediaDownloadFileName } from "@/lib/canvas/canvas-media-down
 import { writeCanvasNodePrompt } from "@/lib/canvas/canvas-node-prompt";
 import { applyBatchPrimaryImage, applyNodeConfigPatch } from "@/lib/canvas/canvas-project-domain";
 import { resetGenerationTaskMetadata } from "@/lib/canvas/canvas-project-generation";
+import { batchRootExpanded } from "@/lib/canvas/canvas-project-domain";
 import { CONTENT_MODERATION_ERROR_CODE, isContentModerationError } from "@/lib/generation-error";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { CanvasNodeType, type CanvasFolderStyle, type CanvasFolderTheme, type CanvasNodeData, type CanvasNodeMetadata, type Position } from "@/types/canvas";
@@ -124,7 +125,7 @@ export function useCanvasNodeEditor({
     const toggleBatchExpanded = useCallback((nodeId: string) => {
         const root = nodesRef.current.find((node) => node.id === nodeId);
         if (!root?.metadata?.isBatchRoot) return;
-        const isExpanded = Boolean(root.metadata.imageBatchExpanded);
+        const isExpanded = batchRootExpanded(root);
         window.clearTimeout(batchMotionTimers.current.get(nodeId));
         const updateMotionState = isExpanded ? setCollapsingBatchIds : setOpeningBatchIds;
         const clearMotionState = isExpanded ? setOpeningBatchIds : setCollapsingBatchIds;
@@ -142,7 +143,14 @@ export function useCanvasNodeEditor({
                 return next;
             });
         }, isExpanded ? 320 : 445 + (root.metadata.batchChildIds?.length || 1) * 24));
-        setNodes((current) => current.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, imageBatchExpanded: !node.metadata?.imageBatchExpanded } } : node)));
+        setNodes((current) => current.map((node) => {
+            if (node.id !== nodeId) return node;
+            const metadata = { ...node.metadata };
+            // 中立翻转：视频 batch 写 batchExpanded，图像写 imageBatchExpanded（保留历史字段语义）。
+            if (node.type === "video") metadata.batchExpanded = !metadata.batchExpanded;
+            else metadata.imageBatchExpanded = !metadata.imageBatchExpanded;
+            return { ...node, metadata };
+        }));
     }, [nodesRef, setNodes]);
 
     const setBatchPrimary = useCallback((child: CanvasNodeData) => {

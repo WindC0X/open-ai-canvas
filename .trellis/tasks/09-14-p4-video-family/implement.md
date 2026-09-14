@@ -13,10 +13,10 @@
 
 ## S2 batch root 视频分发 + 展开预览（D-A 视觉）
 
-- [ ] canvas-node-content.tsx:80 分发改造：Video batch root → VideoBatchRootContent（BatchFrame 复用 + 视频首帧格子，不激活播放）。
-- [ ] world-layers batchPreviews memo 通用化：过滤 `primaryVideoId`、读 `batchExpanded`。
-- [ ] 图像 batch 回归：生成>1/展开/重试/取消（真机抽查 1 轮）。
-- 验证：tsc 0；真机视频 count=3（A1 前半：并行提交/展开预览）。
+- [x] canvas-node-content.tsx:80 分发改造：Video batch root → VideoBatchRootContent（BatchFrame 复用 + 视频首帧格子，不激活播放）。
+- [x] world-layers batchPreviews/batchPrimary 通用化 + batchRootExpanded 中立读 helper（8 处消费点全部替换：domain×2/selection/world-layers×2/project/render-model/node-editor×2）。
+- [ ] 图像 batch 回归：生成>1/展开/重试/取消（真机抽查 1 轮）——与 S3 真机验收合并执行。
+- 验证：tsc 0 ✅；build 39.9s ✅；单测 6 pass ✅；真机归 S3。附：removeCanvasNodes 增加视频批量收敛分支（primaryVideoId 回退）。
 - Commit: `feat(canvas): 视频batch根节点分发与展开预览 - BatchFrame复用, 图像链不动`
 
 ## S3 D-A 真机验收（A1/A2 全量）

@@ -14,6 +14,12 @@ import { scopedLocalStorage } from "@/lib/user-scope";
 import type { GenerationTask } from "@/services/api/task-center";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type CanvasNodeTypeId, type ConnectionHandle, type Position, type StoryboardColumn, type StoryboardRow } from "@/types/canvas";
 
+/** 批量展开态中立读取：视频 batch 用 batchExpanded，图像沿用 imageBatchExpanded（历史字段不动）。 */
+export function batchRootExpanded(root: Pick<CanvasNodeData, "metadata"> | undefined | null): boolean {
+    const expanded = root?.metadata?.batchExpanded ?? root?.metadata?.imageBatchExpanded;
+    return Boolean(expanded);
+}
+
 export function createCanvasNode(type: CanvasNodeTypeId, position: Position, metadata?: CanvasNodeMetadata): CanvasNodeData {
     const builtinSpec = type in NODE_DEFAULT_SIZE ? getNodeSpec(type as CanvasNodeType) : undefined;
     const pluginDefinition = getNodeDefinition(type);
@@ -296,7 +302,7 @@ export function createNodeAlignmentContext(nodes: CanvasNodeData[], initialPosit
     const targets = nodes.flatMap((node) => {
         if (movingIds.has(node.id)) return [];
         const batchRoot = node.metadata?.batchRootId ? nodeById.get(node.metadata.batchRootId) : null;
-        if (batchRoot && !batchRoot.metadata?.imageBatchExpanded) return [];
+        if (batchRoot && !batchRootExpanded(batchRoot)) return [];
         const parent = node.parentId ? nodeById.get(node.parentId) : null;
         if (parent && isFrameNode(parent) && parent.metadata?.frame?.collapsed) return [];
         return [{
@@ -346,7 +352,7 @@ export function isHiddenBatchChild(node: CanvasNodeData, nodes: CanvasNodeData[]
     if (!rootId) return false;
     const root = nodes.find((item) => item.id === rootId);
     if (root && collapsingBatchIds?.has(rootId)) return false;
-    return Boolean(root && !root.metadata?.imageBatchExpanded);
+    return Boolean(root && !batchRootExpanded(root));
 }
 
 export function sameStringSet(left: Set<string>, right: Set<string>) {
@@ -412,6 +418,41 @@ export function removeCanvasNodes(nodes: CanvasNodeData[], requestedIds: Set<str
             : detached;
         const childIds = cleaned.metadata?.batchChildIds?.filter((childId) => !removedIds.has(childId));
         if (!cleaned.metadata?.isBatchRoot || childIds?.length === cleaned.metadata.batchChildIds?.length) return cleaned;
+        // 视频批量收敛：主内容子节点回退到 primaryVideoId（失效则取首个存活子节点），提升时 root 几何不动。
+        if (cleaned.type === CanvasNodeType.Video) {
+            const primaryVideoId = childIds?.includes(cleaned.metadata.primaryVideoId || "") ? cleaned.metadata.primaryVideoId : childIds?.[0];
+            const primaryVideoNode = remainingNodes.find((item) => item.id === primaryVideoId);
+            const videoBatchRoot = { ...cleaned, metadata: { ...cleaned.metadata, batchChildIds: childIds, primaryVideoId } };
+            if (!primaryVideoNode?.metadata?.content) {
+                const metadata: CanvasNodeMetadata = { ...videoBatchRoot.metadata };
+                delete metadata.content;
+                delete metadata.storageKey;
+                delete metadata.mimeType;
+                delete metadata.bytes;
+                delete metadata.naturalWidth;
+                delete metadata.naturalHeight;
+                delete metadata.primaryVideoId;
+                metadata.status = "idle" as const;
+                return { ...videoBatchRoot, metadata };
+            }
+            const child = primaryVideoNode;
+            const promoted: CanvasNodeMetadata = {
+                ...videoBatchRoot.metadata,
+                primaryVideoId: child.id,
+                    content: child.metadata?.content,
+                    storageKey: child.metadata?.storageKey,
+                    mimeType: child.metadata?.mimeType,
+                    bytes: child.metadata?.bytes,
+                    naturalWidth: child.metadata?.naturalWidth,
+                    naturalHeight: child.metadata?.naturalHeight,
+                    hasAudio: child.metadata?.hasAudio,
+                status: child.metadata?.status === "error" ? child.metadata.status : "success",
+                errorDetails: child.metadata?.errorDetails,
+                generationErrorCode: child.metadata?.generationErrorCode,
+                failedPromptFingerprint: child.metadata?.failedPromptFingerprint,
+            };
+            return { ...videoBatchRoot, metadata: promoted };
+        }
         const primaryImageId = childIds?.includes(cleaned.metadata.primaryImageId || "") ? cleaned.metadata.primaryImageId : childIds?.[0];
         const primaryNode = remainingNodes.find((item) => item.id === primaryImageId);
         const batchRoot = { ...cleaned, metadata: { ...cleaned.metadata, batchChildIds: childIds, primaryImageId } };

@@ -97,7 +97,7 @@ import { CanvasLeaferGraphicsLayer } from "@/components/canvas/canvas-leafer-gra
 import { CanvasFreeformEmptyState, CanvasLinkedProjectEmptyState, CanvasShortDramaEmptyState, CanvasShortDramaGuide, CanvasStoryInputNodeContent, CanvasStylePlaceholderNodeContent } from "@/components/canvas/canvas-short-drama-entry";
 import { resolveCanvasEmptyStateKind } from "@/lib/canvas/canvas-starter";
 import { failedImageBatchChildren, markImageBatchRetrying, reconcileImageBatchRoot, restoreUnsubmittedImageBatchChild } from "@/lib/canvas/canvas-image-batch-retry";
-import { createCanvasNode, getInputSummary, isHiddenBatchChild } from "@/lib/canvas/canvas-project-domain";
+import { batchRootExpanded, createCanvasNode, getInputSummary, isHiddenBatchChild } from "@/lib/canvas/canvas-project-domain";
 import { stampCanvasNodeChanges, updateCanvasNode, updateCanvasNodes } from "@/lib/canvas/canvas-node-timestamps";
 import { canvasAssetHandoffAttempt, finalizeCanvasAssetHandoff, uninsertedCanvasAssetHandoffPayloads } from "@/lib/canvas/canvas-asset-handoff";
 import { batchSourceRestriction } from "@/lib/canvas/canvas-batch-connection";
@@ -2497,37 +2497,108 @@ const {
                 ) : null}
                 <CanvasOverlayLayerProvider>
                     <section className="relative min-w-0 flex-1 flex flex-col min-h-0 overflow-hidden">
-                        {!focusMode ? (
-                            <CanvasTopBar
-                                title={currentProject?.title || "未命名画布"}
-                                titleDraft={titleDraft}
-                                isTitleEditing={titleEditing}
-                                onTitleDraftChange={setTitleDraft}
-                                onStartTitleEditing={startTitleEditing}
-                                onFinishTitleEditing={finishTitleEditing}
-                                onCancelTitleEditing={() => setTitleEditing(false)}
-                                canUndo={historyState.canUndo}
-                                canRedo={historyState.canRedo}
-                                onCreateProject={createAndOpenProject}
-                                onDeleteProject={deleteCurrentProject}
-                                onImportImage={() => handleUploadRequest()}
-                                onImportLibTV={() => setLibTVImportOpen(true)}
-                                onImportTapNow={() => setTapNowImportOpen(true)}
-                                onUndo={undoCanvas}
-                                onRedo={redoCanvas}
-                                onShare={() => setShareModalOpen(true)}
-                                shortcutRequestNonce={shortcutRequestNonce}
-                                mediaPerformanceMode={mediaPerformanceMode}
-                                onMediaPerformanceModeChange={setMediaPerformanceMode}
-                                onOpenSearch={() => setNodeSearchOpen(true)}
-                                projectContext={
-                                    shortDramaEnabled && currentProject?.projectId
-                                        ? {
-                                              ...canvasContext,
-                                              projectId: currentProject.projectId,
-                                              projectName: linkedProjectQuery.data?.project.name || currentProject.title,
-                                          }
-                                        : undefined
+                    {!focusMode ? (
+                        <CanvasTopBar
+                            title={currentProject?.title || "未命名画布"}
+                            titleDraft={titleDraft}
+                            isTitleEditing={titleEditing}
+                            onTitleDraftChange={setTitleDraft}
+                            onStartTitleEditing={startTitleEditing}
+                            onFinishTitleEditing={finishTitleEditing}
+                            onCancelTitleEditing={() => setTitleEditing(false)}
+                            canUndo={historyState.canUndo}
+                            canRedo={historyState.canRedo}
+                            onCreateProject={createAndOpenProject}
+                            onDeleteProject={deleteCurrentProject}
+                            onImportImage={() => handleUploadRequest()}
+                            onImportLibTV={() => setLibTVImportOpen(true)}
+                            onImportTapNow={() => setTapNowImportOpen(true)}
+                            onUndo={undoCanvas}
+                            onRedo={redoCanvas}
+                            onShare={() => setShareModalOpen(true)}
+                            agentOpen={assistantOpen}
+                            agentPanelWidth={assistantMounted ? assistantWidth : undefined}
+                            compactAgentStatus={codexCompactAgent ? { connected: localAgentConnected, enabled: localAgentEnabled, activity: localAgentActivity } : undefined}
+                            onToggleAgent={() => (assistantOpen ? closeAgent() : openAgent())}
+                            shortcutRequestNonce={shortcutRequestNonce}
+                            mediaPerformanceMode={mediaPerformanceMode}
+                            onMediaPerformanceModeChange={setMediaPerformanceMode}
+                            onOpenSearch={() => setNodeSearchOpen(true)}
+                            projectContext={
+                                shortDramaEnabled && currentProject?.projectId
+                                    ? {
+                                          ...canvasContext,
+                                          projectId: currentProject.projectId,
+                                          projectName: linkedProjectQuery.data?.project.name || currentProject.title,
+                                      }
+                                    : undefined
+                            }
+                            onEnterFocusMode={enterFocusMode}
+                            shortDramaGuide={shortDramaGuide}
+                        />
+                    ) : null}
+
+                    <CanvasNodeSearchModal
+                        open={nodeSearchOpen}
+                        nodes={nodes}
+                        onClose={() => setNodeSearchOpen(false)}
+                        onFocus={(nodeId) => {
+                            const target = nodeById.get(nodeId);
+                            const parent = target?.parentId ? nodeById.get(target.parentId) : null;
+                            if (parent?.metadata?.frame?.collapsed) toggleFrameCollapsed(parent.id);
+                            const batchRoot = target?.metadata?.batchRootId ? nodeById.get(target.metadata.batchRootId) : null;
+                            if (batchRoot && !batchRootExpanded(batchRoot)) toggleBatchExpanded(batchRoot.id);
+                            const selection = new Set([nodeId]);
+                            selectedNodeIdsRef.current = selection;
+                            setSelectedNodeIds(selection);
+                            setSelectedConnectionId(null);
+                            focusCanvasNode(nodeId);
+                        }}
+                    />
+
+                    {!focusMode && shortDramaGuide ? (
+                        <CanvasShortDramaGuide progress={shortDramaGuide.progress} collapsed={shortDramaGuide.collapsed} onToggle={shortDramaGuide.onToggle} onSkip={skipShortDramaGuide} onStepClick={activateShortDramaStep} />
+                    ) : null}
+
+                    <CanvasShareModal projectId={projectId} open={shareModalOpen} onClose={() => setShareModalOpen(false)} beforeCreate={saveCanvasProject} />
+                    <LibTVImportDialog open={libTVImportOpen} projectId={projectId} viewport={viewport} viewportSize={size} onClose={() => setLibTVImportOpen(false)} onApply={applyLibTVImport} />
+                    <TapNowImportDialog open={tapNowImportOpen} projectId={projectId} viewport={viewport} viewportSize={size} onClose={() => setTapNowImportOpen(false)} onApply={applyTapNowImport} />
+
+                    <CanvasStylePickerModal open={stylePickerOpen} value={activeStylePresetId} applying={styleApplying} onClose={() => setStylePickerOpen(false)} onSelect={selectCanvasStyle} />
+
+                    <CanvasDirectorTemplateModal
+                        open={Boolean(directorTemplateRequest)}
+                        onClose={() => setDirectorTemplateRequest(null)}
+                        onSelect={(templateId) => createDirectorShot(templateId, directorTemplateRequest?.position)}
+                    />
+
+                    <div className="relative flex min-h-0 min-w-0 flex-1">
+                        <div className="relative min-w-0 flex-1 overflow-hidden">
+                            <InfiniteCanvas
+                                containerRef={containerRef}
+                                viewport={viewport}
+                                appearance={canvasAppearance}
+                                backgroundMode={backgroundMode}
+                                graphicsLayer={
+                                    <CanvasLeaferGraphicsLayer
+                                        containerRef={containerRef}
+                                        viewport={viewport}
+                                        theme={theme}
+                                        displayConnections={displayConnections}
+                                        selectedConnectionId={selectedConnectionId}
+                                        relatedConnectionIds={relatedHighlight.connectionIds}
+                                        scriptScrollTopById={scriptScrollTopById}
+                                        connectingParams={connectingParams}
+                                        batchConnectionPreview={batchConnectionPreview}
+                                        mouseWorld={mouseWorld}
+                                        connectionTargetNodeId={connectionTargetNodeId}
+                                        connectionTargetAnchorRatio={connectionTargetAnchorRatio}
+                                        nodeById={nodeById}
+                                        selectionBox={selectionBox}
+                                        selectedNodeBounds={selectedNodeBounds}
+                                        alignmentGuides={alignmentGuides}
+                                    />
+4c31d6ae (feat(canvas): 视频batch根节点分发与展开预览 - BatchFrame复用+batchRootExpanded中立读, 图像链字段不动)
                                 }
 onViewportChange={handleViewportChange}
                                 onViewportPreviewChange={handleViewportPreviewChange}

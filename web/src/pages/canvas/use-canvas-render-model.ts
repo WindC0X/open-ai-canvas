@@ -7,6 +7,7 @@ import { canvasNodeRenderBudget, canvasNodeRenderPadding, CANVAS_MAX_RENDERED_CO
 import { buildCanvasNodeMentionReferenceMap, buildCanvasResourceReferences } from "@/lib/canvas/canvas-resource-references";
 import { buildSkillMentionReferences } from "@/lib/canvas/canvas-skill-mentions";
 import { buildCanvasSpatialIndex, canvasNodeBounds, type CanvasSpatialIndex, type CanvasSpatialIndexEntry } from "@/lib/canvas/canvas-spatial-index";
+import { batchRootExpanded } from "@/lib/canvas/canvas-project-domain";
 import type { Skill } from "@/services/api/skills";
 import type { Asset, ImageAsset } from "@/stores/use-asset-store";
 import type { DirectorScene } from "@/types/director";
@@ -92,7 +93,7 @@ export function useCanvasRenderModel({
         for (const node of nodes) {
             const rootId = node.metadata?.batchRootId;
             const root = rootId ? nodeById.get(rootId) : undefined;
-            if (root && !root.metadata?.imageBatchExpanded) {
+            if (root && !batchRootExpanded(root)) {
                 collapsedBatchChildIds.add(node.id);
                 if (!collapsingBatchIds.has(root.id)) renderHiddenNodeIds.add(node.id);
             }

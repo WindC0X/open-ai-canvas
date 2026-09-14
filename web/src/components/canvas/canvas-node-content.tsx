@@ -75,7 +75,10 @@ export function CanvasNodeContent(props: CanvasNodeContentProps) {
     if (hasCustomContent && props.renderNodeContent) return props.renderNodeContent(props.node);
     if (props.node.type === ART_CRITIQUE_NODE_TYPE) return <ArtCritiqueNodeContent node={props.node} />;
     if (props.node.type === MEDIA_CONVERSION_NODE_TYPE) return <MediaConversionNodeContent node={props.node} theme={props.theme} />;
-    if (props.isBatchRoot) return <ImageNodeContent {...props} />;
+    if (props.isBatchRoot) {
+        if (props.node.type === CanvasNodeType.Video) return <VideoBatchRootContent {...props} />;
+        return <ImageNodeContent {...props} />;
+    }
     if (props.node.metadata?.status === "loading") return <LoadingContent node={props.node} theme={props.theme} onOpenTaskDetails={props.onOpenTaskDetails} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} onReloadResource={props.onReloadResource} />;
 
@@ -727,6 +730,26 @@ export function CanvasNodeImageInfo({ node }: { node: CanvasNodeData }) {
     return <span className="ml-auto max-w-full shrink-0 truncate rounded-[var(--r-sm)] bg-black/55 px-2 py-1 text-[var(--fs-label)] font-medium leading-none text-white backdrop-blur-sm">{width} x {height}{size ? ` · ${size}` : ""}</span>;
 }
 
+function VideoBatchRootContent(props: CanvasNodeContentProps) {
+    if (!props.node.metadata?.content && props.isBatchRoot) {
+        const content = props.node.metadata?.status === "loading"
+            ? <LoadingContent node={props.node} theme={props.theme} />
+            : props.node.metadata?.status === "error"
+                ? <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} onReloadResource={props.onReloadResource} />
+                : <EmptyMediaContent icon={<Video className="size-7 opacity-35" />} label="空视频节点" color={props.theme.node.placeholder} />;
+        return <BatchFrame batchPreviewNodes={props.batchPreviewNodes} batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} theme={props.theme} onToggleBatch={props.onToggleBatch}>{content}</BatchFrame>;
+    }
+    // root 已有提升内容（primaryVideoId）：以静态首帧预览呈现，不在此激活播放（播放语义归 VideoNodeContent）。
+    return <BatchFrame batchPreviewNodes={props.batchPreviewNodes} batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} theme={props.theme} onToggleBatch={props.onToggleBatch}>
+        <InactiveVideoPreview node={props.node} theme={props.theme} onPlay={() => { /* 批量 root 首帧不接播放入口 */ }} />
+    </BatchFrame>;
+}
+
+function BatchPreviewVideo({ node }: { node: CanvasNodeData }) {
+    const previewUrl = canvasNodeVideoPreviewUrl(node);
+    return <div className="h-full w-full overflow-hidden rounded-[inherit] bg-black">{previewUrl ? <img src={previewUrl} alt={`子视频预览：${node.title}`} className="h-full w-full object-contain" draggable={false} /> : null}</div>;
+}
+
 function BatchPreviewImage({ node }: { node: CanvasNodeData }) {
     const ref = useRef<HTMLDivElement>(null);
     const nearViewport = useNearViewport(ref);
@@ -753,7 +776,7 @@ function BatchFrame({ batchCount, batchPreviewNodes, batchExpanded, batchOpening
                                 zIndex: -index - 1,
                             }}
                         >
-                            {batchPreviewNodes?.[index] ? <BatchPreviewImage node={batchPreviewNodes[index]} /> : null}
+                            {batchPreviewNodes?.[index] ? (batchPreviewNodes[index].type === CanvasNodeType.Video ? <BatchPreviewVideo node={batchPreviewNodes[index]} /> : <BatchPreviewImage node={batchPreviewNodes[index]} />) : null}
                         </div>
                     ))}
                 </div>

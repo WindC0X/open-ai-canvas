@@ -9,6 +9,7 @@ import type { CanvasBatchConnectionPreview } from "@/lib/canvas/canvas-batch-con
 import { sortCanvasNodesByStackOrder, type CanvasNodeStackOrder } from "@/lib/canvas/canvas-node-stack-order";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { isFrameNode } from "@/lib/canvas/canvas-frame";
+import { batchRootExpanded } from "@/lib/canvas/canvas-project-domain";
 import type { CanvasDisplayConnection, CanvasFolderStyle, CanvasFolderTheme, CanvasNodeData, ConnectionHandle, Position, SelectionBox } from "@/types/canvas";
 
 type DragPreview = { x: number; y: number; nodeIds: Set<string> } | null;
@@ -93,7 +94,7 @@ export const CanvasProjectWorldLayers = memo(function CanvasProjectWorldLayers(p
     ], [props.nodeStackOrder, props.visibleNodes]);
     const batchPreviews = useMemo(() => new Map(props.visibleNodes.filter((node) => node.metadata?.isBatchRoot).map((node) => [
         node.id,
-        (node.metadata?.batchChildIds || []).filter((id) => id !== node.metadata?.primaryImageId)
+        (node.metadata?.batchChildIds || []).filter((id) => id !== node.metadata?.primaryImageId && id !== node.metadata?.primaryVideoId)
             .map((id) => props.nodeById.get(id))
             .filter((child): child is CanvasNodeData => Boolean(child && child.metadata?.batchRootId === node.id))
             .slice(0, 5),
@@ -163,12 +164,12 @@ export const CanvasProjectWorldLayers = memo(function CanvasProjectWorldLayers(p
                         connectionApproach={props.connectionApproach?.nodeId === node.id ? props.connectionApproach.point : undefined}
                         forceInputVisible={Boolean(props.batchConnectionPreview)}
                         batchCount={props.batchChildCountById.get(node.id) || 0}
-                        batchExpanded={Boolean(node.metadata?.imageBatchExpanded)}
+                        batchExpanded={batchRootExpanded(node)}
                         batchPreviewNodes={batchPreviews.get(node.id)}
                         batchClosing={Boolean(node.metadata?.batchRootId && props.collapsingBatchIds.has(node.metadata.batchRootId))}
                         batchOpening={props.openingBatchIds.has(node.metadata?.batchRootId || node.id)}
                         batchRecovering={props.collapsingBatchIds.has(node.id)}
-                        batchPrimary={Boolean(node.metadata?.batchRootId && props.nodeById.get(node.metadata.batchRootId)?.metadata?.primaryImageId === node.id)}
+                        batchPrimary={Boolean(node.metadata?.batchRootId && (props.nodeById.get(node.metadata.batchRootId)?.metadata?.primaryImageId === node.id || props.nodeById.get(node.metadata.batchRootId)?.metadata?.primaryVideoId === node.id))}
                         batchMotion={props.batchMotionById.get(node.id)}
                         showImageInfo={props.showImageInfo}
                         reduceMediaEffects={props.reduceMediaEffects || props.mediaEffectsDisabledNodeId === node.id}
