@@ -34,18 +34,14 @@ export function CanvasSyncConflictGate({ message, conflict, onRetry, onLoadRemot
     };
     return (
         <main className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-            <p role="alert" className="max-w-[420px]">{message}</p>
+            <p role="alert" className="max-w-[420px]">
+                {message}
+            </p>
             {conflict ? (
                 <>
                     <div className="flex items-center gap-3">
                         <Button onClick={exportLocalCanvas}>导出本地备份</Button>
-                        <Popconfirm
-                            title="加载云端版本？"
-                            description="本地这份画布（含未同步的修改）将被放弃，云端版本会覆盖本地。可先导出备份。"
-                            okText="加载云端版本"
-                            cancelText="取消"
-                            onConfirm={onLoadRemote}
-                        >
+                        <Popconfirm title="加载云端版本？" description="本地这份画布（含未同步的修改）将被放弃，云端版本会覆盖本地。可先导出备份。" okText="加载云端版本" cancelText="取消" onConfirm={onLoadRemote}>
                             <Button danger>加载云端版本</Button>
                         </Popconfirm>
                     </div>
