@@ -32,11 +32,14 @@
   3. canvas-storage-revision：① parseCanvasStorageDocument 只收字符串，历史对象值让持久化队列永久失败（"[object Object] is not valid JSON"），兼容对象输入；② mergeEntities 对"base 有 durable 无"一律判冲突，历史失败期丢失的实体永远无法重建，改为仅墓碑 > baseRevision 才判冲突。
 - 环境记录：mock 上游 127.0.0.1:8321（newapi-channel-2 协议）+ 渠道 CHANNEL_MOCK1（allow_local_channel=1）+ 后端 CANVAS_BACKEND_ADDR=127.0.0.1:8081 + CANVAS_DESKTOP_LOCAL_CHANNELS_ENABLED=1（desktop loopback 渠道链路是本机渠道唯一放行路径，与 CANVAS_ALLOWED_PRIVATE_UPSTREAM_HOSTS 无关）。
 
-## S4 flora 现采（用户协作，阻塞 D-B）
+## S4 flora 证据获取（已完成 2026-09-15，方式变更）
 
-- [ ] G1 生成中 / G2 播放 HUD / G4 Variant rail 采集清单交用户（tmwd 现采或用户截图）。
-- [ ] 证据落 flora-evidence-kit 语料（06-corpus-index 登记）。
-- 无 commit（证据库非 git 仓库）；登记到 implement.md 勾选。
+- [x] 采集方式变更：flora 视频生成需会员，用户指示改走前端 JS 解析——app.flora.ai 公开静态 chunk 无门禁（门禁仅后端 API），从登录态 Project 1 画布页收集 160 个 chunk URL，本地直连下载 9 个重点 chunk（部署指纹 dpl_3TXzCRkPsoBHeAvMKSrrPQiRqpbh）。
+- [x] G1 生成中：deriveBlockState 三态；媒体区黑底+BlockLoadingState 进度填充；useNodeControlSurface 生成中/刚完成 1.5s 内 minimized（控制面收起）；queued toast + estimatedTime + ETA 进标题（与 atlas phase43 互洽）。
+- [x] G2 播放 HUD：NodeControlSurface 沉底透明浮层（absolute inset-0 justify-end p-2）；PlaybackControlsBar（Play/VolumeControl/时间码 0:00/0:00/seek 条，subscribeToTick ref 直写免 re-render）；VideoEditorChromeSlide 200ms slide 显现；空节点 force-expanded / 有产出 hover expanded / 生成中 minimized。
+- [x] G4 Variant rail：全屏查看器（FULLSCREEN_LAYOUT.SINGLE）左侧 w-20 rail；60px 方形 motion.button 项、选中 spring ×1.2、after 1.5px 内描边选中态；aria "Variant X of Y" 从下往上编号；右侧 w-64 元数据面板（Name/Model/Resolution/Cost 花朵图标等 10 行）；顶部 FullscreenToolbar + 底部 PromptDrawer。
+- [x] 附带坐实：节点内 `<video loop={!0}>` 硬编码循环（data-id="video-block-result"）——S5 loop 的源码级 flora 证据；VideoBlockMode 六模式枚举（5-chip 源头）；会员门禁 hook + 成本预估 hook。
+- 证据落 flora-evidence-kit 06-corpus-index 登记 + atlas `video-face-chunk-analysis-20260915.md`（含与影策现状 5 条差异点，供 S6 裁剪）。证据库非 git 仓库，无 commit。
 
 ## S5 播放面对齐（R2）
 
