@@ -7,7 +7,12 @@ type Behavior = "success" | "fail" | "cancel";
 // 行为表在 executor submit 完成后（首个任务启动前）由用例填充；stub 启动时读取。
 const childBehavior = new Map<string, Behavior>();
 
+// bun test 同进程共享模块注册表：mock 必须保留真实模块的全部导出，否则泄漏给
+// 之后加载的其他测试文件（如 canvas-model-policy 依赖 resolveCanvasGenerationModel）。
+const actualGeneration = await import("@/lib/canvas/canvas-project-generation");
+const actualSubmission = await import("@/lib/canvas/canvas-generation-submission");
 void mock.module("@/lib/canvas/canvas-project-generation", () => ({
+    ...actualGeneration,
     runCanvasGenerationTaskToConsumer: async (input: { nodeId: string }, dependencies: { consumeTask: (task: never) => Promise<void> | void }) => {
         // executor 在 Promise.all 的 map 回调里同步启动任务；让出微任务，
         // 保证测试用例在 submit 同步段之后注册的行为表先于 stub 读表落地。
@@ -30,7 +35,7 @@ void mock.module("@/lib/canvas/canvas-project-generation", () => ({
 }));
 
 void mock.module("@/lib/canvas/canvas-generation-submission", () => ({
-    canvasGenerationPromptMetadata: (prompt: string) => ({ prompt }),
+    ...actualSubmission,
 }));
 
 void mock.module("@/stores/canvas/use-canvas-store", () => ({
@@ -43,9 +48,10 @@ function sourceNode(metadata: CanvasNodeData["metadata"]): CanvasNodeData {
     return { id: "src", type: CanvasNodeType.Video, title: "t", position: { x: 0, y: 0 }, width: 480, height: 270, metadata };
 }
 
-async function runBatch(sourceMetadata: CanvasNodeData["metadata"], options: { abort?: boolean; behaviors?: (childIds: string[]) => void } = {}) {
+async function runBatch(sourceMetadata: CanvasNodeData["metadata"], options: { abort?: boolean; sourceWidth?: number; behaviors?: (childIds: string[]) => void } = {}) {
     childBehavior.clear();
     let nodes: CanvasNodeData[] = [sourceNode(sourceMetadata)];
+    if (options.sourceWidth) nodes[0] = { ...nodes[0], width: options.sourceWidth };
     const setNodes = (updater: (current: CanvasNodeData[]) => CanvasNodeData[]) => {
         nodes = updater(nodes);
     };
@@ -126,6 +132,17 @@ describe("executeVideoGeneration 批量编排", () => {
         expect(root.metadata?.status).toBe("idle");
     });
 
+    test("宽源节点就地 batch：首列偏移按源宽度而非 spec，子节点不与 root 重叠", async () => {
+        // 源 900 宽 > spec 480：旧实现用 spec.width 偏移，首列 x = 0+480+24 会落进 root 体内。
+        const { nodes, root, childIds } = await runBatch(
+            { videoGenerationCount: 3 },
+            { sourceWidth: 900, behaviors: (ids) => ids.forEach((id) => childBehavior.set(id, "cancel")) },
+        );
+        const firstChild = nodes.find((node) => node.id === childIds[0])!;
+        expect(root.width).toBe(900);
+        expect(firstChild.position.x).toBeGreaterThan(root.position.x + root.width);
+    });
+
     test("count>1 继承清理：版本族与图像批量字段不进入 batch root", async () => {
         const { root } = await runBatch({ videoGenerationCount: 3, versionOfNodeId: "vroot", versionLabel: "B", versionPrimary: true, imageBatchExpanded: true, primaryImageId: "img1" });
         expect(root.metadata?.versionOfNodeId).toBeUndefined();
@@ -146,6 +163,7 @@ describe("stripNonVideoBatchFields", () => {
             imageBatchExpanded: true,
             primaryImageId: "img1",
             batchFailedCount: 2,
+            batchRootId: "old-parent",
             prompt: "keep",
             model: "keep-model",
         });
@@ -155,6 +173,7 @@ describe("stripNonVideoBatchFields", () => {
         expect(metadata?.imageBatchExpanded).toBeUndefined();
         expect(metadata?.primaryImageId).toBeUndefined();
         expect(metadata?.batchFailedCount).toBeUndefined();
+        expect(metadata?.batchRootId).toBeUndefined();
         expect(metadata?.prompt).toBe("keep");
         expect(metadata?.model).toBe("keep-model");
     });

@@ -41,6 +41,8 @@ export function stripNonVideoBatchFields(metadata: CanvasNodeData["metadata"]): 
     delete next.imageBatchExpanded;
     delete next.primaryImageId;
     delete next.batchFailedCount;
+    // 失败/空置的旧 batch child 被选为新就地源时，悬挂的 batchRootId 会让 isHiddenBatchChild 把新 root 误判为隐藏。
+    delete next.batchRootId;
     return next;
 }
 
@@ -210,7 +212,8 @@ async function executeVideoBatchGeneration({
     const rootId = isEmptyVideoNode ? nodeId! : nanoid();
     const childIds = Array.from({ length: batchCount }, () => nanoid());
     const rootPosition = isEmptyVideoNode && sourceNode ? sourceNode.position : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y };
-    const childPositions = videoBatchChildPositions(rootPosition, spec.width, spec.width, spec.height, batchCount);
+    // 子节点列偏移必须用 root 实际宽度：in-place 时 root 沿用源节点几何，宽于/窄于 spec 时用 spec 会让首列与 root 重叠或脱节。
+    const childPositions = videoBatchChildPositions(rootPosition, isEmptyVideoNode && sourceNode ? sourceNode.width : spec.width, spec.width, spec.height, batchCount);
     const sharedGenerationMetadata = {
         ...canvasGenerationPromptMetadata(prompt, effectivePrompt),
         model: generationConfig.model,

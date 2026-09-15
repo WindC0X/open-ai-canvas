@@ -740,10 +740,11 @@ function VideoBatchRootContent(props: CanvasNodeContentProps) {
         return <BatchFrame batchPreviewNodes={props.batchPreviewNodes} batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} theme={props.theme} onToggleBatch={props.onToggleBatch}>{content}</BatchFrame>;
     }
     // root 已有提升内容（primaryVideoId）：未激活时静态首帧预览，点击播放入口与普通视频节点同构（onMediaPlayRequest 激活）；
-    // mediaActive 时在 BatchFrame 内直接渲染播放器（播放中失去 BatchFrame 堆叠也无妨——激活即用户专注态）。
-    if (props.mediaActive) return <VideoNodeContent {...props} isBatchRoot={false} />;
+    // mediaActive 时播放器仍留在 BatchFrame 内——root 的批量身份（堆叠预览/展开手雧）不能因播放态永久消失。
     return <BatchFrame batchPreviewNodes={props.batchPreviewNodes} batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} theme={props.theme} onToggleBatch={props.onToggleBatch}>
-        <InactiveVideoPreview node={props.node} theme={props.theme} onPlay={() => props.onMediaPlayRequest?.(props.node.id)} />
+        {props.mediaActive
+            ? <VideoNodeContent {...props} isBatchRoot={false} />
+            : <InactiveVideoPreview node={props.node} theme={props.theme} onPlay={() => props.onMediaPlayRequest?.(props.node.id)} />}
     </BatchFrame>;
 }
 
