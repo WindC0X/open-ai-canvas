@@ -2324,9 +2324,8 @@ const {
     const isPanelCarrier = useCallback((node: CanvasNodeData) => !isCanvasImageSourceNode(node) && !node.metadata?.fileUpload && node.type !== CanvasNodeType.Script && node.type !== CanvasNodeType.Drawing && node.type !== CanvasNodeType.Panorama && !isFrameNode(node), []);
     // selected 实例(dialog 驱动, 常驻)
     const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
-    // hover 实例(第二实例): 与 dialog 及 selected-single 工具栏同节点时不重复渲染, 否则同位叠影+双重事件
+    // hover 实例已退役(S2): hover 微态由节点内信息态 composer 承担; hoverSupplyTarget 仍供工具栏双槽位使用
     const hoverSupplyTarget = hoveredNode ?? exitingNode;
-    const hoverPanelNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && isPanelCarrier(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving ? hoverSupplyTarget : null;
     // toolbarNode?.id 排除即双槽位去重(与 composer 转换帧 duplicate-key 防御同语义, 在派生层完成;
     // JSX 渲染处无需再做 filter)。
     const hoverToolbarNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && hoverSupplyTarget.id !== toolbarNode?.id && !isFrameNode(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving ? hoverSupplyTarget : null;
@@ -2351,13 +2350,7 @@ const {
     const selectedComposerLevel: AffordanceLevel = !selectedPanelNode || emotionNodeId
         ? "hidden"
         : deriveComposerAffordance(
-            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === selectedPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === selectedPanelNode.id && hoverSurfaceKind === "bridge", settingsBubbleOpen: settingsBubbleNodeId === selectedPanelNode.id, selected: selectedNodeIds.has(selectedPanelNode.id) },
-            composerGuards,
-        );
-    const hoverComposerLevel: AffordanceLevel = !hoverPanelNode || emotionNodeId
-        ? "hidden"
-        : deriveComposerAffordance(
-            { nodeId: hoverPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === hoverPanelNode.id && (hoverSurfaceKind === "composer" || hoverSurfaceKind === "sense-band"), siblingHover: hoverSurfaceId === hoverPanelNode.id && hoverSurfaceKind === "bridge", settingsBubbleOpen: settingsBubbleNodeId === hoverPanelNode.id, selected: selectedNodeIds.has(hoverPanelNode.id) },
+            { nodeId: selectedPanelNode.id, hoveredNodeId, dialogNodeId, selfHover: hoverSurfaceId === selectedPanelNode.id && hoverSurfaceKind === "composer", settingsBubbleOpen: settingsBubbleNodeId === selectedPanelNode.id, selected: selectedNodeIds.has(selectedPanelNode.id) },
             composerGuards,
         );
     // toolbarMenuOpenId 反向边(审计裁决): 菜单 open 的节点一旦不再持有工具栏实例(hover 切走/卸载/
@@ -2822,37 +2815,29 @@ onViewportChange={handleViewportChange}
                             }}
                         />
 
-                    {[
-                        { node: selectedPanelNode, level: selectedComposerLevel },
-                        { node: hoverPanelNode, level: hoverComposerLevel },
-                    ].filter((instance): instance is { node: CanvasNodeData; level: AffordanceLevel } => instance.node !== null)
-                        // hover→selected 转换帧两个槽位可能是同一节点(hover 镜像经 effect 同步,
-                        // 滞后于 dialogNodeId 的同步 setState), 同 id 双实例会以 duplicate key
-                        // 强制 React 重挂 → 进场动画重播(用户实测"闪一下"根因之三)。
-                        // 同 id 去重并保留 selected 槽位(full 常驻语义), 实例连续存活。
-                        .filter((instance, index, all) => all.findIndex((other) => other.node!.id === instance.node!.id) === index)
-                        .map((instance) => (
+                    {/* composer 挂件(S2): 仅 selected 槽位; hover 微态由节点内信息态 composer 承担(S1),
+                        外部微浮现双实例退役 —— 外浮面板几何域与邻居节点相交是误触根因(prd §1)。 */}
+                    {selectedPanelNode ? (
                         <AffordanceSurface
-                            key={`composer-${instance.node.id}`}
-                            level={instance.level}
-                            data-supply-node={instance.node.id}
+                            key={`composer-${selectedPanelNode.id}`}
+                            level={selectedComposerLevel}
+                            data-supply-node={selectedPanelNode.id}
                             className="canvas-node-panel-affordance absolute inset-0"
                             style={{ pointerEvents: "none" }}
                         >
                             <CanvasNodePanelOverlay
-                                node={instance.node}
+                                node={selectedPanelNode}
                                 viewport={viewport}
                                 containerRef={containerRef}
-                                allowOverflow={instance.node.type !== CanvasNodeType.Config}
-                                gapPx={10}
-                                dragOffset={dragPreview?.nodeIds.has(instance.node.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
-                                isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(instance.node.id))}
+                                allowOverflow={selectedPanelNode.type !== CanvasNodeType.Config}
+                                dragOffset={dragPreview?.nodeIds.has(selectedPanelNode.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
+                                isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(selectedPanelNode.id))}
                             >
                                 {/* 按节点强重建(issue-1 根修): 复用实例会让旧节点曾打开的 ModelPicker 菜单 open state 跨节点残留。 */}
-                                <div key={instance.node.id} className="canvas-node-panel-enter">{renderCanvasNodePanel(instance.node)}</div>
+                                <div key={selectedPanelNode.id} className="canvas-node-panel-enter">{renderCanvasNodePanel(selectedPanelNode)}</div>
                             </CanvasNodePanelOverlay>
                         </AffordanceSurface>
-                    ))}
+                    ) : null}
 
                     <ObjectHudPanel
                         node={toolbarNode}

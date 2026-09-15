@@ -8,7 +8,6 @@ import { aceternityMotion } from "@/lib/aceternity-motion";
 import { subscribeCanvasGraphicsViewportPreview, subscribeCanvasNodeDragPreview, subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasNodeType, type CanvasNodeData, type ConnectionHandle, type Position, type ViewportTransform } from "@/types/canvas";
-import { CanvasNodeToolbarGapBridge } from "./canvas-node-toolbar-gap-bridge";
 
 export type PendingConnectionCreate = {
     connection: ConnectionHandle;
@@ -88,7 +87,7 @@ export function CanvasSelectionToolbar({ anchorRef, containerRef, count, childre
     );
 }
 
-export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidth, panelHeight = 190, dragOffset, isDragging = false, allowOverflow = false, gapPx, children }: { node: CanvasNodeData; viewport: ViewportTransform; containerRef: RefObject<HTMLDivElement | null>; panelWidth?: number; panelHeight?: number; dragOffset?: Position | null; isDragging?: boolean; allowOverflow?: boolean; gapPx?: number; children: ReactNode }) {
+export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidth, panelHeight = 190, dragOffset, isDragging = false, allowOverflow = false, children }: { node: CanvasNodeData; viewport: ViewportTransform; containerRef: RefObject<HTMLDivElement | null>; panelWidth?: number; panelHeight?: number; dragOffset?: Position | null; isDragging?: boolean; allowOverflow?: boolean; children: ReactNode }) {
     const panelRef = useRef<HTMLDivElement>(null);
     const { bringToFront, zIndex } = useCanvasOverlayLayer(`node-panel:${node.id}`, "var(--z-modal-overlay)");
     const initialWidth = resolveNodePanelWidth(node, viewport, panelWidth);
@@ -138,6 +137,7 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             ref={panelRef}
             data-canvas-no-zoom
             data-canvas-node-panel
+            data-panel-pendant="true"
             className={`thin-scrollbar pointer-events-auto absolute max-w-[calc(100%_-_24px)] ${allowOverflow ? "overflow-visible" : "overflow-y-auto"}`}
             style={{ left: 0, top: 0, transform: `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0)`, width: initialWidth, maxHeight: allowOverflow ? "none" : "calc(100% - 84px)", zIndex }}
             onMouseDown={(event) => event.stopPropagation()}
@@ -145,20 +145,6 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             onFocusCapture={bringToFront}
             onPointerDown={(event) => event.stopPropagation()}
         >
-            {gapPx ? <CanvasNodeToolbarGapBridge nodeId={node.id} gapPx={gapPx} direction="up" /> : null}
-            {/* 微态感应带: 面板主体在微态不拦截点击(pointer-events:none 由 CSS 控制)。
-                感应带是归属判定里的供给面(kind=sense-band, M2 级别过滤), 不再承担事件回调 */}
-            <div
-                data-canvas-panel-sense-band="true"
-                aria-hidden="true"
-                className="pointer-events-auto absolute top-0 z-10 h-5"
-                style={{
-                    // 宽度收窄(审计裁决): 感应带 clamp 到节点显示宽(模型宽×scale)居中, 防横向越界劫持邻居 hover
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: node.width * viewport.k,
-                }}
-            />
             {children}
         </div>
     );
@@ -166,7 +152,8 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
 
 function resolveNodePanelWidth(node: CanvasNodeData, viewport: ViewportTransform, requestedWidth?: number) {
     if (requestedWidth) return requestedWidth;
-    return clamp(Math.round(node.width * viewport.k * 1.5), 680, 920);
+    // 挂件宽度=节点显示宽(用户定稿); 下限 420 保面板内容可读, 待真机校准。
+    return Math.max(Math.round(node.width * viewport.k), 420);
 }
 
 export function CanvasConnectionCreateMenu({ pending, viewport, viewportSize, containerRef, canCreateDrawing, getDisabledReason, onCreate, onClose }: { pending: PendingConnectionCreate; viewport: ViewportTransform; viewportSize: { width: number; height: number }; containerRef: RefObject<HTMLDivElement | null>; canCreateDrawing: boolean; getDisabledReason: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Script | CanvasNodeType.BatchTable | CanvasNodeType.Video | CanvasNodeType.Audio | CanvasNodeType.Drawing | CanvasNodeType.Config | CanvasNodeType.MediaConversion, provider?: "runninghub") => string; onCreate: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Script | CanvasNodeType.BatchTable | CanvasNodeType.Video | CanvasNodeType.Audio | CanvasNodeType.Drawing | CanvasNodeType.Config | CanvasNodeType.MediaConversion, provider?: "runninghub") => void; onClose: () => void }) {
@@ -281,6 +268,7 @@ function getConnectionMenuPosition(position: Position, viewport: ViewportTransfo
     };
 }
 
+<<<<<<< HEAD
 function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLElement, panelWidth: number) {
     const gap = 10;
     const nodeRect = nodeElement.getBoundingClientRect();
@@ -294,10 +282,22 @@ function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLE
 
 export function getNodePanelPosition(node: CanvasNodeData, viewport: ViewportTransform, _viewportSize: { width: number; height: number }, panelWidth: number, _panelHeight: number, dragOffset?: Position | null) {
     const gap = 10;
+=======
+export function getNodePanelPosition(node: CanvasNodeData, viewport: ViewportTransform, viewportSize: { width: number; height: number }, panelWidth: number, _panelHeight: number, dragOffset?: Position | null) {
+    // 挂件化(09-15-composer-inline-hover-chrome S2): 面板顶缘贴合节点底缘(gap 1px)、左缘对齐节点左缘,
+    // 视觉为节点向下延伸的挂件; 之前的居中+10px gap 是外浮面板几何(压住下方邻居误触的根源)。
+    const gap = 1;
+    const margin = 12;
+>>>>>>> 2e429ab9 (feat(canvas): composer挂件化 - 面板底部锚定左对齐坠落展开, 外部微浮现双实例与sense band退役(S2))
     const offsetX = dragOffset?.x || 0;
     const offsetY = dragOffset?.y || 0;
-    const nodeCenterX = viewport.x + (node.position.x + offsetX + node.width / 2) * viewport.k;
+    const nodeLeft = viewport.x + (node.position.x + offsetX) * viewport.k;
     const nodeBottom = viewport.y + (node.position.y + offsetY + node.height) * viewport.k;
+<<<<<<< HEAD
+=======
+    const maxLeft = Math.max(margin, viewportSize.width - panelWidth - margin);
+    const left = clamp(nodeLeft, margin, maxLeft);
+>>>>>>> 2e429ab9 (feat(canvas): composer挂件化 - 面板底部锚定左对齐坠落展开, 外部微浮现双实例与sense band退役(S2))
     return {
         left: nodeCenterX - panelWidth / 2,
         top: nodeBottom + gap,

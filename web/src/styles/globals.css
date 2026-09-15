@@ -8426,13 +8426,35 @@
         animation: affordance-expand-in 180ms var(--motion-ease-out) backwards;
     }
     .canvas-node-panel-affordance .canvas-node-panel-enter {
-        --affordance-enter-offset: -10px;
-        animation: affordance-expand-in 180ms var(--motion-ease-out) backwards;
+        /* 挂件坠落展开(S2): 起点对齐节点内信息态位置(上方 ~44px), flora 曲线 200ms;
+           无 scale(渐显不变形契约覆盖 supply 主体)。 */
+        --affordance-enter-offset: -44px;
+        animation: affordance-drop-in 200ms cubic-bezier(0, 0.8, 0.1, 1) backwards;
     }
-    /* 退场(hidden 期, 与卸载延迟 160ms 匹配): 向节点方向收拢渐隐 */
-    .canvas-node-toolbar[data-affordance="hidden"] .canvas-node-toolbar-surface,
-    .canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter {
+    @keyframes affordance-drop-in {
+        from {
+            opacity: 0;
+            transform: translateY(var(--affordance-enter-offset, -44px));
+        }
+    }
+    /* 挂件外形(S2): 面板顶缘连接节点底缘, composer 顶角取直(底角保持圆)。 */
+    [data-panel-pendant] .canvas-node-composer {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+    /* 退场(hidden 期, 与卸载延迟 160ms 匹配): 向节点方向收拢渐隐;
+       挂件退场收回节点内(translateY 负向)无 scale。 */
+    .canvas-node-toolbar[data-affordance="hidden"] .canvas-node-toolbar-surface {
         animation: affordance-expand-out 160ms var(--motion-ease-in) forwards;
+    }
+    .canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter {
+        animation: affordance-drop-out 160ms var(--motion-ease-in) forwards;
+    }
+    @keyframes affordance-drop-out {
+        to {
+            opacity: 0;
+            transform: translateY(var(--affordance-enter-offset, -44px));
+        }
     }
     /* 供给本体(canvas-node-toolbar / canvas-node-panel-affordance)的进场渐显。
        不用裸 [data-affordance] 属性选择器: 归属域标注(设置气泡面板也带该属性以进 hover
