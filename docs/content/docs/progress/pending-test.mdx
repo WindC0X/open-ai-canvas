@@ -2792,4 +2792,8 @@ b (docs(progress): S08 底栏质感收尾批+wheel关闭同步批登记)
 6 (docs(progress): 登记挂件宽度与信息态质感修正批)
 
 **字号/引用行对齐批（51c52c7b，同日）**：用户四截图批评——①信息态字号与 flora 及 selected 挂件不一致；②引用缩略行形态不对（实现 20px 小图带名称徽标 vs flora 48px 纯缩略图）；③信息态引用行与提示词顺序与 flora 相反。修正（flora 语料 `0_di9:7903` SurfaceControlsOverlay 实证）：引用行**前置**、提示词后置；缩略图 h-12 w-12（48px）radius 12、间距 gap-2.5、纯缩略/图标块（无名称无徽标）；prompt 字号 `var(--fs-body)`（14px，与挂件编辑区同 token）leading-5，max-h 80px=4 行整。当前测试画布无带引用节点，引用行真机目测待用户在带引用节点上复核。
+
 d (docs(progress): 登记信息态字号与引用行对齐批)
+
+**挂件宽度回滚原版公式 + 引用 hover 胶囊批（同日）**：用户对比原版截图——selected 挂件 560 比原版（约节点 1.8 倍宽）窄了。修正：`resolveNodePanelWidth` 恢复原版公式 `clamp(节点宽×k×1.5, 680, 920)`（680/383≈1.78 倍），DOM 复验 pw=680；挂件化只改锚定（底缘贴合居中）不改宽度。引用缩略对齐用户 hover 截图的 flora 二态语义：静置 48px 纯方块（radius 12），hover 展开为胶囊——名称 + 类型标签（Image/Text/Video/Audio）淡入（max-w 0→160px + opacity 过渡 200ms flora 曲线）。
+c (docs(progress): 登记挂件宽度公式回滚与引用hover胶囊批)
