@@ -50,24 +50,17 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                     transition: `transform ${DURATION_MS}ms ${FLORA_EASE}`,
                 }}
             >
-                <div className="canvas-node-hover-composer-surface flex flex-col gap-1.5 px-3 py-2.5">
-                    {promptText ? (
-                        <div
-                            className="canvas-node-hover-composer-prompt overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-[18px]"
-                            data-canvas-wheel-scroll
-                            style={{ color: theme.node.text, maxHeight: 72 }}
-                        >
-                            {promptText}
-                        </div>
-                    ) : null}
+                <div className="canvas-node-hover-composer-surface flex flex-col gap-2 px-3 py-2.5">
+                    {/* flora SurfaceControlsOverlay(0_di9:7903)顺序: 引用行在前, 提示词在后。 */}
                     {references.length > 0 ? (
                         <div
                             className="-mx-3 -my-2.5 overflow-x-auto overflow-y-hidden px-3 py-2.5"
                             data-canvas-wheel-scroll
                         >
-                            <div className="flex w-max items-center gap-1">
+                            <div className="flex w-max items-center gap-2.5">
                                 {references.map((reference) => {
                                     const src = referenceThumbSrc(reference);
+                                    // flora 引用缩略: 48px 方块 radius 12, 纯缩略图/图标无名称徽标(用户 flora 截图)。
                                     return src ? (
                                         <img
                                             key={reference.id}
@@ -76,21 +69,29 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                                             draggable={false}
                                             loading="lazy"
                                             decoding="async"
-                                            className="h-5 w-5 shrink-0 rounded-[4px] object-cover"
+                                            className="h-12 w-12 shrink-0 rounded-[12px] object-cover"
                                             style={{ outline: `1px solid ${theme.node.stroke}` }}
                                         />
                                     ) : (
                                         <span
                                             key={reference.id}
-                                            className="flex h-5 shrink-0 items-center gap-1 rounded-[4px] px-1.5 text-[10px] leading-none"
+                                            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] text-sm font-medium"
                                             style={{ background: theme.toolbar.itemHover, color: theme.node.muted }}
                                         >
                                             {reference.kind === "audio" ? "♪" : "T"}
-                                            <span className="max-w-16 truncate">{reference.label}</span>
                                         </span>
                                     );
                                 })}
                             </div>
+                        </div>
+                    ) : null}
+                    {promptText ? (
+                        <div
+                            className="canvas-node-hover-composer-prompt overflow-y-auto whitespace-pre-wrap break-words text-[var(--fs-body)] leading-5"
+                            data-canvas-wheel-scroll
+                            style={{ color: theme.node.text, maxHeight: 80 }}
+                        >
+                            {promptText}
                         </div>
                     ) : null}
                 </div>
