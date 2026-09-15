@@ -18,6 +18,8 @@ type VideoPlayerProps = {
     brandColor?: string;
     preload?: MediaPlayerProps["preload"];
     autoPlay?: boolean;
+    /** 循环播放：画布视频节点激活态遵循 flora phase143 证据（muted looping autoplay）。 */
+    loop?: boolean;
     dataCanvasNoZoom?: boolean;
     compactControls?: boolean;
     /** Explicitly marks videos known to have an audio track (or not). */
@@ -74,7 +76,7 @@ const supportedVideoMimeTypes = new Set<VideoMimeType>(["video/mp4", "video/webm
  * 统一视频播放表面，保留原生媒体 URL 契约，同时提供可访问的完整控件布局。
  * 画布节点需要隔离播放器手势，避免拖动进度条时被误判为拖动画布。
  */
-export function VideoPlayer({ src, mimeType, title = "视频", className, brandColor = "#f5f5f5", preload = "metadata", autoPlay = false, dataCanvasNoZoom = false, compactControls = false, hasAudio, onCanPlay, onPlay }: VideoPlayerProps) {
+export function VideoPlayer({ src, mimeType, title = "视频", className, brandColor = "#f5f5f5", preload = "metadata", autoPlay = false, loop = false, dataCanvasNoZoom = false, compactControls = false, hasAudio, onCanPlay, onPlay }: VideoPlayerProps) {
     const [detectedHasAudio, setDetectedHasAudio] = useState<boolean | undefined>(undefined);
     const autoPlayAttemptedRef = useRef(false);
     const audioProbeGenerationRef = useRef(0);
@@ -107,7 +109,12 @@ export function VideoPlayer({ src, mimeType, title = "视频", className, brandC
         setDetectedHasAudio(undefined);
         autoPlayAttemptedRef.current = false;
         audioProbeGenerationRef.current += 1;
-    }, [src]);
+        // 源切换/provider 就绪后的首轮同步；canplay 事件内另有同类写入，双保险。
+        const player = mediaPlayerRef.current;
+        const provider = player?.provider;
+        const media = provider && isVideoProvider(provider) ? provider.media : undefined;
+        if (media) media.loop = loop;
+    }, [src, loop]);
 
     useEffect(() => {
         const player = mediaPlayerRef.current?.el;
@@ -167,6 +174,9 @@ export function VideoPlayer({ src, mimeType, title = "视频", className, brandC
             autoPlayAttemptedRef.current = true;
             void event.target.play().catch(() => undefined);
         }
+        // loop 经 provider 通道命令式应用：Vidstack 对该 prop 的 DOM 同步不可靠（真机观测 store 未落到 video.loop），
+        // 直接写 HTMLMediaElement.loop 保证画布节点循环播放语义（flora phase143 证据）。
+        if (media && loop) media.loop = true;
         onCanPlay?.(detail, event);
     };
 
@@ -181,6 +191,7 @@ export function VideoPlayer({ src, mimeType, title = "视频", className, brandC
             streamType="on-demand"
             playsInline
             autoPlay={autoPlay}
+            loop={loop || undefined}
             muted={noAudio ? true : undefined}
             load="eager"
             preload={preload}

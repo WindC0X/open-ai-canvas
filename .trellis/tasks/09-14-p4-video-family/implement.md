@@ -23,7 +23,7 @@
 
 - [x] count=3：并行任务、单失败不拖垮、失败项重试、取消清理。（2026-09-14 mock 渠道真机：3 任务并行 succeeded、root primary 提升、children 1280x720 各自 content；单失败/取消/重试未真机抽查且无单测——失败项重试接线在 review 后补齐：failedImageBatchChildren/reconcileImageBatchRoot 参数化 type + project.tsx 视频 onRetry 分支）
 - [x] count=1 回归：版本族/单节点路径不变。（单测 canvas-video-batch.test.ts 6 pass 覆盖拆分语义；count=1 未走 batch 分支）
-- [ ] pending-test.mdx 登记。
+- [x] pending-test.mdx 登记。（46b58f95，含三缺陷修复记录）
 - Commit: `docs(progress): 视频份数批量管线验收登记`
 - 验收中发现并修复的三个真实缺陷（a874729e / cacc5f65）：
   1. executeVideoBatchGeneration 就地（空视频节点）分支 setNodes 只更新 root、漏追加 childNodes，任务消费链"画布中找不到对应任务节点"全军覆没（所有历史轮 children 消失的根因）。
@@ -39,10 +39,10 @@
 
 ## S5 播放面对齐（R2）
 
-- [ ] phase143 muted 循环播放核对：VideoPlayer loop 属性（若缺）。
-- [ ] 播放态 × hover 归属/micro-affordance 面板退场不暂停播放：真机确认（预期现状已满足，证伪才改码）。
-- 验证：真机 A3；tsc 0。
-- Commit: `fix(canvas): 视频播放对齐resultVideoBlock语法 - muted循环(证据phase143)`
+- [x] phase143 looping 播放核对：VideoPlayer 增加 loop 属性。实现发现 Vidstack 1.15.6 对 `loop` prop 的 DOM 同步不可靠（真机 `video.loop=false`，store 侧不可直读），改为经 provider 通道命令式应用（src/loop 变更 effect + canplay 双写点）。
+- [x] 播放态 × hover 归属/micro-affordance 面板退场不暂停播放：真机确认现状已满足（证伪未发生，未改码）。
+- 验证：真机（2026-09-15，tab 1146061365，节点 video-1788736100774-5vjhr）：loop=true；seek 至 duration-0.25s 后 900ms 回绕 0.14s 且未暂停；指针 dispatch 到画布远端 3s 后播放仍在推进（t 3.14→3.95）、视频未卸载（activeMediaNodeId 仅在节点删除时清除）。tsc 0。
+- Commit: `fix(canvas): 视频节点循环播放对齐flora证据 - loop经provider命令式应用, 播放态与hover退场解耦验证`
 
 ## S6 生成中/播放 HUD 差异对齐（R3/R4，以 S4 证据裁剪）
 
