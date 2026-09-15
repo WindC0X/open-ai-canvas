@@ -2812,4 +2812,8 @@ c (docs(progress): 登记挂件宽度公式回滚与引用hover胶囊批)
 9 (docs(progress): 登记信息态面板高度补齐批)
 
 **字号"不一致"诊断批（同日）**：用户反馈 hover 态与选中挂件 prompt 字号又不一致。排查结论：两态源码/计算样式完全一致（fs-body 14px + leading-5，同屏 computed 13px/20px）。视觉差来自**空间锚定架构差异**——选中挂件 portal 在画布 raster 层之外不吃画布缩放（视觉恒 13/20），hover 信息态在节点内吃 raster scale（实测 raster 0.79 时视觉 10.3/15.8、raster 1.178 时视觉 15.3/23.6，画布每次滚轮缩放都会改变 hover 观感字号）。flora 全部 composer 在节点内（同样随缩放），无外置挂件对比面。像素级验证：用户两张截图行距 20-21px（挂件，raster≈1.0）vs 15-17px（hover，raster≈0.79），与 zoom 基准（标题字形 10 vs 9px）吻合。
+
 8 (docs(progress): 字号不一致诊断为raster缩放架构差异(两态源码一致))
+
+**信息态 P1/P2 修复批（code-review-expert review 后，同日）**：review 整改全链 7 提交发现 P1×1/P2×2/P3×4，已修 P1+P2（`a2a4c0d5`）：①P1 视频引用 `mediaUrl` 回退把视频文件 URL 塞进 `<img src>` 必裂图（与文本引用裂图同构，libTV 之外渠道即触发）——摘除回退，mediaUrl 只许 `<video>` 消费，无快照走图标块（▶）；②P2 隐藏态常驻挂载 + `opacity:0` 使 `loading="lazy"` 失效，缩略图全画布静默加载——隐藏态不解析 src；③P2 补 `aria-hidden`。新增 `canvas-node-hover-composer.test.tsx`（9 测试：referenceThumbSrc 5 例 + 静态标记渲染 4 例）。真机复验：带引用节点 visible 态 1 img 不裂、hidden 态 0 img + aria-hidden=true。P3 未修项留档：`referenceThumbSrc` export 收窄、globals 三层子选择器解耦、高度魔法数字提常量。
+f (docs(progress): 登记信息态P1/P2修复批与review结论)
