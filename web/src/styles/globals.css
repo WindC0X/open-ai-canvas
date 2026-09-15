@@ -7431,14 +7431,20 @@
         border-color: rgba(15, 23, 42, 0.08) !important;
     }
 
-    /* 节点内 hover 信息态 composer(09-15 任务 S1): flora controls overlay 同构。
-       面体 blur 玻璃(flora rgba(25,25,25,.65) 值族), 微亮 .45 悬停全显 1(纯 CSS, 零状态);
-       引用行 mask 渐隐边缘 + 滚动条隐藏(flora :7893/:17210 语义)。 */
+    /* 节点内 hover 信息态 composer(09-15 任务 S1, 用户真机反馈修订): flora 浮卡同构 ——
+       实感毛玻璃+边框+浮起全圆角(贴底渐变在浅色画面上对比度不足, 文字粘连);
+       浮起 inset-x-2 bottom-2 与节点底缘留空, 卡片有明确边界。
+       微亮 .45 悬停全显 1(纯 CSS, 零状态); 引用行 mask 渐隐边缘 + 滚动条隐藏(flora :7893/:17210)。 */
+    .canvas-node-hover-composer {
+        padding: 0 8px 8px;
+    }
     .canvas-node-hover-composer-surface {
-        border-radius: 0 0 var(--node-radius) var(--node-radius);
-        background: rgba(25, 25, 25, 0.65);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        border-radius: var(--node-radius);
+        background: rgba(20, 20, 20, 0.88);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
         opacity: 0.45;
         transition: opacity 200ms cubic-bezier(0, 0.8, 0.1, 1);
     }
@@ -7446,7 +7452,9 @@
         opacity: 1;
     }
     :root:not(.dark) .canvas-node-hover-composer-surface {
-        background: rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.88);
+        border-color: rgba(15, 23, 42, 0.1);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     }
     .canvas-node-hover-composer-surface .canvas-node-hover-composer-prompt {
         scrollbar-width: none;
@@ -7458,11 +7466,18 @@
     .canvas-node-hover-composer [data-canvas-wheel-scroll] {
         scrollbar-width: none;
         -ms-overflow-style: none;
-        mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
-        -webkit-mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
     }
     .canvas-node-hover-composer [data-canvas-wheel-scroll]::-webkit-scrollbar {
         display: none;
+    }
+    /* 引用行滚动时左右渐隐; prompt 纵滚时底部渐隐(替代硬切提示) */
+    .canvas-node-hover-composer [data-canvas-wheel-scroll].canvas-node-hover-composer-prompt {
+        mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+        -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+    }
+    .canvas-node-hover-composer > div > div > [data-canvas-wheel-scroll]:not(.canvas-node-hover-composer-prompt) {
+        mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
+        -webkit-mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
     }
     @media (prefers-reduced-motion: reduce) {
         .canvas-node-hover-composer,

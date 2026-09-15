@@ -152,8 +152,9 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
 
 function resolveNodePanelWidth(node: CanvasNodeData, viewport: ViewportTransform, requestedWidth?: number) {
     if (requestedWidth) return requestedWidth;
-    // 挂件宽度=节点显示宽(用户定稿); 下限 420 保面板内容可读, 待真机校准。
-    return Math.max(Math.round(node.width * viewport.k), 420);
+    // 挂件宽度=节点显示宽与底栏自然最小宽取大(实测 footer 自然宽 534+内边距≈558,
+    // 420 下限会把模型/参数 pill 压到截断 —— 用户真机截图批评项)。
+    return Math.max(Math.round(node.width * viewport.k), 560);
 }
 
 export function CanvasConnectionCreateMenu({ pending, viewport, viewportSize, containerRef, canCreateDrawing, getDisabledReason, onCreate, onClose }: { pending: PendingConnectionCreate; viewport: ViewportTransform; viewportSize: { width: number; height: number }; containerRef: RefObject<HTMLDivElement | null>; canCreateDrawing: boolean; getDisabledReason: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Script | CanvasNodeType.BatchTable | CanvasNodeType.Video | CanvasNodeType.Audio | CanvasNodeType.Drawing | CanvasNodeType.Config | CanvasNodeType.MediaConversion, provider?: "runninghub") => string; onCreate: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Script | CanvasNodeType.BatchTable | CanvasNodeType.Video | CanvasNodeType.Audio | CanvasNodeType.Drawing | CanvasNodeType.Config | CanvasNodeType.MediaConversion, provider?: "runninghub") => void; onClose: () => void }) {
@@ -280,16 +281,16 @@ function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLE
 }
 
 export function getNodePanelPosition(node: CanvasNodeData, viewport: ViewportTransform, viewportSize: { width: number; height: number }, panelWidth: number, _panelHeight: number, dragOffset?: Position | null) {
-    // 挂件化(09-15-composer-inline-hover-chrome S2): 面板顶缘贴合节点底缘(gap 1px)、左缘对齐节点左缘,
-    // 视觉为节点向下延伸的挂件; 之前的居中+10px gap 是外浮面板几何(压住下方邻居误触的根源)。
+    // 挂件化(S2 修订): 面板顶缘贴合节点底缘(gap 1px)、水平居中于节点(挂件可略宽于节点,
+    // 对称微展不破坏重心); 之前的居中+10px gap 是外浮面板几何(压住下方邻居误触的根源)。
     const gap = 1;
     const margin = 12;
     const offsetX = dragOffset?.x || 0;
     const offsetY = dragOffset?.y || 0;
-    const nodeLeft = viewport.x + (node.position.x + offsetX) * viewport.k;
+    const nodeCenterX = viewport.x + (node.position.x + offsetX + node.width / 2) * viewport.k;
     const nodeBottom = viewport.y + (node.position.y + offsetY + node.height) * viewport.k;
     const maxLeft = Math.max(margin, viewportSize.width - panelWidth - margin);
-    const left = clamp(nodeLeft, margin, maxLeft);
+    const left = clamp(nodeCenterX - panelWidth / 2, margin, maxLeft);
     return {
         left,
         top: nodeBottom + gap,

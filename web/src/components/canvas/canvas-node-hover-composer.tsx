@@ -50,18 +50,19 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                     transition: `transform ${DURATION_MS}ms ${FLORA_EASE}`,
                 }}
             >
-                <div className="canvas-node-hover-composer-surface flex flex-col gap-1.5 px-3 pb-2 pt-5">
+                <div className="canvas-node-hover-composer-surface flex flex-col gap-1.5 px-3 py-2.5">
                     {promptText ? (
                         <div
-                            className="canvas-node-hover-composer-prompt max-h-[4.5rem] overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-4"
-                            style={{ color: theme.node.text }}
+                            className="canvas-node-hover-composer-prompt overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-[18px]"
+                            data-canvas-wheel-scroll
+                            style={{ color: theme.node.text, maxHeight: 72 }}
                         >
                             {promptText}
                         </div>
                     ) : null}
                     {references.length > 0 ? (
                         <div
-                            className="-mx-3 -my-4 overflow-x-auto overflow-y-hidden px-3 py-4"
+                            className="-mx-3 -my-2.5 overflow-x-auto overflow-y-hidden px-3 py-2.5"
                             data-canvas-wheel-scroll
                         >
                             <div className="flex w-max items-center gap-1">
