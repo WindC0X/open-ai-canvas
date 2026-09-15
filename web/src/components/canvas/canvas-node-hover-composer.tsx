@@ -28,9 +28,10 @@ type CanvasNodeHoverComposerProps = {
 };
 
 export function referenceThumbSrc(reference: CanvasResourceReference) {
-    // 仅媒体类渲染 img; 文本/技能引用无图, 不允许空 src(img src="" 必裂图 — 用户截图批评项)。
+    // 仅图片类 URL 可进 <img src>; 空 src 与视频文件 URL(video mediaUrl)都是必裂图,
+    // 文本/音频/技能与无封面视频/角色一律走图标块。mediaUrl 只允许 <video> 消费。
     const media = reference.kind === "image" || reference.kind === "video" || reference.kind === "character";
-    return media ? reference.previewUrl || (reference.kind === "video" ? reference.mediaUrl : "") || "" : "";
+    return media ? reference.previewUrl || "" : "";
 }
 
 export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: CanvasNodeHoverComposerProps) {
@@ -41,6 +42,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
         <div
             className="canvas-node-hover-composer absolute inset-x-0 bottom-0 z-20"
             data-node-hover-composer={show ? "visible" : "hidden"}
+            aria-hidden={!show || undefined}
             style={{
                 opacity: show ? 1 : 0,
                 pointerEvents: show ? "auto" : "none",
@@ -65,22 +67,25 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                                     const src = referenceThumbSrc(reference);
                                     // flora 引用缩略(用户 hover 截图对): 静置 48px 方块 radius 12 纯缩略图;
                                     // hover 展开为胶囊 —— 名称 + 类型标签(Image/Text)淡入, 宽度过渡 200ms。
+                                    // 隐藏态不解析 src: 常驻挂载 + lazy 救不了 opacity:0 的隐藏层,
+                                    // 缩略图会在整个画布生命周期里被静默加载(节点数放大网络/解码开销)。
+                                    const thumbSrc = show ? src : "";
                                     return (
                                         <span
                                             key={reference.id}
                                             className="canvas-node-hover-composer-ref group/ref flex h-9 items-center overflow-hidden rounded-lg"
                                             style={{ background: theme.toolbar.itemHover, outline: `1px solid ${theme.node.stroke}` }}
                                         >
-                                            {src ? (
-                                                <img src={src} alt={reference.label} draggable={false} loading="lazy" decoding="async" className="h-9 w-9 shrink-0 object-cover" />
+                                            {thumbSrc ? (
+                                                <img src={thumbSrc} alt={reference.label} draggable={false} loading="lazy" decoding="async" className="h-9 w-9 shrink-0 object-cover" />
                                             ) : (
                                                 <span className="flex h-9 w-9 shrink-0 items-center justify-center text-sm font-medium" style={{ color: theme.node.muted }}>
-                                                    {reference.kind === "audio" ? "♪" : "T"}
+                                                    {reference.kind === "audio" ? "♪" : reference.kind === "video" ? "▶" : reference.kind === "character" ? "👤" : "T"}
                                                 </span>
                                             )}
                                             <span className="canvas-node-hover-composer-ref-meta flex min-w-0 max-w-0 flex-col justify-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-[cubic-bezier(0,0.8,0.1,1)] group-hover/ref:mx-2.5 group-hover/ref:max-w-40 group-hover/ref:opacity-100">
                                                 <span className="truncate text-xs leading-4" style={{ color: theme.node.text }}>{reference.label}</span>
-                                                <span className="text-[10px] leading-3 opacity-55" style={{ color: theme.node.muted }}>{reference.kind === "audio" ? "Audio" : reference.kind === "video" ? "Video" : reference.kind === "text" ? "Text" : "Image"}</span>
+                                                <span className="text-[10px] leading-3 opacity-55" style={{ color: theme.node.muted }}>{reference.kind === "audio" ? "Audio" : reference.kind === "video" ? "Video" : reference.kind === "character" ? "Character" : reference.kind === "text" ? "Text" : "Image"}</span>
                                             </span>
                                         </span>
                                     );
