@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/09-15-composer-inline-hover-chrome/prd.md", "reason": "验收A1-A6与边界"}
+{"file": "web/test/hover-attribution.test.ts", "reason": "S3供给面裁剪后测试更新基线"}
+{"file": "web/test/canvas-affordance.test.ts", "reason": "affordance语义变更回归"}

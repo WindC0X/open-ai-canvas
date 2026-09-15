@@ -14,6 +14,9 @@ import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-refer
 import { ART_CRITIQUE_NODE_TYPE } from "@/lib/art-critique/contracts";
 import { getNodeDefinition, getNodeMinSize, shouldKeepAspectRatio } from "@/lib/canvas/node-registry";
 import { CanvasNodeContent, CanvasNodeImageInfo } from "./canvas-node-content";
+import { CanvasNodeLoadingFill } from "./canvas-node-loading-fill";
+import { CanvasNodeHoverComposer } from "./canvas-node-hover-composer";
+73c82c28 (feat(canvas): 节点内hover信息态composer - 纯信息零按钮/flora坠落动画/零越界(S1))
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
@@ -279,6 +282,11 @@ export const CanvasNode = React.memo(function CanvasNode({
     const connectionTilt = isConnectionTarget && !reduceMediaEffects && !dragOffset
         ? canvasConnectionTilt(data, connectionApproach) : undefined;
 
+    // 节点内 hover 信息态 composer（任务 09-15-composer-inline-hover-chrome）：
+    // hover 未选中时零越界显现；生成中/播放中/batch 展开时隐藏（flora minimized 语义）。
+    const hoverPrompt = data.metadata?.prompt ?? data.metadata?.composerContent;
+    const hoverComposerVisible = hovered && !isSelected && !isGenerating && !batchExpanded && !mediaActive;
+
     return (
         <div
             data-node-id={data.id}
@@ -414,6 +422,12 @@ export const CanvasNode = React.memo(function CanvasNode({
                         reduceMediaEffects={reduceMediaEffects}
                         mediaActive={mediaActive}
                         onMediaPlayRequest={onMediaPlayRequest}
+                    />
+                    <CanvasNodeHoverComposer
+                        prompt={hoverPrompt}
+                        references={mentionReferences}
+                        theme={theme}
+                        visible={hoverComposerVisible}
                     />
                 </div>
 

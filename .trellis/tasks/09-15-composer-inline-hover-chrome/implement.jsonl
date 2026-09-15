@@ -1,0 +1,7 @@
+{"file": ".trellis/tasks/09-15-composer-inline-hover-chrome/design.md", "reason": "方案C定稿: 节点内信息态+挂件化定位+flora动画证据"}
+{"file": "web/src/components/canvas/canvas-node.tsx", "reason": "S1信息态插入点; isHovered/memo语义; 生成中/batch状态源"}
+{"file": "web/src/pages/canvas/canvas-project-world-layers.tsx", "reason": "props下发路径(isHovered同路), mentionReferences组装"}
+{"file": "web/src/components/canvas/canvas-workspace-overlays.tsx", "reason": "CanvasNodePanelOverlay定位(S2挂件化); sense band(S3退役)"}
+{"file": "web/src/pages/canvas/project.tsx", "reason": "双实例渲染点(2837-2856); isPanelCarrier; 退役清单"}
+{"file": "web/src/lib/canvas/hover-attribution.ts", "reason": "S3供给面裁剪; collectSupplyHits composer分支"}
+{"file": "/mnt/f/CODE/Project/og-canvas-flora-study/.flora-capture/static-20260915/pretty/0_di9ysq8i8ky.js", "reason": "flora证据: SurfaceLayout controls overlay/引用横滚/max-h 72px/动画曲线"}
