@@ -11,7 +11,8 @@ import type { CanvasTheme } from "@/lib/canvas-theme";
  * - 显隐动画照 flora SurfaceLayout（0_di9:7893 附近）：双层 200ms cubic-bezier(0,0.8,0.1,1)，
  *   外层 opacity、内层 translateY(calc(100%+1px)) 坠落；常驻挂载不卸载，退场无卸载竞态。
  * - 微亮→全显走纯 CSS :hover（0.45→1，flora group-hover/surface 同思路），零状态零事件链。
- * - 提示词容器照 flora :7653 非展开态 max-h-[4.5rem] + overflow-auto（内部滚动，非全文铺开）。
+ * - 提示词容器照 flora :7653 非展开态 + overflow-auto（内部滚动，非全文铺开）；
+ * - flora 底部工具栏行(36px)按用户定稿裁掉后，其高度并入提示词区（min 116 / max 132），面板总高与 flora 同比例。
  * - 引用行照 flora :7893：overflow-x-auto overflow-y-hidden、负 margin 扩滚动域、nowheel。
  */
 
@@ -91,7 +92,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                         <div
                             className="canvas-node-hover-composer-prompt overflow-y-auto whitespace-pre-wrap break-words text-[var(--fs-body)] leading-5"
                             data-canvas-wheel-scroll
-                            style={{ color: theme.node.text, minHeight: 80, maxHeight: 96 }}
+                            style={{ color: theme.node.text, minHeight: 116, maxHeight: 132 }}
                         >
                             {promptText}
                         </div>
