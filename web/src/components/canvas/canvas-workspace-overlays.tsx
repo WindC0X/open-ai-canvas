@@ -152,9 +152,10 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
 
 function resolveNodePanelWidth(node: CanvasNodeData, viewport: ViewportTransform, requestedWidth?: number) {
     if (requestedWidth) return requestedWidth;
-    // 挂件宽度=节点显示宽与底栏自然最小宽取大(实测 footer 自然宽 534+内边距≈558,
-    // 420 下限会把模型/参数 pill 压到截断 —— 用户真机截图批评项)。
-    return Math.max(Math.round(node.width * viewport.k), 560);
+    // 挂件宽度沿用外部面板时代的原版公式(用户 09-15 对比原版批评 560 变窄):
+    // 节点宽×1.5、下限 680(383 节点时 ≈1.78 倍, 与原版视觉一致)、上限 920;
+    // 挂件语义改的是锚定(底缘贴合居中)而非宽度。下限 558 的底栏自然宽需求被 680 覆盖。
+    return clamp(Math.round(node.width * viewport.k * 1.5), 680, 920);
 }
 
 export function CanvasConnectionCreateMenu({ pending, viewport, viewportSize, containerRef, canCreateDrawing, getDisabledReason, onCreate, onClose }: { pending: PendingConnectionCreate; viewport: ViewportTransform; viewportSize: { width: number; height: number }; containerRef: RefObject<HTMLDivElement | null>; canCreateDrawing: boolean; getDisabledReason: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Script | CanvasNodeType.BatchTable | CanvasNodeType.Video | CanvasNodeType.Audio | CanvasNodeType.Drawing | CanvasNodeType.Config | CanvasNodeType.MediaConversion, provider?: "runninghub") => string; onCreate: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Script | CanvasNodeType.BatchTable | CanvasNodeType.Video | CanvasNodeType.Audio | CanvasNodeType.Drawing | CanvasNodeType.Config | CanvasNodeType.MediaConversion, provider?: "runninghub") => void; onClose: () => void }) {

@@ -60,25 +60,25 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                             <div className="flex w-max items-center gap-2.5">
                                 {references.map((reference) => {
                                     const src = referenceThumbSrc(reference);
-                                    // flora 引用缩略: 48px 方块 radius 12, 纯缩略图/图标无名称徽标(用户 flora 截图)。
-                                    return src ? (
-                                        <img
-                                            key={reference.id}
-                                            src={src}
-                                            alt={reference.label}
-                                            draggable={false}
-                                            loading="lazy"
-                                            decoding="async"
-                                            className="h-12 w-12 shrink-0 rounded-[12px] object-cover"
-                                            style={{ outline: `1px solid ${theme.node.stroke}` }}
-                                        />
-                                    ) : (
+                                    // flora 引用缩略(用户 hover 截图对): 静置 48px 方块 radius 12 纯缩略图;
+                                    // hover 展开为胶囊 —— 名称 + 类型标签(Image/Text)淡入, 宽度过渡 200ms。
+                                    return (
                                         <span
                                             key={reference.id}
-                                            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] text-sm font-medium"
-                                            style={{ background: theme.toolbar.itemHover, color: theme.node.muted }}
+                                            className="canvas-node-hover-composer-ref group/ref flex h-12 items-center overflow-hidden rounded-[12px]"
+                                            style={{ background: theme.toolbar.itemHover, outline: `1px solid ${theme.node.stroke}` }}
                                         >
-                                            {reference.kind === "audio" ? "♪" : "T"}
+                                            {src ? (
+                                                <img src={src} alt={reference.label} draggable={false} loading="lazy" decoding="async" className="h-12 w-12 shrink-0 object-cover" />
+                                            ) : (
+                                                <span className="flex h-12 w-12 shrink-0 items-center justify-center text-sm font-medium" style={{ color: theme.node.muted }}>
+                                                    {reference.kind === "audio" ? "♪" : "T"}
+                                                </span>
+                                            )}
+                                            <span className="canvas-node-hover-composer-ref-meta flex min-w-0 max-w-0 flex-col justify-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-[cubic-bezier(0,0.8,0.1,1)] group-hover/ref:mx-2.5 group-hover/ref:max-w-40 group-hover/ref:opacity-100">
+                                                <span className="truncate text-xs leading-4" style={{ color: theme.node.text }}>{reference.label}</span>
+                                                <span className="text-[10px] leading-3 opacity-55" style={{ color: theme.node.muted }}>{reference.kind === "audio" ? "Audio" : reference.kind === "video" ? "Video" : reference.kind === "text" ? "Text" : "Image"}</span>
+                                            </span>
                                         </span>
                                     );
                                 })}
