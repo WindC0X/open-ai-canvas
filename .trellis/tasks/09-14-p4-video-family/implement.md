@@ -21,7 +21,7 @@
 
 ## S3 D-A 真机验收（A1/A2 全量）
 
-- [x] count=3：并行任务、单失败不拖垮、失败项重试、取消清理。（2026-09-14 mock 渠道真机：3 任务并行 succeeded、root primary 提升、children 1280x720 各自 content；单失败/重试/取消留待负路径抽查）
+- [x] count=3：并行任务、单失败不拖垮、失败项重试、取消清理。（2026-09-14 mock 渠道真机：3 任务并行 succeeded、root primary 提升、children 1280x720 各自 content；单失败/取消/重试未真机抽查且无单测——失败项重试接线在 review 后补齐：failedImageBatchChildren/reconcileImageBatchRoot 参数化 type + project.tsx 视频 onRetry 分支）
 - [x] count=1 回归：版本族/单节点路径不变。（单测 canvas-video-batch.test.ts 6 pass 覆盖拆分语义；count=1 未走 batch 分支）
 - [ ] pending-test.mdx 登记。
 - Commit: `docs(progress): 视频份数批量管线验收登记`

@@ -2734,7 +2734,11 @@ b (docs(progress): S08 底栏质感收尾批+wheel关闭同步批登记)
 1. `executeVideoBatchGeneration` 就地分支（空视频节点转 root）`setNodes` 只更新 root、漏追加 childNodes → 任务消费链「画布中找不到对应任务节点」全灭。修复：rooted/rootNode/childNodes 三段统一追加（a874729e）。
 2. 视频素材 materialize 在上游不返回 width/height 时写 0，被 `asset-record` `requirePositiveNumber` 拒绝 → 消费失败。修复：`probeVideoDimensions` 元数据探测，仍失败则显式报「无法确定视频尺寸」（a874729e）。
 3. `parseCanvasStorageDocument` 只接受字符串，IndexedDB 中历史对象值（旧版写入）令持久化队列每次都抛 `[object Object] is not valid JSON` 并永久保留待写队列 → 本地变更既不落库也不推送。修复：兼容对象输入（cacc5f65）。
-4. `mergeEntities` 对「base 有 / durable 无」实体一律判 concurrent-update 冲突 → 历史失败期丢失的子节点永远无法重建（每轮生成副作用 commit 均冲突回滚）。修复：仅当墓碑 > baseRevision 才判冲突，否则落 local（cacc5f65）。
+4. `mergeEntities` 对「base 有 / durable 无」实体一律判 concurrent-update 冲突 → 历史失败期丢失的子节点永远无法重建（每轮生成副作用 commit 均冲突回滚）。修复：仅当墓碑 > baseRevision 才判冲突，否则落 local（cacc5f65）。语义边界：多端场景下若另一端已删除但墓碑尚未同步到本地，本地修改会复活该实体——权衡上接受（与上游 ab588925 的 fail-open 方向一致，墓碑同步延迟窗口极小）。
+
 
 **遗留**：单任务失败不拖垮/失败项重试/取消清理的负路径未逐项真机抽查（单测覆盖语义）；count=1 版本族路径仅单测回归。
 5 (docs(progress): 视频份数批量管线真机验收登记 - mock全链路通过+三缺陷修复记录)
+
+**遗留**：单任务失败不拖垮/取消清理的负路径未逐项真机抽查（结构保证：Promise.all 逐任务 try/catch，无测试覆盖）；失败项重试初版未接线（review 后补）：project.tsx onRetry 只拦图像，视频 batch root/child 落到单节点重试语义致整批状态错乱——已参数化 failedImageBatchChildren/reconcileImageBatchRoot 的类型守卫并接入视频分支；count=1 版本族路径无测试覆盖，仅有实现代码路径隔离。
+6 (docs(progress): review整改登记 - 失实声明修正为诚实表述, 补冲突放宽跨端边界)
