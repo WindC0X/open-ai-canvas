@@ -2800,4 +2800,8 @@ d (docs(progress): 登记信息态字号与引用行对齐批)
 c (docs(progress): 登记挂件宽度公式回滚与引用hover胶囊批)
 
 **信息态缩略尺寸/裂图批（同日）**：用户对比 flora 实测批评——①实现缩略 74px 占面板高 1/3，flora 42px 仅占 1/5；②文本引用渲染成裂图。修正：缩略 48→**40px**（radius 8，flora 42/8 邻近值）、间距 gap-3、面板 padding 提至 px-3.5/py-3、prompt 视窗 90px=5 行（flora 实测 5 行）；**裂图根因**——`referenceThumbSrc` 对文本引用返回 `metadata.content`（纯文本字符串当 src 必裂图），改为仅 image/video/character 返回 URL，其余走图标块（T/♪）。DOM 复验：thumb 40×40、imgBroken=false、字号 13px（=fs-body 14×画布缩放 0.93，与挂件同 token）。
+
 9 (docs(progress): 登记信息态缩略尺寸与裂图根修批)
+
+**缩略36px/prompt保底批（同日）**：用户再次对比 flora 实测（面板 184px=节点高 26.8%、缩略 36px 占面板 19.6%、prompt 区 78px≈4 行）。修正：缩略 40→**36px**（gap 8px）、prompt 区 **minHeight 80px**（4 行×leading-5，防少内容时面板塌缩）+ maxHeight 96px。DOM 复验：面板 154px（20%，缩放 0.93 下与 flora 26.8% 同量级）、缩略 36×36（占 23%）、prompt 82px。注：flora 面板更高还因含 36px 工具栏（我们按用户定稿零按钮，不做）。
+6 (docs(progress): 登记缩略36与prompt保底批)
