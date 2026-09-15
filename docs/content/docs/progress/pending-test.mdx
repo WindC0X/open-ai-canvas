@@ -2808,4 +2808,8 @@ c (docs(progress): 登记挂件宽度公式回滚与引用hover胶囊批)
 6 (docs(progress): 登记缩略36与prompt保底批)
 
 **信息态面板高度补齐批（同日）**：用户指出 flora 信息态 composer 含"发送/@/#/滑块/箭头"工具栏行（实测 36px），本地按定稿裁掉该行导致同比例节点下面板偏矮。处理：该行高度并入 prompt 区（minHeight 80→**116**、maxHeight 96→**132**），零按钮不变。DOM 复验：带引用行节点面板布局高 148→**184px，与 flora 实测 184px 精确对齐**（无引用行 148px）。注：截断行仍有 mask 渐隐（flora 同款 :17210 语义）。
+
 9 (docs(progress): 登记信息态面板高度补齐批)
+
+**字号"不一致"诊断批（同日）**：用户反馈 hover 态与选中挂件 prompt 字号又不一致。排查结论：两态源码/计算样式完全一致（fs-body 14px + leading-5，同屏 computed 13px/20px）。视觉差来自**空间锚定架构差异**——选中挂件 portal 在画布 raster 层之外不吃画布缩放（视觉恒 13/20），hover 信息态在节点内吃 raster scale（实测 raster 0.79 时视觉 10.3/15.8、raster 1.178 时视觉 15.3/23.6，画布每次滚轮缩放都会改变 hover 观感字号）。flora 全部 composer 在节点内（同样随缩放），无外置挂件对比面。像素级验证：用户两张截图行距 20-21px（挂件，raster≈1.0）vs 15-17px（hover，raster≈0.79），与 zoom 基准（标题字形 10 vs 9px）吻合。
+8 (docs(progress): 字号不一致诊断为raster缩放架构差异(两态源码一致))
