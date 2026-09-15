@@ -59,7 +59,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                             className="-mx-3.5 -my-3 overflow-x-auto overflow-y-hidden px-3.5 py-3"
                             data-canvas-wheel-scroll
                         >
-                            <div className="flex w-max items-center gap-3">
+                            <div className="flex w-max items-center gap-2">
                                 {references.map((reference) => {
                                     const src = referenceThumbSrc(reference);
                                     // flora 引用缩略(用户 hover 截图对): 静置 48px 方块 radius 12 纯缩略图;
@@ -67,13 +67,13 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                                     return (
                                         <span
                                             key={reference.id}
-                                            className="canvas-node-hover-composer-ref group/ref flex h-10 items-center overflow-hidden rounded-lg"
+                                            className="canvas-node-hover-composer-ref group/ref flex h-9 items-center overflow-hidden rounded-lg"
                                             style={{ background: theme.toolbar.itemHover, outline: `1px solid ${theme.node.stroke}` }}
                                         >
                                             {src ? (
-                                                <img src={src} alt={reference.label} draggable={false} loading="lazy" decoding="async" className="h-10 w-10 shrink-0 object-cover" />
+                                                <img src={src} alt={reference.label} draggable={false} loading="lazy" decoding="async" className="h-9 w-9 shrink-0 object-cover" />
                                             ) : (
-                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center text-sm font-medium" style={{ color: theme.node.muted }}>
+                                                <span className="flex h-9 w-9 shrink-0 items-center justify-center text-sm font-medium" style={{ color: theme.node.muted }}>
                                                     {reference.kind === "audio" ? "♪" : "T"}
                                                 </span>
                                             )}
@@ -91,7 +91,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                         <div
                             className="canvas-node-hover-composer-prompt overflow-y-auto whitespace-pre-wrap break-words text-[var(--fs-body)] leading-5"
                             data-canvas-wheel-scroll
-                            style={{ color: theme.node.text, maxHeight: 90 }}
+                            style={{ color: theme.node.text, minHeight: 80, maxHeight: 96 }}
                         >
                             {promptText}
                         </div>
