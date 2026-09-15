@@ -27,7 +27,9 @@ type CanvasNodeHoverComposerProps = {
 };
 
 export function referenceThumbSrc(reference: CanvasResourceReference) {
-    return reference.previewUrl || (reference.kind === "video" ? reference.mediaUrl : "") || "";
+    // 仅媒体类渲染 img; 文本/技能引用无图, 不允许空 src(img src="" 必裂图 — 用户截图批评项)。
+    const media = reference.kind === "image" || reference.kind === "video" || reference.kind === "character";
+    return media ? reference.previewUrl || (reference.kind === "video" ? reference.mediaUrl : "") || "" : "";
 }
 
 export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: CanvasNodeHoverComposerProps) {
@@ -50,14 +52,14 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                     transition: `transform ${DURATION_MS}ms ${FLORA_EASE}`,
                 }}
             >
-                <div className="canvas-node-hover-composer-surface flex flex-col gap-2 px-3 py-2.5">
+                <div className="canvas-node-hover-composer-surface flex flex-col gap-2 px-3.5 py-3">
                     {/* flora SurfaceControlsOverlay(0_di9:7903)顺序: 引用行在前, 提示词在后。 */}
                     {references.length > 0 ? (
                         <div
-                            className="-mx-3 -my-2.5 overflow-x-auto overflow-y-hidden px-3 py-2.5"
+                            className="-mx-3.5 -my-3 overflow-x-auto overflow-y-hidden px-3.5 py-3"
                             data-canvas-wheel-scroll
                         >
-                            <div className="flex w-max items-center gap-2.5">
+                            <div className="flex w-max items-center gap-3">
                                 {references.map((reference) => {
                                     const src = referenceThumbSrc(reference);
                                     // flora 引用缩略(用户 hover 截图对): 静置 48px 方块 radius 12 纯缩略图;
@@ -65,13 +67,13 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                                     return (
                                         <span
                                             key={reference.id}
-                                            className="canvas-node-hover-composer-ref group/ref flex h-12 items-center overflow-hidden rounded-[12px]"
+                                            className="canvas-node-hover-composer-ref group/ref flex h-10 items-center overflow-hidden rounded-lg"
                                             style={{ background: theme.toolbar.itemHover, outline: `1px solid ${theme.node.stroke}` }}
                                         >
                                             {src ? (
-                                                <img src={src} alt={reference.label} draggable={false} loading="lazy" decoding="async" className="h-12 w-12 shrink-0 object-cover" />
+                                                <img src={src} alt={reference.label} draggable={false} loading="lazy" decoding="async" className="h-10 w-10 shrink-0 object-cover" />
                                             ) : (
-                                                <span className="flex h-12 w-12 shrink-0 items-center justify-center text-sm font-medium" style={{ color: theme.node.muted }}>
+                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center text-sm font-medium" style={{ color: theme.node.muted }}>
                                                     {reference.kind === "audio" ? "♪" : "T"}
                                                 </span>
                                             )}
@@ -89,7 +91,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                         <div
                             className="canvas-node-hover-composer-prompt overflow-y-auto whitespace-pre-wrap break-words text-[var(--fs-body)] leading-5"
                             data-canvas-wheel-scroll
-                            style={{ color: theme.node.text, maxHeight: 80 }}
+                            style={{ color: theme.node.text, maxHeight: 90 }}
                         >
                             {promptText}
                         </div>
