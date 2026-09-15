@@ -2764,4 +2764,24 @@ b (docs(progress): S08 底栏质感收尾批+wheel关闭同步批登记)
 5 (docs(progress): 视频份数批量管线真机验收登记 - mock全链路通过+三缺陷修复记录)
 
 **遗留**：单任务失败不拖垮/取消清理的负路径未逐项真机抽查（结构保证：Promise.all 逐任务 try/catch，无测试覆盖）；失败项重试初版未接线（review 后补）：project.tsx onRetry 只拦图像，视频 batch root/child 落到单节点重试语义致整批状态错乱——已参数化 failedImageBatchChildren/reconcileImageBatchRoot 的类型守卫并接入视频分支；count=1 版本族路径无测试覆盖，仅有实现代码路径隔离。
+
 6 (docs(progress): review整改登记 - 失实声明修正为诚实表述, 补冲突放宽跨端边界)
+
+### composer 归属节点（hover 信息态 + selected 底部挂件）验收批（2026-09-15）
+
+**背景**：用户截图场景（上下堆叠视频节点，从上节点移向下节点时上节点 composer 外浮面板压住下节点、无法选中）——外浮面板几何域 ∩ 邻居节点 ≠ ∅ 的架构矛盾，三条历史修复路径（pe:none 穿透/感知带窄条/body 参与升级域）各有矛盾，几何无解。决策：hover 微态收进节点内（零越界），selected 复用面板本体挂件化定位（方案 C）。
+
+**实现**：S1 `canvas-node-hover-composer.tsx` 节点内信息态（纯信息零按钮，flora SurfaceLayout 双层 200ms cubic-bezier(0,0.8,0.1,1) 坠落、提示词 max-h 72px 内部滚动、引用横滚行 mask 渐隐 + nowheel、微亮 0.45 纯 CSS :hover 全显）；S2 外部微浮现双实例与 sense band 退役、`getNodePanelPosition` 挂件化（gap 10→1px、左缘对齐、宽=节点宽 min 420）、入场动画坠落展开（-44px → 0）、composer 顶角取直；S3 getSupplies sense-band 死查询清理、drift 断言跟进。
+
+**真机验证（tab 1146061365，image 节点 420×746）**：
+- hover 信息态：`data-node-hover-composer=visible`，rect 418×100 ⊆ 节点 rect（**零越界**），surface opacity 0.45；移出节点 380ms grace 后 `hidden`。
+- selected 挂件：`data-panel-pendant` 出现，**gapTop=1px**（顶缘贴合节点底缘）、**leftDelta=0**（左缘对齐）、**面板宽 420 = 节点宽 420**；选中后节点内信息态自动 `hidden`（不重复）。
+- 亮色分支与 `:hover` 全显规则存在性：规则枚举 PASS。
+- 回归：工具栏双实例链在 DOM；`canvas-affordance`/`hover-attribution`/`hover-attribution-machine`/`canvas-node-drag-overlays` 44 测试全绿；tsc 0；build 通过。
+
+**待用户复核（环境限制/场景缺位）**：
+1. 上下堆叠穿透场景的实机复测（当前画布仅 1 节点；结构上已由「信息态 rect ⊆ 节点 rect ⇒ 不压邻居」+ 外浮微面板退役保证，留用户实际使用确认）。
+2. hover 到信息态本体的 0.45→1 全显目测（hidden tab 无法触发真实 CSS `:hover`，仅规则枚举）。
+3. selected 挂件在 420px 宽度下的内容密度（参数气泡弹出方向、底栏按钮行）目测。
+4. 视频播放态/生成中/batch 展开共存（visible 条件 `!isGenerating && !batchExpanded && !mediaActive` 代码级覆盖，无对应节点场景实测）。
+1 (docs(progress): composer归属节点真机验收 - hover信息态零越界/挂件gap1px左对齐等宽(S4))

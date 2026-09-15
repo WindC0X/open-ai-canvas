@@ -268,7 +268,6 @@ function getConnectionMenuPosition(position: Position, viewport: ViewportTransfo
     };
 }
 
-<<<<<<< HEAD
 function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLElement, panelWidth: number) {
     const gap = 10;
     const nodeRect = nodeElement.getBoundingClientRect();
@@ -280,26 +279,19 @@ function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLE
     };
 }
 
-export function getNodePanelPosition(node: CanvasNodeData, viewport: ViewportTransform, _viewportSize: { width: number; height: number }, panelWidth: number, _panelHeight: number, dragOffset?: Position | null) {
-    const gap = 10;
-=======
 export function getNodePanelPosition(node: CanvasNodeData, viewport: ViewportTransform, viewportSize: { width: number; height: number }, panelWidth: number, _panelHeight: number, dragOffset?: Position | null) {
     // 挂件化(09-15-composer-inline-hover-chrome S2): 面板顶缘贴合节点底缘(gap 1px)、左缘对齐节点左缘,
     // 视觉为节点向下延伸的挂件; 之前的居中+10px gap 是外浮面板几何(压住下方邻居误触的根源)。
     const gap = 1;
     const margin = 12;
->>>>>>> 2e429ab9 (feat(canvas): composer挂件化 - 面板底部锚定左对齐坠落展开, 外部微浮现双实例与sense band退役(S2))
     const offsetX = dragOffset?.x || 0;
     const offsetY = dragOffset?.y || 0;
     const nodeLeft = viewport.x + (node.position.x + offsetX) * viewport.k;
     const nodeBottom = viewport.y + (node.position.y + offsetY + node.height) * viewport.k;
-<<<<<<< HEAD
-=======
     const maxLeft = Math.max(margin, viewportSize.width - panelWidth - margin);
     const left = clamp(nodeLeft, margin, maxLeft);
->>>>>>> 2e429ab9 (feat(canvas): composer挂件化 - 面板底部锚定左对齐坠落展开, 外部微浮现双实例与sense band退役(S2))
     return {
-        left: nodeCenterX - panelWidth / 2,
+        left,
         top: nodeBottom + gap,
         placement: "below" as const,
     };
