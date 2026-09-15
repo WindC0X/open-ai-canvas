@@ -1,7 +1,7 @@
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata } from "@/types/canvas";
 
-export function liveImageBatchChildren(root: CanvasNodeData, nodes: CanvasNodeData[]) {
-    if (root.type !== CanvasNodeType.Image) return [];
+export function liveImageBatchChildren(root: CanvasNodeData, nodes: CanvasNodeData[], nodeType: CanvasNodeType = CanvasNodeType.Image) {
+    if (root.type !== nodeType) return [];
     const listed = new Set(root.metadata?.batchChildIds || []);
     return nodes.filter((node) => node.id !== root.id && (node.metadata?.batchRootId === root.id || listed.has(node.id)));
 }
@@ -87,12 +87,12 @@ export function cancelIncompleteImageBatch(rootId: string, childIds: string[], n
     };
 }
 
-export function failedImageBatchChildren(root: CanvasNodeData, nodes: CanvasNodeData[]) {
-    if (root.type !== CanvasNodeType.Image || !root.metadata?.isBatchRoot) return [];
+export function failedImageBatchChildren(root: CanvasNodeData, nodes: CanvasNodeData[], nodeType: CanvasNodeType = CanvasNodeType.Image) {
+    if (root.type !== nodeType || !root.metadata?.isBatchRoot) return [];
     const nodeById = new Map(nodes.map((node) => [node.id, node]));
     return (root.metadata.batchChildIds || [])
         .map((id) => nodeById.get(id))
-        .filter((node): node is CanvasNodeData => Boolean(node && node.type === CanvasNodeType.Image && node.metadata?.batchRootId === root.id && node.metadata.status === "error"));
+        .filter((node): node is CanvasNodeData => Boolean(node && node.type === nodeType && node.metadata?.batchRootId === root.id && node.metadata.status === "error"));
 }
 
 export function markImageBatchRetrying(rootId: string, childIds: string[], nodes: CanvasNodeData[]): CanvasNodeData[] {
@@ -130,14 +130,16 @@ export function restoreUnsubmittedImageBatchChild(current: CanvasNodeData, origi
 }
 
 export function reconcileImageBatchRoot(root: CanvasNodeData, nodes: CanvasNodeData[]) {
-    if (root.type !== CanvasNodeType.Image || !root.metadata?.isBatchRoot) return root;
+    if ((root.type !== CanvasNodeType.Image && root.type !== CanvasNodeType.Video) || !root.metadata?.isBatchRoot) return root;
     const nodeById = new Map(nodes.map((node) => [node.id, node]));
     const children = (root.metadata.batchChildIds || [])
         .map((id) => nodeById.get(id))
-        .filter((node): node is CanvasNodeData => Boolean(node && node.type === CanvasNodeType.Image && node.metadata?.batchRootId === root.id));
+        .filter((node): node is CanvasNodeData => Boolean(node && node.type === root.type && node.metadata?.batchRootId === root.id));
     if (!children.length) return root;
 
-    const primary = children.find((node) => node.id === root.metadata?.primaryImageId && node.metadata?.content) || children.find((node) => node.metadata?.content);
+    const isVideo = root.type === CanvasNodeType.Video;
+    const primaryField = isVideo ? "primaryVideoId" : "primaryImageId";
+    const primary = children.find((node) => node.id === root.metadata?.[primaryField] && node.metadata?.content) || children.find((node) => node.metadata?.content);
     const loading = children.some((node) => node.metadata?.status === "loading");
     const failed = children.find((node) => node.metadata?.status === "error");
     const metadata: CanvasNodeMetadata = { ...root.metadata };
@@ -150,7 +152,13 @@ export function reconcileImageBatchRoot(root: CanvasNodeData, nodes: CanvasNodeD
         metadata.bytes = primary.metadata?.bytes;
         metadata.naturalWidth = primary.metadata?.naturalWidth;
         metadata.naturalHeight = primary.metadata?.naturalHeight;
-        metadata.primaryImageId = primary.id;
+        if (isVideo) {
+            // 视频提升额外携带音频轨标志；primary 字段写 primaryVideoId，图像字段保持不动。
+            metadata.hasAudio = primary.metadata?.hasAudio;
+            metadata.primaryVideoId = primary.id;
+        } else {
+            metadata.primaryImageId = primary.id;
+        }
         metadata.status = "success";
         delete metadata.errorDetails;
         delete metadata.generationErrorCode;
@@ -163,6 +171,8 @@ export function reconcileImageBatchRoot(root: CanvasNodeData, nodes: CanvasNodeD
         delete metadata.naturalWidth;
         delete metadata.naturalHeight;
         delete metadata.primaryImageId;
+        delete metadata.primaryVideoId;
+        delete metadata.hasAudio;
         metadata.status = loading ? "loading" : failed ? "error" : "idle";
         metadata.errorDetails = failed?.metadata?.errorDetails;
         metadata.generationErrorCode = failed?.metadata?.generationErrorCode;

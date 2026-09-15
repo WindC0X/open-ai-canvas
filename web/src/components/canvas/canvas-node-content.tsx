@@ -739,9 +739,11 @@ function VideoBatchRootContent(props: CanvasNodeContentProps) {
                 : <EmptyMediaContent icon={<Video className="size-7 opacity-35" />} label="空视频节点" color={props.theme.node.placeholder} />;
         return <BatchFrame batchPreviewNodes={props.batchPreviewNodes} batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} theme={props.theme} onToggleBatch={props.onToggleBatch}>{content}</BatchFrame>;
     }
-    // root 已有提升内容（primaryVideoId）：以静态首帧预览呈现，不在此激活播放（播放语义归 VideoNodeContent）。
+    // root 已有提升内容（primaryVideoId）：未激活时静态首帧预览，点击播放入口与普通视频节点同构（onMediaPlayRequest 激活）；
+    // mediaActive 时在 BatchFrame 内直接渲染播放器（播放中失去 BatchFrame 堆叠也无妨——激活即用户专注态）。
+    if (props.mediaActive) return <VideoNodeContent {...props} isBatchRoot={false} />;
     return <BatchFrame batchPreviewNodes={props.batchPreviewNodes} batchCount={props.batchCount} batchExpanded={props.batchExpanded} batchOpening={props.batchOpening} batchRecovering={props.batchRecovering} theme={props.theme} onToggleBatch={props.onToggleBatch}>
-        <InactiveVideoPreview node={props.node} theme={props.theme} onPlay={() => { /* 批量 root 首帧不接播放入口 */ }} />
+        <InactiveVideoPreview node={props.node} theme={props.theme} onPlay={() => props.onMediaPlayRequest?.(props.node.id)} />
     </BatchFrame>;
 }
 

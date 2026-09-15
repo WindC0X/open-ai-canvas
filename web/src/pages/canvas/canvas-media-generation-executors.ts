@@ -28,6 +28,22 @@ export function videoBatchChildPositions(rootPosition: Position, rootWidth: numb
     return Array.from({ length: Math.max(0, count) }, (_, index) => imageGenerationChildPosition(rootPosition, rootWidth, { width: childWidth, height: childHeight }, index));
 }
 
+/**
+ * 视频 batch root 就地复用时排除与批量语义互斥/异族的字段：
+ * 版本族字段（count>1 与版本族互斥，绝不入 batch root）、图像批量的遗留字段（复制粘贴来源可能携带）。
+ */
+export function stripNonVideoBatchFields(metadata: CanvasNodeData["metadata"]): CanvasNodeData["metadata"] {
+    if (!metadata) return metadata;
+    const next = { ...metadata };
+    delete next.versionOfNodeId;
+    delete next.versionLabel;
+    delete next.versionPrimary;
+    delete next.imageBatchExpanded;
+    delete next.primaryImageId;
+    delete next.batchFailedCount;
+    return next;
+}
+
 export async function executeVideoGeneration({
     nodeId,
     sourceNode,
@@ -58,7 +74,7 @@ export async function executeVideoGeneration({
     const spec = nodeSizeFromRatio(generationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
     const batchCount = videoGenerationCountOf(sourceNode);
     if (batchCount > 1) {
-        await executeVideoBatchGeneration({ batchCount, spec, nodeId, sourceNode, canvasNodes, canvasConnections, prompt, effectivePrompt, generationConfig, generationContext, controller, projectId, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, setDialogNodeId, startGenerationRequest, finishGenerationRequest, bindGenerationTask, applyGenerationTaskResult, registerPendingNodeIds, styleMetadata, skillMetadata, editingTextNode: false, taskContext, retryContext, showError });
+        await executeVideoBatchGeneration({ batchCount, spec, nodeId, sourceNode, canvasConnections, prompt, effectivePrompt, generationConfig, generationContext, controller, projectId, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, setDialogNodeId, startGenerationRequest, finishGenerationRequest, bindGenerationTask, applyGenerationTaskResult, registerPendingNodeIds, styleMetadata, skillMetadata, editingTextNode: false, taskContext, retryContext, showError });
         return;
     }
     const reuseSourceNode = canGenerateMediaInPlace(sourceNode, CanvasNodeType.Video);
@@ -165,7 +181,6 @@ async function executeVideoBatchGeneration({
     spec,
     nodeId,
     sourceNode,
-    canvasNodes,
     canvasConnections,
     prompt,
     effectivePrompt,
@@ -188,7 +203,7 @@ async function executeVideoBatchGeneration({
     taskContext,
     retryContext,
     showError,
-}: CanvasGenerationExecution & { batchCount: number; spec: { width: number; height: number } }) {
+}: Omit<CanvasGenerationExecution, "canvasNodes"> & { batchCount: number; spec: { width: number; height: number } }) {
     const videoGenerationMetadata = buildVideoGenerationMetadata(sourceNode, generationContext, generationConfig);
     const parent = sourceNode?.position || { x: 0, y: 0 };
     const isEmptyVideoNode = Boolean(sourceNode && sourceNode.type === CanvasNodeType.Video && !sourceNode.metadata?.content);
@@ -220,7 +235,9 @@ async function executeVideoBatchGeneration({
         width: isEmptyVideoNode && sourceNode ? sourceNode.width : spec.width,
         height: isEmptyVideoNode && sourceNode ? sourceNode.height : spec.height,
         metadata: {
-            ...(isEmptyVideoNode ? sourceNode?.metadata || {} : {}),
+            // 就地复用继承源节点元数据，但必须摘除与批量语义互斥/异族的字段：
+            // 版本族（count>1 与版本族互斥）、图像批量的遗留字段（复制粘贴来源可能携带）。
+            ...stripNonVideoBatchFields(isEmptyVideoNode ? sourceNode?.metadata || {} : {}),
             ...sharedGenerationMetadata,
             status: NODE_STATUS_LOADING,
             errorDetails: undefined,
@@ -384,9 +401,14 @@ async function executeVideoBatchGeneration({
                         if (!hasContent) {
                             const survivor = current.find((item) => item.id === remaining[0]);
                             if (survivor?.metadata?.content) {
+                                // 与 primary 提升路径字段对齐，避免缺尺寸/字节数导致素材层拒绝。
                                 metadata.content = survivor.metadata.content;
                                 metadata.storageKey = survivor.metadata.storageKey;
                                 metadata.mimeType = survivor.metadata.mimeType;
+                                metadata.bytes = survivor.metadata.bytes;
+                                metadata.naturalWidth = survivor.metadata.naturalWidth;
+                                metadata.naturalHeight = survivor.metadata.naturalHeight;
+                                metadata.hasAudio = survivor.metadata.hasAudio;
                                 metadata.primaryVideoId = undefined;
                                 metadata.status = NODE_STATUS_SUCCESS;
                             }

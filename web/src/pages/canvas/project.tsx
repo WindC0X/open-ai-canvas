@@ -2394,6 +2394,21 @@ const {
                 retryImageBatchChildren(node.metadata.batchRootId, [node]);
                 return;
             }
+            if (node.type === CanvasNodeType.Video && node.metadata?.isBatchRoot) {
+                // 视频 batch 失败项重试：与图像同构，但只重提失败子节点，成功项不动（root 由 reconcile 重算）。
+                const failedVideoChildren = failedImageBatchChildren(node, nodesRef.current, CanvasNodeType.Video);
+                if (!failedVideoChildren.length) {
+                    message.info("当前批次没有需要重试的失败视频");
+                    return;
+                }
+                message.info(`正在重试 ${failedVideoChildren.length} 个失败视频`);
+                retryImageBatchChildren(node.id, failedVideoChildren);
+                return;
+            }
+            if (node.type === CanvasNodeType.Video && node.metadata?.batchRootId) {
+                retryImageBatchChildren(node.metadata.batchRootId, [node]);
+                return;
+            }
             void handleRetryNode(node);
         },
         [generateScriptRows, handleRetryNode, message, nodesRef, retryImageBatchChildren],

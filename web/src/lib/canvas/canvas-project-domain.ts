@@ -424,6 +424,8 @@ export function removeCanvasNodes(nodes: CanvasNodeData[], requestedIds: Set<str
             const primaryVideoNode = remainingNodes.find((item) => item.id === primaryVideoId);
             const videoBatchRoot = { ...cleaned, metadata: { ...cleaned.metadata, batchChildIds: childIds, primaryVideoId } };
             if (!primaryVideoNode?.metadata?.content) {
+                // 无存活内容子节点：root 回到普通空视频节点，同步摘除批量语义，
+                // 否则残留 isBatchRoot + 空 batchChildIds 会渲染空 BatchFrame。
                 const metadata: CanvasNodeMetadata = { ...videoBatchRoot.metadata };
                 delete metadata.content;
                 delete metadata.storageKey;
@@ -432,6 +434,11 @@ export function removeCanvasNodes(nodes: CanvasNodeData[], requestedIds: Set<str
                 delete metadata.naturalWidth;
                 delete metadata.naturalHeight;
                 delete metadata.primaryVideoId;
+                delete metadata.hasAudio;
+                delete metadata.isBatchRoot;
+                delete metadata.batchChildIds;
+                delete metadata.batchFailedCount;
+                delete metadata.batchExpanded;
                 metadata.status = "idle" as const;
                 return { ...videoBatchRoot, metadata };
             }
@@ -456,7 +463,25 @@ export function removeCanvasNodes(nodes: CanvasNodeData[], requestedIds: Set<str
         const primaryImageId = childIds?.includes(cleaned.metadata.primaryImageId || "") ? cleaned.metadata.primaryImageId : childIds?.[0];
         const primaryNode = remainingNodes.find((item) => item.id === primaryImageId);
         const batchRoot = { ...cleaned, metadata: { ...cleaned.metadata, batchChildIds: childIds, primaryImageId } };
-        return primaryNode ? applyBatchPrimaryImage(batchRoot, primaryNode) : batchRoot;
+        if (!primaryNode) {
+            // 无存活内容子节点：同视频分支，摘除批量语义避免空 BatchFrame 残留。
+            const metadata: CanvasNodeMetadata = { ...batchRoot.metadata };
+            delete metadata.content;
+            delete metadata.storageKey;
+            delete metadata.mimeType;
+            delete metadata.bytes;
+            delete metadata.naturalWidth;
+            delete metadata.naturalHeight;
+            delete metadata.primaryImageId;
+            delete metadata.isBatchRoot;
+            delete metadata.batchChildIds;
+            delete metadata.batchFailedCount;
+            delete metadata.batchUsesReferenceImages;
+            delete metadata.imageBatchExpanded;
+            metadata.status = "idle" as const;
+            return { ...batchRoot, metadata };
+        }
+        return applyBatchPrimaryImage(batchRoot, primaryNode);
     });
     return { removedIds, nodes: nextNodes };
 }
