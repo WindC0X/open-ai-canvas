@@ -2784,4 +2784,8 @@ b (docs(progress): S08 底栏质感收尾批+wheel关闭同步批登记)
 2. hover 到信息态本体的 0.45→1 全显目测（hidden tab 无法触发真实 CSS `:hover`，仅规则枚举）。
 3. selected 挂件在 420px 宽度下的内容密度（参数气泡弹出方向、底栏按钮行）目测。
 4. 视频播放态/生成中/batch 展开共存（visible 条件 `!isGenerating && !batchExpanded && !mediaActive` 代码级覆盖，无对应节点场景实测）。
+
 1 (docs(progress): composer归属节点真机验收 - hover信息态零越界/挂件gap1px左对齐等宽(S4))
+
+**用户截图批评修正（0a53b05b，同日）**：三截图反馈——①hover 信息态与 flora 参考质感差距大且末行硬切；②selected 挂件底栏压缩截断。修正：信息态从贴底渐变遮罩改为**浮起实感毛玻璃卡**（inset-x-2 bottom-2、全圆角、border、shadow，dark rgba(20,20,20,.88)/light .88，对比度提升）；prompt 行高 16→18px 整数行（72px=4 行整）消除半行硬切、纵滚底部 mask 渐隐提示；挂件宽度下限 420→**560**（DOM 实测 footer 自然宽 534+padding≈558），水平居中贴合（两侧对称微展）。复验：浮卡 rect ⊆ 节点、radius/bg/border/op 断言过；挂件 gapTop=1px、居中 delta 0、模型 pill 无截断、footer 无溢出。
+6 (docs(progress): 登记挂件宽度与信息态质感修正批)
