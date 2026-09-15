@@ -2796,4 +2796,8 @@ b (docs(progress): S08 底栏质感收尾批+wheel关闭同步批登记)
 d (docs(progress): 登记信息态字号与引用行对齐批)
 
 **挂件宽度回滚原版公式 + 引用 hover 胶囊批（同日）**：用户对比原版截图——selected 挂件 560 比原版（约节点 1.8 倍宽）窄了。修正：`resolveNodePanelWidth` 恢复原版公式 `clamp(节点宽×k×1.5, 680, 920)`（680/383≈1.78 倍），DOM 复验 pw=680；挂件化只改锚定（底缘贴合居中）不改宽度。引用缩略对齐用户 hover 截图的 flora 二态语义：静置 48px 纯方块（radius 12），hover 展开为胶囊——名称 + 类型标签（Image/Text/Video/Audio）淡入（max-w 0→160px + opacity 过渡 200ms flora 曲线）。
+
 c (docs(progress): 登记挂件宽度公式回滚与引用hover胶囊批)
+
+**信息态缩略尺寸/裂图批（同日）**：用户对比 flora 实测批评——①实现缩略 74px 占面板高 1/3，flora 42px 仅占 1/5；②文本引用渲染成裂图。修正：缩略 48→**40px**（radius 8，flora 42/8 邻近值）、间距 gap-3、面板 padding 提至 px-3.5/py-3、prompt 视窗 90px=5 行（flora 实测 5 行）；**裂图根因**——`referenceThumbSrc` 对文本引用返回 `metadata.content`（纯文本字符串当 src 必裂图），改为仅 image/video/character 返回 URL，其余走图标块（T/♪）。DOM 复验：thumb 40×40、imgBroken=false、字号 13px（=fs-body 14×画布缩放 0.93，与挂件同 token）。
+9 (docs(progress): 登记信息态缩略尺寸与裂图根修批)
