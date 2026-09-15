@@ -2275,8 +2275,6 @@ const {
                     } else {
                         const panel = supply.querySelector("[data-canvas-node-panel]");
                         if (panel) targets.push(panel);
-                        const band = supply.querySelector("[data-canvas-panel-sense-band]");
-                        if (band) targets.push(band);
                     }
                 } else {
                     targets.push(supply);
@@ -2290,7 +2288,8 @@ const {
                         nodeId,
                         // kind 已按供给宿主判好(气泡=composer): target===supply 仅在 toolbar/气泡两类。
                         // 气泡绝不能落进 "toolbar" — 那会夺走 composer 的 selfHover(full)资格。
-                        kind: isSettingBubble ? "composer" : target === supply ? "toolbar" : target.getAttribute("data-canvas-panel-sense-band") !== null ? "sense-band" : target.classList.contains("canvas-node-toolbar-gap-bridge") || target.hasAttribute("data-node-toolbar-gap-bridge") ? "bridge" : "composer",
+                        // 挂件化(S2)后 composer 宿主内只剩面板 body; sense band 已退役。
+                        kind: isSettingBubble || kind === "composer" ? "composer" : target === supply ? "toolbar" : "bridge",
                         rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
                         level,
                         stackRank: stackRankMap.get(nodeId) ?? 0,

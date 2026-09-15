@@ -16,8 +16,11 @@ describe("canvas node drag overlays", () => {
         expect(projectSource).toContain("emotionNode?.metadata?.content && !isCanvasNodeMoving");
         expect(projectSource).toContain("selectedNodeBounds && !selectionBox && !isCanvasNodeMoving");
         // 微供给重构: 工具栏由 level 驱动显隐(node 仅 emotion 时置 null 强制隐藏), 拖拽/设置气泡开为 guard 输入。
-        expect(projectSource).toContain("node={emotionNodeId ? null : displayToolbarNode}");
-        expect(projectSource).toContain("settingsOpen: nodeImageSettingsOpen");
+        expect(projectSource).toContain("node={emotionNodeId ? null : instance.node}");
+        // 挂件化(09-15 任务): composer 槽位仅 selected; 工具栏双实例(selected+hover)保留。
+        expect(projectSource).toContain("{ node: hoverToolbarNode, level: hoverToolbarLevel }");
+        // settingsOpen 工具栏 guard 已退役(9fbcdf4d): 参数气泡开由 settingsBubbleOpen 供 composer selfHover。
+        expect(projectSource).toContain("settingsBubbleOpen: settingsBubbleNodeId === selectedPanelNode.id");
         expect(projectSource).toContain("onNodeDragEnd: handleNodeDragEnd");
         expect(projectSource).toContain("setDialogNodeId(node.id);");
         expect(selectionControllerSource).toContain("if (clickedNodeId) onNodeDragEnd?.(clickedNodeId);");
