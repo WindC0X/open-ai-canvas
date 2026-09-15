@@ -48,7 +48,7 @@
 - 验证：真机（2026-09-15，tab 1146061365，节点 video-1788736100774-5vjhr）：loop=true；seek 至 duration-0.25s 后 900ms 回绕 0.14s 且未暂停；指针 dispatch 到画布远端 3s 后播放仍在推进（t 3.14→3.95）、视频未卸载（activeMediaNodeId 仅在节点删除时清除）。tsc 0。
 - Commit: `fix(canvas): 视频节点循环播放对齐flora证据 - loop经provider命令式应用, 播放态与hover退场解耦验证`
 
-## S6 生成中/播放 HUD 差异对齐（R3/R4，以 S4 证据裁剪）
+## S6 生成中/播放 HUD 差异对齐（R3/R4，以 S4 证据裁剪；**依赖 09-15-composer-inline-hover-chrome 决策先落地——HUD 位置在节点内 chrome 语境内定案**）
 
 - [ ] G1 差异表 → 实现（若 ETA/骨架有差异）；无差异则记录"一致"关项。
 - [ ] G2 差异表 → VideoPlayer 对齐（若 HUD 有缺口）；无证据不发明。
