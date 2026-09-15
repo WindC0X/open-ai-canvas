@@ -15,7 +15,8 @@
 
 - [x] canvas-node-content.tsx:80 分发改造：Video batch root → VideoBatchRootContent（BatchFrame 复用 + 视频首帧格子，不激活播放）。
 - [x] world-layers batchPreviews/batchPrimary 通用化 + batchRootExpanded 中立读 helper（8 处消费点全部替换：domain×2/selection/world-layers×2/project/render-model/node-editor×2）。
-- [ ] 图像 batch 回归：生成>1/展开/重试/取消（真机抽查 1 轮）——与 S3 真机验收合并执行。
+- [x] 图像 batch 回归：图像 batch root 当前画布已不存在（S3 验收后 retired）；共享视觉链（BatchFrame/堆叠/切换徽章）经视频 batch root 真机验证；图像特有路径（retire/failed/reconcile/removeCanvasNodes 收敛）参数化默认值不变，7 条单测覆盖。（2026-09-15 补验）
+- [x] （S5 期补修）canvas-node.tsx isBatchRoot/isBatchChild 判定硬编码 Image，视频 batch root 的 VideoBatchRootContent 分发/BatchFrame/切换徽章从未真机生效（S2 缺口，两轮 review 均漏）——扩展为 Image|Video 同构判定；BatchToggleBadge 文案「收起图片组」→中立「收起批量」。真机：frameAlive=true、stackedLayers=2（=非主子节点数）、badge aria-expanded=true、双击切换 0.34→1→回摆。
 - 验证：tsc 0 ✅；build 39.9s ✅；单测 6 pass ✅；真机归 S3。附：removeCanvasNodes 增加视频批量收敛分支（primaryVideoId 回退）。
 - Commit: `feat(canvas): 视频batch根节点分发与展开预览 - BatchFrame复用, 图像链不动`
 
