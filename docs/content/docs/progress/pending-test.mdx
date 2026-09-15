@@ -2804,4 +2804,8 @@ c (docs(progress): 登记挂件宽度公式回滚与引用hover胶囊批)
 9 (docs(progress): 登记信息态缩略尺寸与裂图根修批)
 
 **缩略36px/prompt保底批（同日）**：用户再次对比 flora 实测（面板 184px=节点高 26.8%、缩略 36px 占面板 19.6%、prompt 区 78px≈4 行）。修正：缩略 40→**36px**（gap 8px）、prompt 区 **minHeight 80px**（4 行×leading-5，防少内容时面板塌缩）+ maxHeight 96px。DOM 复验：面板 154px（20%，缩放 0.93 下与 flora 26.8% 同量级）、缩略 36×36（占 23%）、prompt 82px。注：flora 面板更高还因含 36px 工具栏（我们按用户定稿零按钮，不做）。
+
 6 (docs(progress): 登记缩略36与prompt保底批)
+
+**信息态面板高度补齐批（同日）**：用户指出 flora 信息态 composer 含"发送/@/#/滑块/箭头"工具栏行（实测 36px），本地按定稿裁掉该行导致同比例节点下面板偏矮。处理：该行高度并入 prompt 区（minHeight 80→**116**、maxHeight 96→**132**），零按钮不变。DOM 复验：带引用行节点面板布局高 148→**184px，与 flora 实测 184px 精确对齐**（无引用行 148px）。注：截断行仍有 mask 渐隐（flora 同款 :17210 语义）。
+9 (docs(progress): 登记信息态面板高度补齐批)
