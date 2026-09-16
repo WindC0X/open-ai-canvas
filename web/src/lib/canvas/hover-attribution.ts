@@ -6,7 +6,7 @@
  * 本体 → 归上层节点), 供给(浮层 z 恒高于节点层)优先于节点本体(规则①)。
  */
 
-export type HoverSurface = "node" | "toolbar" | "composer" | "bridge" | "sense-band" | "outside";
+export type HoverSurface = "node" | "toolbar" | "composer" | "bridge" | "outside";
 
 export type HoverAttribution = {
     nodeId: string | null;
@@ -20,7 +20,7 @@ export type NodeHit = {
     stackRank: number;
 };
 
-export type SupplyKind = "toolbar" | "composer" | "bridge" | "sense-band";
+export type SupplyKind = "toolbar" | "composer" | "bridge";
 
 export type SupplyHit = {
     nodeId: string;
@@ -59,7 +59,7 @@ export function attributeHover(nodes: NodeHit[], supplies: SupplyHit[], x: numbe
     // 主体时归属空、面板退场, 升级只能靠慢速滑动碰窄带(大部分触发失败)。主体仍 pe:none
     // (点击穿透), 但 mousemove 采样按矩形归属 → 指针到达主体即升级 full, 几何域与
     // full 态点击域一致。多供给重叠时按 kind 优先级。
-    const kindPriority: Record<SupplyKind, number> = { toolbar: 3, "sense-band": 2, bridge: 1, composer: 0 };
+    const kindPriority: Record<SupplyKind, number> = { toolbar: 3, bridge: 1, composer: 0 };
     let best: { nodeId: string; surface: HoverSurface; priority: number; stackRank: number; levelPriority: number } | null = null;
     for (const supply of supplies) {
         if (supply.level === "hidden") continue;

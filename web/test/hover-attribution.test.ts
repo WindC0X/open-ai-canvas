@@ -67,14 +67,14 @@ describe("attributeHover", () => {
         expect(r.nodeId).toBeNull();
     });
 
-    test("感应带归属其节点", () => {
-        const r = attributeHover([node("a", 0, 0, 100, 100)], [supply("a", "sense-band", 0, 100, 100, 112)], 50, 106);
-        expect(r).toEqual({ nodeId: "a", surface: "sense-band" });
+    test("挂件供给归属其节点（composer 最低优先级仍可胜出）", () => {
+        const r = attributeHover([node("a", 0, 0, 100, 100)], [supply("a", "composer", 0, 100, 100, 112)], 50, 106);
+        expect(r).toEqual({ nodeId: "a", surface: "composer" });
     });
 
-    test("工具栏本体优先于桥/感应带", () => {
-        const supplies = [supply("a", "bridge", 0, 100, 200, 132), supply("a", "toolbar", 0, -44, 200, -2), supply("a", "sense-band", 0, 100, 200, 112)];
-        expect(attributeHover([node("a", 0, 0, 100, 100)], supplies, 150, 110).surface).toBe("sense-band");
+    test("工具栏本体优先于桥/挂件", () => {
+        const supplies = [supply("a", "bridge", 0, 100, 200, 132), supply("a", "toolbar", 0, -44, 200, -2), supply("a", "composer", 0, 133, 200, 180)];
+        expect(attributeHover([node("a", 0, 0, 100, 100)], supplies, 150, 140).surface).toBe("composer");
         expect(attributeHover([node("a", 0, 0, 100, 100)], supplies, 150, -20).surface).toBe("toolbar");
     });
 

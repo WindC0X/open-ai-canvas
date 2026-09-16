@@ -325,7 +325,7 @@ function InfiniteCanvasPage() {
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [exitingNodeId, setExitingNodeId] = useState<string | null>(null);
     const [hoverSurfaceId, setHoverSurfaceId] = useState<string | null>(null);
-    const [hoverSurfaceKind, setHoverSurfaceKind] = useState<"node" | "toolbar" | "composer" | "bridge" | "sense-band" | "outside">("outside");
+    const [hoverSurfaceKind, setHoverSurfaceKind] = useState<"node" | "toolbar" | "composer" | "bridge" | "outside">("outside");
 
     // (校准 effect 已删: hover 归属由 useCanvasHoverAttribution 状态机每帧现算, 无需校准补丁)
     // 活动任务面板实测高度(含展开态):右侧同锚的对象 HUD 用它动态下移,避免两浮层重叠(S06)。
