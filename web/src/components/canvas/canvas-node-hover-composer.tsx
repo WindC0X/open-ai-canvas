@@ -106,7 +106,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible, no
                                                     {reference.kind === "audio" ? "♪" : reference.kind === "video" ? "▶" : reference.kind === "character" ? "👤" : "T"}
                                                 </span>
                                             )}
-                                            <span className="canvas-node-hover-composer-ref-meta flex w-0 flex-col justify-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-[cubic-bezier(0,0.8,0.1,1)] group-hover/ref:mx-2.5 group-hover/ref:w-40 group-hover/ref:opacity-100 data-[thumb-open]:mx-2.5 data-[thumb-open]:w-40 data-[thumb-open]:opacity-100">
+                                            <span className="canvas-node-hover-composer-ref-meta flex w-0 min-w-16 flex-col justify-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-[cubic-bezier(0,0.8,0.1,1)] group-hover/ref:mx-2.5 group-hover/ref:max-w-40 group-hover/ref:w-auto group-hover/ref:opacity-100 data-[thumb-open]:mx-2.5 data-[thumb-open]:max-w-40 data-[thumb-open]:w-auto data-[thumb-open]:opacity-100">
                                                 <span className="truncate text-xs leading-4" style={{ color: theme.node.text }}>{reference.label}</span>
                                                 <span className="text-[10px] leading-3 opacity-55" style={{ color: theme.node.muted }}>{reference.kind === "audio" ? "Audio" : reference.kind === "video" ? "Video" : reference.kind === "character" ? "Character" : reference.kind === "text" ? "Text" : "Image"}</span>
                                             </span>
