@@ -72,17 +72,24 @@ export function parseCanvasStorageDocument(value: string | CanvasStorageDocument
     // 否则旧值会让持久化队列永远解析失败（"[object Object]" is not valid JSON）。
     // 更早的存量损坏值是 toString 后的字符串（"[object Object]"），JSON.parse 必然 SyntaxError ——
     // 这类不可恢复损坏回退到空文档（调用方从 baseProjects 重建），不让队列永久卡死。
-    let parsed: Partial<CanvasStorageDocument> & { state?: { projects?: unknown } };
+    // 损坏字符串（"[object Object]" 等 JSON.parse 必失败值）与 !value 同径：
+    // 按 fallback 空文档重建，不 throw —— throw 会让持久化待写队列永久卡死。
     if (typeof value === "string") {
         try {
-            parsed = JSON.parse(value);
+            value = JSON.parse(value);
         } catch {
-            parsed = {};
+            value = null;
         }
-    } else {
-        parsed = value;
+        if (!value) {
+            return {
+                state: { projects: normalizeProjectAssetCategories(fallback) },
+                version: 0,
+                storageRevision: 0,
+                tombstones: emptyTombstones(),
+            };
+        }
     }
-    const parsedShape = parsed as {
+    const parsedShape = value as {
         state?: { projects?: unknown };
         version?: unknown;
         storageRevision?: unknown;
