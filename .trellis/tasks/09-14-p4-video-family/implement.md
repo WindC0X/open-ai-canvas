@@ -50,11 +50,12 @@
 
 ## S6 生成中/播放 HUD 差异对齐（R3/R4，以 S4 证据裁剪；**依赖 09-15-composer-inline-hover-chrome 决策先落地——HUD 位置在节点内 chrome 语境内定案**）
 
-- [ ] G1 差异表 → 实现（若 ETA/骨架有差异）；无差异则记录"一致"关项。
-- [ ] G2 差异表 → VideoPlayer 对齐（若 HUD 有缺口）；无证据不发明。
-- [ ] G4 证据 → VideoBatchRoot 视觉校准（或按 design §5 风险3 回退 BatchFrame 同构）。
-- 验证：tsc 0 + build + 真机对照表。
-- Commit: `feat(canvas): 视频面对齐flora证据批(G1/G2/G4裁剪)`
+- [x] G1 差异表 → 落地"完成瞬间 hover 信息态 1.5s 保护"（flora 1500ms minimized 源码级证据，c3d85ca3）；ETA/queued toast/HUD 结构差异记关项（无数据源或载体不同，不发明）。
+- [x] G2 差异表 → 判定"一致"关项（Vidstack 自带时间码/seek/音量；沉底浮层 vs 覆盖 HUD 为结构差异）。
+- [x] G4 证据 → 按 design §5 风险3 回退 BatchFrame 同构保持（rail 为全屏查看器载体，不照搬）。
+- [x] 附带：画布存量损坏持久值自愈（"[object Object]" 字符串解析失败回退空文档重建，真机确认队列不再卡死刷错）。
+- 验证：tsc 0 + build 37s + 49 相关测试绿；真机：持久化错误消失。完成跳变 1.5s 保护真机验证待下次 mock 通道生成时顺带断言（登记 pending-test）。
+- Commit: `fix(canvas): 视频完成瞬间hover信息态1.5s保护(G1 flora证据) + 画布存量损坏持久值自愈...`（c3d85ca3）
 
 ## S7 终验 + 文档同步
 
