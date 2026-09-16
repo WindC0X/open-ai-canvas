@@ -73,9 +73,8 @@ export function useCanvasViewportController({
         setSelectedConnectionId(null);
         setContextMenu(null);
         setDialogNodeId(null);
-        setToolbarNodeId(null);
         transitionViewportTo(target);
-    }, [agentCreatedNodes, containerRef, nodesRef, size, viewportRef, setSelectedNodeIds, setSelectedConnectionId, setContextMenu, setDialogNodeId, setToolbarNodeId, transitionViewportTo]);
+    }, [agentCreatedNodes, containerRef, nodesRef, size, viewportRef, setSelectedNodeIds, setSelectedConnectionId, setContextMenu, setDialogNodeId, transitionViewportTo]);
 
     const screenToCanvas = useCallback((clientX: number, clientY: number): Position => {
         const rect = containerRef.current?.getBoundingClientRect();

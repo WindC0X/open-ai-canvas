@@ -16,7 +16,6 @@ import { isDrawingEngineAvailable, type CanvasDrawingEngine } from "@/lib/canvas
 import { useUserStore } from "@/stores/use-user-store";
 import { defaultConfig, useEffectiveConfig } from "@/stores/use-config-store";
 import { createDefaultPortraitClearanceState, PORTRAIT_CLEARANCE_NODE_TYPE } from "@/lib/portrait-clearance/contracts";
-065e9a94 (fix(canvas): 节点框几何 - 空图片节点跟随渠道模型默认比例, 同比例媒体生成前后不跳变)
 import { workflowProviderPluginEnabled } from "@/lib/plugins/builtin/workflows";
 import { usePluginStore } from "@/stores/use-plugin-store";
 
@@ -162,7 +161,6 @@ export function useCanvasNodeOperations({
         selectNodes(new Set([node.id]));
 if (type !== CanvasNodeType.Text && type !== CanvasNodeType.Script && type !== CanvasNodeType.BatchTable && type !== CanvasNodeType.Audio && type !== CanvasNodeType.Frame && type !== CanvasNodeType.Drawing && type !== CanvasNodeType.MediaConversion && type !== PORTRAIT_CLEARANCE_NODE_TYPE) setDialogNodeId(node.id);
     }, [commitNodes, defaultDrawingEngine, effectiveConfig, getCanvasCenter, message, nodesRef, runtimeStatuses, selectNodes, setDialogNodeId, tldrawLicenseKey]);
-8a24c872 (refactor(canvas): S07 创建几何 - Image/Video 分支收敛为纯函数 mediaNodeInitialSize(渠道默认比例链路完整单测), 依赖改整 effectiveConfig 防闭包过期)
 
     const createFolder = useCallback((position?: Position, linked?: { id: string; projectId: string; title: string; style: CanvasFolderStyle; theme: CanvasFolderTheme; createdAt: string }) => {
         const folder = createCanvasNode(CanvasNodeType.Frame, position || getCanvasCenter(), {

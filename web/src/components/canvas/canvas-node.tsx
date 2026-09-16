@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { AlertCircle, BookOpenCheck, CheckCircle2, ChevronRight, Clapperboard, Copy, Download, Image as ImageIcon, Lock, Maximize2, Music2, Pencil, RefreshCw, ScanSearch, Settings2, Star, Trash2, Type, Video, WandSparkles } from "lucide-react";
+import { AlertCircle, BookOpenCheck, CheckCircle2, ChevronRight, Clapperboard, Copy, Download, GripVertical, Image as ImageIcon, Lock, Maximize2, Music2, Pencil, RefreshCw, ScanSearch, Settings2, Star, Trash2, Type, Video, WandSparkles } from "lucide-react";
 
 import { useCanvasNodeActions } from "./canvas-node-action-context";
 
@@ -11,12 +11,13 @@ import { resourceStorageLabel, resourceStorageLocation, resourceStorageTitle } f
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasNodeType, type CanvasNodeData, type CanvasNodeTypeId, type Position } from "@/types/canvas";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
+import { PortraitClearanceIcon } from "@/components/canvas/portrait-clearance/portrait-clearance-icon";
+import { PORTRAIT_CLEARANCE_NODE_TYPE } from "@/lib/portrait-clearance/contracts";
 import { ART_CRITIQUE_NODE_TYPE } from "@/lib/art-critique/contracts";
 import { getNodeDefinition, getNodeMinSize, shouldKeepAspectRatio } from "@/lib/canvas/node-registry";
 import { CanvasNodeContent, CanvasNodeImageInfo } from "./canvas-node-content";
 import { CanvasNodeLoadingFill } from "./canvas-node-loading-fill";
 import { CanvasNodeHoverComposer } from "./canvas-node-hover-composer";
-73c82c28 (feat(canvas): 节点内hover信息态composer - 纯信息零按钮/flora坠落动画/零越界(S1))
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
@@ -153,7 +154,6 @@ export const CanvasNode = React.memo(function CanvasNode({
         wasGeneratingRef.current = isGenerating;
     }, [isGenerating]);
     const showOutputConnection = data.type !== PORTRAIT_CLEARANCE_NODE_TYPE && getNodeDefinition(data.type)?.showOutputConnection !== false;
-c3d85ca3 (fix(canvas): 视频完成瞬间hover信息态1.5s保护(G1 flora证据) + 画布存量损坏持久值自愈(解析失败回退空文档重建, 队列不再永久卡死))
     const assetTags = data.metadata?.assetTags?.filter((tag) => tag.trim()) || [];
     const scriptMinHeight = data.type === CanvasNodeType.Script ? storyboardMinNodeHeight(data.metadata?.storyboardComposerHeight) : null;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -330,6 +330,7 @@ c3d85ca3 (fix(canvas): 视频完成瞬间hover信息态1.5s保护(G1 flora证据
                 draft={titleDraft}
                 theme={theme}
                 onDraftChange={setTitleDraft}
+                onDragStart={readOnly ? undefined : (event) => onMouseDown(event, data.id)}
                 onEdit={() => setIsEditingTitle(true)}
                 onCommit={commitTitle}
                 onCancel={() => { setTitleDraft(data.title); setIsEditingTitle(false); }}
@@ -408,7 +409,6 @@ c3d85ca3 (fix(canvas): 视频完成瞬间hover信息态1.5s保护(G1 flora证据
                     {data.metadata?.status === "loading" && !hasImageContent && !hasVideoContent && (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video || (data.type === CanvasNodeType.Text && !data.metadata?.content)) ? (
                         <CanvasNodeLoadingFill node={data} theme={theme} />
                     ) : null}
-593ffea0 (feat(canvas): S08 文本生成中反馈 - 填充层/生成环覆盖 Text 节点(错误重试与完成回填核验零改动))
                     {/* 节点状态徽章（对应 #97 决策2：左上角 loading/success/error，近距离确认信号）*/}
                     {data.metadata?.status && data.metadata.status !== "idle" && data.type !== CanvasNodeType.Frame ? (
                         <NodeStatusBadge status={data.metadata.status} />
@@ -699,7 +699,7 @@ function RunningEtaToken({ since, color }: { since?: string; color: string }) {
     return <span className="ml-auto shrink-0 whitespace-nowrap text-[var(--fs-micro)] font-medium leading-none tabular-nums" style={{ color }}>{seconds}s</span>;
 }
 
-function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, editing, draft, theme, isGenerating, taskCreatedAt, onDraftChange, onEdit, onCommit, onCancel }: {
+function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, editing, draft, theme, isGenerating, taskCreatedAt, onDraftChange, onEdit, onCommit, onCancel, onDragStart }: {
     node: CanvasNodeData;
     scale: number;
     dimensionLabel: string | null;
@@ -714,6 +714,7 @@ function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, edi
     onEdit: () => void;
     onCommit: () => void;
     onCancel: () => void;
+    onDragStart?: (event: React.MouseEvent) => void;
 }) {
     // 标题保持屏幕尺寸只适用于近景；远景继续反向缩放会遮住节点和连线。
     if (scale < NODE_EXTERNAL_HEADER_MIN_SCALE && !editing) return null;
@@ -739,6 +740,23 @@ function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, edi
             onPointerDown={(event) => event.stopPropagation()}
         >
             <div className="flex min-w-0 items-center gap-1" style={{ maxWidth: maxHeaderWidth }}>
+                <button
+                    type="button"
+                    className="flex size-6 shrink-0 touch-none items-center justify-center rounded cursor-grab active:cursor-grabbing disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-1"
+                    aria-label={node.metadata?.locked ? "节点已锁定" : `拖动节点：${node.title}`}
+                    title={node.metadata?.locked ? "节点已锁定，请先解锁" : "拖动此处移动节点；点击名称可重命名"}
+                    disabled={!onDragStart || Boolean(node.metadata?.locked)}
+                    onPointerDown={(event) => {
+                        if (event.button !== 0) return;
+                        // HTML / SVG 正文在跨源沙箱中；捕获指针，避免经过 iframe 后丢失 move / up。
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                        onDragStart?.(event);
+                    }}
+                >
+                    {node.metadata?.locked ? <Lock className="size-3" /> : <GripVertical className="size-3" strokeWidth={1.8} />}
+                </button>
                 <Icon className="size-3 shrink-0" strokeWidth={1.8} />
                 {editing ? (
                     <input

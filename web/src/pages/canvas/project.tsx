@@ -116,8 +116,9 @@ import { CanvasProjectStatusDialogs } from "./canvas-project-status-dialogs";
 import { CanvasProjectWorldLayers } from "./canvas-project-world-layers";
 import { CanvasNodeActionContext, type CanvasNodeActionContextValue } from "@/components/canvas/canvas-node-action-context";
 import { bringCanvasNodeToFront, type CanvasNodeStackOrder, sortCanvasNodesByStackOrder } from "@/lib/canvas/canvas-node-stack-order";
+import { PORTRAIT_CLEARANCE_NODE_TYPE, type PortraitClearanceNodeState } from "@/lib/portrait-clearance/contracts";
+import { readLocalRuntimeBootstrapState } from "@/services/local-runtime-bootstrap";
 import { PortraitClearanceModal } from "@/components/canvas/portrait-clearance/portrait-clearance-modal";
-3f5c4137 (fix(canvas): hover遮挡归属按真实绘制序 + composer感应带full升级链 - stackRank复刻sortCanvasNodesByStackOrder+选中z层, sense-band计入composer selfHover(修复面板不升级/重叠区误归属))
 import { AiArtCritiqueModal } from "@/components/canvas/art-critique/ai-art-critique-modal";
 import { CanvasNodeGraphContext, type CanvasNodeGraphContextValue } from "@/components/canvas/canvas-node-graph-context";
 import { CanvasRefreshShell } from "./canvas-refresh-shell";
@@ -390,8 +391,15 @@ function InfiniteCanvasPage() {
     const [titleEditing, setTitleEditing] = useState(false);
     const [titleDraft, setTitleDraft] = useState("");
     const [shortcutRequestNonce, setShortcutRequestNonce] = useState(0);
-    const [cinematicAgentEntry, setCinematicAgentEntry] = useState(false);
-    const { assistantOpen, closeAgent, openAgent } = useCanvasAssistantVisibility();
+    // 面板初始宽度根据视口宽度动态选择，避免小屏幕上初始就过宽
+    const [assistantWidth, setAssistantWidth] = useState(() => {
+        const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+        if (vw < 768) return 300;
+        if (vw < 1024) return 360;
+        if (vw < 1440) return 440;
+        return 520;
+    });
+    const { assistantClosing, assistantMounted, assistantOpen, closeAgent, openAgent } = useCanvasAssistantVisibility();
     const agentMentionReferences = useMemo(() => buildCanvasAgentMentionReferences(nodes), [nodes]);
     const { tasks: activeTasks } = useCanvasActiveTasks(projectId, projectLoaded);
     const { focusMode, enterFocusMode, exitFocusMode, toggleFocusMode } = useFocusMode();
@@ -476,8 +484,7 @@ function InfiniteCanvasPage() {
         [cleanupAssetImages, getHistoryCleanupContext],
     );
 
-    const { loadError, loadConflict, retryLoad, loadRemoteAfterDiscard, addedSkills, clearCanvasFiles, createAndOpenProject, currentProject, deleteCurrentProject, renameCurrentProject, saveCanvasProject, updateProject } = useCanvasProjectLifecycle({
-4ba221bd (feat(web): 画布同步冲突页三选一 - 结构化冲突错误+导出本地JSON+确认后加载云端版本(放弃本地))
+    const { loadError, loadConflict, retryLoad, loadRemoteAfterDiscard, addedSkills, agentCreatedNodes, clearCanvasFiles, createAndOpenProject, currentProject, deleteCurrentProject, renameCurrentProject, saveCanvasProject, updateProject } = useCanvasProjectLifecycle({
         projectId,
         projectLoaded,
         nodes,
@@ -1452,7 +1459,16 @@ const {
     const textEditorNode = textEditorNodeId ? nodeById.get(textEditorNodeId) || null : null;
     const characterReferenceNode = characterReferenceNodeId ? nodeById.get(characterReferenceNodeId) || null : null;
     const drawingNode = drawingNodeId ? nodeById.get(drawingNodeId) || null : null;
-    const artCritiqueNode = artCritiqueNodeId ? nodeById.get(artCritiqueNodeId) || null : null;
+        const [portraitClearanceNodeId, setPortraitClearanceNodeId] = useState<string | null>(null);
+    const portraitClearanceNode = portraitClearanceNodeId ? nodeById.get(portraitClearanceNodeId) || null : null;
+    const portraitClearanceInputs = portraitClearanceNode
+        ? connections
+              .filter((connection) => connection.toNodeId === portraitClearanceNode.id)
+              .sort((left, right) => left.id.localeCompare(right.id))
+              .map((connection) => nodeById.get(connection.fromNodeId))
+              .filter((node): node is CanvasNodeData => Boolean(node))
+        : [];
+const artCritiqueNode = artCritiqueNodeId ? nodeById.get(artCritiqueNodeId) || null : null;
     const artCritiqueInputs = artCritiqueNode
         ? connections
               .filter((connection) => connection.toNodeId === artCritiqueNode.id)
@@ -1460,7 +1476,25 @@ const {
               .map((connection) => nodeById.get(connection.fromNodeId))
               .filter((node): node is CanvasNodeData => Boolean(node))
         : [];
-    const pendingConnectionSourceNode = pendingConnectionCreate?.connection.handleType === "source" ? nodeById.get(pendingConnectionCreate.connection.nodeId) : null;
+        const addPortraitCandidateToCanvas = useCallback(async (candidate: { id: string; title: string; imageArtifactId: string }, dataUrl: string) => {
+        const target = portraitClearanceNodeId ? nodesRef.current.find((node) => node.id === portraitClearanceNodeId) : undefined;
+        if (!target) return;
+        try {
+            const image = await uploadImage(dataUrl);
+            const created = createCanvasNode(CanvasNodeType.Image, { x: target.position.x + target.width + 260, y: target.position.y + target.height / 2 }, imageMetadata(image));
+            created.title = candidate.title.slice(0, 80) || "肖像排查候选";
+            const connection = { id: nanoid(), fromNodeId: created.id, toNodeId: target.id };
+            setNodes((current) => [...current, created]);
+            setConnections((current) => [...current, connection]);
+            setSelectedNodeIds(new Set([created.id]));
+            const result = await ensureCanvasNodeAsset({ canvasId: projectId, domainProjectId: currentProject?.projectId, node: created, source: "canvas-manual" });
+            setNodes((current) => current.map((item) => item.id === created.id ? { ...item, metadata: { ...item.metadata, assetId: result.assetId } } : item));
+            message.success("候选图片已添加到画布并连接到排查节点");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "候选图片添加失败");
+        }
+    }, [currentProject?.projectId, message, portraitClearanceNodeId, projectId, setConnections, setNodes, setSelectedNodeIds]);
+const pendingConnectionSourceNode = pendingConnectionCreate?.connection.handleType === "source" ? nodeById.get(pendingConnectionCreate.connection.nodeId) : null;
     const canCreateDrawingFromConnection = !pendingConnectionCreate?.batchSourceNodeIds?.length && pendingConnectionSourceNode?.type === CanvasNodeType.Image && Boolean(pendingConnectionSourceNode.metadata?.content);
 
     const openTextNodeEditor = useCallback((node: CanvasNodeData) => {
@@ -2474,11 +2508,7 @@ const {
     ) : emptyStateKind === "guided" ? (
         <CanvasShortDramaEmptyState
             onCreatePipeline={createShortDramaPipeline}
-            onOpenAgent={() => {
-                setCinematicAgentEntry(true);
-                setAgentMode("online");
-                openAgent("online");
-            }}
+            onOpenAgent={() => openAgent()}
             onStartFreeform={() => updateProject(projectId, { starterMode: "freeform" })}
             onUpload={() => handleUploadRequest()}
             onAddText={() => createNode(CanvasNodeType.Text)}
@@ -2496,7 +2526,6 @@ const {
             />
         );
     }
-4ba221bd (feat(web): 画布同步冲突页三选一 - 结构化冲突错误+导出本地JSON+确认后加载云端版本(放弃本地))
     if (!projectLoaded) return <CanvasRefreshShell />;
 
     return (
@@ -2532,10 +2561,6 @@ const {
                             onUndo={undoCanvas}
                             onRedo={redoCanvas}
                             onShare={() => setShareModalOpen(true)}
-                            agentOpen={assistantOpen}
-                            agentPanelWidth={assistantMounted ? assistantWidth : undefined}
-                            compactAgentStatus={codexCompactAgent ? { connected: localAgentConnected, enabled: localAgentEnabled, activity: localAgentActivity } : undefined}
-                            onToggleAgent={() => (assistantOpen ? closeAgent() : openAgent())}
                             shortcutRequestNonce={shortcutRequestNonce}
                             mediaPerformanceMode={mediaPerformanceMode}
                             onMediaPerformanceModeChange={setMediaPerformanceMode}
@@ -2614,9 +2639,8 @@ const {
                                         selectedNodeBounds={selectedNodeBounds}
                                         alignmentGuides={alignmentGuides}
                                     />
-4c31d6ae (feat(canvas): 视频batch根节点分发与展开预览 - BatchFrame复用+batchRootExpanded中立读, 图像链字段不动)
                                 }
-onViewportChange={handleViewportChange}
+                                onViewportChange={handleViewportChange}
                                 onViewportPreviewChange={handleViewportPreviewChange}
                                 onCanvasMouseDown={handleCanvasMouseDown}
                                 boxSelectEnabled={canvasTool === "box-select"}
@@ -2712,10 +2736,8 @@ onViewportChange={handleViewportChange}
                             {focusMode ? (
                                 <CanvasFocusModeBar
                                     dockRevealed={focusDockRevealed}
-                                    agentOpen={assistantOpen}
                                     zoomPercent={viewport.k}
                                     onToggleDock={() => setFocusDockRevealed((value) => !value)}
-                                    onToggleAgent={() => (assistantOpen ? closeAgent() : openAgent())}
                                     onExit={exitFocusMode}
                                     onZoomIn={zoomCanvasIn}
                                     onZoomOut={zoomCanvasOut}
@@ -2769,42 +2791,20 @@ onViewportChange={handleViewportChange}
                             ) : null}
                         </div>
 
-                        {assistantMounted ? (
-                                    <AssistantPanelColumn width={assistantWidth} closing={assistantClosing} topInset="0px" onWidthChange={setAssistantWidth}>
-                                {(resizing) => (
-                                    <CanvasAssistantPanel
-                                        nodes={nodes}
-                                        selectedNodeIds={selectedNodeIds}
-                                        snapshot={agentSnapshot}
-                                        projectId={projectId}
-                                        sessions={chatSessions}
-                                        activeSessionId={activeChatId}
-                                        onSelectNodeIds={setSelectedNodeIds}
-                                        onSessionsChange={handleAssistantSessionsChange}
-                                        onApplyOps={applyAgentOps}
-                                        onApplyStyle={applyCanvasStyleAsync}
-                                        onGenerateStoryboard={generateScriptRows}
-                                        onStartArtCritique={(nodeId, restart) => {
-                                            if (artCritiqueRunningRef.current) throw new Error("已有审美分析正在进行，请先完成或停止当前分析");
-                                            setArtCritiqueStartRequest({ nodeId, id: nanoid(), restart });
-                                            setArtCritiqueNodeId(nodeId);
-                                        }}
-                                        canUndoOps={canUndoAgentOps}
-                                        undoOpsCount={agentUndoCount}
-                                        onUndoOps={undoAgentOps}
-                                        onPasteImage={pasteAssistantImage}
-                                        agentMode={agentMode}
-                                        onAgentModeChange={setAgentMode}
-                                        autoConnectLocal={codexAutoConnect}
-                                        closing={assistantClosing}
-                                        onCollapse={closeAgent}
-                                        cinematicEntry={cinematicAgentEntry}
-                                        onCinematicEntryConsumed={() => setCinematicAgentEntry(false)}
-                                        resizing={resizing}
-                                    />
-                                )}
-                            </AssistantPanelColumn>
-                        ) : null}
+                        <CanvasCloudAgentPanel
+                            canvasId={projectId}
+                            domainProjectId={currentProject?.projectId}
+                            nodeCount={nodes.length}
+                            references={agentMentionReferences}
+                            open={assistantOpen}
+                            onOpen={() => openAgent()}
+                            onCollapse={closeAgent}
+                            onFocusNode={(nodeId) => {
+                                if (!nodesRef.current.some((node) => node.id === nodeId)) { message.info("该节点已删除或尚未同步到画布"); return; }
+                                focusCanvasNode(nodeId);
+                            }}
+                        />
+                    </div>
 
                         <CanvasNodeSearchModal
                             open={nodeSearchOpen}
@@ -2856,7 +2856,6 @@ onViewportChange={handleViewportChange}
                         onViewImage={(node) => setPreviewNodeId(node.id)}
                         actions={toolbarNode?.type === "image" ? ([
                             { label: "裁切", icon: <Scissors className="size-3.5" />, onClick: () => setCropNodeId(toolbarNode.id) },
-                            { label: "分割", icon: <SquareSplitHorizontal className="size-3.5" />, onClick: () => setSplitNodeId(toolbarNode.id) },
                             { label: "超分", icon: <ZoomIn className="size-3.5" />, onClick: () => setUpscaleNodeId(toolbarNode.id) },
                             { label: "局部编辑", icon: <Brush className="size-3.5" />, onClick: () => setMaskEditNodeId(toolbarNode.id) },
                         ] as ObjectHudAction[]) : undefined}
@@ -2890,6 +2889,7 @@ onViewportChange={handleViewportChange}
                                 @{connectionReplaceHover.referenceLabel}
                             </span>
                         </div>
+                    ) : null}
 
                     {selectedNodeBounds && !selectionBox && !isCanvasNodeMoving ? (
                         <CanvasProjectSelectionToolbar
@@ -2910,7 +2910,7 @@ onViewportChange={handleViewportChange}
                     {uploadStatus ? <CanvasUploadStatusToast status={uploadStatus} theme={theme} /> : null}
                     {mergeVideoProgress ? <CanvasMergeStatusToast progress={mergeVideoProgress} theme={theme} /> : null}
                     {lastAgentChange ? (
-                        <CanvasAgentChangeToast
+                        <CanvasOperationChangeToast
                             change={lastAgentChange}
                             theme={theme}
                             onView={viewLastAgentChange}
@@ -2943,7 +2943,6 @@ onViewportChange={handleViewportChange}
                         onUpload={(node) => handleUploadRequest(node.id)}
                         onDownload={downloadNodeImage}
                         onSaveAsset={(node) => void saveNodeAsset(node)}
-                        onCreateConversion={createConversionFromSource}
                         onAnnotate={(node) => setAnnotationNodeId(node.id)}
                         onMaskEdit={(node) => setMaskEditNodeId(node.id)}
                         onEmotion={(node) => {
@@ -2952,7 +2951,7 @@ onViewportChange={handleViewportChange}
                         }}
                         onPortraitTexture={openPortraitTextureEditor}
                         onCrop={(node) => setCropNodeId(node.id)}
-                        onSplit={(node) => setSplitNodeId(node.id)}
+                        onSplit={(node, params) => void splitImageNode(node, params)}
                         onUpscale={(node) => setUpscaleNodeId(node.id)}
                         onSuperResolve={(node) => setSuperResolveNodeId(node.id)}
                         onAngle={(node) => {
@@ -2982,17 +2981,6 @@ onViewportChange={handleViewportChange}
                     ))}
                     {isMiniMapOpen && !focusMode ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} canvasContainerRef={containerRef} onViewportPreviewChange={previewViewport} onViewportChange={handleViewportChange} /> : null}
 
-                    {!focusMode ? (
-                        <CanvasOverlayLayerContainer
-                            overlayId="asset-tray"
-                            fallbackZIndex="var(--z-panel)"
-                            className="absolute bottom-[calc(var(--canvas-inset-y)+var(--space-16))] left-[var(--canvas-inset-x)] flex items-end gap-2 lg:bottom-[var(--canvas-inset-y)]"
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onWheel={(event) => event.stopPropagation()}
-                        >
-                            <CanvasZoomControls
-                                scale={viewport.k}
 
                         {lightingNode?.metadata?.content ? (
                             <AppModal flush open centered title={null} closable={false} footer={null} width={720} onCancel={() => setLightingNodeId(null)}>
@@ -3099,57 +3087,6 @@ onViewportChange={handleViewportChange}
                             />
                         ) : null}
 
-                        <CanvasNodeToolbar
-                            node={isCanvasNodeMoving || nodeImageSettingsOpen || emotionNodeId || angleNodeId ? null : toolbarNode}
-                            workspaceMode={workspaceMode}
-                            viewport={viewport}
-                            containerRef={containerRef}
-                            onKeep={keepNodeToolbar}
-                            onLeave={hideNodeToolbar}
-                            onInfo={(node) => (node.metadata?.workflowKind === "character" && node.metadata.characterAssetId ? openTextNodeEditor(node) : setInfoNodeId(node.id))}
-                            onEditText={openTextNodeEditor}
-                            onDecreaseFont={(node) => handleFontSizeChange(node.id, Math.max(10, (node.metadata?.fontSize || 14) - 2))}
-                            onIncreaseFont={(node) => handleFontSizeChange(node.id, Math.min(32, (node.metadata?.fontSize || 14) + 2))}
-                            onToggleDialog={(node) => setDialogNodeId((current) => (current === node.id ? null : node.id))}
-                            onGenerateImage={generateImageFromTextNode}
-                            onUpload={(node) => handleUploadRequest(node.id)}
-                            onDownload={downloadNodeImage}
-                            onSaveAsset={(node) => void saveNodeAsset(node)}
-                            onAnnotate={(node) => setAnnotationNodeId(node.id)}
-                            onMaskEdit={(node) => setMaskEditNodeId(node.id)}
-                            onEmotion={(node) => {
-                                setDialogNodeId(null);
-                                setEmotionNodeId((current) => (current === node.id ? null : node.id));
-                            }}
-                            onPortraitTexture={openPortraitTextureEditor}
-                            onCrop={(node) => setCropNodeId(node.id)}
-                            onSplit={(node, params) => void splitImageNode(node, params)}
-                            onUpscale={(node) => setUpscaleNodeId(node.id)}
-                            onSuperResolve={(node) => setSuperResolveNodeId(node.id)}
-                            onAngle={(node) => {
-                                setDialogNodeId(null);
-                                setAngleNodeId((current) => (current === node.id ? null : node.id));
-                            }}
-                            onLighting={(node) => {
-                                setDialogNodeId(null);
-                                setLightingNodeId((current) => (current === node.id ? null : node.id));
-                            }}
-                            onPanorama={openPanoramaConfig}
-                            onViewImage={(node) => setPreviewNodeId(node.id)}
-                            onExtractVideoFrames={openVideoFrameExtractor}
-                            onExtractAudioFromVideo={(node) => void extractAudioFromVideo(node)}
-                            onTrimVideoSegments={openVideoSegmentExtractor}
-                            onSubtitles={(node) => setSubtitleNodeId(node.id)}
-                            onTimeline={(node) => setTimelineNodeId(node.id)}
-                            extractingVideoFrames={toolbarNode?.id === extractingVideoFramesNodeId}
-                            extractingAudio={segmentRunningMode === "audio"}
-                            trimmingVideo={segmentRunningMode === "video"}
-                            onReversePrompt={createImageReversePromptNodes}
-                            onRetry={retryCanvasNode}
-                            onToggleFreeResize={(node) => toggleNodeFreeResize(node.id)}
-                            onToggleLocked={(node) => toggleNodeLocked(node.id)}
-                            onDelete={(node) => deleteNodes(new Set([node.id]))}
-                        />
 
 {isMiniMapOpen && !focusMode ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} canvasContainerRef={containerRef} onViewportPreviewChange={previewViewport} onViewportChange={handleViewportChange} /> : null}
 
@@ -3345,6 +3282,16 @@ onViewportChange={handleViewportChange}
                                 />
                             </Suspense>
                         ) : null}
+
+                        <PortraitClearanceModal
+                            projectId={projectId}
+                            node={portraitClearanceNode}
+                            upstreamNodes={portraitClearanceInputs}
+                            open={Boolean(portraitClearanceNode)}
+                            onClose={() => setPortraitClearanceNodeId(null)}
+                            onUpdateState={(nodeId, state: PortraitClearanceNodeState) => handleConfigNodeChange(nodeId, { portraitClearance: state })}
+                            onAddCandidate={addPortraitCandidateToCanvas}
+                        />
 
                         <AiArtCritiqueModal
                             startRequestId={artCritiqueStartRequest && artCritiqueStartRequest.nodeId === artCritiqueNode?.id ? artCritiqueStartRequest.id : undefined}

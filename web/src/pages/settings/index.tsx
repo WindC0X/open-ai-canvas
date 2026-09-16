@@ -3,7 +3,6 @@ import { Select } from "@/components/ui/base/select";
 import { SettingsRow } from "@/components/ui/product/settings-row";
 import { ArrowLeft, Boxes, Bug, Cloud, MessageSquareText, MonitorUp, RadioTower, SlidersHorizontal, SquareTerminal, Workflow } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-e445c85d (fix(web): settings页删除app-user-overlays重复管理 - 修复切走后布局class被摘且不可恢复(周审P1-5))
 import { useNavigate, useSearchParams } from "react-router";
 
 import { UserOSSSettingsForm } from "@/components/layout/user-oss-settings-form";

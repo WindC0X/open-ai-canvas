@@ -9,8 +9,7 @@ import { removeCanvasDrawing } from "@/lib/canvas/canvas-drawing-storage";
 import { normalizeCanvasNodeTimestamps } from "@/lib/canvas/canvas-node-timestamps";
 import { hydrateAssistantImages, resetInterruptedGeneration } from "@/lib/canvas/canvas-project-generation";
 import { listAddedSkills, type Skill } from "@/services/api/skills";
-import { CanvasSyncConflictError, createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, discardLocalCanvasProject, loadCanvasProjectForEditing, localSavedRemotePendingMessage, saveRemoteUserDataNow } from "@/services/user-data-sync";
-4ba221bd (feat(web): 画布同步冲突页三选一 - 结构化冲突错误+导出本地JSON+确认后加载云端版本(放弃本地))
+import { CanvasSyncConflictError, createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, discardLocalCanvasProject, loadCanvasProjectForEditing, localSavedRemotePendingMessage, saveRemoteUserDataNow, subscribeAgentCanvasRefresh } from "@/services/user-data-sync";
 import { flushCanvasStorePersistence, useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";

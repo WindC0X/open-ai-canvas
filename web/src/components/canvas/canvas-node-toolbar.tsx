@@ -366,7 +366,7 @@ function compareToolbarTools(left: ToolbarTool, right: ToolbarTool) {
     return left.order - right.order;
 }
 
-function NodeDockMenuButton({ menuId, label, icon, tools, openMenuId, onOpenChange, placement = "bottom", iconOnly = false, split }: { menuId: string; label: string; icon: ReactNode; tools: ToolbarTool[]; openMenuId: string | null; onOpenChange: (menuId: string, open: boolean) => void; placement?: "bottom" | "bottomRight"; iconOnly?: boolean; split?: { node: CanvasNodeData; onSplit: (node: CanvasNodeData, params: ImageSplitParams) => void } }) {a0c7295b (feat(canvas): 工具栏内部按钮与下拉菜单flora质感对齐 - 按钮h28/r-md/13px, 菜单玻璃族皮, 弹出方向统一朝下)
+function NodeDockMenuButton({ menuId, label, icon, tools, openMenuId, onOpenChange, placement = "bottom", iconOnly = false, split }: { menuId: string; label: string; icon: ReactNode; tools: ToolbarTool[]; openMenuId: string | null; onOpenChange: (menuId: string, open: boolean) => void; placement?: "bottom" | "bottomRight"; iconOnly?: boolean; split?: { node: CanvasNodeData; onSplit: (node: CanvasNodeData, params: ImageSplitParams) => void } }) {
     const open = openMenuId === menuId;
     const triggerRef = useRef<HTMLButtonElement>(null);
     const [splitPanelOpen, setSplitPanelOpen] = useState(false);

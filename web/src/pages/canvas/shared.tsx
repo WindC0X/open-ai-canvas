@@ -234,7 +234,6 @@ const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.t
         { nodeId: node.id, hoveredNodeId, dialogNodeId: selectedNodeId, selfHover: false },
         { nodeDragging: false, selectionBoxActive: false, settingsOpen: false },
     );
-4d070fc5 (fix(canvas): 二次review修复 - exitTimer单飞清竞态/shared页双实例对齐主画布语义/hoverTarget命名)
 
     if (loading) return <FullScreenLoader label="正在打开共享画布" detail="读取节点、连线和视图状态" />;
     if (loadError) return <div className="grid h-screen place-items-center px-5" style={{ background: theme.canvas.background }}><WorkspaceState icon="error" title="分享链接不可用" description={loadError} action={<Link to="/"><Button>返回首页</Button></Link>} /></div>;

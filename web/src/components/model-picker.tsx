@@ -302,8 +302,7 @@ export function ModelPicker({
         // antd useWinClick 对 flyout 行点击会请求关闭(flyout 不在其 popupEle 判定内):
         // 此关闭若放行, 受控 flush 会在行 mousedown 派发前分离行 fiber → 只关不选。拦截之。
         if (!nextOpen && flyoutPointerRef.current) return;
-        if (nextOpen && !options.length && config.channelMode === "local") onMissingConfig?.();
-7e1a15f6 (fix(canvas): S08 模型菜单 flora live 值对齐 - .9玻璃/徽章白.1/媒体描边圆/黑上黑根因(var顺序)/flyout选择残留修复)
+        if (nextOpen && !options.length) onMissingConfig?.();
         if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
         setOpen(nextOpen);
     };
