@@ -442,6 +442,7 @@ c3d85ca3 (fix(canvas): 视频完成瞬间hover信息态1.5s保护(G1 flora证据
                         references={mentionReferences}
                         theme={theme}
                         visible={hoverComposerVisible}
+                        nodeHeight={data.height}
                     />
                 </div>
 

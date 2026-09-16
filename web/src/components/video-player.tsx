@@ -124,12 +124,17 @@ export function VideoPlayer({ src, mimeType, title = "视频", className, brandC
         // access consistent when an audio-track probe resolves asynchronously.
         const muteButton = player.querySelector<HTMLButtonElement>(".vds-mute-button");
         if (muteButton) {
-            muteButton.disabled = noAudio;
-            muteButton.setAttribute("aria-disabled", String(noAudio));
+            // 无音轨时不 disabled(用户 2026-09-16: "静音并且无法调节音量"的死控件感):
+            // 按钮保留可点, 图标已被 layoutIcons 钉成静音态, 点击切换无实际效果但有明确 title 提示。
+            muteButton.disabled = false;
+            if (noAudio) muteButton.title = "该视频没有音轨";
+            else muteButton.removeAttribute("title");
+            muteButton.removeAttribute("aria-disabled");
         }
         const volumeSlider = player.querySelector<HTMLElement>(".vds-volume-slider");
         if (volumeSlider) {
             volumeSlider.setAttribute("aria-disabled", String(noAudio));
+            volumeSlider.title = noAudio ? "该视频没有音轨" : "";
         }
     }, [noAudio]);
 

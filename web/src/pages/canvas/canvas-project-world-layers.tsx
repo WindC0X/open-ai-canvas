@@ -51,6 +51,7 @@ type CanvasProjectWorldLayersProps = {
     batchSourceNodeIds: string[];
     batchConnectionPreview: CanvasBatchConnectionPreview | null;
     isNodeDragging: boolean;
+    mediaCancelSignal: number;
     selectionBoundsElementRef: RefObject<HTMLDivElement | null>;
     renderCanvasNodeContent: (node: CanvasNodeData) => ReactNode;
     onConnectionSelect: (connectionId: string) => void;
@@ -83,11 +84,15 @@ const EMPTY_RESOURCE_REFERENCES: CanvasResourceReference[] = [];
 const EMPTY_CANVAS_NODES: CanvasNodeData[] = [];
 
 export const CanvasProjectWorldLayers = memo(function CanvasProjectWorldLayers(props: CanvasProjectWorldLayersProps) {
-    const { viewportScale } = props;
+    const { viewportScale, mediaCancelSignal } = props;
     const [activeMediaNodeId, setActiveMediaNodeId] = useState<string | null>(null);
     useEffect(() => {
         if (activeMediaNodeId && !props.nodeById.has(activeMediaNodeId)) setActiveMediaNodeId(null);
     }, [activeMediaNodeId, props.nodeById]);
+    // 点击画布空白(deselect 边界)取消播放激活, 与"点空白取消选中"同一语义(用户 2026-09-16 反馈 Q2)。
+    useEffect(() => {
+        if (mediaCancelSignal) setActiveMediaNodeId(null);
+    }, [mediaCancelSignal]);
     const orderedVisibleNodes = useMemo(() => [
         ...props.visibleNodes.filter(isFrameNode),
         ...sortCanvasNodesByStackOrder(props.visibleNodes.filter((node) => !isFrameNode(node)), props.nodeStackOrder),

@@ -1182,10 +1182,13 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
 
     // 归属状态机在下方 hook 处创建, 此处用 ref 桥接避免声明顺序依赖(运行时按需取最新)。
     const resetHoverBoundaryRef = useRef<(() => void) | null>(null);
+    const [mediaCancelSignal, setMediaCancelSignal] = useState(0);
     const handleCanvasDeselect = useCallback(() => {
         setContextMenu(null);
         setHoveredNodeId(null);
         setDialogNodeId(null);
+        // 点空白同时取消视频播放激活(world-layers 内部 state 经信号下传)
+        setMediaCancelSignal((current) => current + 1);
         resetHoverBoundaryRef.current?.();
     }, []);
 
@@ -2063,8 +2066,14 @@ const {
                     onPromptChange={handleNodePromptChange}
                     onConfigChange={handleConfigNodeChange}
                     onGenerate={(nodeId, mode, prompt) => {
-                        // flora 语法:生成启动即收起编辑面(S04);mode/prompt 由面板调用参数携带,先捕获再收起
+                        // flora 语法:生成启动即收起编辑面(S04);mode/prompt 由面板调用参数携带,先捕获再收起。
+                        // 同时清选中:否则选中态仍把工具栏钉在 full,编辑上下文并未真正离开(用户实测残留)。
                         setDialogNodeId(null);
+                        setSelectedNodeIds((current) => {
+                            const next = new Set(current);
+                            next.delete(nodeId);
+                            return next;
+                        });
                         handleGenerateNode(nodeId, mode, prompt);
                     }}
                     onRemoveReference={handleRemoveNodeReference}
@@ -2657,6 +2666,7 @@ onViewportChange={handleViewportChange}
                                     batchSourceNodeIds={batchSourceNodeIds}
                                     batchConnectionPreview={batchConnectionPreview}
                                     isNodeDragging={isNodeDragging}
+                                    mediaCancelSignal={mediaCancelSignal}
                                     selectionBoundsElementRef={selectionBoundsElementRef}
                                     renderCanvasNodeContent={renderCanvasNodeContent}
                                     onConnectionSelect={(connectionId) => {

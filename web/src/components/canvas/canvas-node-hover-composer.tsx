@@ -31,6 +31,8 @@ type CanvasNodeHoverComposerProps = {
     theme: CanvasTheme;
     /** 显隐由节点侧派生（hovered && !selected && !generating && !batchExpanded && !mediaActive），组件内零状态。 */
     visible: boolean;
+    /** 节点高(CSS px): 矮媒体节点上信息态让位中心播放按钮, 面板高度按比例收缩。 */
+    nodeHeight?: number;
 };
 
 function referenceThumbSrc(reference: CanvasResourceReference) {
@@ -40,9 +42,15 @@ function referenceThumbSrc(reference: CanvasResourceReference) {
     return media ? reference.previewUrl || "" : "";
 }
 
-export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: CanvasNodeHoverComposerProps) {
+export function CanvasNodeHoverComposer({ prompt, references, theme, visible, nodeHeight }: CanvasNodeHoverComposerProps) {
     const promptText = prompt?.trim() || "";
     const show = visible && (Boolean(promptText) || references.length > 0);
+    // 矮节点(视频预览常见 216px)上, flora 全尺寸信息态会视觉包住中心播放按钮(用户 2026-09-16 反馈):
+    // 面板总高钳到节点高的 45%, 且不超过 flora 基准 184px; 提示词区相应收缩(下限 56 保两行可读)。
+    const budget = nodeHeight ? Math.min(184, Math.round(nodeHeight * 0.45)) : 184;
+    // 有引用行时预算扣 52px(缩略行高+gap); 无引用时预算全给提示词, 但不超过 flora 基准 132。
+    const promptMax = Math.max(56, Math.min(PROMPT_MAX_HEIGHT, budget - (references.length > 0 ? 52 : 0)));
+    const promptMin = Math.min(PROMPT_MIN_HEIGHT, promptMax);
 
     return (
         <div
@@ -103,7 +111,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                         <div
                             className="canvas-node-hover-composer-prompt overflow-y-auto whitespace-pre-wrap break-words text-[var(--fs-body)] leading-5"
                             data-canvas-wheel-scroll
-                            style={{ color: theme.node.text, minHeight: PROMPT_MIN_HEIGHT, maxHeight: PROMPT_MAX_HEIGHT }}
+                            style={{ color: theme.node.text, minHeight: promptMin, maxHeight: promptMax }}
                         >
                             {promptText}
                         </div>
