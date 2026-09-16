@@ -2820,4 +2820,8 @@ c (docs(progress): 登记挂件宽度公式回滚与引用hover胶囊批)
 f (docs(progress): 登记信息态P1/P2修复批与review结论)
 
 **信息态 P3 整洁批（同日）**：review P3 三项全部落地：①`referenceThumbSrc` 去掉 `export` 收窄为模块私有（其语义测试改经组件渲染断言）；②引用行左右渐隐 mask 从 `.canvas-node-hover-composer > div > div > [...]` 三层子选择器改为 `.canvas-node-hover-composer-refs-mask` 类名锚定（JSX 层级变化不再静默失配），隐藏态不挂 mask 类；③flora 实测高度数值提成文件顶部常量（`THUMB_SIZE_CLASS` 36px / `PROMPT_MIN_HEIGHT` 116 / `PROMPT_MAX_HEIGHT` 132），与 `FLORA_EASE` 同待遇。测试 6 绿（14 断言）、tsc 0、build 通过；真机复验 mask 类挂载+computed 生效、prompt minHeight 116px、img 不裂。
+
 a (docs(progress): 登记信息态P3整洁批)
+
+**P4 视频族 S6 差异裁剪批（c3d85ca3，同日）**：按 atlas 证据裁剪 5 条差异点——落地 1 项：**生成完成瞬间 hover 信息态 1.5s 保护**（flora useNodeControlSurface 完成后 1500ms minimized 的源码级证据），实现于 canvas-node（loading→非loading 跳变边沿武装定时器，reload 后挂载的老节点不误隐）。关项 4 项：ETA 标题呈现（前端后端均无 estimatedTime 数据源，不发明）；queued toast（排队信息已由节点状态行呈现，载体不同信息等价）；G2 播放 HUD（Vidstack 自带时间码/seek/音量已对齐，沉底浮层 vs 覆盖 HUD 为结构差异不照搬）；G4 Variant rail（全屏查看器载体不同，BatchFrame 同构保持）。附带修复：**画布存量损坏持久值自愈**——历史 "[object Object]" 字符串值令 JSON.parse 永久失败、待写队列卡死刷错，parse 层对 SyntaxError 回退空文档（从 baseProjects 重建，结构错误仍抛），真机确认 console 不再刷"画布本地持久化失败"。
+d (docs(progress): 登记视频族S6裁剪批与持久化自愈修复)
