@@ -117,7 +117,6 @@ import { CanvasProjectWorldLayers } from "./canvas-project-world-layers";
 import { CanvasNodeActionContext, type CanvasNodeActionContextValue } from "@/components/canvas/canvas-node-action-context";
 import { bringCanvasNodeToFront, type CanvasNodeStackOrder, sortCanvasNodesByStackOrder } from "@/lib/canvas/canvas-node-stack-order";
 import { PORTRAIT_CLEARANCE_NODE_TYPE, type PortraitClearanceNodeState } from "@/lib/portrait-clearance/contracts";
-import { readLocalRuntimeBootstrapState } from "@/services/local-runtime-bootstrap";
 import { PortraitClearanceModal } from "@/components/canvas/portrait-clearance/portrait-clearance-modal";
 import { AiArtCritiqueModal } from "@/components/canvas/art-critique/ai-art-critique-modal";
 import { CanvasNodeGraphContext, type CanvasNodeGraphContextValue } from "@/components/canvas/canvas-node-graph-context";
@@ -1130,7 +1129,7 @@ function InfiniteCanvasPage() {
         if (selectionModifier) setDialogNodeId(null);
     }, []);
 
-const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
+    const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         // Selection is transient, but the LibTV-style paint order survives
         // deselection so a clicked lower node stays above its neighbours.
         if (node.type !== CanvasNodeType.Frame) bringNodeToFront(node.id);
@@ -1220,7 +1219,7 @@ const handleSelectedNodeClick = useCallback((node: CanvasNodeData) => {
         onDeselect: handleCanvasDeselect,
     });
 
-const {
+    const {
         collapsingBatchIds,
         downloadNodeImage,
         handleConfigNodeChange,
@@ -1459,7 +1458,7 @@ const {
     const textEditorNode = textEditorNodeId ? nodeById.get(textEditorNodeId) || null : null;
     const characterReferenceNode = characterReferenceNodeId ? nodeById.get(characterReferenceNodeId) || null : null;
     const drawingNode = drawingNodeId ? nodeById.get(drawingNodeId) || null : null;
-        const [portraitClearanceNodeId, setPortraitClearanceNodeId] = useState<string | null>(null);
+    const [portraitClearanceNodeId, setPortraitClearanceNodeId] = useState<string | null>(null);
     const portraitClearanceNode = portraitClearanceNodeId ? nodeById.get(portraitClearanceNodeId) || null : null;
     const portraitClearanceInputs = portraitClearanceNode
         ? connections
@@ -1468,7 +1467,7 @@ const {
               .map((connection) => nodeById.get(connection.fromNodeId))
               .filter((node): node is CanvasNodeData => Boolean(node))
         : [];
-const artCritiqueNode = artCritiqueNodeId ? nodeById.get(artCritiqueNodeId) || null : null;
+    const artCritiqueNode = artCritiqueNodeId ? nodeById.get(artCritiqueNodeId) || null : null;
     const artCritiqueInputs = artCritiqueNode
         ? connections
               .filter((connection) => connection.toNodeId === artCritiqueNode.id)
@@ -1476,7 +1475,7 @@ const artCritiqueNode = artCritiqueNodeId ? nodeById.get(artCritiqueNodeId) || n
               .map((connection) => nodeById.get(connection.fromNodeId))
               .filter((node): node is CanvasNodeData => Boolean(node))
         : [];
-        const addPortraitCandidateToCanvas = useCallback(async (candidate: { id: string; title: string; imageArtifactId: string }, dataUrl: string) => {
+    const addPortraitCandidateToCanvas = useCallback(async (candidate: { id: string; title: string; imageArtifactId: string }, dataUrl: string) => {
         const target = portraitClearanceNodeId ? nodesRef.current.find((node) => node.id === portraitClearanceNodeId) : undefined;
         if (!target) return;
         try {
@@ -1494,7 +1493,7 @@ const artCritiqueNode = artCritiqueNodeId ? nodeById.get(artCritiqueNodeId) || n
             message.error(error instanceof Error ? error.message : "候选图片添加失败");
         }
     }, [currentProject?.projectId, message, portraitClearanceNodeId, projectId, setConnections, setNodes, setSelectedNodeIds]);
-const pendingConnectionSourceNode = pendingConnectionCreate?.connection.handleType === "source" ? nodeById.get(pendingConnectionCreate.connection.nodeId) : null;
+    const pendingConnectionSourceNode = pendingConnectionCreate?.connection.handleType === "source" ? nodeById.get(pendingConnectionCreate.connection.nodeId) : null;
     const canCreateDrawingFromConnection = !pendingConnectionCreate?.batchSourceNodeIds?.length && pendingConnectionSourceNode?.type === CanvasNodeType.Image && Boolean(pendingConnectionSourceNode.metadata?.content);
 
     const openTextNodeEditor = useCallback((node: CanvasNodeData) => {
