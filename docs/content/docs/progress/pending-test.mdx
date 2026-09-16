@@ -2816,4 +2816,8 @@ c (docs(progress): 登记挂件宽度公式回滚与引用hover胶囊批)
 8 (docs(progress): 字号不一致诊断为raster缩放架构差异(两态源码一致))
 
 **信息态 P1/P2 修复批（code-review-expert review 后，同日）**：review 整改全链 7 提交发现 P1×1/P2×2/P3×4，已修 P1+P2（`a2a4c0d5`）：①P1 视频引用 `mediaUrl` 回退把视频文件 URL 塞进 `<img src>` 必裂图（与文本引用裂图同构，libTV 之外渠道即触发）——摘除回退，mediaUrl 只许 `<video>` 消费，无快照走图标块（▶）；②P2 隐藏态常驻挂载 + `opacity:0` 使 `loading="lazy"` 失效，缩略图全画布静默加载——隐藏态不解析 src；③P2 补 `aria-hidden`。新增 `canvas-node-hover-composer.test.tsx`（9 测试：referenceThumbSrc 5 例 + 静态标记渲染 4 例）。真机复验：带引用节点 visible 态 1 img 不裂、hidden 态 0 img + aria-hidden=true。P3 未修项留档：`referenceThumbSrc` export 收窄、globals 三层子选择器解耦、高度魔法数字提常量。
+
 f (docs(progress): 登记信息态P1/P2修复批与review结论)
+
+**信息态 P3 整洁批（同日）**：review P3 三项全部落地：①`referenceThumbSrc` 去掉 `export` 收窄为模块私有（其语义测试改经组件渲染断言）；②引用行左右渐隐 mask 从 `.canvas-node-hover-composer > div > div > [...]` 三层子选择器改为 `.canvas-node-hover-composer-refs-mask` 类名锚定（JSX 层级变化不再静默失配），隐藏态不挂 mask 类；③flora 实测高度数值提成文件顶部常量（`THUMB_SIZE_CLASS` 36px / `PROMPT_MIN_HEIGHT` 116 / `PROMPT_MAX_HEIGHT` 132），与 `FLORA_EASE` 同待遇。测试 6 绿（14 断言）、tsc 0、build 通过；真机复验 mask 类挂载+computed 生效、prompt minHeight 116px、img 不裂。
+a (docs(progress): 登记信息态P3整洁批)
