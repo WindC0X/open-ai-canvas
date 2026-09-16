@@ -8454,12 +8454,25 @@
         /* 挂件坠落展开(S2): 起点对齐节点内信息态位置(上方 ~44px), flora 曲线 200ms;
            无 scale(渐显不变形契约覆盖 supply 主体)。 */
         --affordance-enter-offset: -44px;
-        animation: affordance-drop-in 200ms cubic-bezier(0, 0.8, 0.1, 1) backwards;
+        /* 用户 2026-09-17 手感定稿: 坠落→回弹→再坠落落定(flora 交接记忆的二段感)。
+           位移坠过头 6px 再回收 2px, 320ms; 单纯 200ms 直落"感觉不到过程"。 */
+        animation: affordance-drop-in 320ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards;
     }
     @keyframes affordance-drop-in {
-        from {
+        0% {
             opacity: 0;
             transform: translateY(var(--affordance-enter-offset, -44px));
+        }
+        55% {
+            opacity: 1;
+            transform: translateY(var(--affordance-enter-overshoot, 6px));
+        }
+        78% {
+            transform: translateY(calc(var(--affordance-enter-overshoot, 6px) * -0.33));
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
         }
     }
     /* 挂件外形(S2): 面板顶缘连接节点底缘, composer 顶角取直(底角保持圆)。 */
