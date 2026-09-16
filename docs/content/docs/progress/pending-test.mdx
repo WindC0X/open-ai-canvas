@@ -175,7 +175,7 @@ description: 当前项目已实现功能的手工验证清单与未确认边界
 | 4 | 偶发无播放按钮无进度条 | **待复现**：代码面最接近的形态是播放激活后 URL 解析滞留（spinner 态）或 Vidstack 控制条未挂载；下次遇到请记录节点当时状态（激活/未激活、hover 与否） |
 | 5 | 点节点右上 HUD 展开瞬间闪滚动条 | **待复现**：本机视口无法复现（文档 scrollHeight 无变化、HUD 内容高度恒定）；滚动条为窗口级（带箭头），嫌疑是某 portal 瞬时溢出，需视口尺寸与面板开合状态信息 |
 | 6 | 点生成后工具栏/composer 未关闭 | **已修**：生成启动除关 composer 外同时清除该节点选中——选中态此前把工具栏钉在 full（CDP 挂件面/DOM 已确认残留链路） |
-| 7 | hover 信息态缩略不展开 | **已修（两层）**：真因是缩略容器被 `w-9` + `overflow-hidden` 锁死，meta 展开内容（160px）被完全裁剪、视觉零变化——此前探针只读 meta 计算样式造成"已展开"假阳性，用户实测揭穿；修正 = hover/兜底通道时容器放宽 `w-auto`；meta 胶囊为**内容自适应**，尺寸对齐 flora 实测量级（用户四图对照 flora 文本展开胶囊仅 84px：T 图标 29 + 文字区 45）——文字区 `min-w-11`(44)/`max-w-24`(96)、边距 mx-2(16)，长名截断省略号；pointerenter 置 `data-thumb-open` 的 JS 兜底通道保留 |
+| 7 | hover 信息态缩略不展开 | **已修（两层）**：真因是缩略容器被 `w-9` + `overflow-hidden` 锁死，meta 展开内容（160px）被完全裁剪、视觉零变化——此前探针只读 meta 计算样式造成"已展开"假阳性，用户实测揭穿；终修 = **照 flora AssetChip 源码逐条重写**（`og-canvas-flora-study/.flora-capture/static-20260915/pretty/0_di9ysq8i8ky.js:9952-9982`）：壳 `h-10` 自由宽（原 `w-9` 锁死是展开被裁的根因）+ hover 底色 `rgba(58,58,58,.95)`+`pr-2`；缩略 40px hover `scale-0.8` 缩小让位；meta 仅过渡 `max-width 0→80px`（无 min-w/mx，内容自适应无空底）；引用行容器 flora 为全宽 overlay 内 `flex min-w-0`（我们原 `w-max` 循环依赖致 meta 无法撑开）；JS pointerenter 兜底通道保留。此前多轮"修好"假阳性均因探针只读 meta 计算样式未量容器实际宽度 |
 
 验证：tsc 0、build 38s、相关测试 37 pass（含新增矮节点钳制 5 测试）。
 e (docs(progress): 登记视频播放交互七问批处置表)
