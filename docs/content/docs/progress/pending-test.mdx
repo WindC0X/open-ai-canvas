@@ -2824,4 +2824,8 @@ f (docs(progress): 登记信息态P1/P2修复批与review结论)
 a (docs(progress): 登记信息态P3整洁批)
 
 **P4 视频族 S6 差异裁剪批（c3d85ca3，同日）**：按 atlas 证据裁剪 5 条差异点——落地 1 项：**生成完成瞬间 hover 信息态 1.5s 保护**（flora useNodeControlSurface 完成后 1500ms minimized 的源码级证据），实现于 canvas-node（loading→非loading 跳变边沿武装定时器，reload 后挂载的老节点不误隐）。关项 4 项：ETA 标题呈现（前端后端均无 estimatedTime 数据源，不发明）；queued toast（排队信息已由节点状态行呈现，载体不同信息等价）；G2 播放 HUD（Vidstack 自带时间码/seek/音量已对齐，沉底浮层 vs 覆盖 HUD 为结构差异不照搬）；G4 Variant rail（全屏查看器载体不同，BatchFrame 同构保持）。附带修复：**画布存量损坏持久值自愈**——历史 "[object Object]" 字符串值令 JSON.parse 永久失败、待写队列卡死刷错，parse 层对 SyntaxError 回退空文档（从 baseProjects 重建，结构错误仍抛），真机确认 console 不再刷"画布本地持久化失败"。
+
 d (docs(progress): 登记视频族S6裁剪批与持久化自愈修复)
+
+**持久化自愈二次修正（二次 review 后，c3d85ca3 的失实修正）**：前版自愈（parsed 收敛到 `{}` 后依赖 throw "结构无效"）实为无效修复——损坏值仍走 throw 分支，队列照旧卡死；此前"真机错误消失"是 reload 清空队列+未触发写入的假阴性。真机故障复现后修正：损坏字符串（JSON.parse 失败）与空值同径，直接按 fallback 空文档重建并继续 rebase 写入；"可解析但缺 projects 数组"的结构无效仍抛出。真机复验：注入 `"[object Object]"` → 拖动节点触发持久化 → 存储恢复健康 JSON（85KB），零错误。新增 `canvas-storage-document.test.ts`（5 测试锁损坏回退语义）。教训：自愈类修复必须真机复现故障验证，不能只看"错误不再出现"。
+6 (docs(progress): 登记持久化自愈二次修正与假阴性教训)
