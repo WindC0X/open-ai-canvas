@@ -15,10 +15,6 @@ describe("image angle editor (#432)", () => {
         expect(appModal).toContain("destroyOnHidden = true");
         expect(dialog).not.toContain("CanvasNodePanelOverlay");
         expect(dialog).not.toContain("isCanvasNodeMoving");
-5c790071 (test(web): rebase 后测试契约对齐 - 文本节点单击真toggle断言/角度弹窗AppModal封装断言(destroyOnHidden默认值))
         expect(dialog).toContain("generateAngleNode(angleNode, params)");
-        expect(dialog).not.toContain("<Modal");
-        expect(dialog).not.toContain("AppModal");
-        expect(dialog).not.toContain("destroyOnHidden");
     });
 });

@@ -2940,6 +2940,25 @@ function InfiniteCanvasPage() {
                     ))}
                     {isMiniMapOpen && !focusMode ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} canvasContainerRef={containerRef} onViewportPreviewChange={previewViewport} onViewportChange={handleViewportChange} /> : null}
 
+                    {angleNode?.metadata?.content ? (
+                        <AppModal
+                            flush
+                            open
+                            centered
+                            title="多角度编辑器"
+                            footer={null}
+                            width={620}
+                            onCancel={() => setAngleNodeId(null)}
+                        >
+                            <CanvasNodeAnglePanel
+                                dataUrl={angleNode.metadata.content}
+                                onClose={() => setAngleNodeId(null)}
+                                onConfirm={(params) => {
+                                    void generateAngleNode(angleNode, params);
+                                }}
+                            />
+                        </AppModal>
+                    ) : null}
 
                         {lightingNode?.metadata?.content ? (
                             <AppModal flush open centered title={null} closable={false} footer={null} width={720} onCancel={() => setLightingNodeId(null)}>
