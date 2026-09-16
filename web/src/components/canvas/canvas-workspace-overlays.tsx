@@ -271,11 +271,16 @@ function getConnectionMenuPosition(position: Position, viewport: ViewportTransfo
 }
 
 function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLElement, panelWidth: number) {
-    const gap = 10;
+    // 挂件几何(S2 语义): 顶缘贴节点底缘(gap 1px)、水平居中; 上游默认的 gap 10 会让挂件与节点脱开,
+    // 坎落动画起点(-44px)与节点底缘之间出现断层, 视觉上不是"从节点里坠出"。
+    // clamp 沿用 getNodePanelPosition 的 12px 边距, 防节点贴视口缘时挂件出屏。
+    const gap = 1;
+    const margin = 12;
     const nodeRect = nodeElement.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
+    const maxLeft = Math.max(margin, containerRect.width - panelWidth - margin);
     return {
-        left: nodeRect.left - containerRect.left + nodeRect.width / 2 - panelWidth / 2,
+        left: clamp(nodeRect.left - containerRect.left + nodeRect.width / 2 - panelWidth / 2, margin, maxLeft),
         top: nodeRect.bottom - containerRect.top + gap,
         placement: "below" as const,
     };

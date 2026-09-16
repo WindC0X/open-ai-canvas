@@ -396,7 +396,7 @@ function InfiniteCanvasPage() {
         if (vw < 1440) return 440;
         return 520;
     });
-    const { assistantClosing, assistantMounted, assistantOpen, closeAgent, openAgent } = useCanvasAssistantVisibility();
+    const { assistantOpen, closeAgent, openAgent } = useCanvasAssistantVisibility();
     const agentMentionReferences = useMemo(() => buildCanvasAgentMentionReferences(nodes), [nodes]);
     const { tasks: activeTasks } = useCanvasActiveTasks(projectId, projectLoaded);
     const { focusMode, enterFocusMode, exitFocusMode, toggleFocusMode } = useFocusMode();
@@ -2810,7 +2810,9 @@ function InfiniteCanvasPage() {
                     <ObjectHudPanel
                         node={toolbarNode}
                         config={effectiveConfig}
-                        rightInset={assistantMounted ? `calc(var(--canvas-inset-x) + ${assistantWidth}px + var(--space-3))` : undefined}
+                        // 让位仅在 Agent 面板真实展开时生效; 上游简版 visibility 的 assistantMounted 恒为 true,
+                        // 若用它做条件会让 HUD 在面板收起时也永久偏移(实测 styleRight=548px, 用户截图红框问题)。
+                        rightInset={assistantOpen ? `calc(var(--canvas-inset-x) + ${assistantWidth}px + var(--space-3))` : undefined}
                         topInset={activeTaskPanelHeight > 0 && !focusMode ? `calc(var(--canvas-topbar-offset) + ${Math.round(activeTaskPanelHeight)}px + var(--space-3))` : 88}
                         onViewImage={(node) => setPreviewNodeId(node.id)}
                         actions={toolbarNode?.type === "image" ? ([
