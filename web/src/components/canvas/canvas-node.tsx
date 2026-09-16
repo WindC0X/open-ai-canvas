@@ -139,7 +139,21 @@ export const CanvasNode = React.memo(function CanvasNode({
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
     const nodeState = isFocusRelated ? "focus" : isConnectionTarget ? "target" : isSelected ? "selected" : isRelated && !isBatchChild ? "related" : "idle";
     const isGenerating = data.metadata?.status === "loading";
-    const showOutputConnection = getNodeDefinition(data.type)?.showOutputConnection !== false;
+    // flora 生成完成保护（video-face-chunk-analysis G1: useNodeControlSurface 完成后 1500ms 内保持 minimized）：
+    // 完成瞬间 hover 信息态不立即浮现遮结果。只在 loading→非loading 跳变边沿武装；reload 后挂载的老节点不误隐。
+    const [recentlyGenerated, setRecentlyGenerated] = useState(false);
+    const wasGeneratingRef = useRef(isGenerating);
+    useEffect(() => {
+        if (wasGeneratingRef.current && !isGenerating) {
+            setRecentlyGenerated(true);
+            const timer = window.setTimeout(() => setRecentlyGenerated(false), 1500);
+            wasGeneratingRef.current = isGenerating;
+            return () => window.clearTimeout(timer);
+        }
+        wasGeneratingRef.current = isGenerating;
+    }, [isGenerating]);
+    const showOutputConnection = data.type !== PORTRAIT_CLEARANCE_NODE_TYPE && getNodeDefinition(data.type)?.showOutputConnection !== false;
+c3d85ca3 (fix(canvas): 视频完成瞬间hover信息态1.5s保护(G1 flora证据) + 画布存量损坏持久值自愈(解析失败回退空文档重建, 队列不再永久卡死))
     const assetTags = data.metadata?.assetTags?.filter((tag) => tag.trim()) || [];
     const scriptMinHeight = data.type === CanvasNodeType.Script ? storyboardMinNodeHeight(data.metadata?.storyboardComposerHeight) : null;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -285,7 +299,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     // 节点内 hover 信息态 composer（任务 09-15-composer-inline-hover-chrome）：
     // hover 未选中时零越界显现；生成中/播放中/batch 展开时隐藏（flora minimized 语义）。
     const hoverPrompt = data.metadata?.prompt ?? data.metadata?.composerContent;
-    const hoverComposerVisible = hovered && !isSelected && !isGenerating && !batchExpanded && !mediaActive;
+    const hoverComposerVisible = hovered && !isSelected && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
 
     return (
         <div

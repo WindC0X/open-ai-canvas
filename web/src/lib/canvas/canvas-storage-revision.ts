@@ -70,18 +70,30 @@ export function parseCanvasStorageDocument(value: string | CanvasStorageDocument
     }
     // 历史版本曾把 document 对象直接写入 localforage；读路径必须同时接受字符串与已解析对象，
     // 否则旧值会让持久化队列永远解析失败（"[object Object]" is not valid JSON）。
-    const parsed = (typeof value === "string" ? JSON.parse(value) : value) as {
+    // 更早的存量损坏值是 toString 后的字符串（"[object Object]"），JSON.parse 必然 SyntaxError ——
+    // 这类不可恢复损坏回退到空文档（调用方从 baseProjects 重建），不让队列永久卡死。
+    let parsed: Partial<CanvasStorageDocument> & { state?: { projects?: unknown } };
+    if (typeof value === "string") {
+        try {
+            parsed = JSON.parse(value);
+        } catch {
+            parsed = {};
+        }
+    } else {
+        parsed = value;
+    }
+    const parsedShape = parsed as {
         state?: { projects?: unknown };
         version?: unknown;
         storageRevision?: unknown;
         tombstones?: unknown;
     };
-    if (!Array.isArray(parsed.state?.projects)) throw new Error("画布持久状态无效");
+    if (!Array.isArray(parsedShape.state?.projects)) throw new Error("画布持久状态无效");
     return {
-        state: { projects: normalizeProjectAssetCategories(parsed.state.projects as CanvasProject[]) },
-        version: typeof parsed.version === "number" ? parsed.version : 0,
-        storageRevision: typeof parsed.storageRevision === "number" && Number.isFinite(parsed.storageRevision) ? parsed.storageRevision : 0,
-        tombstones: normalizeTombstones(parsed.tombstones),
+        state: { projects: normalizeProjectAssetCategories(parsedShape.state.projects as CanvasProject[]) },
+        version: typeof parsedShape.version === "number" ? parsedShape.version : 0,
+        storageRevision: typeof parsedShape.storageRevision === "number" && Number.isFinite(parsedShape.storageRevision) ? parsedShape.storageRevision : 0,
+        tombstones: normalizeTombstones(parsedShape.tombstones),
     };
 }
 

@@ -141,7 +141,16 @@ export async function commitPendingCanvasStorePersistenceLocked(scope: string) {
         const queued = queuedCanvasPersists.get(scope);
         if (!queued) return committed;
 
-        const durable = parseCanvasStorageDocument(await storage.getItem(queued.name), queued.baseProjects);
+        // 存量损坏自愈：历史上曾有把对象 toString 后写入的记录（字符串 "[object Object]"），
+        // JSON.parse 永久失败会让待写队列卡死并刷错。损坏时丢弃旧 document、从 baseProjects 重建
+        // （与空库等价），只损失旧 revision/tombstone；结构无效（非损坏）仍然抛出。
+        let rawDurable: unknown = null;
+        try {
+            rawDurable = await storage.getItem(queued.name);
+        } catch (error) {
+            console.error("画布本地持久化读取失败，按空库重建", { scope, name: queued.name, error });
+        }
+        const durable = parseCanvasStorageDocument(rawDurable as string | CanvasStorageDocument | null, queued.baseProjects);
         const rebased = rebaseCanvasProjects({
             document: durable,
             baseProjects: queued.baseProjects,
