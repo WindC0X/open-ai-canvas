@@ -19,6 +19,12 @@ import type { CanvasTheme } from "@/lib/canvas-theme";
 const FLORA_EASE = "cubic-bezier(0, 0.8, 0.1, 1)";
 const DURATION_MS = 200;
 
+// flora 实测对齐数值(09-15 逐轮校准的终值, 改动前先对照用户 flora 截图测量):
+// prompt 区含被裁掉的 flora 工具栏行高(36px 并入), 面板总高 184px 与 flora 精确对齐。
+const THUMB_SIZE_CLASS = "h-9 w-9";
+const PROMPT_MIN_HEIGHT = 116;
+const PROMPT_MAX_HEIGHT = 132;
+
 type CanvasNodeHoverComposerProps = {
     prompt?: string;
     references: CanvasResourceReference[];
@@ -27,7 +33,7 @@ type CanvasNodeHoverComposerProps = {
     visible: boolean;
 };
 
-export function referenceThumbSrc(reference: CanvasResourceReference) {
+function referenceThumbSrc(reference: CanvasResourceReference) {
     // 仅图片类 URL 可进 <img src>; 空 src 与视频文件 URL(video mediaUrl)都是必裂图,
     // 文本/音频/技能与无封面视频/角色一律走图标块。mediaUrl 只允许 <video> 消费。
     const media = reference.kind === "image" || reference.kind === "video" || reference.kind === "character";
@@ -59,7 +65,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                     {/* flora SurfaceControlsOverlay(0_di9:7903)顺序: 引用行在前, 提示词在后。 */}
                     {references.length > 0 ? (
                         <div
-                            className="-mx-3.5 -my-3 overflow-x-auto overflow-y-hidden px-3.5 py-3"
+                            className={`canvas-node-hover-composer-refs -mx-3.5 -my-3 overflow-x-auto overflow-y-hidden px-3.5 py-3 ${show ? "canvas-node-hover-composer-refs-mask" : ""}`}
                             data-canvas-wheel-scroll
                         >
                             <div className="flex w-max items-center gap-2">
@@ -73,13 +79,13 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                                     return (
                                         <span
                                             key={reference.id}
-                                            className="canvas-node-hover-composer-ref group/ref flex h-9 items-center overflow-hidden rounded-lg"
+                                            className={`canvas-node-hover-composer-ref group/ref flex ${THUMB_SIZE_CLASS} items-center overflow-hidden rounded-lg`}
                                             style={{ background: theme.toolbar.itemHover, outline: `1px solid ${theme.node.stroke}` }}
                                         >
                                             {thumbSrc ? (
-                                                <img src={thumbSrc} alt={reference.label} draggable={false} loading="lazy" decoding="async" className="h-9 w-9 shrink-0 object-cover" />
+                                                <img src={thumbSrc} alt={reference.label} draggable={false} loading="lazy" decoding="async" className={`${THUMB_SIZE_CLASS} shrink-0 object-cover`} />
                                             ) : (
-                                                <span className="flex h-9 w-9 shrink-0 items-center justify-center text-sm font-medium" style={{ color: theme.node.muted }}>
+                                                <span className={`flex ${THUMB_SIZE_CLASS} shrink-0 items-center justify-center text-sm font-medium`} style={{ color: theme.node.muted }}>
                                                     {reference.kind === "audio" ? "♪" : reference.kind === "video" ? "▶" : reference.kind === "character" ? "👤" : "T"}
                                                 </span>
                                             )}
@@ -97,7 +103,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible }: 
                         <div
                             className="canvas-node-hover-composer-prompt overflow-y-auto whitespace-pre-wrap break-words text-[var(--fs-body)] leading-5"
                             data-canvas-wheel-scroll
-                            style={{ color: theme.node.text, minHeight: 116, maxHeight: 132 }}
+                            style={{ color: theme.node.text, minHeight: PROMPT_MIN_HEIGHT, maxHeight: PROMPT_MAX_HEIGHT }}
                         >
                             {promptText}
                         </div>

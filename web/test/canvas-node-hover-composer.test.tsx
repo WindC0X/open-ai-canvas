@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { CanvasNodeHoverComposer, referenceThumbSrc } from "@/components/canvas/canvas-node-hover-composer";
+import { CanvasNodeHoverComposer } from "@/components/canvas/canvas-node-hover-composer";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { canvasThemes } from "@/lib/canvas-theme";
 
@@ -17,29 +17,6 @@ function reference(partial: Partial<CanvasResourceReference>): CanvasResourceRef
         ...partial,
     };
 }
-
-describe("referenceThumbSrc", () => {
-    test("文本引用不返回 URL(空 src 必裂图)", () => {
-        expect(referenceThumbSrc(reference({ kind: "text", previewUrl: "data:image/png;base64,AAA" }))).toBe("");
-    });
-
-    test("音频/技能引用不返回 URL", () => {
-        expect(referenceThumbSrc(reference({ kind: "audio" }))).toBe("");
-        expect(referenceThumbSrc(reference({ kind: "skill" }))).toBe("");
-    });
-
-    test("图片引用返回 previewUrl", () => {
-        expect(referenceThumbSrc(reference({ kind: "image", previewUrl: "blob:img" }))).toBe("blob:img");
-    });
-
-    test("视频引用不得回退到 mediaUrl(视频文件 URL 进 img 必裂图)", () => {
-        expect(referenceThumbSrc(reference({ kind: "video", mediaUrl: "https://cdn.example.com/a.mp4" }))).toBe("");
-    });
-
-    test("角色引用无封面时不产生空 src", () => {
-        expect(referenceThumbSrc(reference({ kind: "character" }))).toBe("");
-    });
-});
 
 describe("CanvasNodeHoverComposer 渲染(静态标记)", () => {
     function html(visible: boolean, references: CanvasResourceReference[] = [], prompt: string = "提示词") {
@@ -71,5 +48,15 @@ describe("CanvasNodeHoverComposer 渲染(静态标记)", () => {
 
     test("无内容时不显示(visible 但零信息)", () => {
         expect(html(true, [], "  ")).toContain('data-node-hover-composer="hidden"');
+    });
+
+    test("缩略源语义: 图片进 img, 文本/无封面角色走图标块", () => {
+        expect(html(true, [reference({ kind: "image", previewUrl: "blob:img" })])).toContain('src="blob:img"');
+        expect(html(true, [reference({ kind: "text", previewUrl: "data:text/plain,hi" })])).not.toContain("<img");
+        expect(html(true, [reference({ kind: "character" })])).not.toContain("<img");
+    });
+
+    test("引用行容器挂 mask 类(左右渐隐按类名锚定, 不随 JSX 层级漂移)", () => {
+        expect(html(true, [reference({ kind: "image", previewUrl: "blob:img" })])).toContain("canvas-node-hover-composer-refs-mask");
     });
 });

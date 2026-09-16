@@ -7475,7 +7475,7 @@
         mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
         -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
     }
-    .canvas-node-hover-composer > div > div > [data-canvas-wheel-scroll]:not(.canvas-node-hover-composer-prompt) {
+    .canvas-node-hover-composer-refs.canvas-node-hover-composer-refs-mask {
         mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
         -webkit-mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
     }
