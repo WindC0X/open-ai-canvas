@@ -1,0 +1,12 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "前端质量门与验证纪律(tsc/build/真机)"}
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "真机验收纪律: served验证/visibilityState/基线对照"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "batch/metadata 状态写入规范(executor 改 setNodes/setConnections)"}
+{"file": "web/src/pages/canvas/canvas-image-generation-executor.ts", "reason": "batch 拆分模板: childIds/并行任务/primaryImageId/失败计数(视频同构来源)"}
+{"file": "web/src/lib/canvas/canvas-image-batch-retry.ts", "reason": "batch 取消/重试/退役三函数(签名中立, 视频直接复用)"}
+{"file": "web/src/pages/canvas/canvas-media-generation-executors.ts", "reason": "executeVideoGeneration 改造点: count 分支插入处"}
+{"file": "web/src/components/canvas/canvas-node-content.tsx", "reason": "isBatchRoot 硬编码 ImageNodeContent 分发缺口(:80) + InactiveVideoPreview 复用"}
+{"file": "web/src/pages/canvas/canvas-project-world-layers.tsx", "reason": "batchPreviews memo 与 activeMediaNodeId 门控(播放语义核实结论)"}
+{"file": "web/src/types/canvas.ts", "reason": "metadata 字段: videoGenerationCount(:241)/batch 字段(:255-257), 新增 batchExpanded/primaryVideoId"}
+{"file": "/mnt/f/CODE/Project/og-canvas-flora-study/docs/research/flora/full-uiux-atlas/pages/node-resultVideoBlock-min-grain.md", "reason": "完成态视频面 DOM 权威(R-RV1~5, muted 循环)"}
+{"file": "/mnt/f/CODE/Project/og-canvas-flora-study/docs/research/flora/full-uiux-atlas/pages/node-videoBlock-min-grain.md", "reason": "视频节点壳/chrome/HUD 权威"}
+{"file": "/mnt/f/CODE/Project/og-canvas-flora-study/docs/research/flora/full-uiux-atlas/pages/phase143-public-video-comment-state-authority.md", "reason": "视频生命周期状态机权威(button→hydrate 循环播放→chrome 退出媒体保留)"}

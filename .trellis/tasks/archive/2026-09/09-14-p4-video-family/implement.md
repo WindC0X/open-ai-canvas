@@ -59,8 +59,14 @@
 
 ## S7 终验 + 文档同步
 
-- [ ] bun test 不超基线；`bun run build`；若动后端 `go test ./...`。
-- [ ] A4 对照表 + pending-test.mdx + 07 号快照更新。
+- [x] S7 期断言漂移清理（历史 S08 提交未跟全的断言，非本任务回归，逐项核实后更新）：canvas-media-performance（S5 loop 使 autoPlay 串含 loop，2 处）；image-resolution-tiers（0141ea18 auto 置首）；image-size-presets + image-size-presets-editor（1533f0ae presets tier 分支与 quality 映射判定矛盾——imageTierAvailable/qualityForSelection 补 quality 可用性门，编辑器"需先配置质量值"提示限定 quality 参数存在时）；image-size-picker（matches/restoredTier/tier 链统一走新 imageTierRequestQuality：presets 承载档请求值=tier 名，与 08:52 上游 LOOSE 裁决一致）；channel-model-catalog（655e635 换算条退役）；canvas-image-source（panelCandidate→isPanelCarrier 演进）；canvas-resource-mention-editor（视频批量链第 3 处 prompt 元数据）。
+- [x] A5 全量门（2026-09-16 S7 终验）：tsc 0；vite build 通过；bun test 1705 用例 31 fail / 12 errors，逐项比对全部命中注册基线（诊断缓冲区×8、Canvas Agent store×5、settings/task-center/toolbar-switch/admin/user Switch 字段），无本任务新增回归。
+- [x] A3 复核关闭：播放激活链在位（world-layers activeMediaNodeId 仅节点删除清除，S07 语义；hoverComposerVisible 门含 !mediaActive），S5 期真机已确认播放×hover/micro 归属不误退场（证伪未发生），attribution 单测基线内。
+- [x] A4 对照表已登记 pending-test.mdx「P4 生视频族 S7 终验」（5 条差异点逐项裁决：落地 2 项、关项 3 项、附带持久值自愈二次修正）。
+- [x] A6 文档：pending-test.mdx S7 段 + flora-evidence-kit/07-TOTAL-SCHEME-STATUS.md 快照刷新。
+- [x] bun test 全量 1669 pass / 31 fail（全部为既往登记债务集：Canvas Agent 全局态×3 / admin/user Switch×2 / toolbar mode switch 并行竞争 / settings route / task-center / director 诊断×11；solo 复跑皆绿，低于基线 35-39）；`bun run build` 43s；backend go test 19 包全绿（后端本任务未动，例行确认）。
+- [x] S7 期断言漂移清理（历史 S08 提交未跟全的断言，非本任务回归，逐项核实后更新）：canvas-media-performance（S5 loop 使 autoPlay 串含 loop，2 处）；image-resolution-tiers（0141ea18 auto 置首）；image-size-presets + image-size-presets-editor（1533f0ae presets tier 分支与 quality 映射判定矛盾——imageTierAvailable/qualityForSelection 补 quality 可用性门，编辑器"需先配置质量值"提示限定 quality 参数存在时）；image-size-picker（matches/restoredTier/tier 链统一走新 imageTierRequestQuality：presets 承载档请求值=tier 名，与 08:52 上游 LOOSE 裁决一致）；channel-model-catalog（655e635 换算条退役）；canvas-image-source（panelCandidate→isPanelCarrier 演进）；canvas-resource-mention-editor（视频批量链第 3 处 prompt 元数据）。
+- [x] A4 对照表 + pending-test.mdx + 07 号快照更新。
 - [ ] 与用户逐项过验收（A1~A6）。
 - Commit: `docs(progress): P4生视频族验收+快照同步`
 

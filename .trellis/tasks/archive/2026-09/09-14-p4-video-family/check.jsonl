@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "检查门: tsc/build/test 基线"}
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "真机验收不得只断言属性, 需 rect/行为验证"}
+{"file": ".trellis/tasks/09-14-p4-video-family/prd.md", "reason": "验收标准 A1-A6 清单"}
