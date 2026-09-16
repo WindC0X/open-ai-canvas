@@ -23,7 +23,7 @@ const DURATION_MS = 200;
 
 // flora 实测对齐数值(09-15 逐轮校准的终值, 改动前先对照用户 flora 截图测量):
 // prompt 区含被裁掉的 flora 工具栏行高(36px 并入), 面板总高 184px 与 flora 精确对齐。
-const THUMB_SIZE_CLASS = "h-9 w-9";
+const THUMB_SIZE_CLASS = "h-10 w-10"; // flora AssetChip size-10(40px)
 const PROMPT_MIN_HEIGHT = 116;
 const PROMPT_MAX_HEIGHT = 132;
 
@@ -82,7 +82,7 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible, no
                             className={`canvas-node-hover-composer-refs -mx-3.5 -my-3 overflow-x-auto overflow-y-hidden px-3.5 py-3 ${show ? "canvas-node-hover-composer-refs-mask" : ""}`}
                             data-canvas-wheel-scroll
                         >
-                            <div className="flex w-max items-center gap-2">
+                            <div className="flex min-w-0 items-center gap-1">
                                 {references.map((reference) => {
                                     const src = referenceThumbSrc(reference);
                                     // flora 引用缩略(用户 hover 截图对): 静置 48px 方块 radius 12 纯缩略图;
@@ -90,23 +90,27 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible, no
                                     // 隐藏态不解析 src: 常驻挂载 + lazy 救不了 opacity:0 的隐藏层,
                                     // 缩略图会在整个画布生命周期里被静默加载(节点数放大网络/解码开销)。
                                     const thumbSrc = show ? src : "";
+                                    // flora AssetChip 源码对齐(0_di9:9952-9982):
+                                    // ①外壳常驻透明, hover 才出现底色(rgba(58,58,58,.95))+pr-2 — 背景属壳不属缩略;
+                                    // ②缩略 40px, hover 时 scale-0.8(缩小让位文字, 非放大); ③meta 只过渡
+                                    // max-width 0→80px(内容自适应上限, 无 min-w/mx — 空底问题不存在);
+                                    // ④×按钮 absolute -left-1.5 -top-1.5, hover 淡入。圆角全 rounded-xl。
                                     return (
                                         <span
                                             key={reference.id}
                                             data-thumb-open={forceOpenId === reference.id || undefined}
                                             onPointerEnter={() => setForceOpenId(reference.id)}
                                             onPointerLeave={() => setForceOpenId((current) => (current === reference.id ? null : current))}
-                                            className={`canvas-node-hover-composer-ref group/ref flex ${THUMB_SIZE_CLASS} items-center overflow-hidden rounded-lg group-hover/ref:w-auto data-[thumb-open]:w-auto`}
-                                            style={{ background: theme.toolbar.itemHover, outline: `1px solid ${theme.node.stroke}` }}
+                                            className={`canvas-node-hover-composer-ref group/ref relative flex h-10 shrink-0 items-center gap-1 rounded-xl transition-[background-color,padding] duration-200 ease-out group-hover/ref:pr-2 data-[thumb-open]:pr-2`}
                                         >
                                             {thumbSrc ? (
-                                                <img src={thumbSrc} alt={reference.label} draggable={false} loading="lazy" decoding="async" className={`${THUMB_SIZE_CLASS} shrink-0 object-cover`} />
+                                                <img src={thumbSrc} alt={reference.label} draggable={false} loading="lazy" decoding="async" className={`${THUMB_SIZE_CLASS} shrink-0 origin-center overflow-hidden rounded-xl border object-cover transition-transform duration-200 ease-out group-hover/ref:scale-[0.8] data-[thumb-open]:scale-[0.8]`} style={{ borderColor: theme.node.stroke }} />
                                             ) : (
-                                                <span className={`flex ${THUMB_SIZE_CLASS} shrink-0 items-center justify-center text-sm font-medium`} style={{ color: theme.node.muted }}>
+                                                <span className={`flex ${THUMB_SIZE_CLASS} shrink-0 origin-center items-center justify-center overflow-hidden rounded-xl border text-sm font-medium transition-transform duration-200 ease-out group-hover/ref:scale-[0.8] data-[thumb-open]:scale-[0.8]`} style={{ color: theme.node.muted, borderColor: theme.node.stroke, background: theme.toolbar.itemHover }}>
                                                     {reference.kind === "audio" ? "♪" : reference.kind === "video" ? "▶" : reference.kind === "character" ? "👤" : "T"}
                                                 </span>
                                             )}
-                                            <span className="canvas-node-hover-composer-ref-meta flex w-0 min-w-11 flex-col justify-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-[cubic-bezier(0,0.8,0.1,1)] group-hover/ref:mx-2 group-hover/ref:max-w-24 group-hover/ref:w-auto group-hover/ref:opacity-100 data-[thumb-open]:mx-2 data-[thumb-open]:max-w-24 data-[thumb-open]:w-auto data-[thumb-open]:opacity-100">
+                                            <span className="canvas-node-hover-composer-ref-meta flex max-w-0 flex-col justify-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity] duration-200 ease-out group-hover/ref:max-w-20 group-hover/ref:opacity-100 data-[thumb-open]:max-w-20 data-[thumb-open]:opacity-100">
                                                 <span className="truncate text-xs leading-4" style={{ color: theme.node.text }}>{reference.label}</span>
                                                 <span className="text-[10px] leading-3 opacity-55" style={{ color: theme.node.muted }}>{reference.kind === "audio" ? "Audio" : reference.kind === "video" ? "Video" : reference.kind === "character" ? "Character" : reference.kind === "text" ? "Text" : "Image"}</span>
                                             </span>

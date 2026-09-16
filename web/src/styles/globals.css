@@ -7451,13 +7451,15 @@
     .canvas-node-hover-composer-surface:hover {
         opacity: 1;
     }
-    /* 缩略展开兜底通道(pointerenter 置 data-thumb-open): 与 tailwind group-hover/ref 同参数,
-       真机偶发 :hover 命中不生效时 JS 事件链兜底(用户 2026-09-16 缩略不展开反馈)。 */
-    .canvas-node-hover-composer-ref[data-thumb-open] .canvas-node-hover-composer-ref-meta {
-        margin-left: 10px;
-        margin-right: 10px;
-        max-width: 160px;
-        opacity: 1;
+    /* flora AssetChip(0_di9:9952): hover 时壳浮出胶囊底色(58,58,58,.95); JS 兜底通道同参。
+       (meta 尺寸/透明度走组件内 group-hover 工具类, 此处只补壳底色) */
+    .canvas-node-hover-composer-ref.group\/ref:hover,
+    .canvas-node-hover-composer-ref[data-thumb-open] {
+        background: rgba(58, 58, 58, 0.95);
+    }
+    :root:not(.dark) .canvas-node-hover-composer-ref.group\/ref:hover,
+    :root:not(.dark) .canvas-node-hover-composer-ref[data-thumb-open] {
+        background: rgba(240, 240, 240, 0.95);
     }
     :root:not(.dark) .canvas-node-hover-composer-surface {
         background: rgba(255, 255, 255, 0.88);
