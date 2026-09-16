@@ -116,8 +116,6 @@ import { CanvasProjectStatusDialogs } from "./canvas-project-status-dialogs";
 import { CanvasProjectWorldLayers } from "./canvas-project-world-layers";
 import { CanvasNodeActionContext, type CanvasNodeActionContextValue } from "@/components/canvas/canvas-node-action-context";
 import { bringCanvasNodeToFront, type CanvasNodeStackOrder, sortCanvasNodesByStackOrder } from "@/lib/canvas/canvas-node-stack-order";
-import { PORTRAIT_CLEARANCE_NODE_TYPE, type PortraitClearanceNodeState } from "@/lib/portrait-clearance/contracts";
-import { PortraitClearanceModal } from "@/components/canvas/portrait-clearance/portrait-clearance-modal";
 import { AiArtCritiqueModal } from "@/components/canvas/art-critique/ai-art-critique-modal";
 import { CanvasNodeGraphContext, type CanvasNodeGraphContextValue } from "@/components/canvas/canvas-node-graph-context";
 import { CanvasRefreshShell } from "./canvas-refresh-shell";
@@ -1143,9 +1141,6 @@ function InfiniteCanvasPage() {
             // 单击节点唤出提示词面板，再次单击收起。旧写法 (current === id ? current : null)
             // 永远不会打开面板，导致单击只出工具栏（S08 用户实测缺陷）。
             setDialogNodeId((current) => (current === node.id ? null : node.id));
-        } else if (node.type === PORTRAIT_CLEARANCE_NODE_TYPE) {
-            setDialogNodeId(null);
-            setPortraitClearanceNodeId(node.id);
         } else if (node.type === ART_CRITIQUE_NODE_TYPE) {
             setDialogNodeId(null);
             setArtCritiqueNodeId(node.id);
@@ -1171,7 +1166,7 @@ function InfiniteCanvasPage() {
 
     const handleNodeDragEnd = useCallback((nodeId: string) => {
         const node = nodesRef.current.find((item) => item.id === nodeId);
-        if (!node || node.type === CanvasNodeType.Script || node.type === CanvasNodeType.Drawing || node.type === CanvasNodeType.MediaConversion || node.type === CanvasNodeType.Panorama || node.type === PORTRAIT_CLEARANCE_NODE_TYPE || node.type === ART_CRITIQUE_NODE_TYPE) {
+        if (!node || node.type === CanvasNodeType.Script || node.type === CanvasNodeType.Drawing || node.type === CanvasNodeType.MediaConversion || node.type === CanvasNodeType.Panorama || node.type === ART_CRITIQUE_NODE_TYPE) {
             setDialogNodeId(null);
             return;
         }
@@ -1458,15 +1453,6 @@ function InfiniteCanvasPage() {
     const textEditorNode = textEditorNodeId ? nodeById.get(textEditorNodeId) || null : null;
     const characterReferenceNode = characterReferenceNodeId ? nodeById.get(characterReferenceNodeId) || null : null;
     const drawingNode = drawingNodeId ? nodeById.get(drawingNodeId) || null : null;
-    const [portraitClearanceNodeId, setPortraitClearanceNodeId] = useState<string | null>(null);
-    const portraitClearanceNode = portraitClearanceNodeId ? nodeById.get(portraitClearanceNodeId) || null : null;
-    const portraitClearanceInputs = portraitClearanceNode
-        ? connections
-              .filter((connection) => connection.toNodeId === portraitClearanceNode.id)
-              .sort((left, right) => left.id.localeCompare(right.id))
-              .map((connection) => nodeById.get(connection.fromNodeId))
-              .filter((node): node is CanvasNodeData => Boolean(node))
-        : [];
     const artCritiqueNode = artCritiqueNodeId ? nodeById.get(artCritiqueNodeId) || null : null;
     const artCritiqueInputs = artCritiqueNode
         ? connections
@@ -1475,24 +1461,6 @@ function InfiniteCanvasPage() {
               .map((connection) => nodeById.get(connection.fromNodeId))
               .filter((node): node is CanvasNodeData => Boolean(node))
         : [];
-    const addPortraitCandidateToCanvas = useCallback(async (candidate: { id: string; title: string; imageArtifactId: string }, dataUrl: string) => {
-        const target = portraitClearanceNodeId ? nodesRef.current.find((node) => node.id === portraitClearanceNodeId) : undefined;
-        if (!target) return;
-        try {
-            const image = await uploadImage(dataUrl);
-            const created = createCanvasNode(CanvasNodeType.Image, { x: target.position.x + target.width + 260, y: target.position.y + target.height / 2 }, imageMetadata(image));
-            created.title = candidate.title.slice(0, 80) || "肖像排查候选";
-            const connection = { id: nanoid(), fromNodeId: created.id, toNodeId: target.id };
-            setNodes((current) => [...current, created]);
-            setConnections((current) => [...current, connection]);
-            setSelectedNodeIds(new Set([created.id]));
-            const result = await ensureCanvasNodeAsset({ canvasId: projectId, domainProjectId: currentProject?.projectId, node: created, source: "canvas-manual" });
-            setNodes((current) => current.map((item) => item.id === created.id ? { ...item, metadata: { ...item.metadata, assetId: result.assetId } } : item));
-            message.success("候选图片已添加到画布并连接到排查节点");
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "候选图片添加失败");
-        }
-    }, [currentProject?.projectId, message, portraitClearanceNodeId, projectId, setConnections, setNodes, setSelectedNodeIds]);
     const pendingConnectionSourceNode = pendingConnectionCreate?.connection.handleType === "source" ? nodeById.get(pendingConnectionCreate.connection.nodeId) : null;
     const canCreateDrawingFromConnection = !pendingConnectionCreate?.batchSourceNodeIds?.length && pendingConnectionSourceNode?.type === CanvasNodeType.Image && Boolean(pendingConnectionSourceNode.metadata?.content);
 
@@ -1518,14 +1486,6 @@ function InfiniteCanvasPage() {
         setDrawingNodeId(node.id);
     }, []);
 
-    const openPortraitClearance = useCallback((node: CanvasNodeData) => {
-        if (node.type !== PORTRAIT_CLEARANCE_NODE_TYPE) return;
-        setSelectedNodeIds(new Set([node.id]));
-        setSelectedConnectionId(null);
-        setContextMenu(null);
-        setDialogNodeId(null);
-        setPortraitClearanceNodeId(node.id);
-    }, []);
     const openArtCritique = useCallback((node: CanvasNodeData) => {
         if (node.type !== ART_CRITIQUE_NODE_TYPE) return;
         setSelectedNodeIds(new Set([node.id]));
@@ -3281,16 +3241,6 @@ function InfiniteCanvasPage() {
                                 />
                             </Suspense>
                         ) : null}
-
-                        <PortraitClearanceModal
-                            projectId={projectId}
-                            node={portraitClearanceNode}
-                            upstreamNodes={portraitClearanceInputs}
-                            open={Boolean(portraitClearanceNode)}
-                            onClose={() => setPortraitClearanceNodeId(null)}
-                            onUpdateState={(nodeId, state: PortraitClearanceNodeState) => handleConfigNodeChange(nodeId, { portraitClearance: state })}
-                            onAddCandidate={addPortraitCandidateToCanvas}
-                        />
 
                         <AiArtCritiqueModal
                             startRequestId={artCritiqueStartRequest && artCritiqueStartRequest.nodeId === artCritiqueNode?.id ? artCritiqueStartRequest.id : undefined}
