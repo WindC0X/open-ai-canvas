@@ -94,7 +94,9 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible, no
                                     // ①外壳常驻透明, hover 才出现底色(rgba(58,58,58,.95))+pr-2 — 背景属壳不属缩略;
                                     // ②缩略 40px, hover 时 scale-0.8(缩小让位文字, 非放大); ③meta 只过渡
                                     // max-width 0→80px(内容自适应上限, 无 min-w/mx — 空底问题不存在);
-                                    // ④×按钮 absolute -left-1.5 -top-1.5, hover 淡入。圆角全 rounded-xl。
+                                    // ④flora 原版此处另有 ×Remove 按钮(absolute -left-1.5 -top-1.5, hover
+                                    //   淡入, aria-label) — 未引入: 信息态是只读展示, 引用管理走选中态面板。
+                                    //   圆角全 rounded-xl。
                                     return (
                                         <span
                                             key={reference.id}
