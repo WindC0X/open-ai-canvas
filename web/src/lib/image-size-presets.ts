@@ -69,8 +69,10 @@ export function imageTierAvailable(profile: ImageCapabilityConfig, tier: ImageRe
     if (profile.size.parameter !== "aspect_ratio") return profile.size.parameter !== "none";
     const configuredTiers = new Set(profile.size.presets?.map((preset) => preset.tier));
     if (imageResolutionUsesQuality(profile)) {
-        if (!imageQualityForTier(profile, tier)) return false;
-        return configuredTiers.size ? configuredTiers.has(tier) : true;
+        // quality 承载档时优先按 quality 映射裁剪; quality 漏配档位(1533f0ae presets tier 分支场景)
+        // 不能把 presets 明确配置的 tier 也判死 — 否则管理员配置的 4K 在面板消失(断言漂移回归)。
+        if (configuredTiers.size) return configuredTiers.has(tier);
+        return Boolean(imageQualityForTier(profile, tier));
     }
     if (configuredTiers.size) return configuredTiers.has(tier);
     // 无质量映射且无预设时,后端 filterImageSizePresets 会返回全部预设或空;
@@ -78,8 +80,17 @@ export function imageTierAvailable(profile: ImageCapabilityConfig, tier: ImageRe
     return false;
 }
 
+/** tier 生效时的请求质量值：quality 映射优先；quality 漏配而管理员 presets 明确配置该档时发 tier 名
+ * （上游 LOOSE 形态，请求端直接消费 tier 名，用户 2026-09-12 裁决）。 */
+export function imageTierRequestQuality(profile: ImageCapabilityConfig, tier: ImageResolutionTier): string | undefined {
+    return imageQualityForTier(profile, tier) || (imageTierAvailable(profile, tier) ? tier : undefined);
+}
+
 export function imageQualityForSelection(profile: ImageCapabilityConfig, tier: ImageResolutionTier) {
-    return imageQualityForTier(profile, tier) || (!imageResolutionUsesQuality(profile) && imageTierAvailable(profile, tier) ? tier : undefined);
+    const mapped = imageQualityForTier(profile, tier);
+    if (mapped) return mapped;
+    const presetsCarried = profile.size.presets?.some((preset) => preset.tier === tier) ?? false;
+    return imageTierAvailable(profile, tier) && (!imageResolutionUsesQuality(profile) || presetsCarried) ? tier : undefined;
 }
 
 export function imageSizePresets(profile: ImageCapabilityConfig): ImageResolutionOption[] {

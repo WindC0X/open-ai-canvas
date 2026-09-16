@@ -291,8 +291,10 @@ describe("public channel model catalog", () => {
 
         const panelHtml = renderToStaticMarkup(React.createElement(VideoSettingsPanel, { config, onConfigChange: () => undefined, theme: canvasThemes.dark }));
 
-        expect(panelHtml).toContain("1920");
-        expect(panelHtml).toContain("1080");
+        // 2026-09-11 655e635 起视频面板比例组不再渲染像素换算条(比例/清晰度分组纪律), 断言跟随现语义。
+        expect(panelHtml).toContain("16:9");
+        expect(panelHtml).toContain("1080P");
+        expect(panelHtml).not.toContain("1920 × 1080");
         expect(panelHtml).not.toContain("1280");
     });
 

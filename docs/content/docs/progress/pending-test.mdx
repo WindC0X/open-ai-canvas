@@ -5,6 +5,7 @@ description: 当前项目已实现功能的手工验证清单与未确认边界
 
 # 待测试
 
+
 ## 欢迎页开放开关
 
 - 管理员在 `/admin/settings/appearance` 的英文品牌标识下方切换欢迎页，立即保存，沿用功能配置保存及审计流程，默认开启；功能开放页不再编辑该字段。
@@ -160,6 +161,33 @@ description: 当前项目已实现功能的手工验证清单与未确认边界
 - [ ] 检查任务日志只出现一次「查询暂时异常」与一次「查询已恢复」，请求明细仍保留每次上游调用。
 - [ ] 让视频下载首次返回 502、第二次成功，确认宿主不重新查询或创建任务；连续三次下载失败时应返回包含供应商任务 ID 的错误。
 - [ ] 将管理员视频超时仍设为旧值的升级环境启动一次，确认保存值保持不变；新安装环境默认显示 60 分钟。
+
+## P4 生视频族 S7 终验（2026-09-16）
+
+### A4 生成中/播放面 atlas 证据逐项对照
+
+证据源：`og-canvas-flora-study/docs/research/flora/full-uiux-atlas/pages/video-face-chunk-analysis-20260915.md`（flora 前端 chunk 源码级）＋`07-TOTAL-SCHEME-STATUS.md` 路线。5 条差异点逐项裁决：
+
+| # | flora 证据 | 影策现状 | 裁决 |
+|---|---|---|---|
+| 1 | 播放控制为控制面浮层内 PlaybackControlsBar（沉底、与生成按钮同层） | VideoPlayer 内置 HUD 覆盖视频上 | **关项（结构差异不照搬）**：Vidstack 自带时间码/seek/音量已可用；节点内控制面（NodeControlSurface 同构）属后续 composer-in-node 演进，不属本任务 |
+| 2 | `<video>` 无条件 loop + autoPlay + muted | S5 已对齐：loop 经 Vidstack provider 命令式应用（DOM prop 不可靠，canplay+src 变更双写点）；真机验证 loop=true、seek 尾部回绕 | **已落地**（24f08487） |
+| 3 | 进度条时间码/tick 直写 DOM 免 re-render | Vidstack 自带 | **关项（等价能力）** |
+| 4 | 生成中控制面收起（minimized）+ 黑底进度填充 | LoadingFill 黑底进度填充已有；完成瞬间 hover 信息态 1.5s 保护已落地（c3d85ca3，flora 1500ms minimized 同义） | **落地保护 + 关项控制面联动**（控制面收敛属 composer-in-node 任务） |
+| 5 | G4 Variant rail 是全屏查看器语义（60px 方形项、×1.2 spring、右侧元数据面板） | 画布上 BatchFrame 堆叠预览 | **关项（载体不同）**，按 design §5 风险3 回退 BatchFrame 同构保持 |
+
+附带（验证期发现并修复）：画布存量损坏持久值自愈二次修正——首版自愈（e20bfbb1 前身）parsed 收敛 `{}` 后仍走 throw 分支无效，真机注入 `"[object Object]"` 复现后修正为与空值同径回退 fallback 空文档；`canvas-storage-document.test.ts` 5 测试锁语义。
+
+### A1~A6 验收状态
+
+- [x] A1 count>1 批量链：真机 mock 通道 count=3 并行提交/首成功晋升 primaryVideoId/失败累积 batchFailedCount（S3 已过）；失败重试接线 2893292f；取消清理 4fc10426。
+- [x] A2 count=1 回归：版本族路径不动（canvas-video-batch-executor.test.ts 6 测试）。
+- [x] A3 完成态播放：S5 真机（loop 回绕、hover 离开媒体保留、播放不因 micro-affordance 退场暂停）。
+- [x] A4 对照表：上表。
+- [x] A5 验证：tsc 0、build 43s、backend go test 19 包全绿、bun test 全量 1669 pass / 31 fail（全部为既往登记的顺序敏感/全局态泄漏债务集，solo 复跑皆绿；且低于基线 35-39）。
+- [x] A6 文档：本条 + 07 号快照 + implement.md。
+- [ ] 用户逐项确认（A1 场景真机演示、A4 表裁决复核）。
+3 (test(web): S7终验断言漂移清理 - loop串/auto置首/presets承载档判定门/换算条退役/isPanelCarrier演进/批量第3处元数据; docs: P4生视频族A4对照表)
 
 ## 画布图片资源缓存链路优化
 

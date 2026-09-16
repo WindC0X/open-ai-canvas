@@ -21,7 +21,7 @@ describe("image resolution tiers", () => {
     test("精确像素预设保持请求原值，比例协议发送比例", () => {
         const profile = defaultImageCapabilityConfig("openai-image", "test");
         profile.size = { parameter: "size", values: ["1920x1080", "3840x2160", "2160x3840", "1824x1024"], default: "1920x1080", allowCustom: false };
-        expect(imageResolutionChoices(profile.size.values)).toEqual(["1k", "2k", "4k"]);
+        expect(imageResolutionChoices(profile.size.values)).toEqual(["auto", "1k", "2k", "4k"]);
         expect(imageSizeForResolution(buildImageResolutionOptions(profile.size.values), "1k", "16:9")).toBe("1824x1024");
         expect(resolveImageRequestSize(profile, undefined, "1920x1080")).toEqual({ parameter: "size", value: "1920x1080" });
         profile.size = { parameter: "aspect_ratio", values: ["16:9"], default: "16:9", allowCustom: false };

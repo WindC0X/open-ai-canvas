@@ -77,7 +77,8 @@ describe("canvas resource mention editor", () => {
         expect(imageExecutor).toContain("imageBatchExpanded: count > 1 ? true : undefined");
         expect(imageExecutor).toContain("imageGenerationReferenceConnections");
         expect(imageExecutor).toContain("retireImageBatchChildren");
-        expect(mediaExecutors.match(/canvasGenerationPromptMetadata\(prompt, effectivePrompt\)/g)?.length).toBe(2);
+        // 视频批量链(2026-09-14 S1)在单节点/音频之外为批量子任务新增一次元数据写入, 计 3 处。
+        expect(mediaExecutors.match(/canvasGenerationPromptMetadata\(prompt, effectivePrompt\)/g)?.length).toBe(3);
         expect(textExecutor.match(/canvasGenerationPromptMetadata\(prompt, effectivePrompt\)/g)?.length).toBe(2);
         expect(generationExecutor).toContain("composerContent: prompt");
         expect(generationExecutor).toContain("canvasGenerationPromptMetadata(prompt, statusPrompt)");

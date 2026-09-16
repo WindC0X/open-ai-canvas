@@ -77,7 +77,7 @@ describe("large canvas media rendering", () => {
         expect(inactivePreviewSource).toContain("<VideoPreviewPlayButton");
         expect(canvasNodeContentSource).toContain("useVideoPlaybackUrl(node, mediaActive)");
         expect(canvasNodeContentSource).toContain("onMediaPlayRequest?.(node.id)");
-        expect(canvasNodeContentSource).toContain('autoPlay preload="metadata"');
+        expect(canvasNodeContentSource).toContain('autoPlay loop preload="metadata"');
         expect(canvasNodeContentSource).toContain("scheduleResourceBlobCache(node.metadata?.storageKey || \"\")");
     });
 
@@ -184,7 +184,7 @@ describe("video canvas controls", () => {
         expect(videoPlayerSource).not.toContain("onPointerDownCapture={stopCanvasControlInteraction}");
         expect(videoPlayerSource).not.toContain("onMouseDownCapture={stopCanvasControlInteraction}");
         expect(videoPlayerSource).not.toContain("onClickCapture={stopCanvasControlClick}");
-        expect(canvasNodeContentSource).toContain('hasAudio={inferVideoHasAudio(node.metadata)} autoPlay preload="metadata"');
+        expect(canvasNodeContentSource).toContain('hasAudio={inferVideoHasAudio(node.metadata)} autoPlay loop preload="metadata"');
         expect(canvasNodeContentSource).toContain('if (["false", "0", "off", "no", "disabled"].includes(value || "")) return false;');
     });
 

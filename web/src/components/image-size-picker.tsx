@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./image-size-picker.css";
 import { Input, Button } from "antd";
 import type { ImageCapabilityConfig } from "@/lib/model-capabilities";
-import { IMAGE_RESOLUTIONS, imagePresetForRatio, imagePresetValue, imageQualityForSelection, imageQualityForTier, imageResolutionUsesQuality, imageSizePresets, imageTierAvailable } from "@/lib/image-size-presets";
+import { IMAGE_RESOLUTIONS, imagePresetForRatio, imagePresetValue, imageQualityForSelection, imageQualityForTier, imageResolutionUsesQuality, imageSizePresets, imageTierAvailable, imageTierRequestQuality } from "@/lib/image-size-presets";
 import { buildImageResolutionOptions, type ImageResolutionOption, type ImageResolutionTier } from "@/lib/image-resolution-tiers";
 
 import { resolveImageRequestSize, validateImageSize } from "@/services/api/image-validation";
@@ -18,7 +18,12 @@ export function ImageSizePicker({ profile, size, quality, onChange }: { profile:
     const matches = (preset: ImageResolutionOption) => {
         if (imagePresetValue(profile, preset) !== size) return false;
         if (profile.size.parameter !== "aspect_ratio") return true;
-        if (imageResolutionUsesQuality(profile)) return imageQualityForTier(profile, preset.tier) === (quality || profile.quality.default);
+        // presets 承载档(quality 漏配置)时 UI quality 状态即 tier 名: 无显式 quality 时按各 tier 的请求值自匹配。
+        if (imageResolutionUsesQuality(profile)) {
+            const requestQuality = imageTierRequestQuality(profile, preset.tier);
+            if (!requestQuality) return false;
+            return requestQuality === (quality || requestQuality);
+        }
         return !qualityTier || qualityTier === preset.tier;
     };
     let resolvedLegacySize: string | undefined;
@@ -35,7 +40,12 @@ export function ImageSizePicker({ profile, size, quality, onChange }: { profile:
             if (profile.size.parameter === "size") restoredCustom = buildImageResolutionOptions([resolvedLegacySize || size])[0];
             else if (profile.size.parameter === "aspect_ratio") {
                 const restoredTier = imageResolutionUsesQuality(profile)
-                    ? IMAGE_RESOLUTIONS.find((value) => imageQualityForTier(profile, value) === (quality || profile.quality.default)) || "1k"
+                    ? IMAGE_RESOLUTIONS.find((value) => {
+                          const requestQuality = imageTierRequestQuality(profile, value);
+                          return requestQuality ? requestQuality === (quality || requestQuality) : false;
+                      })
+                        || (quality ? undefined : visibleTiers[0])
+                        || "1k"
                     : (qualityTier && visibleTiers.includes(qualityTier) ? qualityTier : visibleTiers[0]) || "1k";
                 restoredCustom = imagePresetForRatio(restoredTier, size);
             }
@@ -51,7 +61,13 @@ export function ImageSizePicker({ profile, size, quality, onChange }: { profile:
     const available = (value: ImageResolutionTier) => imageTierAvailable(profile, value) && (profile.size.allowCustom || presets.some((preset) => preset.tier === value));
     const tier =
         (active && visibleTiers.includes(active.tier) ? active.tier : undefined) ||
-        (profile.size.parameter === "aspect_ratio" && imageResolutionUsesQuality(profile) ? visibleTiers.find((value) => imageQualityForTier(profile, value) === (quality || profile.quality.default)) : undefined) ||
+        // quality 承载档: 与当前质量值匹配的 tier(presets 承载时按 imageTierRequestQuality 认 tier 名)
+        (profile.size.parameter === "aspect_ratio" && imageResolutionUsesQuality(profile)
+            ? visibleTiers.find((value) => {
+                  const requestQuality = imageTierRequestQuality(profile, value);
+                  return requestQuality ? requestQuality === (quality || requestQuality) : false;
+              })
+            : undefined) ||
         (qualityTier && visibleTiers.includes(qualityTier) ? qualityTier : undefined) ||
         (visibleTiers.includes(chosenTier) ? chosenTier : visibleTiers[0]) ||
         "1k";

@@ -62,7 +62,7 @@ export function ImageSizePresetsEditor({ profile, disabled, onChange }: { profil
                             </div>
                         </header>
                         <div className="image-size-preset-body">
-                            {imageResolutionUsesQuality(profile) && !imageTierAvailable(profile, tier) ? <p className="image-size-hint">需先配置此档位对应的质量值，用户端才会开放。</p> : null}
+                            {imageResolutionUsesQuality(profile) && profile.quality.supported && profile.quality.values.length > 0 && !imageTierAvailable(profile, tier) ? <p className="image-size-hint">需先配置此档位对应的质量值，用户端才会开放。</p> : null}
                             <div className="image-size-preset-options" role="group" aria-label={`${tier.toUpperCase()} 支持的宽高比`}>
                                 {ratios.map((ratio) => {
                                     const selected = items.find((item) => item.ratio === ratio);
