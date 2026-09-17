@@ -760,7 +760,9 @@ function ModelLabel({
         setSubtitleOverflow(el.scrollWidth > el.clientWidth + 1);
     }, [capabilitySummary, creationVariant]);
     return (
-        <span className="flex w-full min-w-0 items-center gap-2 py-0">
+        // flex-1(basis 0%+grow)而非 w-full: 上游合并带入 option-body 的 width:100% 后, flex 嵌套两层时
+        // 百分比 width 解析失效(indefinite), w-full 塌到 min-content 32px, title 被裁 0(模型名不可见, 徽标挤到行左);  flex-1 脱离百分比链, 实测恢复。
+        <span className="flex flex-1 min-w-0 items-center gap-2 py-0">
             <span className="canvas-model-picker-logo grid size-6 shrink-0 place-items-center overflow-hidden rounded-[8px]" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
                 <ModelIcon config={config} model={model} />
             </span>
