@@ -580,6 +580,7 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
     const dirtyProjects = currentProjects.filter((project) => !sameEntitySnapshot(acknowledgedProjects.get(project.id), project));
     const dirtyAssets = currentAssets.filter((asset) => !sameEntitySnapshot(acknowledgedAssets.get(asset.id), asset));
     if (!dirtyProjects.length && !dirtyAssets.length) return;
+    let savedAny = false;
 
     if (incrementalSession) {
         for (const source of dirtyProjects) {
@@ -616,6 +617,7 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
         acknowledgedAssets.set(source.id, source);
         watermarkAssets.set(source.id, source.updatedAt);
         verifiedAssets.add(source.id);
+        savedAny = true;
     }
     for (const source of dirtyProjects) {
         const keysToUpload = collectLocalMediaKeys(source);
@@ -646,6 +648,7 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
             acknowledgedProjects.set(source.id, source);
             watermarkProjects.set(source.id, source.updatedAt);
             verifiedProjects.add(source.id);
+            savedAny = true;
             if (total > 0) useSyncProgressStore.getState().setProjectProgress(source.id, null);
         } catch (error) {
             if (total > 0) {
@@ -658,6 +661,10 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
         }
     }
     if (dirtyProjects.length) void appQueryClient.invalidateQueries({ queryKey: ["canvas-library"] });
+    // 本轮批量保存至少成功过一次就把水位落盘(项目支路 647/素材支路 617 set 后靠这里统一 persist):
+    // 本模块其它 persist 点只在会话/加载/快照采纳时触发, 保存成功点漏 persist 曾致内存水位与 localStorage
+    // 永久分叉 —— 刷新读到旧水位, 本地与远端都≠旧水位 → 每刷必弹 diverged 冲突门(用户实测强刷每次都弹)。
+    if (savedAny) persistWatermarks();
 }
 
 function collectLocalMediaKeys(value: unknown, set = new Set<string>()): string[] {
