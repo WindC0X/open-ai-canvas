@@ -402,15 +402,17 @@ function InfiniteCanvasPage() {
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
     }, []);
+    const { layout: agentPanelGeometry, compact: agentPanelCompact } = agentPanelLayout;
     const hudRightInset = useMemo(() => {
-        if (!assistantOpen || agentPanelLayout.compact) return undefined;
+        if (!assistantOpen || agentPanelCompact) return undefined;
         // HUD 卡片顶缘约在 topbar 下方 88px、卡片体高约 300px; 面板整体在这条垂直带之下时不构成遮挡。
-        if (agentPanelLayout.layout.top >= 420) return undefined;
-        const rightGap = viewportWidth - (agentPanelLayout.layout.left + agentPanelLayout.layout.width);
+        if (agentPanelGeometry.top >= 420) return undefined;
+        const rightGap = viewportWidth - (agentPanelGeometry.left + agentPanelGeometry.width);
         // 面板右缘距视口右缘超过 48px 视为"未停靠右侧"(用户拖到了画布中部), HUD 不让位。
         if (rightGap > 48) return undefined;
-        return `calc(var(--canvas-inset-x) + ${agentPanelLayout.layout.width + rightGap}px + var(--space-3))`;
-    }, [assistantOpen, agentPanelLayout, viewportWidth]);
+        return `calc(var(--canvas-inset-x) + ${agentPanelGeometry.width + rightGap}px + var(--space-3))`;
+        // 依赖按值拆解(layout/compact), 不依赖 controller 对象身份 —— hook 返回对象已 useMemo, 但值依赖更精确。
+    }, [assistantOpen, agentPanelGeometry, agentPanelCompact, viewportWidth]);
     const agentMentionReferences = useMemo(() => buildCanvasAgentMentionReferences(nodes), [nodes]);
 
     const sendSelectionToAgent = useCallback((nodeId?: string) => {
@@ -2366,8 +2368,9 @@ function InfiniteCanvasPage() {
     const hoveredNode = useMemo(() => (hoveredNodeId ? nodes.find((item) => item.id === hoveredNodeId) ?? null : null), [nodes, hoveredNodeId]);
     const exitingNode = useMemo(() => (exitingNodeId ? nodes.find((item) => item.id === exitingNodeId) ?? null : null), [nodes, exitingNodeId]);
     const isPanelCarrier = useCallback((node: CanvasNodeData) => !isCanvasImageSourceNode(node) && !node.metadata?.fileUpload && node.type !== CanvasNodeType.Script && node.type !== CanvasNodeType.Drawing && node.type !== CanvasNodeType.Panorama && node.type !== CanvasNodeType.BatchTable && !isFrameNode(node), []);
-    // selected 实例(dialog 驱动, 常驻)。isPanelCarrier 含 BatchTable(P0 双挂载根修时并入:
-    // 旧裸挂载点删除后 BatchTable 的面板唯一入口在此, 与其余 carrier 类型同语义)。
+    // selected 实例(dialog 驱动, 常驻)。isPanelCarrier 排除 BatchTable(与上游语义一致):
+    // BatchTable 编辑全内联在节点 body(CanvasBatchTableNodeContent 的 onPatchTable 直改), 无独立面板;
+    // P0 双挂载根修删除的旧裸挂载点同样排除它 —— 注释曾误写为"并入", 2026-09-17 review 更正。
     const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
     // hover 实例已退役(S2): hover 微态由节点内信息态 composer 承担; hoverSupplyTarget 仍供工具栏双槽位使用
     const hoverSupplyTarget = hoveredNode ?? exitingNode;
@@ -3042,7 +3045,8 @@ function InfiniteCanvasPage() {
                         {/* 旧 dialog 面板裸挂载点已删除(P0 双挂载根修 2026-09-17): S2 挂件化后 selected
                             面板统一走 selectedPanelNode 的 AffordanceSurface 槽位(上方), 此处残留的
                             b67487c4 时代挂载点与之对同一 dialogNode 双渲染(两面板完全同位叠加,
-                            三拍动画双驱)。BatchTable 独占路径已并入 isPanelCarrier。 */}
+                            三拍动画双驱)。BatchTable 编辑全内联于节点 body, 本就不开面板(排除与上游一致,
+                            旧注释误写为"并入", 2026-09-17 review 更正)。 */}
 
                         {pendingConnectionCreate ? (
                             <CanvasConnectionCreateMenu

@@ -56,10 +56,13 @@ function loadWatermarks(userId: string) {
 function persistWatermarks() {
     if (!activeRemoteUserId) return;
     try {
-        localStorage.setItem(watermarkStorageKey(activeRemoteUserId), JSON.stringify({
-            p: Object.fromEntries(watermarkProjects),
-            a: Object.fromEntries(watermarkAssets),
-        }));
+        localStorage.setItem(
+            watermarkStorageKey(activeRemoteUserId),
+            JSON.stringify({
+                p: Object.fromEntries(watermarkProjects),
+                a: Object.fromEntries(watermarkAssets),
+            }),
+        );
     } catch {
         // localStorage 配额满等场景忽略: 水位落后只导致保守冲突(fail-closed), 不会静默覆盖。
     }
@@ -145,7 +148,9 @@ const agentCanvasListeners = new Set<(project: CanvasProject, previous: CanvasPr
 
 export function subscribeAgentCanvasRefresh(listener: (project: CanvasProject, previous: CanvasProject | undefined) => void) {
     agentCanvasListeners.add(listener);
-    return () => { agentCanvasListeners.delete(listener); };
+    return () => {
+        agentCanvasListeners.delete(listener);
+    };
 }
 
 export async function refreshCanvasAfterAgent(id: string) {
@@ -181,7 +186,7 @@ export async function applyAgentCanvasPatches(id: string, patches: AgentCanvasPa
         acknowledgedProjects.set(id, remote);
         verifiedProjects.add(id);
         if (projected === current) return current;
-        useCanvasStore.setState((state) => ({ projects: state.projects.map((project) => project.id === id ? projected : project) }));
+        useCanvasStore.setState((state) => ({ projects: state.projects.map((project) => (project.id === id ? projected : project)) }));
         return projected;
     });
 }
@@ -250,9 +255,9 @@ export async function loadAssetsForUse(ids: Iterable<string>) {
 const LOCAL_STORAGE_KEY_PATTERN = /^(image|video|audio|file|video-reference|audio-reference):/;
 
 export async function syncRemoteUserData(userId?: string | null) {
-	// 登录/切换账号时，服务端快照建立新的远端基线；本地 IndexedDB 只负责首屏缓存，
-	// 不能把服务端已经删除或当前用户无权访问的实体重新补回去。后续增量保存必须基于这份基线做冲突校验。
-	let repairedCanvasAssets = false;
+    // 登录/切换账号时，服务端快照建立新的远端基线；本地 IndexedDB 只负责首屏缓存，
+    // 不能把服务端已经删除或当前用户无权访问的实体重新补回去。后续增量保存必须基于这份基线做冲突校验。
+    let repairedCanvasAssets = false;
     await withRemoteUserDataSyncExclusive(async () => {
         incrementalSession = false;
         activeRemoteUserId = userId || "";
@@ -328,7 +333,12 @@ export function hasRemoteUserDataSyncSession() {
  * 结果仍原样返回，由调用方决定如何提示或重试，避免同步层把写入失败伪装成成功。
  */
 export function withRemoteUserDataSyncExclusive<T>(operation: () => Promise<T>): Promise<T> {
-    const pending = remoteOperationTail.then(() => undefined, () => undefined).then(operation);
+    const pending = remoteOperationTail
+        .then(
+            () => undefined,
+            () => undefined,
+        )
+        .then(operation);
     remoteOperationTail = pending.then(
         () => undefined,
         () => undefined,
@@ -573,98 +583,106 @@ async function drainRemoteUserDataChanges(options: { force?: boolean } = {}) {
 async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: { force?: boolean } = {}) {
     // 中央兜底：任何调用方只要把持久媒体写进画布，提交前都会先补齐素材记录与 assetId。
     // 页面级入口仍主动入库，以便立即反馈；这里负责阻止遗漏入口形成远端幽灵资源。
-    const changedProjectIds = new Set(useCanvasStore.getState().projects.filter((project) => !sameEntitySnapshot(acknowledgedProjects.get(project.id), project)).map((project) => project.id));
-    repairMissingCanvasAssets(incrementalSession ? changedProjectIds : undefined, incrementalSession);
-    const currentProjects = useCanvasStore.getState().projects;
-    const currentAssets = useAssetStore.getState().assets;
-    const dirtyProjects = currentProjects.filter((project) => !sameEntitySnapshot(acknowledgedProjects.get(project.id), project));
-    const dirtyAssets = currentAssets.filter((asset) => !sameEntitySnapshot(acknowledgedAssets.get(asset.id), asset));
-    if (!dirtyProjects.length && !dirtyAssets.length) return;
     let savedAny = false;
+    try {
+        // 主体包 try/finally: 部分成功+部分失败时(项目支路 catch 内 throw 上抛是设计约定),
+        // 成功实体的新水位也必须在 finally 落盘 —— 否则内存水位与 localStorage 永久分叉,
+        // 刷新后回到"每刷必弹 diverged 冲突门"的老路(用户实测)。
+        const changedProjectIds = new Set(
+            useCanvasStore
+                .getState()
+                .projects.filter((project) => !sameEntitySnapshot(acknowledgedProjects.get(project.id), project))
+                .map((project) => project.id),
+        );
+        repairMissingCanvasAssets(incrementalSession ? changedProjectIds : undefined, incrementalSession);
+        const currentProjects = useCanvasStore.getState().projects;
+        const currentAssets = useAssetStore.getState().assets;
+        const dirtyProjects = currentProjects.filter((project) => !sameEntitySnapshot(acknowledgedProjects.get(project.id), project));
+        const dirtyAssets = currentAssets.filter((asset) => !sameEntitySnapshot(acknowledgedAssets.get(asset.id), asset));
+        if (!dirtyProjects.length && !dirtyAssets.length) return;
 
-    if (incrementalSession) {
-        for (const source of dirtyProjects) {
-            const baseline = acknowledgedProjects.get(source.id);
-            if (!baseline || verifiedProjects.has(source.id)) continue;
-            const { project } = await getRemoteCanvasProject(source.id);
-            if (Date.parse(project.updatedAt) !== Date.parse(baseline.updatedAt)) {
-                // 以远端当前版本作为新的校验基线，继续提交当前打开画布的完整快照。
-                // 这是画布编辑态的显式覆盖策略，避免资产同步被旧缓存冲突永久阻塞。
-                acknowledgedProjects.set(source.id, project);
+        if (incrementalSession) {
+            for (const source of dirtyProjects) {
+                const baseline = acknowledgedProjects.get(source.id);
+                if (!baseline || verifiedProjects.has(source.id)) continue;
+                const { project } = await getRemoteCanvasProject(source.id);
+                if (Date.parse(project.updatedAt) !== Date.parse(baseline.updatedAt)) {
+                    // 以远端当前版本作为新的校验基线，继续提交当前打开画布的完整快照。
+                    // 这是画布编辑态的显式覆盖策略，避免资产同步被旧缓存冲突永久阻塞。
+                    acknowledgedProjects.set(source.id, project);
+                }
+                verifiedProjects.add(source.id);
             }
-            verifiedProjects.add(source.id);
+            for (const source of dirtyAssets) {
+                const baseline = acknowledgedAssets.get(source.id);
+                if (!baseline || verifiedAssets.has(source.id)) continue;
+                const { asset } = await getRemoteAsset(source.id);
+                if (Date.parse(asset.updatedAt) !== Date.parse(baseline.updatedAt)) {
+                    if (!options.force) throw new Error("素材远端版本已变化，已停止覆盖，请重新打开素材库");
+                    // 强制覆盖是用户显式指令：采纳远端版本为新基线后继续用本地内容覆盖。
+                    acknowledgedAssets.set(source.id, asset);
+                }
+                verifiedAssets.add(source.id);
+            }
         }
+
+        // 转换后的 resource: 引用只属于发往服务端的 payload，不能反写整份实时 store。
+        // 已确认快照记录的是本次上传所依据的本地实体；上传期间的新编辑会在下一轮继续提交。
+        // 素材先于画布提交。这样画布中的 resource: 引用一旦成为远端事实，
+        // 对应 Asset 已经存在，刷新或换设备不会出现只占容量、不见素材的窗口。
         for (const source of dirtyAssets) {
-            const baseline = acknowledgedAssets.get(source.id);
-            if (!baseline || verifiedAssets.has(source.id)) continue;
-            const { asset } = await getRemoteAsset(source.id);
-            if (Date.parse(asset.updatedAt) !== Date.parse(baseline.updatedAt)) {
-                if (!options.force) throw new Error("素材远端版本已变化，已停止覆盖，请重新打开素材库");
-                // 强制覆盖是用户显式指令：采纳远端版本为新基线后继续用本地内容覆盖。
-                acknowledgedAssets.set(source.id, asset);
-            }
+            const remotePayload = await ensureRemoteResourceReferences(assetForRemoteSync(source), uploaded);
+            await upsertRemoteAsset(remotePayload);
+            acknowledgedAssets.set(source.id, source);
+            watermarkAssets.set(source.id, source.updatedAt);
             verifiedAssets.add(source.id);
-        }
-    }
-
-    // 转换后的 resource: 引用只属于发往服务端的 payload，不能反写整份实时 store。
-    // 已确认快照记录的是本次上传所依据的本地实体；上传期间的新编辑会在下一轮继续提交。
-    // 素材先于画布提交。这样画布中的 resource: 引用一旦成为远端事实，
-    // 对应 Asset 已经存在，刷新或换设备不会出现只占容量、不见素材的窗口。
-    for (const source of dirtyAssets) {
-        const remotePayload = await ensureRemoteResourceReferences(assetForRemoteSync(source), uploaded);
-        await upsertRemoteAsset(remotePayload);
-        acknowledgedAssets.set(source.id, source);
-        watermarkAssets.set(source.id, source.updatedAt);
-        verifiedAssets.add(source.id);
-        savedAny = true;
-    }
-    for (const source of dirtyProjects) {
-        const keysToUpload = collectLocalMediaKeys(source);
-        const total = keysToUpload.length;
-        if (total > 0) {
-            useSyncProgressStore.getState().setProjectProgress(source.id, {
-                projectId: source.id,
-                total,
-                completed: 0,
-                phase: "uploading",
-                message: "正在同步媒体至云端",
-            });
-        }
-        const onMediaUploaded = () => {
-            if (total > 0) {
-                useSyncProgressStore.getState().incrementProjectCompleted(source.id);
-            }
-        };
-        try {
-            const remotePayload = await ensureRemoteResourceReferences(source, uploaded, onMediaUploaded);
-            if (total > 0) {
-                useSyncProgressStore.getState().setProjectProgress(source.id, {
-                    phase: "saving",
-                    message: "正在保存画布结构",
-                });
-            }
-            await upsertRemoteCanvasProject(sanitizeCanvasProjectForRemoteSync(remotePayload));
-            acknowledgedProjects.set(source.id, source);
-            watermarkProjects.set(source.id, source.updatedAt);
-            verifiedProjects.add(source.id);
             savedAny = true;
-            if (total > 0) useSyncProgressStore.getState().setProjectProgress(source.id, null);
-        } catch (error) {
+        }
+        for (const source of dirtyProjects) {
+            const keysToUpload = collectLocalMediaKeys(source);
+            const total = keysToUpload.length;
             if (total > 0) {
                 useSyncProgressStore.getState().setProjectProgress(source.id, {
-                    phase: "error",
-                    message: error instanceof Error ? error.message : "云端同步失败，等待重试",
+                    projectId: source.id,
+                    total,
+                    completed: 0,
+                    phase: "uploading",
+                    message: "正在同步媒体至云端",
                 });
             }
-            throw error;
+            const onMediaUploaded = () => {
+                if (total > 0) {
+                    useSyncProgressStore.getState().incrementProjectCompleted(source.id);
+                }
+            };
+            try {
+                const remotePayload = await ensureRemoteResourceReferences(source, uploaded, onMediaUploaded);
+                if (total > 0) {
+                    useSyncProgressStore.getState().setProjectProgress(source.id, {
+                        phase: "saving",
+                        message: "正在保存画布结构",
+                    });
+                }
+                await upsertRemoteCanvasProject(sanitizeCanvasProjectForRemoteSync(remotePayload));
+                acknowledgedProjects.set(source.id, source);
+                watermarkProjects.set(source.id, source.updatedAt);
+                verifiedProjects.add(source.id);
+                savedAny = true;
+                if (total > 0) useSyncProgressStore.getState().setProjectProgress(source.id, null);
+            } catch (error) {
+                if (total > 0) {
+                    useSyncProgressStore.getState().setProjectProgress(source.id, {
+                        phase: "error",
+                        message: error instanceof Error ? error.message : "云端同步失败，等待重试",
+                    });
+                }
+                throw error;
+            }
         }
+        if (dirtyProjects.length) void appQueryClient.invalidateQueries({ queryKey: ["canvas-library"] });
+    } finally {
+        if (savedAny) persistWatermarks();
     }
-    if (dirtyProjects.length) void appQueryClient.invalidateQueries({ queryKey: ["canvas-library"] });
-    // 本轮批量保存至少成功过一次就把水位落盘(项目支路 647/素材支路 617 set 后靠这里统一 persist):
-    // 本模块其它 persist 点只在会话/加载/快照采纳时触发, 保存成功点漏 persist 曾致内存水位与 localStorage
-    // 永久分叉 —— 刷新读到旧水位, 本地与远端都≠旧水位 → 每刷必弹 diverged 冲突门(用户实测强刷每次都弹)。
-    if (savedAny) persistWatermarks();
 }
 
 function collectLocalMediaKeys(value: unknown, set = new Set<string>()): string[] {

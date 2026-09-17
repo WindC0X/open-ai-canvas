@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type KeyboardEvent } from "react";
 import { AGENT_PANEL_LAYOUT_KEY, changeAgentPanelLayout, clampAgentPanelLayout, restoreAgentPanelLayout, type AgentPanelGesture, type AgentPanelLayout } from "@/lib/canvas/agent-panel-layout";
 
 const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
@@ -58,21 +58,30 @@ export function useAgentPanelLayout() {
         gestureRef.current = null;
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     };
-    const onResizeKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const onResizeKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
         const kind = event.currentTarget.dataset.agentResize as AgentPanelGesture;
         const delta = event.shiftKey ? 40 : 10;
         if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
         event.preventDefault();
         event.stopPropagation();
         setLayout((current) => changeAgentPanelLayout(current, kind, event.key === "ArrowLeft" ? -delta : event.key === "ArrowRight" ? delta : 0, event.key === "ArrowUp" ? -delta : event.key === "ArrowDown" ? delta : 0, viewport()));
-    };
+    }, []);
 
-    return {
-        // 纯数字布局 + compact 标记外曝: 提升到 project 层后, HUD 让位等消费方按面板真实几何计算。
-        layout,
-        compact,
-        style: compact ? { left: 0, top: 8, width: "100%", height: "calc(100dvh - 8px)" } : layout,
-        onResizeKeyDown,
-        pointerHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onLostPointerCapture: () => { gestureRef.current = null; } },
-    };
+    // 数据部分 useMemo: 提升到 project 层后, 消费方(hudRightInset 等)可按 layout/compact 值依赖而非对象身份;
+    // handlers 走 ref 持有(内部全是 gestureRef 状态, 无需随渲染重建), 返回身份稳定 → 拖拽每帧 setLayout 时
+    // 消费方依赖 [layout, compact] 只在值真变时重算, project 树的 diff 压力收敛到布局值变化本身。
+    const handlersRef = useRef({ onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onLostPointerCapture: () => { gestureRef.current = null; } });
+    handlersRef.current = { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onLostPointerCapture: () => { gestureRef.current = null; } };
+    return useMemo(
+        () => ({
+            layout,
+            compact,
+            style: compact ? { left: 0, top: 8, width: "100%", height: "calc(100dvh - 8px)" } : layout,
+            get pointerHandlers() {
+                return handlersRef.current;
+            },
+            onResizeKeyDown,
+        }),
+        [layout, compact, onResizeKeyDown],
+    );
 }

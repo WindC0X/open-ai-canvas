@@ -564,12 +564,28 @@ func TestCloudAgentToolLoopPersistsApprovalAndAppliesCanvasWrite(t *testing.T) {
 func TestCloudAgentNodeTypesExposeExecutableAllowList(t *testing.T) {
 	result := cloudAgentNodeTypes()
 	nodes, ok := result["nodes"].([]map[string]any)
-	if !ok || len(nodes) != 7 {
+	if !ok || len(nodes) == 0 {
 		t.Fatalf("unexpected node registry: %#v", result)
 	}
+	// 按类型集合断言而非硬编码计数: 节点能力注册表会随功能演进(如批量创作表)增删类型,
+	// 计数断言在上游加类型时必然失配(历史教训: batch-table 注册后本测试停在 7 挂红)。
+	wantTypes := map[string]bool{
+		"audio": true, "batch-table": true, "frame": true, "image": true,
+		"markdown": true, "script": true, "text": true, "video": true,
+	}
+	gotTypes := map[string]bool{}
 	for _, node := range nodes {
+		gotTypes[node["type"].(string)] = true
 		if node["type"] == "panorama" {
 			t.Fatal("UI-only node must not be exposed")
+		}
+	}
+	if len(gotTypes) != len(wantTypes) {
+		t.Fatalf("node registry type set mismatch: got %v want %v", gotTypes, wantTypes)
+	}
+	for _, want := range []string{"audio", "batch-table", "frame", "image", "markdown", "script", "text", "video"} {
+		if !gotTypes[want] {
+			t.Fatalf("node registry missing type %q: got %v", want, gotTypes)
 		}
 	}
 }

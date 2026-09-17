@@ -826,7 +826,6 @@
     --director-danger-soft: rgba(248, 113, 113, 0.14);
 }
 
-
 /* 剪辑工作台：跟随明暗主题的表面（作用域覆盖 director 常暗 token；canvas 导演工作台全局值不受影响）*/
 .editor-workbench {
     --director-sequencer-surface: #fbfcfe;
@@ -863,7 +862,6 @@
     height: 100vh;
     background: var(--director-workspace-bg);
 }
-
 
 .dark {
 
@@ -1248,7 +1246,6 @@
         --workspace-accent-soft: rgba(255, 255, 255, 0.08);
     }
 
-
     .app-workspace-sidebar-scrim {
         position: absolute;
         z-index: 30;
@@ -1257,7 +1254,6 @@
         background: rgba(0, 0, 0, 0.42);
         backdrop-filter: blur(2px);
     }
-
 
     /* 侧栏导航子项展开引导线：替代每组子项自行维护的分割线 */
     .app-workspace-nav-guide-line {
@@ -1470,7 +1466,6 @@
         -webkit-backdrop-filter: blur(7px);
     }
 
-
     .app-workspace-shell.is-spatial .app-workspace-brand-mark {
         border: 1px solid color-mix(in srgb, var(--workspace-accent) 36%, transparent);
         background: var(--workspace-accent);
@@ -1482,8 +1477,6 @@
         width: 100%;
         height: 100%;
     }
-
-
 
     /* 工作区保留滚轮与触控板滚动，只隐藏会形成额外竖向分割的浏览器轨道。 */
     .app-spatial-workspace .app-workspace-scroll {
@@ -1799,7 +1792,6 @@
         padding: 8px 10px 10px;
     }
 
-
     .app-workspace-sidebar .app-workspace-sidebar-scroll-area {
         scrollbar-width: none;
     }
@@ -1813,7 +1805,6 @@
     .app-workspace-grid {
         background: var(--workspace-content);
     }
-
 
     .app-workspace-page {
         background: var(--workspace-content);
@@ -2039,7 +2030,6 @@
         color: var(--foreground);
     }
 
-
     .canvas-project-sidebar-chapter-row.bg-surface-active {
         background: color-mix(in srgb, var(--workspace-accent) 9%, transparent) !important;
         color: var(--foreground);
@@ -2156,12 +2146,9 @@
         box-shadow: none;
     }
 
-
     .app-workspace-nav-link.is-active:hover {
         background: var(--workspace-nav-active-hover-bg);
     }
-
-
 
     .app-workspace-icon-button {
         display: inline-flex;
@@ -4173,7 +4160,6 @@ html:not(.dark) .creation-studio-control:hover,
         .creation-message-content, .creation-message-error { padding-left: 0; }
         .creation-user-message { max-width: 82%; }
     }
-
 
     @media (max-width: 800px) {
         .creation-new-button {
@@ -8224,23 +8210,6 @@ html:not(.dark) .creation-studio-control:hover,
         white-space: nowrap;
     }
 
-    .canvas-model-picker-back {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-height: 32px;
-        margin: 4px 4px 0;
-        padding: 0 8px;
-        border-radius: var(--r-md);
-        color: color-mix(in srgb, var(--workspace-foreground) 72%, transparent);
-        font-size: var(--fs-label);
-        cursor: pointer;
-    }
-
-    .canvas-model-picker-back:hover {
-        background: color-mix(in srgb, var(--workspace-foreground) 8%, transparent);
-    }
-
     .canvas-model-picker-search-icon {
         width: 14px;
         height: 14px;
@@ -11828,7 +11797,6 @@ html:not(.dark) .creation-studio-control:hover,
         }
     }
 
-
     .canvas-node-info-modal .ant-modal-header {
         padding-right: 0;
     }
@@ -13489,7 +13457,6 @@ html:not(.dark) .creation-media-preview-modal .ant-modal-container { background:
     font-weight: 700;
 }
 
-
 .admin-shell .app-workspace-nav-link:hover:not(.is-active) {
     background: var(--admin-layer-2);
     color: var(--admin-text-primary);
@@ -14066,7 +14033,6 @@ html:not(.dark) .creation-media-preview-modal .ant-modal-container { background:
     border-color: color-mix(in srgb, var(--ring) 58%, transparent) !important;
     box-shadow: none !important;
 }
-
 
 .admin-stat-tile {
     min-width: 0;
@@ -15106,7 +15072,6 @@ html:not(.dark) .creation-history-drawer-root {
     min-width: 0;
 }
 
-
 /* 鼠标点击不留下“选中框”；键盘导航仍通过 :focus-visible 保留可发现的焦点提示。 */
 :where(button:not(:disabled), a[href], [role="button"]:not([aria-disabled="true"]), label[for], input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled), .ant-btn:not(:disabled), .ant-switch:not(.ant-switch-disabled), .ant-select:not(.ant-select-disabled), .ant-dropdown-trigger, .ant-tabs-tab, .ant-segmented-item, .ant-pagination-item, .ant-pagination-prev, .ant-pagination-next, .ant-dropdown-menu-item, .ant-menu-item, .ant-select-item-option, .ant-checkbox-wrapper, .ant-radio-wrapper, .ant-upload, .ant-collapse-header, .ant-slider, .ant-rate-star, .ant-tag-checkable) {
     cursor: pointer;
@@ -15133,7 +15098,6 @@ html:not(.dark) .creation-history-drawer-root {
     outline: none !important;
     box-shadow: none !important;
 }
-
 
 /* 显式兜底：Tailwind 生成的 hover 背景在部分层叠顺序下未生效，这里保持语义 token 一致。 */
 .hover\:bg-surface-hover:hover {
@@ -16753,7 +16717,6 @@ html:not(.dark) .creation-history-drawer-root {
     color: color-mix(in srgb, var(--foreground) 45%, transparent);
 }
 
-
 /* 空态：banner + 对话区（控态时展示，发送后切换分镜台） */
 .creation-home .creation-empty-workspace {
     flex: 1 1 auto;
@@ -16773,7 +16736,6 @@ html:not(.dark) .creation-history-drawer-root {
     .creation-empty-workspace .creation-empty-composer { width: 100%; }
 }
 
-
 .creation-home .creation-empty-suggest {
     display: flex;
     flex-direction: column;
@@ -16781,7 +16743,6 @@ html:not(.dark) .creation-history-drawer-root {
     width: min(820px, calc(100% - 28px));
     margin: 24px auto 0;
 }
-
 
 .creation-home .creation-empty-suggest .suggest-card {
     display: flex;
@@ -17581,7 +17542,6 @@ html.dark .ai-message-codeblock-pre .shiki span { color: var(--shiki-dark) !impo
     overscroll-behavior: contain;
 }
 
-
 .creation-home .creation-thread-stage {
     width: min(900px, calc(100% - 56px));
     min-height: 100%;
@@ -17644,7 +17604,6 @@ html:not(.dark) .creation-home .creation-user-message { background: transparent;
     white-space: nowrap;
 }
 html:not(.dark) .creation-home .creation-user-avatar { background: rgba(15, 23, 42, .07); color: var(--creation-faint); }
-
 
 .creation-home .creation-user-message-meta time,
 .creation-home .creation-message-heading time { color: var(--creation-faint); font-size: var(--fs-micro); }
@@ -17756,7 +17715,6 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
     padding: var(--space-3) 0 0 var(--space-8);
 }
 .creation-home .creation-message-reasoning-wrap > div { margin-bottom: 0; }
-
 
 .creation-home .creation-thread-composer .creation-chat-writing-surface { min-height: 0; }
 .creation-home .creation-thread-composer .creation-chat-editor textarea { min-height: 44px; }
@@ -18016,7 +17974,6 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
         animation: none;
     }
 
-
 }
 
 /* —— 创建页空态推荐主卡（吸收 boardui pro-prompt 光晕卡形态）—— */
@@ -18074,7 +18031,6 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
 @media (max-width: 760px) {
     .creation-home .creation-empty-suggest-grid { grid-template-columns: 1fr; }
 }
-
 
 /* —— 创建页历史抽屉：新建置顶卡 + 时间分组（吸收 boardui agent-chat-history）—— */
 .creation-history-new {
@@ -19165,10 +19121,6 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
     transition: min-height 180ms cubic-bezier(.16, 1, .3, 1), background-color 160ms ease, transform 160ms cubic-bezier(.16, 1, .3, 1) !important;
 }
 
-.canvas-model-picker-option.is-previewed:not(:disabled) {
-    background: color-mix(in srgb, var(--workspace-accent) 8%, var(--workspace-surface-strong)) !important;
-}
-
 .canvas-model-picker-description {
     max-height: 0;
     margin-top: 0 !important;
@@ -19184,7 +19136,6 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
     transform: translateY(0);
 }
 
-.creation-model-picker-menu .canvas-model-picker-option.is-previewed,
 .creation-model-picker-menu .canvas-model-picker-option[aria-selected="true"] {
     min-height: 58px;
     border-radius: 12px;
@@ -20741,25 +20692,11 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
     width: min(360px, calc(100vw - 24px)) !important;
     padding: 10px !important;
 }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brands { display: grid; gap: 5px; }
+
 .app-user-workspace .creation-model-picker-menu .canvas-model-picker-subheading { display: flex; align-items: baseline; justify-content: space-between; padding: 3px 5px 8px; color: var(--user-ink); font-size: 12px; font-weight: 650; }
 .app-user-workspace .creation-model-picker-menu .canvas-model-picker-subheading small { color: var(--user-ink-soft); font-size: 10px; font-weight: 500; }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brand { display: flex; min-height: 58px; align-items: center; gap: 10px; border: 1px solid transparent; border-radius: 13px; padding: 8px 10px; background: transparent; color: var(--user-ink); text-align: left; transition: background-color 160ms ease, border-color 160ms ease, transform 160ms cubic-bezier(.16,1,.3,1); }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brand:hover { border-color: var(--user-border); background: var(--user-surface-hover); transform: translateX(2px); }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brand-icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 11px; background: var(--user-surface-muted); color: var(--user-ink-muted); }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brand:nth-child(3n) .canvas-model-picker-brand-icon,
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brand:nth-child(4n) .canvas-model-picker-brand-icon { background: var(--user-surface-muted); color: var(--user-ink-muted); }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brand-copy { display: grid; min-width: 0; flex: 1; gap: 4px; }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brand-copy strong { overflow: hidden; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brand-copy small { color: var(--user-ink-muted); font-size: 10px; }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-brand-arrow { width: 15px; height: 15px; color: var(--user-ink-soft); transform: rotate(-90deg); }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-secondary-head { display: flex; align-items: center; gap: 8px; padding: 0 2px 9px; }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-back { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--user-border); border-radius: 9px; background: var(--user-surface-muted); color: var(--user-ink-muted); }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-back:hover { background: var(--user-surface-hover); color: var(--user-ink); }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-back svg { width: 15px; height: 15px; }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-secondary-head > span { display: grid; gap: 2px; }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-secondary-head strong { color: var(--user-ink); font-size: 13px; }
-.app-user-workspace .creation-model-picker-menu .canvas-model-picker-secondary-head small { color: var(--user-ink-soft); font-size: 10px; }
+
+
 .app-user-workspace .creation-model-picker-menu .canvas-model-picker-option { min-height: 55px; border-radius: 12px; padding: 8px 9px; }
 .app-user-workspace .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child { width: 32px; height: 32px; border-radius: 10px; background: var(--user-surface-muted) !important; color: var(--user-ink-muted); }
 .app-user-workspace .creation-model-picker-menu .canvas-model-picker-option:nth-child(3n) > span:first-child > span:first-child,
@@ -21015,25 +20952,10 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
     width: min(360px, calc(100vw - 24px)) !important;
     padding: 10px !important;
 }
-.creation-model-picker-surface .canvas-model-picker-brands { display: grid; gap: 5px; }
+
 .creation-model-picker-surface .canvas-model-picker-subheading { display: flex; align-items: baseline; justify-content: space-between; padding: 3px 5px 8px; color: var(--foreground); font-size: 12px; font-weight: 650; }
 .creation-model-picker-surface .canvas-model-picker-subheading small { color: color-mix(in srgb, var(--foreground) 52%, transparent); font-size: 10px; font-weight: 500; }
-.creation-model-picker-surface .canvas-model-picker-brand { display: flex; min-height: 58px; align-items: center; gap: 10px; border: 1px solid transparent; border-radius: 13px; padding: 8px 10px; background: transparent; color: var(--foreground); text-align: left; transition: background-color 160ms ease, border-color 160ms ease, transform 160ms cubic-bezier(.16,1,.3,1); }
-.creation-model-picker-surface .canvas-model-picker-brand:hover { border-color: var(--workspace-border); background: var(--workspace-surface-hover); transform: translateX(2px); }
-.creation-model-picker-surface .canvas-model-picker-brand-icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 11px; background: linear-gradient(135deg, color-mix(in srgb, var(--workspace-accent) 20%, var(--workspace-surface-strong)), color-mix(in srgb, var(--workspace-accent) 6%, var(--workspace-surface-strong))); color: var(--workspace-accent); }
-.creation-model-picker-surface .canvas-model-picker-brand-icon svg { color: currentColor !important; opacity: 1 !important; }
-.creation-model-picker-surface .canvas-model-picker-brand:nth-child(3n) .canvas-model-picker-brand-icon { color: #d57b16; }
-.creation-model-picker-surface .canvas-model-picker-brand:nth-child(4n) .canvas-model-picker-brand-icon { color: #25845d; }
-.creation-model-picker-surface .canvas-model-picker-brand-copy { display: grid; min-width: 0; flex: 1; gap: 4px; }
-.creation-model-picker-surface .canvas-model-picker-brand-copy strong { overflow: hidden; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.creation-model-picker-surface .canvas-model-picker-brand-copy small { color: color-mix(in srgb, var(--foreground) 55%, transparent); font-size: 10px; }
-.creation-model-picker-surface .canvas-model-picker-brand-arrow { width: 15px; height: 15px; color: color-mix(in srgb, var(--foreground) 48%, transparent); transform: rotate(-90deg); }
-.creation-model-picker-surface .canvas-model-picker-secondary-head { display: flex; align-items: center; gap: 8px; padding: 0 2px 9px; }
-.creation-model-picker-surface .canvas-model-picker-back { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--workspace-border); border-radius: 9px; background: var(--workspace-surface-hover); color: var(--foreground); }
-.creation-model-picker-surface .canvas-model-picker-back svg { width: 15px; height: 15px; }
-.creation-model-picker-surface .canvas-model-picker-secondary-head > span { display: grid; gap: 2px; }
-.creation-model-picker-surface .canvas-model-picker-secondary-head strong { color: var(--foreground); font-size: 13px; }
-.creation-model-picker-surface .canvas-model-picker-secondary-head small { color: color-mix(in srgb, var(--foreground) 52%, transparent); font-size: 10px; }
+
 .creation-model-picker-surface .canvas-model-picker-option { min-height: 55px; border-radius: 12px; padding: 8px 9px; }
 .creation-model-picker-surface .canvas-model-picker-option > span:first-child > span:first-child { width: 32px; height: 32px; border-radius: 10px; background: color-mix(in srgb, var(--workspace-accent) 10%, var(--workspace-surface-strong)) !important; color: var(--workspace-accent); }
 .creation-model-picker-surface .canvas-model-picker-option > span:first-child > span:first-child svg { color: currentColor !important; opacity: 1 !important; }
