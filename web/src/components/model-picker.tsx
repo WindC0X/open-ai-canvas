@@ -101,8 +101,6 @@ export function ModelPicker({
     };
     // flora Providers 语法: 分组行 hover 右侧悬浮展开该组模型(flyout)
     const [flyoutGroup, setFlyoutGroup] = useState<string | null>(null);
-    const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
-    const [previewedModel, setPreviewedModel] = useState("");
     const [flyoutPos, setFlyoutPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const flyoutRef = useRef<HTMLDivElement>(null);
     const flyoutCloseTimer = useRef<number | null>(null);
@@ -306,10 +304,6 @@ export function ModelPicker({
         if (!nextOpen && flyoutPointerRef.current) return;
         if (nextOpen && !options.length) onMissingConfig?.();
         if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
-        if (nextOpen) {
-            setPreviewedModel(current || options[0] || "");
-            setActiveGroupKey(null);
-        }
         setOpen(nextOpen);
     };
     const focusMenuOption = (last = false) => {
@@ -555,12 +549,9 @@ export function ModelPicker({
         <div
             ref={menuRef}
             data-canvas-no-zoom
-            className={cn(
-                "canvas-model-picker-menu max-w-[calc(100vw-24px)]",
-                creationVariant
-                    ? cn("creation-model-picker-menu", activeGroupKey === null ? "is-brand-list" : "is-model-list")
-                    : "w-[var(--panel-width-compact)]",
-            )}
+            // 上游 v1.3 的两级品牌双栏菜单(is-brand-list/is-model-list)与我们 flora flyout 分组菜单在同一区域平行演进,
+            // merge 冲突已取我们侧 —— 此处恢复我们侧根 className, 剔除上游泄漏的 className 三元, 避免两套布局 CSS 杂交。
+            className={cn("canvas-model-picker-menu max-w-[calc(100vw-24px)]", creationVariant ? "creation-model-picker-menu w-[360px]" : "w-[var(--panel-width-compact)]")}
             style={
                 {
                     /* 背景不在此层: 容器层(surface)承载 flora .9 玻璃, 内容层实色会把毛玻璃糊死(亮底不透的根因之一) */
