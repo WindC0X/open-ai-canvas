@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { Clapperboard, Image as ImageIcon, List, Music2, Pencil, Table2, Video, WandSparkles, Workflow as WorkflowIcon } from "lucide-react";
 
 import { useCanvasOverlayLayer } from "@/components/canvas/canvas-overlay-layer";
@@ -87,11 +87,51 @@ export function CanvasSelectionToolbar({ anchorRef, containerRef, count, childre
     );
 }
 
-export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidth, panelHeight = 190, dragOffset, isDragging = false, allowOverflow = false, children }: { node: CanvasNodeData; viewport: ViewportTransform; containerRef: RefObject<HTMLDivElement | null>; panelWidth?: number; panelHeight?: number; dragOffset?: Position | null; isDragging?: boolean; allowOverflow?: boolean; children: ReactNode }) {
+export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidth, panelHeight = 190, dragOffset, isDragging = false, allowOverflow = false, children }: { node: CanvasNodeData; viewport: ViewportTransform; containerRef: RefObject<HTMLDivElement | null>; panelWidth?: number; panelHeight?: number; dragOffset?: Position | null; isDragging?: boolean; allowOverflow?: boolean; children?: ReactNode }) {
     const panelRef = useRef<HTMLDivElement>(null);
     const { bringToFront, zIndex } = useCanvasOverlayLayer(`node-panel:${node.id}`, "var(--z-modal-overlay)");
     const initialWidth = resolveNodePanelWidth(node, viewport, panelWidth);
     const initialPosition = getNodePanelPosition(node, viewport, { width: containerRef.current?.clientWidth || 0, height: containerRef.current?.clientHeight || 0 }, initialWidth, panelHeight, dragOffset);
+
+    // 挂件两拍入场(2026-09-17 感知定稿第三改): CSS animation 六轮在用户浏览器全部闪现
+    // (HMR 长链后 animation 管道不可信, 而 inline transition 驱动的节点内信息态每轮都能被看见),
+    // 改用与信息态同源的 inline transition 承载同样的两拍节奏:
+    //   第一拍 坐落 240ms 重力加速(自 -160px = 信息态原始位置) + 渐显(仅前 40%)
+    //   第二拍 展开 420ms 慢尾(落定后 240ms 起拍, 节点显示宽 → 挂件宽对称展开)
+    // reduced-motion/无动效则直接置终态。
+    const initialNodeWidth = Math.max(Math.round(node.width * viewport.k), 160);
+    const [enterPhase, setEnterPhase] = useState<"fall" | "expand" | "settle">(() =>
+        typeof window !== "undefined" && (window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("no-motion")) ? "settle" : "fall"
+    );
+    const fromWidthRef = useRef(initialNodeWidth);
+    useLayoutEffect(() => {
+        const panel = panelRef.current;
+        if (!panel) return;
+        if (enterPhase === "settle") return;
+        // 首帧: 置于起坠点 + 节点宽(与信息态同位同宽 → 接力), 不带 transition
+        panel.style.transition = "none";
+        panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top - 160}px, 0) translateX(-50%)`;
+        panel.style.width = `${fromWidthRef.current}px`;
+        panel.style.opacity = "0";
+        // 强制 reflow 后开 transition: 第一拍坠落
+        panel.getBoundingClientRect();
+        panel.style.transition = "transform 240ms cubic-bezier(0.45, 0, 0.75, 0.55), opacity 96ms linear";
+        panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0) translateX(-50%)`;
+        panel.style.opacity = "1";
+        setEnterPhase("expand");
+    }, [enterPhase]);
+    useEffect(() => {
+        if (enterPhase !== "expand") return;
+        const panel = panelRef.current;
+        if (!panel) return;
+        // 第二拍: 坠落完成(240ms)后从节点宽展开到挂件宽, 慢尾可追踪
+        const timer = window.setTimeout(() => {
+            panel.style.transition = "width 420ms cubic-bezier(0.25, 0.6, 0.2, 1)";
+            panel.style.width = `${initialWidth}px`;
+            setEnterPhase("settle");
+        }, 240);
+        return () => window.clearTimeout(timer);
+    }, [enterPhase, initialWidth]);
 
     useLayoutEffect(() => {
         bringToFront();
@@ -141,7 +181,7 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             data-canvas-node-panel
             data-panel-pendant="true"
             className={`thin-scrollbar pointer-events-auto absolute max-w-[calc(100%_-_24px)] ${allowOverflow ? "overflow-visible" : "overflow-y-auto"}`}
-            style={{ left: 0, top: 0, transform: `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0) translateX(-50%)`, width: initialWidth, maxHeight: allowOverflow ? "none" : "calc(100% - 84px)", zIndex, "--pendant-from-w": `${Math.max(Math.round(node.width * viewport.k), 160)}px` } as React.CSSProperties}
+            style={{ left: 0, top: 0, transform: `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0) translateX(-50%)`, width: enterPhase === "fall" ? initialNodeWidth : initialWidth, opacity: enterPhase === "fall" ? 0 : undefined, maxHeight: allowOverflow ? "none" : "calc(100% - 84px)", zIndex } as React.CSSProperties}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDownCapture={bringToFront}
             onFocusCapture={bringToFront}
