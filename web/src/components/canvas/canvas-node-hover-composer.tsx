@@ -18,10 +18,13 @@ import type { CanvasTheme } from "@/lib/canvas-theme";
  * - 引用行照 flora :7893：overflow-x-auto overflow-y-hidden、负 margin 扩滚动域、nowheel。
  */
 
-// 接力曲线(2026-09-17 感知定稿): 与挂件 affordance-drop-in 同曲线同时长 —
-// 240ms 重力加速(慢起→加速触地), 替代 flora 200ms(90% 动作压进前 50ms → 人眼判为"突然出现")。
-const FLORA_EASE = "cubic-bezier(0.45, 0, 0.75, 0.55)";
-const DURATION_MS = 240;
+// 曲线分工(2026-09-17 用户反馈"hover 入场慢"后定稿):
+// 入场/退场都用 flora 快攻曲线 200ms — 入场要响应快, 退场要快让位(90% 行程在前 1/3,
+// 140ms 时已坠出 ~93% → 挂件接力起坠时节点内已净)。
+// 挂件侧(overlays)坠落用重力曲线, 两段不同曲线各归各职责, 不再共享常量。
+const FLORA_EASE = "cubic-bezier(0, 0.8, 0.1, 1)";
+const ENTER_MS = 200;
+const EXIT_MS = 200;
 
 // flora 实测对齐数值(09-15 逐轮校准的终值, 改动前先对照用户 flora 截图测量):
 // prompt 区含被裁掉的 flora 工具栏行高(36px 并入), 面板总高 184px 与 flora 精确对齐。
@@ -68,16 +71,16 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible, no
             style={{
                 opacity: show ? 1 : 0,
                 pointerEvents: show ? "auto" : "none",
-                transition: `opacity ${DURATION_MS}ms ${FLORA_EASE}`,
+                transition: `opacity ${show ? ENTER_MS : EXIT_MS}ms ${FLORA_EASE}`,
             }}
         >
             <div
                 style={{
-                    // 坠落距离固定 160px(与挂件 affordance-drop-in 的 -160px 起坠点对称): 信息态坠出节点底缘的同时,
-                    // 挂件从信息态原始位置坠入节点底缘下方 1px — 同帧同距同曲线 = 连续变换(用户 2026-09-17 手感定稿)。
+                    // 坠落距离固定 160px(与挂件起坠点 -160px 对称): 退场 200ms flora 快曲线,
+                    // 140ms 时已坠出 ~93% → 挂件接力起坠时节点内已净(用户 2026-09-17 接力定稿)。
                     // 不用 calc(100%+1px): 信息态高度随引用/节点高变化, 固定距离保证两段动画永不脱节。
                     transform: show ? "translateY(0)" : "translateY(160px)",
-                    transition: `transform ${DURATION_MS}ms ${FLORA_EASE}`,
+                    transition: `transform ${show ? ENTER_MS : EXIT_MS}ms ${FLORA_EASE}`,
                 }}
             >
                 <div className="canvas-node-hover-composer-surface flex flex-col gap-2 px-3.5 py-3">

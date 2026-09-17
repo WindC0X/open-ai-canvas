@@ -93,29 +93,31 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
     const initialWidth = resolveNodePanelWidth(node, viewport, panelWidth);
     const initialPosition = getNodePanelPosition(node, viewport, { width: containerRef.current?.clientWidth || 0, height: containerRef.current?.clientHeight || 0 }, initialWidth, panelHeight, dragOffset);
 
-    // 挂件两拍入场(2026-09-17 感知定稿第三改): CSS animation 六轮在用户浏览器全部闪现
-    // (HMR 长链后 animation 管道不可信, 而 inline transition 驱动的节点内信息态每轮都能被看见),
-    // 改用与信息态同源的 inline transition 承载同样的两拍节奏:
-    //   第一拍 坐落 240ms 重力加速(自 -160px = 信息态原始位置) + 渐显(仅前 40%)
-    //   第二拍 展开 420ms 慢尾(落定后 240ms 起拍, 节点显示宽 → 挂件宽对称展开)
-    // reduced-motion/无动效则直接置终态。
+    // 挂件接力入场(2026-09-17 接力定稿): 语义是严格接力, 不是叠坠 —
+    // 信息态先坠出节点底缘(节点内 200ms flora 快曲线, 140ms 已坠出 ~93%),
+    // 挂件延迟 140ms 后才从信息态原始位置(-160px)起坠展开。渐显由坠落自身承担
+    // (起坠时即刻渐显 120ms, 避免隐身起点暴露), 不再与信息态同时动 = 不再有
+    // "从节点内 composer 顶部叠坠"的观感。reduced-motion/无动效直接置终态。
     const initialNodeWidth = Math.max(Math.round(node.width * viewport.k), 160);
-    const [enterPhase, setEnterPhase] = useState<"fall" | "expand" | "settle">(() =>
-        typeof window !== "undefined" && (window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("no-motion")) ? "settle" : "fall"
+    const [enterPhase, setEnterPhase] = useState<"wait" | "fall" | "expand" | "settle">(() =>
+        typeof window !== "undefined" && (window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("no-motion")) ? "settle" : "wait"
     );
-    const fromWidthRef = useRef(initialNodeWidth);
     useLayoutEffect(() => {
         const panel = panelRef.current;
         if (!panel) return;
         if (enterPhase === "settle") return;
-        // 首帧: 置于起坠点 + 节点宽(与信息态同位同宽 → 接力), 不带 transition
-        panel.style.transition = "none";
-        panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top - 160}px, 0) translateX(-50%)`;
-        panel.style.width = `${fromWidthRef.current}px`;
-        panel.style.opacity = "0";
-        // 强制 reflow 后开 transition: 第一拍坠落
+        if (enterPhase === "wait") {
+            // 等待拍: 隐身留在信息态原始位置, 等信息态先坠净(140ms, 节点内 200ms flora 的 ~93% 处)
+            panel.style.transition = "none";
+            panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top - 160}px, 0) translateX(-50%)`;
+            panel.style.width = `${initialNodeWidth}px`;
+            panel.style.opacity = "0";
+            const timer = window.setTimeout(() => setEnterPhase("fall"), 140);
+            return () => window.clearTimeout(timer);
+        }
+        // 起坠: 位置即当前(信息态原始位置), 即刻渐显 120ms + 重力坠落 240ms
         panel.getBoundingClientRect();
-        panel.style.transition = "transform 240ms cubic-bezier(0.45, 0, 0.75, 0.55), opacity 96ms linear";
+        panel.style.transition = "transform 240ms cubic-bezier(0.45, 0, 0.75, 0.55), opacity 120ms linear";
         panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0) translateX(-50%)`;
         panel.style.opacity = "1";
         setEnterPhase("expand");
@@ -124,7 +126,7 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
         if (enterPhase !== "expand") return;
         const panel = panelRef.current;
         if (!panel) return;
-        // 第二拍: 坠落完成(240ms)后从节点宽展开到挂件宽, 慢尾可追踪
+        // 第三拍: 坠落完成(240ms)后从节点宽展开到挂件宽, 慢尾可追踪
         const timer = window.setTimeout(() => {
             panel.style.transition = "width 420ms cubic-bezier(0.25, 0.6, 0.2, 1)";
             panel.style.width = `${initialWidth}px`;
@@ -181,7 +183,7 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             data-canvas-node-panel
             data-panel-pendant="true"
             className={`thin-scrollbar pointer-events-auto absolute max-w-[calc(100%_-_24px)] ${allowOverflow ? "overflow-visible" : "overflow-y-auto"}`}
-            style={{ left: 0, top: 0, transform: `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0) translateX(-50%)`, width: enterPhase === "fall" ? initialNodeWidth : initialWidth, opacity: enterPhase === "fall" ? 0 : undefined, maxHeight: allowOverflow ? "none" : "calc(100% - 84px)", zIndex } as React.CSSProperties}
+            style={{ left: 0, top: 0, transform: `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0) translateX(-50%)`, width: initialWidth, maxHeight: allowOverflow ? "none" : "calc(100% - 84px)", zIndex } as React.CSSProperties}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDownCapture={bringToFront}
             onFocusCapture={bringToFront}
