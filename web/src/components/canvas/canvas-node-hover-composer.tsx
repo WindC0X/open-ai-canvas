@@ -78,10 +78,10 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible, no
         >
             <div
                 style={{
-                    // 坠落距离固定 160px(退场沉底消失, 入场从底缘滑入): 入场 flora 快攻,
-                    // 退场 ease-in 加速沉底(用户 2026-09-17: flora 用在退场读作"弹走", 无收缩感)。
-                    // 不用 calc(100%+1px): 信息态高度随引用/节点高变化, 固定距离保证动画不脱节。
-                    transform: show ? "translateY(0)" : "translateY(160px)",
+                    // 退场距离 = 面板自身高 + 40px 缓冲(语义化, P2 修复 2026-09-17): 面板完全沉入节点底缘之下
+                    // 才消失, 行程随面板高度自适应; 入场从底缘滑入用 flora 快攻。
+                    // 固定 160px 魔法数在矮节点(视频预览 216px)上可见行程漂移, 不再使用。
+                    transform: show ? "translateY(0)" : "translateY(calc(100% + 40px))",
                     transition: `transform ${show ? `${ENTER_MS}ms ${FLORA_EASE}` : `${EXIT_MS}ms ${EXIT_EASE}`}`,
                 }}
             >

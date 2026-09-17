@@ -23,6 +23,10 @@ describe("canvas node drag overlays", () => {
         expect(projectSource).toContain("settingsBubbleOpen: settingsBubbleNodeId === selectedPanelNode.id");
         expect(projectSource).toContain("onNodeDragEnd: handleNodeDragEnd");
         expect(projectSource).toContain("setDialogNodeId(node.id);");
+        // P0 双挂载根修(2026-09-17 review): S2 后旧 dialog 面板裸挂载点必须不存在,
+        // selected 面板唯一入口是 selectedPanelNode 挂件槽位(AffordanceSurface 内)。
+        expect(projectSource).not.toContain("<CanvasNodePanelOverlay\n                                node={dialogNode}");
+        expect(projectSource).toContain("node.type !== CanvasNodeType.BatchTable && !isFrameNode(node)");
         expect(selectionControllerSource).toContain("if (clickedNodeId) onNodeDragEnd?.(clickedNodeId);");
     });
 });

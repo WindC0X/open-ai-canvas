@@ -2322,8 +2322,9 @@ function InfiniteCanvasPage() {
     // hover 其它节点时第二实例微浮现 —— 两者并存互不抢占(单例会抢走选中节点的常驻供给)。
     const hoveredNode = useMemo(() => (hoveredNodeId ? nodes.find((item) => item.id === hoveredNodeId) ?? null : null), [nodes, hoveredNodeId]);
     const exitingNode = useMemo(() => (exitingNodeId ? nodes.find((item) => item.id === exitingNodeId) ?? null : null), [nodes, exitingNodeId]);
-    const isPanelCarrier = useCallback((node: CanvasNodeData) => !isCanvasImageSourceNode(node) && !node.metadata?.fileUpload && node.type !== CanvasNodeType.Script && node.type !== CanvasNodeType.Drawing && node.type !== CanvasNodeType.Panorama && !isFrameNode(node), []);
-    // selected 实例(dialog 驱动, 常驻)
+    const isPanelCarrier = useCallback((node: CanvasNodeData) => !isCanvasImageSourceNode(node) && !node.metadata?.fileUpload && node.type !== CanvasNodeType.Script && node.type !== CanvasNodeType.Drawing && node.type !== CanvasNodeType.Panorama && node.type !== CanvasNodeType.BatchTable && !isFrameNode(node), []);
+    // selected 实例(dialog 驱动, 常驻)。isPanelCarrier 含 BatchTable(P0 双挂载根修时并入:
+    // 旧裸挂载点删除后 BatchTable 的面板唯一入口在此, 与其余 carrier 类型同语义)。
     const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
     // hover 实例已退役(S2): hover 微态由节点内信息态 composer 承担; hoverSupplyTarget 仍供工具栏双槽位使用
     const hoverSupplyTarget = hoveredNode ?? exitingNode;
@@ -2989,26 +2990,10 @@ function InfiniteCanvasPage() {
                             />
                         ) : null}
 
-                        {dialogNode &&
-                        !isCanvasImageSourceNode(dialogNode) &&
-                        !dialogNode.metadata?.fileUpload &&
-                        dialogNode.type !== CanvasNodeType.Script &&
-                        dialogNode.type !== CanvasNodeType.BatchTable &&
-                        dialogNode.type !== CanvasNodeType.Drawing &&
-                        dialogNode.type !== CanvasNodeType.Panorama &&
-                        !selectionBox &&
-                        !isCanvasNodeMoving ? (
-                            <CanvasNodePanelOverlay
-                                node={dialogNode}
-                                viewport={viewport}
-                                containerRef={containerRef}
-                                allowOverflow={dialogNode.type !== CanvasNodeType.Config}
-                                dragOffset={dragPreview?.nodeIds.has(dialogNode.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
-                                isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(dialogNode.id))}
-                            >
-                                {renderCanvasNodePanel(dialogNode)}
-                            </CanvasNodePanelOverlay>
-                        ) : null}
+                        {/* 旧 dialog 面板裸挂载点已删除(P0 双挂载根修 2026-09-17): S2 挂件化后 selected
+                            面板统一走 selectedPanelNode 的 AffordanceSurface 槽位(上方), 此处残留的
+                            b67487c4 时代挂载点与之对同一 dialogNode 双渲染(两面板完全同位叠加,
+                            三拍动画双驱)。BatchTable 独占路径已并入 isPanelCarrier。 */}
 
                         {pendingConnectionCreate ? (
                             <CanvasConnectionCreateMenu

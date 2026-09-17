@@ -94,32 +94,40 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
     const initialPosition = getNodePanelPosition(node, viewport, { width: containerRef.current?.clientWidth || 0, height: containerRef.current?.clientHeight || 0 }, initialWidth, panelHeight, dragOffset);
 
     // 挂件接力入场(2026-09-17 第七轮修正): 语义是信息态坠出节点底缘 → 挂件从节点底缘接棒,
-    // 不是从信息态顶部(-160px)高空坠下(用户: "变成了外部composer从节点内部composer的顶部位置开始坠落")。
-    // 三拍: wait 140ms 隐身(信息态 200ms flora 已坠出 93%) → 起坠自 -20px(节点底缘上方微距,
-    // 与底缘衔接不穿模)即刻渐显 120ms + 重力 240ms → 坠完 420ms 慢尾展开。reduced-motion 置终态。
+    // 不是从信息态顶部高空坠下(用户: "变成了外部composer从节点内部composer的顶部位置开始坠落")。
+    // 三拍: wait 隐身(信息态 ease-in 已坠出 ~85%) → 起坠自 -20px(节点底缘上方微距,
+    // 与底缘衔接不穿模)即刻渐显 + 重力坠落 → 坠完慢尾展开。reduced-motion/no-motion 置终态。
+    const PENDANT_WAIT_MS = 180; // 等待拍: 与信息态退场曲线匹配(EXIT_EASE ease-in 在 180ms 已坠出 ~85%)
+    const PENDANT_FALL_MS = 240; // 重力坠落拍
+    const PENDANT_FADE_MS = 120; // 渐显由坠落自身承担, 起坠即渐显
+    const PENDANT_EXPAND_MS = 420; // 展开慢尾, 主行程在前 1/3 完全可见窗口
+    const PENDANT_LIFT_PX = 20; // 起坠点距节点底缘的微距
     const initialNodeWidth = Math.max(Math.round(node.width * viewport.k), 160);
     const [enterPhase, setEnterPhase] = useState<"wait" | "fall" | "expand" | "settle">(() =>
         typeof window !== "undefined" && (window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("no-motion")) ? "settle" : "wait"
     );
+    // update() 闭包读取用 ref: 布局订阅 effect 只挂载一次, 依赖 enterPhase 会随每拍重挂全部订阅(wait/fall/expand 期
+    // 视口事件将完全丢失); ref 让守卫读到实时拍位而订阅稳定。
+    const enterPhaseRef = useRef(enterPhase);
+    enterPhaseRef.current = enterPhase;
     useLayoutEffect(() => {
         const panel = panelRef.current;
         if (!panel) return;
         if (enterPhase === "settle") return;
         if (enterPhase === "wait") {
-            // 等待拍: 隐身留在起坠点(节点底缘上方 20px), 等信息态先坠净(140ms)
+            // 等待拍: 隐身留在起坠点(节点底缘上方 20px), 等信息态先坠净
             panel.style.transition = "none";
-            panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top - 20}px, 0) translateX(-50%)`;
+            panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top - PENDANT_LIFT_PX}px, 0) translateX(-50%)`;
             panel.style.width = `${initialNodeWidth}px`;
             panel.style.opacity = "0";
-            // 等待拍时长与信息态退场曲线匹配: EXIT_EASE ease-in(0.5,0,0.8,0.4) 在 180ms 时
-            // 已坠出 ~85%(200ms 曲线), 节点内基本已净; 起坠点改节点底缘上方 20px 后
-            // 挂件与信息态不再同轨, 20ms 残影交叠在底缘处不可见。
-            const timer = window.setTimeout(() => setEnterPhase("fall"), 180);
+            const timer = window.setTimeout(() => setEnterPhase("fall"), PENDANT_WAIT_MS);
             return () => window.clearTimeout(timer);
         }
-        // 起坠: 从节点底缘上方 20px 微距接棒坠入(即刻渐显 120ms), 与信息态坠出的终点衔接
+        // 起坠: 从节点底缘上方 20px 微距接棒坠入(即刻渐显), 与信息态坠出的终点衔接
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- 首挂载定向: 只在拍位翻转时执行一次,
+        // initialPosition/initialNodeWidth 是首挂载快照, 后续视口变化由 update() (settle 后)接管
         panel.getBoundingClientRect();
-        panel.style.transition = "transform 240ms cubic-bezier(0.45, 0, 0.75, 0.55), opacity 120ms linear";
+        panel.style.transition = `transform ${PENDANT_FALL_MS}ms cubic-bezier(0.45, 0, 0.75, 0.55), opacity ${PENDANT_FADE_MS}ms linear`;
         panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0) translateX(-50%)`;
         panel.style.opacity = "1";
         setEnterPhase("expand");
@@ -128,12 +136,12 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
         if (enterPhase !== "expand") return;
         const panel = panelRef.current;
         if (!panel) return;
-        // 第三拍: 坠落完成(240ms)后从节点宽展开到挂件宽, 慢尾可追踪
+        // 第三拍: 坠落完成后从节点宽展开到挂件宽, 慢尾可追踪
         const timer = window.setTimeout(() => {
-            panel.style.transition = "width 420ms cubic-bezier(0.25, 0.6, 0.2, 1)";
+            panel.style.transition = `width ${PENDANT_EXPAND_MS}ms cubic-bezier(0.25, 0.6, 0.2, 1)`;
             panel.style.width = `${initialWidth}px`;
             setEnterPhase("settle");
-        }, 240);
+        }, PENDANT_FALL_MS);
         return () => window.clearTimeout(timer);
     }, [enterPhase, initialWidth]);
 
@@ -158,7 +166,11 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
                 : getNodePanelPosition(node, nextViewport, viewportSize, nextWidth, panelHeight, liveDragOffset);
             // position.left 是中心锚点(getAttached/getNode 均返回 centerX): translateX(-50%) 让宽度变化对称展开,
             // 与挂件宽度入场动画(节点宽→挂件宽)配合形成"向外展开"。
-            panel.style.transform = `translate3d(${position.left}px, ${position.top}px, 0) translateX(-50%)`;
+            // enterPhase 非 settle 时跳过 transform: fall/expand 拍的 inline transition 正在驱动同一属性,
+            // 视口/拖拽更新在此期间覆写会与动画竞争造成落点跳变(P1 修复 2026-09-17), 落定后交还 layout 驱动。
+            if (enterPhaseRef.current === "settle") {
+                panel.style.transform = `translate3d(${position.left}px, ${position.top}px, 0) translateX(-50%)`;
+            }
         };
         update(viewport);
         const resizeObserver = new ResizeObserver(() => {

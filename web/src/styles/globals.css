@@ -8456,15 +8456,10 @@
            避免与 inline transition 双驱动叠加(enter 层现在只承担 layout 定位)。 */
         --affordance-enter-offset: -160px;
     }
-    /* 挂件入场动画已改为 CanvasNodePanelOverlay 内 inline transition 两拍(2026-09-17):
+    /* 挂件入场动画已改为 CanvasNodePanelOverlay 内 inline transition(2026-09-17):
        CSS animation 六轮在用户浏览器全部表现为闪现而 inline transition 可见,
-       机制归因与迁移见 overlays 组件注释。此处仅保留 expand keyframes 定义供回溯,
-       选择器已不再应用(避免与 inline transition 双驱动叠加)。 */
-    @keyframes pendant-expand {
-        from {
-            width: var(--pendant-from-w);
-        }
-    }
+       机制归因与迁移见 overlays 组件注释。孤儿 pendant-expand keyframes 与
+       --pendant-from-w 变量已删(P2 清理, git 历史即回溯)。 */
     /* 挂件外形(S2): 面板顶缘连接节点底缘, composer 顶角取直(底角保持圆)。 */
     [data-panel-pendant] .canvas-node-composer {
         border-top-left-radius: 0;

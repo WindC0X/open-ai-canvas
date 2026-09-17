@@ -301,7 +301,8 @@ export const CanvasNode = React.memo(function CanvasNode({
     // hover 未选中时零越界显现；生成中/播放中/batch 展开时隐藏（flora minimized 语义）。
     // 退场信号用 dialogOpen(挂件已挂载) 而非 isSelected: 按下(mousedown)即选中但挂件要等抬起(mouseup)才挂载,
     // 若用 isSelected 信息态会在挂件出现前先坠完 → 两段动画割裂(用户 2026-09-17: "外部composer是突然出现的")。
-    // 用 dialogOpen 后信息态保持显示到挂件挂载帧, 与挂件坠入同帧接力 — 同距(160px)同曲线同帧 = 连续变换。
+    // 用 dialogOpen 后信息态保持显示到挂件挂载帧, 与挂件坠入同帧接力 — 同帧连续变换
+    // (退场距离 = 面板自身高 + 40px, 语义化自适应, 见 hover-composer 内注释)。
     const hoverPrompt = data.metadata?.prompt ?? data.metadata?.composerContent;
     const hoverComposerVisible = hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
 
