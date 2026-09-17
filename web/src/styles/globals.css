@@ -8464,6 +8464,18 @@
             transform: translateY(var(--affordance-enter-offset, -160px));
         }
     }
+    /* 挂件宽度入场展开(2026-09-17 用户: 展开过程不明显): 从节点显示宽展开到挂件宽(680-920),
+       与坠落动画同曲线同时长; translateX(-50%) 中心锚点保证对称向外展开。
+       var(--pendant-from-w) 由 CanvasNodePanelOverlay 注入(节点宽×viewport.k)。
+       width 动画会让内容逐帧 reflow, 但 200ms×桌面端可接受, 且这是真实布局变化而非 scale 变形。 */
+    @keyframes pendant-expand {
+        from {
+            width: var(--pendant-from-w);
+        }
+    }
+    .canvas-node-panel-affordance [data-panel-pendant] {
+        animation: pendant-expand 200ms cubic-bezier(0, 0.8, 0.1, 1);
+    }
     /* 挂件外形(S2): 面板顶缘连接节点底缘, composer 顶角取直(底角保持圆)。 */
     [data-panel-pendant] .canvas-node-composer {
         border-top-left-radius: 0;

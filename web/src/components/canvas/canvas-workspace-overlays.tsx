@@ -112,7 +112,9 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             const position = nodeElement
                 ? getAttachedNodePanelPosition(nodeElement, container, nextWidth)
                 : getNodePanelPosition(node, nextViewport, viewportSize, nextWidth, panelHeight, liveDragOffset);
-            panel.style.transform = `translate3d(${position.left}px, ${position.top}px, 0)`;
+            // position.left 是中心锚点(getAttached/getNode 均返回 centerX): translateX(-50%) 让宽度变化对称展开,
+            // 与挂件宽度入场动画(节点宽→挂件宽)配合形成"向外展开"。
+            panel.style.transform = `translate3d(${position.left}px, ${position.top}px, 0) translateX(-50%)`;
         };
         update(viewport);
         const resizeObserver = new ResizeObserver(() => {
@@ -139,7 +141,7 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             data-canvas-node-panel
             data-panel-pendant="true"
             className={`thin-scrollbar pointer-events-auto absolute max-w-[calc(100%_-_24px)] ${allowOverflow ? "overflow-visible" : "overflow-y-auto"}`}
-            style={{ left: 0, top: 0, transform: `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0)`, width: initialWidth, maxHeight: allowOverflow ? "none" : "calc(100% - 84px)", zIndex }}
+            style={{ left: 0, top: 0, transform: `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0) translateX(-50%)`, width: initialWidth, maxHeight: allowOverflow ? "none" : "calc(100% - 84px)", zIndex, "--pendant-from-w": `${Math.max(Math.round(node.width * viewport.k), 160)}px` } as React.CSSProperties}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDownCapture={bringToFront}
             onFocusCapture={bringToFront}
@@ -272,15 +274,18 @@ function getConnectionMenuPosition(position: Position, viewport: ViewportTransfo
 
 function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLElement, panelWidth: number) {
     // 挂件几何(S2 语义): 顶缘贴节点底缘(gap 1px)、水平居中; 上游默认的 gap 10 会让挂件与节点脱开,
-    // 坎落动画起点(-44px)与节点底缘之间出现断层, 视觉上不是"从节点里坠出"。
-    // clamp 沿用 getNodePanelPosition 的 12px 边距, 防节点贴视口缘时挂件出屏。
+    // 坠落动画起点(-160px)与节点底缘之间出现断层, 视觉上不是"从节点里坠出"。
+    // 返回 centerX(中心锚点)而非 left: 挂件宽度有入场展开动画(节点宽→挂件宽),
+    // 配合外层 translateX(-50%) 让宽度变化时保持对称居中展开(用户 2026-09-17: 展开过程不明显)。
+    // clamp 沿用 12px 边距, 防节点贴视口缘时挂件出屏。
     const gap = 1;
     const margin = 12;
     const nodeRect = nodeElement.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
-    const maxLeft = Math.max(margin, containerRect.width - panelWidth - margin);
+    const minCenter = margin + panelWidth / 2;
+    const maxCenter = Math.max(minCenter, containerRect.width - margin - panelWidth / 2);
     return {
-        left: clamp(nodeRect.left - containerRect.left + nodeRect.width / 2 - panelWidth / 2, margin, maxLeft),
+        left: clamp(nodeRect.left - containerRect.left + nodeRect.width / 2, minCenter, maxCenter),
         top: nodeRect.bottom - containerRect.top + gap,
         placement: "below" as const,
     };
@@ -289,14 +294,16 @@ function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLE
 export function getNodePanelPosition(node: CanvasNodeData, viewport: ViewportTransform, viewportSize: { width: number; height: number }, panelWidth: number, _panelHeight: number, dragOffset?: Position | null) {
     // 挂件化(S2 修订): 面板顶缘贴合节点底缘(gap 1px)、水平居中于节点(挂件可略宽于节点,
     // 对称微展不破坏重心); 之前的居中+10px gap 是外浮面板几何(压住下方邻居误触的根源)。
+    // 返回 centerX(中心锚点): 挂件宽度有入场展开动画, 配合 translateX(-50%) 对称展开。
     const gap = 1;
     const margin = 12;
     const offsetX = dragOffset?.x || 0;
     const offsetY = dragOffset?.y || 0;
     const nodeCenterX = viewport.x + (node.position.x + offsetX + node.width / 2) * viewport.k;
     const nodeBottom = viewport.y + (node.position.y + offsetY + node.height) * viewport.k;
-    const maxLeft = Math.max(margin, viewportSize.width - panelWidth - margin);
-    const left = clamp(nodeCenterX - panelWidth / 2, margin, maxLeft);
+    const minCenter = margin + panelWidth / 2;
+    const maxCenter = Math.max(minCenter, viewportSize.width - margin - panelWidth / 2);
+    const left = clamp(nodeCenterX, minCenter, maxCenter);
     return {
         left,
         top: nodeBottom + gap,
