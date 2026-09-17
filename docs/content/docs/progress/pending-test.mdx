@@ -3019,3 +3019,5 @@ d (docs(progress): 登记视频族S6裁剪批与持久化自愈修复)
 - [ ] 390px 窄屏检查侧栏抽屉、资料菜单、顶栏积分入口和首页 Composer 无横向溢出。
 - [ ] 真实登录态检查 `/`、`/tasks`、`/wallet` 关键路由及登录过期跳转。
 
+
+**W1-C线 merge式同步上游42提交（2026-09-17）**：上游 origin/main 自 9868f5e8(v1.3.0) 前进 42 提交，按 MASTER-PLAN 决策3 从 rebase 转为 merge 式消化（专用 worktree sync/upstream-2026-09-17 完成冲突解决后合回 main）。13 个冲突文件逐处人审：代码层取我们侧（S08 同步冲突门 / hover 归属状态机 / 挂件化 composer / 模型目录演进），上游增量语义嫁接进我们的架构（forceSaveCanvasProject 强制覆盖、onSendSelectionToAgent 选中态@Agent、model-picker activeGroupKey+previewedModel 状态）；globals.css 模型菜单取我们定宽 384/高 560（flora P51-030 十轮实测依据）拒绝上游 420；pending-test.mdx 三方拼接保留两侧全部记录。附带修正：canvas-video-settings-popover 重复段去重、app-changelog-dialog 裸 padding:0 改 AppModal flush、index.html 移除上游 logo.svg 恢复品牌中立、测试断言跟进源演进（Reorder import 宽松化 / ModePicker→ModelPicker / creation-submit-cost / useActiveTheme）。终验：tsc 0，bun test 1774 pass / 18 fail（全部落在并行漂移+主仓同败基线两桶，无合并引入回归），vite build 32.36s。现在本地 ahead 354 / behind 0，分叉消除。待测：真机过一遍上游 42 提交带入的功能（暗黑模式 #524、主题隔离、批量创作表、canvas restore、统一视频轮询、多角度 dash、欢迎页开关、创作模式 tabs 改版）；fork 推送与 PR 待用户决策。
