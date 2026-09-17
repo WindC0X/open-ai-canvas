@@ -30,6 +30,7 @@ import { AgentChatComposer, AgentChatMessage, AgentWorkingMessage, type CloudAge
 import { CanvasAgentSkillLibraryModal } from "./canvas-agent-skill-library-modal";
 import { CanvasCloudAgentSettings, agentPermissionLabel, agentPermissionMenuItems, agentPermissionVisual, type AgentContextKey } from "./canvas-cloud-agent-settings";
 import { useAgentPanelLayout } from "./use-agent-panel-layout";
+import { useCanvasOverlayLayer } from "./canvas-overlay-layer";
 import "./canvas-cloud-agent.css";
 
 type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void; panelLayout: ReturnType<typeof useAgentPanelLayout> };
@@ -37,6 +38,16 @@ type ApprovalState = { approvalId: string; detail: Record<string, unknown>; reas
 type AgentPanelView = "chat" | "history" | "settings";
 
 export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, references, open, prefillPrompt, onOpen, onCollapse, onFocusNode, panelLayout }: CloudAgentPanelProps) {
+    // Agent 浮窗与节点面板等同属"最后交互置顶"的画布浮层体系: 点击/聚焦面板即 bringToFront,
+    // 否则固定 z-modal-overlay(110) 的 Agent 会被交互后置顶(150)的节点面板永久压住(用户实测层级问题)。
+    const { bringToFront: bringAgentToFront, zIndex: agentZIndex } = useCanvasOverlayLayer("agent-panel", "var(--z-modal-overlay)");
+    const agentPointerHandlers = {
+        ...panelLayout.pointerHandlers,
+        onPointerDown: (event: Parameters<typeof panelLayout.pointerHandlers.onPointerDown>[0]) => {
+            bringAgentToFront();
+            panelLayout.pointerHandlers.onPointerDown(event);
+        },
+    };
     const theme = canvasThemes[useActiveTheme()];
     const config = useEffectiveConfig();
     const updateConfig = useConfigStore((state) => state.updateConfig);
@@ -567,12 +578,13 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.985 }}
                         transition={{ duration: reducedMotion ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}
-                        className="canvas-agent-panel fixed z-[var(--z-modal-overlay)] flex min-w-0 flex-col overflow-hidden rounded-2xl border max-sm:rounded-b-none"
-                        style={{ ...panelLayout.style, background: theme.node.panel, borderColor: theme.toolbar.border, color: theme.node.text, boxShadow: `0 28px 90px ${theme.spatial.shadow}` }}
+                        className="canvas-agent-panel fixed flex min-w-0 flex-col overflow-hidden rounded-2xl border max-sm:rounded-b-none"
+                        style={{ zIndex: agentZIndex, ...panelLayout.style, background: theme.node.panel, borderColor: theme.toolbar.border, color: theme.node.text, boxShadow: `0 28px 90px ${theme.spatial.shadow}` }}
                         aria-label="Agent 工作台"
                         data-canvas-no-zoom
                         data-canvas-wheel-scroll
-                        {...panelLayout.pointerHandlers}
+                        {...agentPointerHandlers}
+                        onFocusCapture={bringAgentToFront}
                         onWheel={(event) => event.stopPropagation()}
                     >
                         <div data-agent-resize="north" className="absolute inset-x-5 top-0 z-10 hidden h-2 cursor-n-resize touch-none sm:block" />
