@@ -20946,19 +20946,9 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
 }
 .app-user-workspace :where(.ant-input:hover, .ant-input-affix-wrapper:hover, .ant-select-selector:hover, .ant-picker:hover) { border-color: var(--user-border-strong) !important; }
 .app-user-workspace :where(.ant-input:focus, .ant-input-affix-wrapper-focused, .ant-select-focused .ant-select-selector, .ant-picker-focused) { border-color: var(--user-accent) !important; box-shadow: 0 0 0 2px color-mix(in srgb, var(--user-accent) 14%, transparent) !important; }
-.creation-model-picker-surface .creation-model-picker-menu {
-    max-height: none !important;
-    overflow: visible !important;
-    width: min(360px, calc(100vw - 24px)) !important;
-    padding: 10px !important;
-}
-
-.creation-model-picker-surface .canvas-model-picker-subheading { display: flex; align-items: baseline; justify-content: space-between; padding: 3px 5px 8px; color: var(--foreground); font-size: 12px; font-weight: 650; }
-.creation-model-picker-surface .canvas-model-picker-subheading small { color: color-mix(in srgb, var(--foreground) 52%, transparent); font-size: 10px; font-weight: 500; }
-
-.creation-model-picker-surface .canvas-model-picker-option { min-height: 55px; border-radius: 12px; padding: 8px 9px; }
-.creation-model-picker-surface .canvas-model-picker-option > span:first-child > span:first-child { width: 32px; height: 32px; border-radius: 10px; background: color-mix(in srgb, var(--workspace-accent) 10%, var(--workspace-surface-strong)) !important; color: var(--workspace-accent); }
-.creation-model-picker-surface .canvas-model-picker-option > span:first-child > span:first-child svg { color: currentColor !important; opacity: 1 !important; }
-.creation-model-picker-surface .canvas-model-picker-option:nth-child(3n) > span:first-child > span:first-child { color: #d57b16; }
-.creation-model-picker-surface .canvas-model-picker-option:nth-child(4n) > span:first-child > span:first-child { color: #25845d; }
-.creation-model-picker-surface .canvas-model-picker-option .text-amber-600 { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; background: color-mix(in srgb, #e28a17 12%, var(--workspace-surface-strong)); color: #c66d00 !important; padding: 5px 8px; font-size: 11px; font-weight: 700; }
+/* 2026-09-18: 删除 merge 并入的上游 creation-model-picker-surface 规则块(8条)。
+   上游 DOM 里 option > span:first-child > span:first-child 是 32×32 图标方块, 我们结构同位置是 ModelLabel 根(整行内容容器),
+   其 bg !important + 10px 圆角把整行内容涂成深灰胶囊(用户截图实证), svg/nth-child 换色同样错位;
+   菜单容器覆盖的 max-height:none/width:360 !important 侧门绕过 flora P51-030 裁决(384/min(560px,100vh-132px));
+   subheading/.text-amber-600 在我们 JSX 零命中(死); option 55px 覆盖我们 surface 域 53px 引起行高跳变。
+   菜单容器/行外观回归 .canvas-model-picker-menu 与 .creation-model-picker-menu(~3598)的我们侧规则。 */
