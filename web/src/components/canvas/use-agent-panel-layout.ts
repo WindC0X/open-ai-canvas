@@ -68,6 +68,9 @@ export function useAgentPanelLayout() {
     };
 
     return {
+        // 纯数字布局 + compact 标记外曝: 提升到 project 层后, HUD 让位等消费方按面板真实几何计算。
+        layout,
+        compact,
         style: compact ? { left: 0, top: 8, width: "100%", height: "calc(100dvh - 8px)" } : layout,
         onResizeKeyDown,
         pointerHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onLostPointerCapture: () => { gestureRef.current = null; } },

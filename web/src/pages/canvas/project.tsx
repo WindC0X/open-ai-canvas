@@ -127,6 +127,7 @@ import { removeCanvasDrawing } from "@/lib/canvas/canvas-drawing-storage";
 import { useCanvasConnectionController } from "./use-canvas-connection-controller";
 import { useCanvasOperationHistory } from "./use-canvas-operation-history";
 import { useCanvasAssistantVisibility } from "./use-canvas-assistant-visibility";
+import { useAgentPanelLayout } from "@/components/canvas/use-agent-panel-layout";
 import { useCanvasActiveTasks } from "./use-canvas-active-tasks";
 import { useCanvasStyleWorkflow } from "./use-canvas-style-workflow";
 import { useCanvasDirector } from "./use-canvas-director";
@@ -391,15 +392,25 @@ function InfiniteCanvasPage() {
     const [titleEditing, setTitleEditing] = useState(false);
     const [titleDraft, setTitleDraft] = useState("");
     const [shortcutRequestNonce, setShortcutRequestNonce] = useState(0);
-    // 面板初始宽度根据视口宽度动态选择，避免小屏幕上初始就过宽
-    const [assistantWidth, setAssistantWidth] = useState(() => {
-        const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
-        if (vw < 768) return 300;
-        if (vw < 1024) return 360;
-        if (vw < 1440) return 440;
-        return 520;
-    });
     const { assistantOpen, closeAgent, openAgent } = useCanvasAssistantVisibility();
+    // Agent 面板是自由浮窗(上游 v1.3 改造: 可拖拽/调宽/localStorage 持久化), 布局状态提升到本层,
+    // 使 HUD 让位等外部消费方按面板真实几何计算, 而不是按旧"右缘停靠+固定宽度"假设估算。
+    const agentPanelLayout = useAgentPanelLayout();
+    const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
+    useEffect(() => {
+        const onResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+    const hudRightInset = useMemo(() => {
+        if (!assistantOpen || agentPanelLayout.compact) return undefined;
+        // HUD 卡片顶缘约在 topbar 下方 88px、卡片体高约 300px; 面板整体在这条垂直带之下时不构成遮挡。
+        if (agentPanelLayout.layout.top >= 420) return undefined;
+        const rightGap = viewportWidth - (agentPanelLayout.layout.left + agentPanelLayout.layout.width);
+        // 面板右缘距视口右缘超过 48px 视为"未停靠右侧"(用户拖到了画布中部), HUD 不让位。
+        if (rightGap > 48) return undefined;
+        return `calc(var(--canvas-inset-x) + ${agentPanelLayout.layout.width + rightGap}px + var(--space-3))`;
+    }, [assistantOpen, agentPanelLayout, viewportWidth]);
     const agentMentionReferences = useMemo(() => buildCanvasAgentMentionReferences(nodes), [nodes]);
 
     const sendSelectionToAgent = useCallback((nodeId?: string) => {
@@ -2791,6 +2802,7 @@ function InfiniteCanvasPage() {
                             domainProjectId={currentProject?.projectId}
                             nodeCount={nodes.length}
                             references={agentMentionReferences}
+                            panelLayout={agentPanelLayout}
                             open={assistantOpen}
                             onOpen={() => openAgent()}
                             onCollapse={closeAgent}
@@ -2848,7 +2860,9 @@ function InfiniteCanvasPage() {
                         config={effectiveConfig}
                         // 让位仅在 Agent 面板真实展开时生效; 上游简版 visibility 的 assistantMounted 恒为 true,
                         // 若用它做条件会让 HUD 在面板收起时也永久偏移(实测 styleRight=548px, 用户截图红框问题)。
-                        rightInset={assistantOpen ? `calc(var(--canvas-inset-x) + ${assistantWidth}px + var(--space-3))` : undefined}
+                        // 浮窗时代让位按面板真实几何: 仅面板贴右缘且顶到 HUD 垂直区间时让出实际占位,
+                        // 面板被拖到画布中央等非右侧区域时不偏移(否则 HUD 白让一块不存在的停靠位)。
+                        rightInset={hudRightInset}
                         topInset={activeTaskPanelHeight > 0 && !focusMode ? `calc(var(--canvas-topbar-offset) + ${Math.round(activeTaskPanelHeight)}px + var(--space-3))` : 88}
                         onViewImage={(node) => setPreviewNodeId(node.id)}
                         actions={toolbarNode?.type === "image" ? ([

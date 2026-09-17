@@ -32,11 +32,11 @@ import { CanvasCloudAgentSettings, agentPermissionLabel, agentPermissionMenuItem
 import { useAgentPanelLayout } from "./use-agent-panel-layout";
 import "./canvas-cloud-agent.css";
 
-type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void };
+type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void; panelLayout: ReturnType<typeof useAgentPanelLayout> };
 type ApprovalState = { approvalId: string; detail: Record<string, unknown>; reason: string };
 type AgentPanelView = "chat" | "history" | "settings";
 
-export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, references, open, prefillPrompt, onOpen, onCollapse, onFocusNode }: CloudAgentPanelProps) {
+export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, references, open, prefillPrompt, onOpen, onCollapse, onFocusNode, panelLayout }: CloudAgentPanelProps) {
     const theme = canvasThemes[useActiveTheme()];
     const config = useEffectiveConfig();
     const updateConfig = useConfigStore((state) => state.updateConfig);
@@ -79,7 +79,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
     const [activeConversationId, setActiveConversationId] = useState(() => nanoid());
     const [historyHydrated, setHistoryHydrated] = useState(false);
     const [pendingHydrated, setPendingHydrated] = useState(false);
-    const panelLayout = useAgentPanelLayout();
     const lastSeqRef = useRef(0);
     const canvasSyncRef = useRef<ReturnType<typeof createAgentCanvasSync> | null>(null);
     useEffect(() => {
