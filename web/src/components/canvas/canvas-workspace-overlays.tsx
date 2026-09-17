@@ -174,6 +174,18 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
             update(liveViewport);
         });
         resizeObserver.observe(container);
+        // 节点元素尺寸直测(2026-09-18 错位根修): 切模型/比例走 applyNodeConfigPatch 重算节点 width/height,
+        // 节点 rect 变化不产生 viewport/drag 事件, 原订阅链全部沉默 → 挂件冻结在旧几何(用户三截图实证: 右偏/左偏/纵向压盖)。
+        // viewport preview 事件在真实设备上也存在失联窗口(effect setup 中断后 destroy=undefined, 订阅全部丢失),
+        // 因此直接观察节点元素尺寸 + world layer transform 属性, 不依赖任何事件链的存活状态。
+        const nodeResizeObserver = new ResizeObserver(() => update(liveViewport));
+        const nodeElement = container.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
+        if (nodeElement) nodeResizeObserver.observe(nodeElement);
+        // world layer 的 transform 每帧由 applyCanvasGraphicsViewportPreview/拖拽 preview 直写(pan/zoom/拖拽),
+        // MutationObserver attributeFilter style 覆盖这些提交路径; 节点元素在 world layer 子树内, 拖拽预览同样触发。
+        const worldLayer = container.querySelector<HTMLElement>("[data-canvas-world-layer], .canvas-world-layer");
+        const worldMutations = new MutationObserver(() => update(liveViewport));
+        if (worldLayer) worldMutations.observe(worldLayer, { attributes: true, attributeFilter: ["style"], subtree: true });
         const unsubscribeViewport = subscribeCanvasGraphicsViewportPreview(container, update);
         const unsubscribeDrag = subscribeCanvasNodeDragPreview(container, (preview) => {
             liveDragOffset = preview?.nodeIds.has(node.id) ? { x: preview.x, y: preview.y } : null;
@@ -181,6 +193,8 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
         });
         return () => {
             resizeObserver.disconnect();
+            nodeResizeObserver.disconnect();
+            worldMutations.disconnect();
             unsubscribeViewport();
             unsubscribeDrag();
         };
