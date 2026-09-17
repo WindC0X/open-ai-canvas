@@ -25,7 +25,7 @@ describe("creation library button", () => {
         expect(dockStart).toBeGreaterThanOrEqual(0);
         expect(dockEnd).toBeGreaterThan(dockStart);
         const dockSource = compactSource(source.slice(dockStart, dockEnd));
-        const modePickerIndex = dockSource.indexOf("<ModePicker mode={props.mode}");
+        const modePickerIndex = dockSource.indexOf("<ModelPicker config={props.config}"); // 上游演进: dock 内 ModePicker 已升级为 ModelPicker(模式由 capability 传入)
 
         expect(modePickerIndex).toBeGreaterThanOrEqual(0);
         expect(dockSource).not.toContain('aria-label="打开素材库选择参考内容"');
@@ -33,7 +33,7 @@ describe("creation library button", () => {
         expect(source).toContain("onClick={props.onOpenLibrary}");
         expect(source).toContain("creation-reference-add-button");
         expect(source).toContain('showSelectedPrice={false} showOptionPrices variant="creation"');
-        expect(source).toContain("canvas-node-composer-submit-cost");
+        expect(source).toContain("creation-submit-cost"); // 上游演进: 创作提交费用类名随 dock 重构为 creation-submit-cost
     });
 
     test("uploads from the library without adding a reference before confirmation", () => {
@@ -68,7 +68,8 @@ describe("creation library button", () => {
         const source = readCreateWorkspaceSource();
         const styles = readFileSync(resolve(import.meta.dir, "../src/styles/globals.css"), "utf8");
 
-        expect(source).toContain('import { Reorder } from "motion/react"');
+        expect(source).toContain("Reorder"); // 上游演进后 import 合并为 { Reorder, LayoutGroup, motion, useReducedMotion }
+        expect(source).toContain('"motion/react"');
         expect(source).toContain("<Reorder.Group");
         expect(source).toContain('axis="x"');
         expect(source).toContain("values={visibleAttachments}");

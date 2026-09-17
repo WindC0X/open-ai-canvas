@@ -7,8 +7,9 @@ import { useExclusiveSettings } from "./use-exclusive-settings";
 
 import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
+import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { modelCapabilityConfigFor, resolveVideoRatioValue, resolveVideoResolutionValue, type VideoCapabilityConfig } from "@/lib/model-capabilities";
-import { useThemeStore } from "@/stores/use-theme-store";
+
 import type { AiConfig } from "@/stores/use-config-store";
 
 type CanvasVideoSettingsPopoverProps = {
@@ -38,7 +39,7 @@ export function videoSettingsSummary(config: AiConfig): string {
 }
 
 export function CanvasVideoSettingsPopover({ supplyNodeId, config, onConfigChange, buttonClassName, placement = "topLeft", iconOnly = false }: CanvasVideoSettingsPopoverProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useActiveTheme()];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);

@@ -10,6 +10,8 @@ const source: CanvasNodeData = {
     metadata: { content: "original-image", storageKey: "original-key", status: "success" },
 };
 const read = (path: string) => readFileSync(resolve(import.meta.dir, "../src", path), "utf8");
+// 断言源码时忽略换行与缩进：长条件被拆行属于排版变化，不应让契约测试失效。
+const flat = (text: string) => text.replace(/\s+/g, " ");
 
 describe("上传图片是输入素材", () => {
     test("上传与导入图片没有生成框，空节点与生成结果仍可配置", () => {

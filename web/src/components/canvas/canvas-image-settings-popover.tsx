@@ -8,7 +8,7 @@ import { useExclusiveSettings } from "./use-exclusive-settings";
 import { ImageSettingsPanel, imageQualityLabel, imageSizeLabel } from "@/components/image-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor, normalizeImageValue } from "@/lib/model-capabilities";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import type { AiConfig } from "@/stores/use-config-store";
 
 type CanvasImageSettingsPopoverProps = {
@@ -39,7 +39,7 @@ export function imageSettingsSummary(config: AiConfig): string {
 }
 
 export function CanvasImageSettingsPopover({ supplyNodeId, config, onConfigChange, onOpenChange, buttonClassName, placement = "topLeft", iconOnly = false }: CanvasImageSettingsPopoverProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const theme = canvasThemes[useActiveTheme()];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);

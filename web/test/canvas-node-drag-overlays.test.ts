@@ -5,6 +5,7 @@ import { describe, expect, test } from "bun:test";
 
 const projectSource = readFileSync(resolve(import.meta.dir, "../src/pages/canvas/project.tsx"), "utf8");
 const selectionControllerSource = readFileSync(resolve(import.meta.dir, "../src/pages/canvas/use-canvas-selection-controller.ts"), "utf8");
+const flat = (text: string) => text.replace(/\s+/g, " ");
 
 describe("canvas node drag overlays", () => {
     test("hides floating editors and selection controls for the whole drag preview", () => {

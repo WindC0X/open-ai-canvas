@@ -9,7 +9,7 @@ import { formatPriceRange, modelQuoteRequest, normalizeTierResolution, priceTier
 import { compatibleModelInGroup, configuredModelDisplayName, groupModelsByDisplayName, modelCompatibilityError, resolveCompatibleModel, type ModelRequirements } from "@/lib/model-selection";
 import { cn } from "@/lib/utils";
 import { logicalModelFamilyOf, modelDisplayName, modelIcon, modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { ModelLogo, modelProviderTitleOf } from "@/components/model-logo";
 import { quoteLogicalModel, type CapabilitySpec, type LogicalModelQuote } from "@/services/api/logical-models";
@@ -75,7 +75,7 @@ export function ModelPicker({
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const pickerId = useId();
     // 双保险：即使 store merge 写出非法 theme，这里也兜底到 dark，避免 "reading 'node'" 崩溃
-    const rawTheme = useThemeStore((state) => state.theme);
+    const rawTheme = useActiveTheme();
     const theme = (canvasThemes[rawTheme as keyof typeof canvasThemes] ?? canvasThemes.dark) as CanvasTheme;
     const [open, setOpen] = useState(false);
     // 收起动画期间不得注入 ant-popover-hidden(display:none 会瞬间抹掉 canvas-panel-out 收起动画,
@@ -101,6 +101,8 @@ export function ModelPicker({
     };
     // flora Providers 语法: 分组行 hover 右侧悬浮展开该组模型(flyout)
     const [flyoutGroup, setFlyoutGroup] = useState<string | null>(null);
+    const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
+    const [previewedModel, setPreviewedModel] = useState("");
     const [flyoutPos, setFlyoutPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const flyoutRef = useRef<HTMLDivElement>(null);
     const flyoutCloseTimer = useRef<number | null>(null);
@@ -304,6 +306,10 @@ export function ModelPicker({
         if (!nextOpen && flyoutPointerRef.current) return;
         if (nextOpen && !options.length) onMissingConfig?.();
         if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
+        if (nextOpen) {
+            setPreviewedModel(current || options[0] || "");
+            setActiveGroupKey(null);
+        }
         setOpen(nextOpen);
     };
     const focusMenuOption = (last = false) => {
@@ -549,7 +555,12 @@ export function ModelPicker({
         <div
             ref={menuRef}
             data-canvas-no-zoom
-            className={cn("canvas-model-picker-menu max-w-[calc(100vw-24px)]", creationVariant ? "creation-model-picker-menu w-[360px]" : "w-[var(--panel-width-compact)]")}
+            className={cn(
+                "canvas-model-picker-menu max-w-[calc(100vw-24px)]",
+                creationVariant
+                    ? cn("creation-model-picker-menu", activeGroupKey === null ? "is-brand-list" : "is-model-list")
+                    : "w-[var(--panel-width-compact)]",
+            )}
             style={
                 {
                     /* 背景不在此层: 容器层(surface)承载 flora .9 玻璃, 内容层实色会把毛玻璃糊死(亮底不透的根因之一) */

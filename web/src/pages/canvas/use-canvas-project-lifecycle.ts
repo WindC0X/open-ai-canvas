@@ -9,9 +9,9 @@ import { removeCanvasDrawing } from "@/lib/canvas/canvas-drawing-storage";
 import { normalizeCanvasNodeTimestamps } from "@/lib/canvas/canvas-node-timestamps";
 import { hydrateAssistantImages, resetInterruptedGeneration } from "@/lib/canvas/canvas-project-generation";
 import { listAddedSkills, type Skill } from "@/services/api/skills";
-import { CanvasSyncConflictError, createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, discardLocalCanvasProject, loadCanvasProjectForEditing, localSavedRemotePendingMessage, saveRemoteUserDataNow, subscribeAgentCanvasRefresh } from "@/services/user-data-sync";
+import { CanvasSyncConflictError, createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, discardLocalCanvasProject, forceOverwriteRemoteCanvasSync, loadCanvasProjectForEditing, localSavedRemotePendingMessage, saveRemoteUserDataNow, subscribeAgentCanvasRefresh } from "@/services/user-data-sync";
 import { flushCanvasStorePersistence, useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useCanvasThemeStore } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { CanvasAssistantSession, CanvasConnection, CanvasNodeData, ViewportTransform } from "@/types/canvas";
 import type { CanvasHistorySnapshot } from "./use-canvas-history";
@@ -95,7 +95,7 @@ export function useCanvasProjectLifecycle({
         setLoadError("");
         const applyRestoredProject = (targetProject: CanvasProject) => {
             if (cancelled) return;
-            const fallbackTheme = useThemeStore.getState().theme;
+            const fallbackTheme = useCanvasThemeStore.getState().theme;
             const restoredAppearance = targetProject.appearance
                 ? normalizeCanvasAppearance(targetProject.appearance, fallbackTheme)
                 : canvasAppearanceForTheme(fallbackTheme);
@@ -120,7 +120,7 @@ export function useCanvasProjectLifecycle({
             setChatSessions(snapshot.chatSessions);
             setActiveChatId(snapshot.activeChatId);
             setCanvasAppearance(snapshot.canvasAppearance);
-            useThemeStore.getState().setTheme(canvasAppearanceBaseTheme(snapshot.canvasAppearance, fallbackTheme));
+            useCanvasThemeStore.getState().setTheme(canvasAppearanceBaseTheme(snapshot.canvasAppearance, fallbackTheme));
             setBackgroundMode(snapshot.backgroundMode);
             setShowImageInfo(snapshot.showImageInfo);
             setViewport(targetProject.viewport);
@@ -249,7 +249,7 @@ export function useCanvasProjectLifecycle({
         renameProject(projectId, title);
     }, [projectId, renameProject]);
 
-    const saveCanvasProject = useCallback(async (): Promise<boolean> => {
+    const persistCanvasSnapshot = useCallback(async (): Promise<boolean> => {
         try {
             updateProject(projectId, {
                 nodes: nodesRef.current,
@@ -263,10 +263,15 @@ export function useCanvasProjectLifecycle({
                 directorScenes: currentProject?.directorScenes || [],
             });
             await flushCanvasStorePersistence();
+            return true;
         } catch {
             message.error("画布保存失败，请稍后重试");
             return false;
         }
+    }, [activeChatId, backgroundMode, canvasAppearance, chatSessions, connectionsRef, currentProject?.directorScenes, message, nodesRef, projectId, showImageInfo, updateProject, viewportRef]);
+
+    const saveCanvasProject = useCallback(async (): Promise<boolean> => {
+        if (!(await persistCanvasSnapshot())) return false;
         try {
             await saveRemoteUserDataNow();
             message.success("画布布局和位置已保存");
@@ -275,7 +280,18 @@ export function useCanvasProjectLifecycle({
             message.warning(localSavedRemotePendingMessage("本地画布布局已保存", error));
         }
         return true;
-    }, [activeChatId, backgroundMode, canvasAppearance, chatSessions, connectionsRef, currentProject?.directorScenes, message, nodesRef, projectId, showImageInfo, updateProject, viewportRef]);
+    }, [message, persistCanvasSnapshot]);
+
+    const forceSaveCanvasProject = useCallback(async (): Promise<boolean> => {
+        if (!(await persistCanvasSnapshot())) return false;
+        try {
+            const result = await forceOverwriteRemoteCanvasSync();
+            message.success(result.reboundNodes > 0 ? `已用本地内容覆盖云端，并修复 ${result.reboundNodes} 处媒体与素材的绑定` : "已用本地内容覆盖云端画布");
+        } catch (error) {
+            message.error(`强制覆盖保存失败：${error instanceof Error ? error.message : "未知错误"}`);
+        }
+        return true;
+    }, [message, persistCanvasSnapshot]);
 
     const clearCanvasFiles = useCallback(() => {
         cleanupCanvasFiles({ projectId, nodes: [], chatSessions: [] });
@@ -299,6 +315,7 @@ export function useCanvasProjectLifecycle({
         deleteCurrentProject,
         renameCurrentProject,
         saveCanvasProject,
+        forceSaveCanvasProject,
         updateProject,
     };
 }
