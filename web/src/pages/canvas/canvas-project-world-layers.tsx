@@ -58,6 +58,8 @@ type CanvasProjectWorldLayersProps = {
     onConnectionContextMenu: (event: ReactMouseEvent<SVGPathElement>, connectionId: string) => void;
     onNodeMouseDown: (event: ReactMouseEvent, nodeId: string) => void;
     hoveredNodeId: string | null;
+    /** selected 挂件接力(S2 手感修复): 节点内信息态坠出与挂件坠入同帧同距接力, 需要知道本节点 dialog 是否打开 */
+    dialogOpenNodeId: string | null;
     onConnectStart: (event: ReactPointerEvent, nodeId: string, handleType: "source" | "target", handleId?: string, anchorRatio?: number) => void;
     onNodeResize: (nodeId: string, width: number, height: number, position?: Position) => void;
     onToggleFrame: (nodeId: string) => void;
@@ -184,6 +186,7 @@ export const CanvasProjectWorldLayers = memo(function CanvasProjectWorldLayers(p
                         drawingProjectId={props.projectId}
                         onMouseDown={props.onNodeMouseDown}
                         isHovered={props.hoveredNodeId === node.id}
+                        dialogOpen={props.dialogOpenNodeId === node.id}
                         onConnectStart={props.onConnectStart}
                         onResize={props.onNodeResize}
                         onTitleChange={props.onNodeTitleChange}

@@ -71,7 +71,10 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible, no
         >
             <div
                 style={{
-                    transform: show ? "translateY(0)" : "translateY(calc(100% + 1px))",
+                    // 坠落距离固定 160px(与挂件 affordance-drop-in 的 -160px 起坠点对称): 信息态坠出节点底缘的同时,
+                    // 挂件从信息态原始位置坠入节点底缘下方 1px — 同帧同距同曲线 = 连续变换(用户 2026-09-17 手感定稿)。
+                    // 不用 calc(100%+1px): 信息态高度随引用/节点高变化, 固定距离保证两段动画永不脱节。
+                    transform: show ? "translateY(0)" : "translateY(160px)",
                     transition: `transform ${DURATION_MS}ms ${FLORA_EASE}`,
                 }}
             >

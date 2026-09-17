@@ -49,6 +49,8 @@ type CanvasNodeProps = {
     onMouseDown: (event: React.MouseEvent, nodeId: string) => void;
     /** hover 归属由 useCanvasHoverAttribution 状态机唯一判定(world layers 下发), 节点侧不再自持状态 */
     isHovered?: boolean;
+    /** selected 挂件接力: 本节点 dialog 已打开(挂件已挂载) — 信息态退场与挂件坠入同帧接力 */
+    dialogOpen?: boolean;
     /** 只读分享页(shared)无状态机, 以节点级 enter/leave 自持本地 hover; 主画布不传 */
     onLocalHoverChange?: (nodeId: string, hovering: boolean) => void;
     onConnectStart: (event: React.PointerEvent, nodeId: string, handleType: "source" | "target", handleId?: string, anchorRatio?: number) => void;
@@ -98,6 +100,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     batchMotion,
     onMouseDown,
     isHovered,
+    dialogOpen,
     onLocalHoverChange,
     onConnectStart,
     onResize,
@@ -296,8 +299,11 @@ export const CanvasNode = React.memo(function CanvasNode({
 
     // 节点内 hover 信息态 composer（任务 09-15-composer-inline-hover-chrome）：
     // hover 未选中时零越界显现；生成中/播放中/batch 展开时隐藏（flora minimized 语义）。
+    // 退场信号用 dialogOpen(挂件已挂载) 而非 isSelected: 按下(mousedown)即选中但挂件要等抬起(mouseup)才挂载,
+    // 若用 isSelected 信息态会在挂件出现前先坠完 → 两段动画割裂(用户 2026-09-17: "外部composer是突然出现的")。
+    // 用 dialogOpen 后信息态保持显示到挂件挂载帧, 与挂件坠入同帧接力 — 同距(160px)同曲线同帧 = 连续变换。
     const hoverPrompt = data.metadata?.prompt ?? data.metadata?.composerContent;
-    const hoverComposerVisible = hovered && !isSelected && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
+    const hoverComposerVisible = hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
 
     return (
         <div

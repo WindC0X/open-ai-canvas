@@ -2665,6 +2665,7 @@ function InfiniteCanvasPage() {
                                     }}
                                     onNodeMouseDown={handleNodeMouseDown}
                                     hoveredNodeId={hoveredNodeId}
+                                    dialogOpenNodeId={dialogNodeId}
                                     onConnectStart={handleConnectStart}
                                     onNodeResize={handleNodeResize}
                                     onToggleFrame={handleFrameToggle}
