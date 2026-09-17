@@ -18,8 +18,10 @@ import type { CanvasTheme } from "@/lib/canvas-theme";
  * - 引用行照 flora :7893：overflow-x-auto overflow-y-hidden、负 margin 扩滚动域、nowheel。
  */
 
-const FLORA_EASE = "cubic-bezier(0, 0.8, 0.1, 1)";
-const DURATION_MS = 200;
+// 接力曲线(2026-09-17 感知定稿): 与挂件 affordance-drop-in 同曲线同时长 —
+// 240ms 重力加速(慢起→加速触地), 替代 flora 200ms(90% 动作压进前 50ms → 人眼判为"突然出现")。
+const FLORA_EASE = "cubic-bezier(0.45, 0, 0.75, 0.55)";
+const DURATION_MS = 240;
 
 // flora 实测对齐数值(09-15 逐轮校准的终值, 改动前先对照用户 flora 截图测量):
 // prompt 区含被裁掉的 flora 工具栏行高(36px 并入), 面板总高 184px 与 flora 精确对齐。
