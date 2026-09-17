@@ -8464,17 +8464,18 @@
             transform: translateY(var(--affordance-enter-offset, -160px));
         }
     }
-    /* 挂件宽度入场展开(2026-09-17 用户: 展开过程不明显): 从节点显示宽展开到挂件宽(680-920),
-       与坠落动画同曲线同时长; translateX(-50%) 中心锚点保证对称向外展开。
-       var(--pendant-from-w) 由 CanvasNodePanelOverlay 注入(节点宽×viewport.k)。
-       width 动画会让内容逐帧 reflow, 但 200ms×桌面端可接受, 且这是真实布局变化而非 scale 变形。 */
+    /* 挂件宽度入场展开(2026-09-17 用户两轮反馈: 展开不可见):
+       flora 曲线把 90% 动作压进前 50ms — 面板还几乎透明时宽度已完成, 视觉上等于没展开。
+       改为错峰编排: 坠落先建立(0-200ms), 展开延迆 80ms 后用 320ms ease-out 慢速铺开 —
+       80-400ms 窗口内面板完全可见, 宽度变化落在可感知区间。
+       backwards 填充使延迟期内宽度保持节点宽(与信息态连续)。 */
     @keyframes pendant-expand {
         from {
             width: var(--pendant-from-w);
         }
     }
     .canvas-node-panel-affordance [data-panel-pendant] {
-        animation: pendant-expand 200ms cubic-bezier(0, 0.8, 0.1, 1);
+        animation: pendant-expand 320ms cubic-bezier(0.22, 0.9, 0.3, 1) 80ms backwards;
     }
     /* 挂件外形(S2): 面板顶缘连接节点底缘, composer 顶角取直(底角保持圆)。 */
     [data-panel-pendant] .canvas-node-composer {
