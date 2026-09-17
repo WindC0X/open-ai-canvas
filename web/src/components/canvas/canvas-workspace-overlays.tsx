@@ -93,11 +93,10 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
     const initialWidth = resolveNodePanelWidth(node, viewport, panelWidth);
     const initialPosition = getNodePanelPosition(node, viewport, { width: containerRef.current?.clientWidth || 0, height: containerRef.current?.clientHeight || 0 }, initialWidth, panelHeight, dragOffset);
 
-    // 挂件接力入场(2026-09-17 接力定稿): 语义是严格接力, 不是叠坠 —
-    // 信息态先坠出节点底缘(节点内 200ms flora 快曲线, 140ms 已坠出 ~93%),
-    // 挂件延迟 140ms 后才从信息态原始位置(-160px)起坠展开。渐显由坠落自身承担
-    // (起坠时即刻渐显 120ms, 避免隐身起点暴露), 不再与信息态同时动 = 不再有
-    // "从节点内 composer 顶部叠坠"的观感。reduced-motion/无动效直接置终态。
+    // 挂件接力入场(2026-09-17 第七轮修正): 语义是信息态坠出节点底缘 → 挂件从节点底缘接棒,
+    // 不是从信息态顶部(-160px)高空坠下(用户: "变成了外部composer从节点内部composer的顶部位置开始坠落")。
+    // 三拍: wait 140ms 隐身(信息态 200ms flora 已坠出 93%) → 起坠自 -20px(节点底缘上方微距,
+    // 与底缘衔接不穿模)即刻渐显 120ms + 重力 240ms → 坠完 420ms 慢尾展开。reduced-motion 置终态。
     const initialNodeWidth = Math.max(Math.round(node.width * viewport.k), 160);
     const [enterPhase, setEnterPhase] = useState<"wait" | "fall" | "expand" | "settle">(() =>
         typeof window !== "undefined" && (window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("no-motion")) ? "settle" : "wait"
@@ -107,15 +106,18 @@ export function CanvasNodePanelOverlay({ node, viewport, containerRef, panelWidt
         if (!panel) return;
         if (enterPhase === "settle") return;
         if (enterPhase === "wait") {
-            // 等待拍: 隐身留在信息态原始位置, 等信息态先坠净(140ms, 节点内 200ms flora 的 ~93% 处)
+            // 等待拍: 隐身留在起坠点(节点底缘上方 20px), 等信息态先坠净(140ms)
             panel.style.transition = "none";
-            panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top - 160}px, 0) translateX(-50%)`;
+            panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top - 20}px, 0) translateX(-50%)`;
             panel.style.width = `${initialNodeWidth}px`;
             panel.style.opacity = "0";
-            const timer = window.setTimeout(() => setEnterPhase("fall"), 140);
+            // 等待拍时长与信息态退场曲线匹配: EXIT_EASE ease-in(0.5,0,0.8,0.4) 在 180ms 时
+            // 已坠出 ~85%(200ms 曲线), 节点内基本已净; 起坠点改节点底缘上方 20px 后
+            // 挂件与信息态不再同轨, 20ms 残影交叠在底缘处不可见。
+            const timer = window.setTimeout(() => setEnterPhase("fall"), 180);
             return () => window.clearTimeout(timer);
         }
-        // 起坠: 位置即当前(信息态原始位置), 即刻渐显 120ms + 重力坠落 240ms
+        // 起坠: 从节点底缘上方 20px 微距接棒坠入(即刻渐显 120ms), 与信息态坠出的终点衔接
         panel.getBoundingClientRect();
         panel.style.transition = "transform 240ms cubic-bezier(0.45, 0, 0.75, 0.55), opacity 120ms linear";
         panel.style.transform = `translate3d(${initialPosition.left}px, ${initialPosition.top}px, 0) translateX(-50%)`;

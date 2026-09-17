@@ -18,11 +18,13 @@ import type { CanvasTheme } from "@/lib/canvas-theme";
  * - 引用行照 flora :7893：overflow-x-auto overflow-y-hidden、负 margin 扩滚动域、nowheel。
  */
 
-// 曲线分工(2026-09-17 用户反馈"hover 入场慢"后定稿):
-// 入场/退场都用 flora 快攻曲线 200ms — 入场要响应快, 退场要快让位(90% 行程在前 1/3,
-// 140ms 时已坠出 ~93% → 挂件接力起坠时节点内已净)。
-// 挂件侧(overlays)坠落用重力曲线, 两段不同曲线各归各职责, 不再共享常量。
+// 曲线分工(2026-09-17 第七轮定稿):
+// 入场 flora 快攻 200ms — 响应快(90% 行程在前 1/3, 滑入干脆, 用户确认 OK)。
+// 退场重力加速 200ms — flora 用在退场时前 65ms 就跳完 90% 行程 → 人眼读作"弹走消失"
+// (用户: "取消hover时收缩动画不对"); 改 ease-in 加速(慢起加速沉底)。
+// 挂件侧(overlays)坠落用重力曲线, 各归各职责。
 const FLORA_EASE = "cubic-bezier(0, 0.8, 0.1, 1)";
+const EXIT_EASE = "cubic-bezier(0.5, 0, 0.8, 0.4)";
 const ENTER_MS = 200;
 const EXIT_MS = 200;
 
@@ -71,16 +73,16 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible, no
             style={{
                 opacity: show ? 1 : 0,
                 pointerEvents: show ? "auto" : "none",
-                transition: `opacity ${show ? ENTER_MS : EXIT_MS}ms ${FLORA_EASE}`,
+                transition: `opacity ${show ? `${ENTER_MS}ms ${FLORA_EASE}` : `${EXIT_MS}ms ${EXIT_EASE}`}`,
             }}
         >
             <div
                 style={{
-                    // 坠落距离固定 160px(与挂件起坠点 -160px 对称): 退场 200ms flora 快曲线,
-                    // 140ms 时已坠出 ~93% → 挂件接力起坠时节点内已净(用户 2026-09-17 接力定稿)。
-                    // 不用 calc(100%+1px): 信息态高度随引用/节点高变化, 固定距离保证两段动画永不脱节。
+                    // 坠落距离固定 160px(退场沉底消失, 入场从底缘滑入): 入场 flora 快攻,
+                    // 退场 ease-in 加速沉底(用户 2026-09-17: flora 用在退场读作"弹走", 无收缩感)。
+                    // 不用 calc(100%+1px): 信息态高度随引用/节点高变化, 固定距离保证动画不脱节。
                     transform: show ? "translateY(0)" : "translateY(160px)",
-                    transition: `transform ${show ? ENTER_MS : EXIT_MS}ms ${FLORA_EASE}`,
+                    transition: `transform ${show ? `${ENTER_MS}ms ${FLORA_EASE}` : `${EXIT_MS}ms ${EXIT_EASE}`}`,
                 }}
             >
                 <div className="canvas-node-hover-composer-surface flex flex-col gap-2 px-3.5 py-3">
