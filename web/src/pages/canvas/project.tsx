@@ -402,9 +402,12 @@ function InfiniteCanvasPage() {
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
     }, []);
-    const { layout: agentPanelGeometry, compact: agentPanelCompact } = agentPanelLayout;
+    const { layout: agentPanelGeometry, compact: agentPanelCompact, gesturing: agentPanelGesturing } = agentPanelLayout;
     const hudRightInset = useMemo(() => {
         if (!assistantOpen || agentPanelCompact) return undefined;
+        // 拖拽/缩放面板过程中不让位(2026-09-18 用户反馈"拖动 agent 面板会把 hud 挤开错位"):
+        // 拖动中 layout 每帧变, HUD 逐帧被推着跑产生视觉噪声; 松手后一次性到位。
+        if (agentPanelGesturing) return undefined;
         // HUD 卡片顶缘约在 topbar 下方 88px、卡片体高约 300px; 面板整体在这条垂直带之下时不构成遮挡。
         if (agentPanelGeometry.top >= 420) return undefined;
         const rightGap = viewportWidth - (agentPanelGeometry.left + agentPanelGeometry.width);
@@ -412,7 +415,7 @@ function InfiniteCanvasPage() {
         if (rightGap > 48) return undefined;
         return `calc(var(--canvas-inset-x) + ${agentPanelGeometry.width + rightGap}px + var(--space-3))`;
         // 依赖按值拆解(layout/compact), 不依赖 controller 对象身份 —— hook 返回对象已 useMemo, 但值依赖更精确。
-    }, [assistantOpen, agentPanelGeometry, agentPanelCompact, viewportWidth]);
+    }, [assistantOpen, agentPanelGeometry, agentPanelCompact, agentPanelGesturing, viewportWidth]);
     const agentMentionReferences = useMemo(() => buildCanvasAgentMentionReferences(nodes), [nodes]);
 
     const sendSelectionToAgent = useCallback((nodeId?: string) => {

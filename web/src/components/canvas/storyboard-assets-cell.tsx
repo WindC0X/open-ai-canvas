@@ -151,12 +151,14 @@ function AssetThumbnail({ node }: { node: CanvasNodeData }) {
     if (node.type === CanvasNodeType.Video) {
         return videoPreview ? (
             <>
-                <img src={videoPreview} alt="" loading="lazy" decoding="async" draggable={false} className="size-full object-cover" />
+                <img src={videoPreview} alt="" loading="lazy" decoding="async" draggable={false} className="object-cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 <span className="absolute inset-0 grid place-items-center bg-black/15"><Play className="size-3.5 fill-white text-white" /></span>
             </>
         ) : <Play className="size-4" />;
     }
-    return source ? <img src={source} alt="" loading="lazy" decoding="async" draggable={false} className="size-full object-cover" /> : <ImageIcon className="size-4" />;
+    // inline 尺寸: dev 环境实测 Tailwind base 层 img{height:auto} 压过 utilities 的 size-full(层序异常),
+    // 缩略图按原图比例破格溢出分镜行(用户截图 9:16 竖图实证); inline 声明不受层序影响。
+    return source ? <img src={source} alt="" loading="lazy" decoding="async" draggable={false} className="object-cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <ImageIcon className="size-4" />;
 }
 
 function AssetPreviewModal({ node, onClose }: { node: CanvasNodeData | null; onClose: () => void }) {

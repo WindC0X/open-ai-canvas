@@ -5,6 +5,7 @@ const viewport = () => ({ width: window.innerWidth, height: window.innerHeight }
 
 export function useAgentPanelLayout() {
     const [compact, setCompact] = useState(() => window.innerWidth < 640);
+    const [gesturing, setGesturing] = useState(false);
     const [layout, setLayout] = useState(() => {
         try {
             return restoreAgentPanelLayout(localStorage.getItem(AGENT_PANEL_LAYOUT_KEY), viewport());
@@ -46,6 +47,7 @@ export function useAgentPanelLayout() {
         event.stopPropagation();
         event.currentTarget.setPointerCapture(event.pointerId);
         gestureRef.current = { pointerId: event.pointerId, kind: (resize?.dataset.agentResize as AgentPanelGesture) || "move", x: event.clientX, y: event.clientY, start: layout };
+        setGesturing(true);
     };
     const onPointerMove = (event: PointerEvent<HTMLElement>) => {
         const gesture = gestureRef.current;
@@ -56,6 +58,7 @@ export function useAgentPanelLayout() {
     const onPointerUp = (event: PointerEvent<HTMLElement>) => {
         if (gestureRef.current?.pointerId !== event.pointerId) return;
         gestureRef.current = null;
+        setGesturing(false);
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     };
     const onResizeKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
@@ -70,18 +73,19 @@ export function useAgentPanelLayout() {
     // 数据部分 useMemo: 提升到 project 层后, 消费方(hudRightInset 等)可按 layout/compact 值依赖而非对象身份;
     // handlers 走 ref 持有(内部全是 gestureRef 状态, 无需随渲染重建), 返回身份稳定 → 拖拽每帧 setLayout 时
     // 消费方依赖 [layout, compact] 只在值真变时重算, project 树的 diff 压力收敛到布局值变化本身。
-    const handlersRef = useRef({ onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onLostPointerCapture: () => { gestureRef.current = null; } });
-    handlersRef.current = { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onLostPointerCapture: () => { gestureRef.current = null; } };
+    const handlersRef = useRef({ onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onLostPointerCapture: () => { gestureRef.current = null; setGesturing(false); } });
+    handlersRef.current = { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onLostPointerCapture: () => { gestureRef.current = null; setGesturing(false); } };
     return useMemo(
         () => ({
             layout,
             compact,
+            gesturing,
             style: compact ? { left: 0, top: 8, width: "100%", height: "calc(100dvh - 8px)" } : layout,
             get pointerHandlers() {
                 return handlersRef.current;
             },
             onResizeKeyDown,
         }),
-        [layout, compact, onResizeKeyDown],
+        [layout, compact, gesturing, onResizeKeyDown],
     );
 }

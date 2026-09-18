@@ -304,7 +304,11 @@ export const CanvasNode = React.memo(function CanvasNode({
     // 用 dialogOpen 后信息态保持显示到挂件挂载帧, 与挂件坠入同帧接力 — 同帧连续变换
     // (退场距离 = 面板自身高 + 40px, 语义化自适应, 见 hover-composer 内注释)。
     const hoverPrompt = data.metadata?.prompt ?? data.metadata?.composerContent;
-    const hoverComposerVisible = hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
+    // 信息态 composer 仅限媒体生成节点(2026-09-18 用户反馈): 绘图/分镜/转换/批量/导演台/音频/工作流等
+    // 节点有自己的输入面或无提示词语义, 连接参考节点后 metadata.prompt/composerContent 被上游链填充,
+    // hover 信息态会把无关注入文本当成提示词展示——flora 该语法只服务媒体生成节点。
+    const hoverComposerNodeType = data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video;
+    const hoverComposerVisible = hoverComposerNodeType && hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
 
     return (
         <div

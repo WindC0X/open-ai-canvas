@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Maximize2 } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { modelDisplayName, type AiConfig } from "@/stores/use-config-store";
 import { formatCredits } from "@/constant/credits";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
@@ -48,7 +48,9 @@ function hasContent(node: CanvasNodeData): boolean {
 }
 
 export function ObjectHudPanel({ node, config, rightInset, topInset = 88, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    // 画布外观通道统一走 useActiveTheme(W1-C 迁移漏项): HUD 是画布浮层, 亮色画布下必须亮色——
+    // 直连工作台 useThemeStore 会拿错主题(用户截图: 亮色画布 HUD 恒黑)。
+    const theme = canvasThemes[useActiveTheme()];
     const mountedRef = useRef(false);
     const [revealed, setRevealed] = useState(false);
 
