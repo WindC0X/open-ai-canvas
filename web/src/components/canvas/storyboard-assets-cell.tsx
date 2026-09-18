@@ -10,6 +10,11 @@ import { isStoryboardPreviewAsset } from "@/lib/canvas/canvas-storyboard-materia
 import { resolveMediaUrl } from "@/services/file-storage";
 import { CanvasNodeType, type CanvasNodeData, type StoryboardAssetBinding } from "@/types/canvas";
 
+// 弹层一律 portal 到 body: antd 默认挂在 trigger 父元素(=分镜行内, 即 world layer 子树),
+// 定位写 style 会触发挂件几何的 worldMutations -> setState -> 重渲染循环(Maximum update depth 实证),
+// 与模型菜单 flyout 改 root portal 同一教训(e25876bc)。
+const POPUP_CONTAINER = () => document.body;
+
 const ROLE_LABELS: Record<StoryboardAssetBinding["role"], string> = {
     character: "角色",
     environment: "场景",
@@ -93,8 +98,10 @@ export function StoryboardAssetsCell({ bindings, nodes, limit = 4, onAddAsset, o
                         open={pickerOpen}
                         onOpenChange={setPickerOpen}
                         placement="bottomLeft"
+                        getPopupContainer={POPUP_CONTAINER}
                         content={
                             <div className="flex max-h-64 w-56 flex-col gap-1 overflow-y-auto" onWheel={(event) => event.stopPropagation()}>
+                                <div className="px-2 pb-1 pt-0.5 text-[10px] text-foreground/40">{assets.length ? "绑定画布资产（角色/图片/视频/音频）" : "连接角色图像节点，或点击选择画布资产"}</div>
                                 {candidates.length ? candidates.map((item) => (
                                     <button
                                         key={item.id}
@@ -117,26 +124,17 @@ export function StoryboardAssetsCell({ bindings, nodes, limit = 4, onAddAsset, o
                             </div>
                         }
                     >
-                        <Tooltip title={
-                            bindings.length >= MAX_ROW_ASSET_BINDINGS
-                                ? `每镜最多关联 ${MAX_ROW_ASSET_BINDINGS} 个资产`
-                                : assets.length
-                                    ? "绑定画布资产（角色/图片/视频/音频）"
-                                    // R18 空槽 helper: flora "Connect an Image Node" 的中文化。
-                                    : "连接角色图像节点，或点击选择画布资产"
-                        }>
-                            <button
-                                type="button"
-                                aria-label="添加资产绑定"
-                                disabled={bindings.length >= MAX_ROW_ASSET_BINDINGS}
-                                className="grid size-9 shrink-0 place-items-center rounded-md border border-dashed border-foreground/15 text-foreground/40 outline-none transition enabled:hover:border-foreground/35 enabled:hover:text-foreground/70 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40"
-                                onMouseDown={(event) => event.stopPropagation()}
-                                onPointerDown={(event) => event.stopPropagation()}
-                                onClick={(event) => event.stopPropagation()}
-                            >
-                                <Plus className="size-4" />
-                            </button>
-                        </Tooltip>
+                        <button
+                            type="button"
+                            aria-label={bindings.length >= MAX_ROW_ASSET_BINDINGS ? `每镜最多关联 ${MAX_ROW_ASSET_BINDINGS} 个资产` : "添加资产绑定"}
+                            disabled={bindings.length >= MAX_ROW_ASSET_BINDINGS}
+                            title={assets.length ? "绑定画布资产（角色/图片/视频/音频）" : "连接角色图像节点，或点击选择画布资产"}
+                            className="grid size-9 shrink-0 place-items-center rounded-md border border-dashed border-foreground/15 text-foreground/40 outline-none transition enabled:hover:border-foreground/35 enabled:hover:text-foreground/70 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
+                        >
+                            <Plus className="size-4" />
+                        </button>
                     </Popover>
                 ) : null}
             </div>
