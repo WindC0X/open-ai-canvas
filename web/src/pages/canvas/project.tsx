@@ -2381,7 +2381,7 @@ function InfiniteCanvasPage() {
     const hoverSupplyTarget = hoveredNode ?? exitingNode;
     // toolbarNode?.id 排除即双槽位去重(与 composer 转换帧 duplicate-key 防御同语义, 在派生层完成;
     // JSX 渲染处无需再做 filter)。
-    const hoverToolbarNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && hoverSupplyTarget.id !== toolbarNode?.id && !isFrameNode(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving ? hoverSupplyTarget : null;
+    const hoverToolbarNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && hoverSupplyTarget.id !== toolbarNode?.id && hoverSupplyTarget.id !== outpaintNodeId && !isFrameNode(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving && !outpaintNodeId ? hoverSupplyTarget : null;
     // settingsOpen 不再作工具栏 guard: 参数面板从 composer 底栏弹出(320px 宽, 与节点上方工具栏
     // 无几何重叠), 打开参数面板隐藏工具栏反而打断"选参数→换模型/引用"的操作动线。
     const toolbarGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox) };
@@ -2965,7 +2965,10 @@ function InfiniteCanvasPage() {
                         onSaveAsset={(node) => void saveNodeAsset(node)}
                         onAnnotate={(node) => setAnnotationNodeId(node.id)}
                         onMaskEdit={(node) => setMaskEditNodeId(node.id)}
-                        onOutpaint={(node) => setOutpaintNodeId(node.id)}
+                        onOutpaint={(node) => {
+                            setOutpaintNodeId(node.id);
+                            focusCanvasImageNode(node.id);
+                        }}
                         onEmotion={(node) => {
                             setDialogNodeId(null);
                             setEmotionNodeId((current) => (current === node.id ? null : node.id));
