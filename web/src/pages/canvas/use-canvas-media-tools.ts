@@ -86,6 +86,9 @@ const NODE_STATUS_SUCCESS = "success" as const;
 const NODE_STATUS_ERROR = "error" as const;
 const NODE_STATUS_IDLE = "idle" as const;
 
+// 扩图底图/mask 提交压缩上限：超过该长边的 edits 请求体在部分中转会被断连（unexpected EOF）。
+const OUTPAINT_SUBMIT_LONG_EDGE = 1536;
+
 export function useCanvasMediaTools({
     projectId,
     domainProjectId,
@@ -829,11 +832,15 @@ export function useCanvasMediaTools({
         const prompt = maskSupported
             ? `将画面自然向外延展，保持原图主体、构图与光照完全不变，仅生成透明新增区域的内容。${userPrompt}`
             : `将画面自然向外延展至底图的完整画幅，保持原图主体、构图与光照完全不变，仅在四周白色空白区域生成协调的新内容，原图区域一个像素都不要改动。${userPrompt}`;
-        const paddedSource = await padImageToDataUrl(node.metadata.content, payload.paddingPx);
-        const maskDataUrl = maskSupported ? await padImageToDataUrl(node.metadata.content, payload.paddingPx, "transparent") : undefined;
-        // 不带 storageKey：扩图底图是 pad 后的新图，若引用原图 storageKey，提交链会按
-        // storageKey 优先解析回原图（canvas-project-generation.ts:271），白边丢失、扩图退化为原图。
-        const source = { id: node.id, name: `outpaint-${node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: paddedSource };
+        // 提交前压缩（OUTPAINT_SUBMIT_LONG_EDGE）：大图 base4 edits 请求会被部分中转断连（unexpected EOF 实录）；
+        // 底图 JPEG、mask PNG(alpha) 同一 maxLongEdge 保证像素对齐。
+        const paddedSource = await padImageToDataUrl(node.metadata.content, payload.paddingPx, "#FFFFFF", { maxLongEdge: OUTPAINT_SUBMIT_LONG_EDGE, mimeType: "image/jpeg", quality: 0.92 });
+        const maskDataUrl = maskSupported ? await padImageToDataUrl(node.metadata.content, payload.paddingPx, "transparent", { maxLongEdge: OUTPAINT_SUBMIT_LONG_EDGE, mimeType: "image/png" }) : undefined;
+        // pad 底图物化为 resource 后再引用：不带 storageKey 的纯 dataUrl 会被 buildImageGenerationMetadata
+        // 的 referenceUrl 丢弃（只留 storageKey/url），重试链 resolveMetadataReferences 拿不到底图 →
+        // 「参考图片已丢失」。先上传后引用不会退化回原图：storageKey 指向的就是 pad 后白边图。
+        const paddedUpload = await uploadImage(paddedSource);
+        const source = { id: node.id, name: `outpaint-${node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: paddedSource, storageKey: paddedUpload.storageKey };
         const styleExecution = resolveImageEditStyle(node, prompt, generationConfig);
         if (!styleExecution) return;
         const { prompt: effectivePrompt, metadata: styleMetadata } = styleExecution;

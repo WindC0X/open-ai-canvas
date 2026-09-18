@@ -41,23 +41,36 @@ export type ImagePadRect = {
 
 // 将原图按四边 padding 合成到目标画幅：fill 提供颜色时先铺底色（白底补边），
 // fill 为 "transparent" 时新增区保持透明（扩图 mask 极性：透明区 = 要生成的区域）。失败时回落原图。
-export async function padImageToDataUrl(dataUrl: string, padding: ImagePadRect, fill: string | "transparent" = "#FFFFFF") {
+export type PadImageOptions = {
+    // 提交上游前压缩：长边上限 + 输出格式。底图走 JPEG 体积小一个量级（中转通道对大 body
+    // edits 会断连），mask 走 PNG 保 alpha 扩图区透明。底图与 mask 必须传同一 maxLongEdge 保证对齐。
+    maxLongEdge?: number;
+    mimeType?: "image/png" | "image/jpeg";
+    quality?: number;
+};
+
+export async function padImageToDataUrl(dataUrl: string, padding: ImagePadRect, fill: string | "transparent" = "#FFFFFF", options?: PadImageOptions) {
     const image = await loadImage(dataUrl);
     const left = Math.max(0, Math.round(padding.left));
     const top = Math.max(0, Math.round(padding.top));
     const right = Math.max(0, Math.round(padding.right));
     const bottom = Math.max(0, Math.round(padding.bottom));
+    const fullWidth = image.width + left + right;
+    const fullHeight = image.height + top + bottom;
+    // 长边 clamp：整体等比缩（padding 一同缩放，保持白边与内容的构图比例）
+    const scale = options?.maxLongEdge && options.maxLongEdge > 0 ? Math.min(1, options.maxLongEdge / Math.max(fullWidth, fullHeight)) : 1;
     const canvas = document.createElement("canvas");
-    canvas.width = image.width + left + right;
-    canvas.height = image.height + top + bottom;
+    canvas.width = Math.max(1, Math.round(fullWidth * scale));
+    canvas.height = Math.max(1, Math.round(fullHeight * scale));
     const context = canvas.getContext("2d");
     if (!context) return dataUrl;
+    context.scale(scale, scale);
     if (fill !== "transparent") {
         context.fillStyle = fill;
-        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillRect(0, 0, fullWidth, fullHeight);
     }
     context.drawImage(image, left, top);
-    return canvas.toDataURL("image/png");
+    return canvas.toDataURL(options?.mimeType ?? "image/png", options?.quality ?? 0.92);
 }
 
 export async function cropDataUrl(dataUrl: string, crop?: ImageCropRect) {

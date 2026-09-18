@@ -7,7 +7,7 @@ import { CreditSymbol } from "@/constant/credits";
 import { defaultImageParamsForModel } from "@/lib/model-selection";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import { modelQuoteRequest, requestCreditCost } from "@/lib/model-pricing";
-import { describeOutpaintSize, resolveOutpaintPadding, resolveOutpaintTargetPx, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
+import { describeOutpaintSize, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -58,6 +58,28 @@ const FRAME_EXPAND_TRANSITION = "left 360ms cubic-bezier(0.22, 1, 0.36, 1), top 
 // 每次以 pointerdown 时的 startPadding 为基准重算，避免增量叠加误差。
 type DragState = { edge: OutpaintDragEdge; startX: number; startY: number; startPadding: OutpaintPadding } | null;
 
+// "1536x1024" → "3:2"（gcd 约分；除不尽时取 4 位精度最近似简比，如 1024x1360 → 1:1.33 显示为 3:4 类）。
+function sizeValueToRatioLabel(value: string): string | null {
+    const parts = value.toLowerCase().split("x").map((item) => Number(item));
+    if (parts.length !== 2 || parts.some((item) => !Number.isFinite(item) || item <= 0)) return null;
+    const [width, height] = parts;
+    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+    const divisor = gcd(width, height);
+    const rw = width / divisor;
+    const rh = height / divisor;
+    // 约分后边长 ≤21 视为整数比（1:1/3:2/2:3 等），否则按常见档位容差归并
+    if (rw <= 21 && rh <= 21) return `${rw}:${rh}`;
+    const ratio = width / height;
+    const known: Array<[string, number]> = [["1:1", 1], ["4:3", 4 / 3], ["3:4", 3 / 4], ["16:9", 16 / 9], ["9:16", 9 / 16], ["3:2", 3 / 2], ["2:3", 2 / 3]];
+    let best = known[0];
+    let bestDiff = Infinity;
+    for (const item of known) {
+        const diff = Math.abs(item[1] - ratio);
+        if (diff < bestDiff) { bestDiff = diff; best = item; }
+    }
+    return bestDiff / ratio < 0.05 ? best[0] : `${ratio.toFixed(2)}:1`;
+}
+
 function parseRatioValue(value: string): number | null {
     const parts = value.split(":").map((item) => Number(item));
     if (parts.length === 2 && parts.every((item) => Number.isFinite(item) && item > 0)) return parts[0] / parts[1];
@@ -98,10 +120,17 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const sizeFallback = imageProfile?.size?.default ?? "";
     const qualityOptions = imageProfile?.quality?.supported ? imageProfile.quality.values ?? [] : [];
 
-    // 比例槽：模型声明 aspect_ratio 时用模型档位（选中即锁框比例并提交 size），
-    // 否则用通用比例组（只锁框几何，不进提交参数）。"自由" = 解除比例锁定。
+    // 比例槽：aspect_ratio 制用模型档位；size 制从分辨率档推导真实画幅（1024x1024→1:1、1536x1024→3:2）；
+    // 其余模型用通用比例组（只锁框几何，不进提交参数）。"自由" = 解除比例锁定。
     const ratioOptions = useMemo(() => {
-        const base = sizeParameter === "aspect_ratio" ? sizeOptions.filter((value) => parseRatioValue(value) !== null) : GENERIC_RATIO_OPTIONS;
+        let base: string[];
+        if (sizeParameter === "aspect_ratio") {
+            base = sizeOptions.filter((value) => parseRatioValue(value) !== null);
+        } else if (sizeParameter === "size") {
+            base = [...new Set(sizeOptions.map((value) => sizeValueToRatioLabel(String(value))).filter(Boolean))] as string[];
+        } else {
+            base = GENERIC_RATIO_OPTIONS;
+        }
         return [FREE_RATIO_KEY, ...base];
     }, [sizeParameter, sizeOptions]);
     // 分辨率槽：size 制模型显示其分辨率档（提交 size），quality 多档模型显示 1K/2K/4K（提交 quality）。
@@ -174,7 +203,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         if (!container || !node) return null;
         const current = nodeElementRef.current;
         if (current?.isConnected) return current;
-        const fresh = container.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
+        // 基准优先图片内容盒（排除悬浮 header 造成的视觉偏移与条带遮字），非图节点回落整个节点。
+        const wrapper = container.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
+        const fresh = wrapper?.querySelector<HTMLElement>("[data-canvas-image-content]") || wrapper;
         nodeElementRef.current = fresh;
         return fresh;
     }, [containerRef, node]);
@@ -374,16 +405,16 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 </svg>
                 {/* 扩展区"+"号填充：四条带挖出原图区域，currentColor 随令牌明暗自适应 */}
                 <div className="pointer-events-none absolute inset-0 text-primary/35">
-                    <div ref={(el) => { stripRefs.current.top = el; }} className="absolute inset-x-0 top-0 overflow-hidden rounded-t-md">
+                    <div ref={(el) => { stripRefs.current.top = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 top-0 overflow-hidden rounded-t-md">
                         <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
                     </div>
-                    <div ref={(el) => { stripRefs.current.bottom = el; }} className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-md">
+                    <div ref={(el) => { stripRefs.current.bottom = el; }} style={{ transition: dragging ? "none" : "height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-md">
                         <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
                     </div>
-                    <div ref={(el) => { stripRefs.current.left = el; }} className="absolute left-0 overflow-hidden">
+                    <div ref={(el) => { stripRefs.current.left = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute left-0 overflow-hidden">
                         <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
                     </div>
-                    <div ref={(el) => { stripRefs.current.right = el; }} className="absolute right-0 overflow-hidden">
+                    <div ref={(el) => { stripRefs.current.right = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute right-0 overflow-hidden">
                         <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
                     </div>
                 </div>
@@ -449,11 +480,21 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 <span className="h-6 w-px shrink-0 bg-border" />
                 <Dropdown
                     trigger={["click"]}
+                    placement="top"
                     menu={{
                         items: ratioOptions.map((option) => ({ key: option, label: option === FREE_RATIO_KEY ? "自由" : option })),
                         selectable: true,
                         selectedKeys: [ratioKey],
-                        onClick: ({ key }) => setRatioKey(key),
+                        onClick: ({ key }) => {
+                            setRatioKey(key);
+                            if (key === FREE_RATIO_KEY || !node) return;
+                            const nextRatio = parseRatioValue(key);
+                            if (!nextRatio) return;
+                            const layoutWidth = nodeElementRef.current?.offsetWidth || layoutSize.width;
+                            const layoutHeight = nodeElementRef.current?.offsetHeight || layoutSize.height;
+                            if (!layoutWidth || !layoutHeight) return;
+                            applyPadding(resolveOutpaintPaddingForRatio({ nodeWidth: layoutWidth, nodeHeight: layoutHeight, ratio: nextRatio, basePadding: paddingRef.current }));
+                        },
                     }}
                 >
                     <button type="button" className="flex h-8 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-foreground/8" aria-label="目标画幅比例">
@@ -469,6 +510,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         onChange={(value) => (resolutionMode === "size" ? setSizeValue(String(value)) : setQualityValue(String(value)))}
                         options={resolutionOptions.map((value) => ({ value, label: String(value).toUpperCase() }))}
                         popupMatchSelectWidth={false}
+                        placement="topLeft"
                         aria-label={resolutionMode === "size" ? "输出分辨率" : "输出画质"}
                         className="w-[86px] shrink-0"
                     />
@@ -481,6 +523,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     onChange={setCount}
                     options={[1, 2, 3, 4].map((value) => ({ value, label: `x${value}` }))}
                     popupMatchSelectWidth={false}
+                    placement="topLeft"
                     aria-label="生成张数"
                     className="w-[64px] shrink-0"
                 />

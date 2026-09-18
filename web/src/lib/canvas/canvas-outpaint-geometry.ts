@@ -161,3 +161,31 @@ export function describeOutpaintSize(padding: OutpaintPadding, nodeWidth: number
     const height = Math.max(0, Math.round((safeNodeHeight + safe.top + safe.bottom) * safeScale));
     return `${width} × ${height}`;
 }
+
+// 比例选择（含参数条下拉即时切换）反解四边 padding：联立解保证框比精确等于目标比例。
+// anchor = 既有外扩强度（basePadding 最大边和的一半），作为「少加的那条轴」的保底量；
+// 另一轴按 (基准 + 2*anchor) 联立补差。补差为负时放弃 anchor，回落最小外扩纯解（比例优先）。
+export function resolveOutpaintPaddingForRatio(input: { nodeWidth: number; nodeHeight: number; ratio: number; basePadding?: OutpaintPadding }): OutpaintPadding {
+    const nodeWidth = positiveOrZero(input.nodeWidth);
+    const nodeHeight = positiveOrZero(input.nodeHeight);
+    const ratio = Number.isFinite(input.ratio) && input.ratio > 0 ? input.ratio : 0;
+    const base = sanitizePadding(input.basePadding ?? { left: 0, top: 0, right: 0, bottom: 0 });
+    if (!nodeWidth || !nodeHeight || !ratio) return base;
+    const anchor = Math.max(0, Math.round(Math.max(base.left + base.right, base.top + base.bottom) / 2));
+    const nodeRatio = nodeWidth / nodeHeight;
+
+    const solve = (vertical: number) => Math.max(0, Math.round(((nodeHeight + 2 * vertical) * ratio - nodeWidth) / 2));
+    if (ratio >= nodeRatio) {
+        // 目标比更宽：上下保底 anchor，左右补差
+        const horizontal = solve(anchor);
+        if (horizontal > 0 || anchor === 0) return { left: horizontal, right: horizontal, top: anchor, bottom: anchor };
+        // 左右补差为负（anchor 过大）→ 放弃保底，最小外扩纯解
+        const pure = Math.max(0, Math.round((nodeHeight * ratio - nodeWidth) / 2));
+        return { left: pure, right: pure, top: 0, bottom: 0 };
+    }
+    // 目标比更扁：左右保底 anchor，上下补差
+    const vertical = Math.max(0, Math.round((nodeWidth / ratio - nodeHeight) / 2 - anchor));
+    if (vertical > 0 || anchor === 0) return { left: anchor, right: anchor, top: vertical, bottom: vertical };
+    const pure = Math.max(0, Math.round((nodeWidth / ratio - nodeHeight) / 2));
+    return { left: 0, right: 0, top: pure, bottom: pure };
+}
