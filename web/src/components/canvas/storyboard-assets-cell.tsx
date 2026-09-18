@@ -5,7 +5,7 @@ import { Image as ImageIcon, Music2, Play, Plus, UserRound, X } from "lucide-rea
 import { Tooltip } from "@/components/ui/base/tooltip";
 
 import { canvasNodeVideoPreviewUrl } from "@/lib/canvas/canvas-media-preview";
-import { buildStoryboardAssetCatalog, storyboardAssetRoleForNode } from "@/lib/canvas/canvas-storyboard-assets";
+import { MAX_ROW_ASSET_BINDINGS, buildStoryboardAssetCatalog, storyboardAssetRoleForNode } from "@/lib/canvas/canvas-storyboard-assets";
 import { isStoryboardPreviewAsset } from "@/lib/canvas/canvas-storyboard-materializer";
 import { resolveMediaUrl } from "@/services/file-storage";
 import { CanvasNodeType, type CanvasNodeData, type StoryboardAssetBinding } from "@/types/canvas";
@@ -117,11 +117,19 @@ export function StoryboardAssetsCell({ bindings, nodes, limit = 4, onAddAsset, o
                             </div>
                         }
                     >
-                        <Tooltip title="绑定画布资产（角色/图片/视频/音频）">
+                        <Tooltip title={
+                            bindings.length >= MAX_ROW_ASSET_BINDINGS
+                                ? `每镜最多关联 ${MAX_ROW_ASSET_BINDINGS} 个资产`
+                                : assets.length
+                                    ? "绑定画布资产（角色/图片/视频/音频）"
+                                    // R18 空槽 helper: flora "Connect an Image Node" 的中文化。
+                                    : "连接角色图像节点，或点击选择画布资产"
+                        }>
                             <button
                                 type="button"
                                 aria-label="添加资产绑定"
-                                className="grid size-9 shrink-0 place-items-center rounded-md border border-dashed border-foreground/15 text-foreground/40 outline-none transition hover:border-foreground/35 hover:text-foreground/70 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                                disabled={bindings.length >= MAX_ROW_ASSET_BINDINGS}
+                                className="grid size-9 shrink-0 place-items-center rounded-md border border-dashed border-foreground/15 text-foreground/40 outline-none transition enabled:hover:border-foreground/35 enabled:hover:text-foreground/70 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40"
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onPointerDown={(event) => event.stopPropagation()}
                                 onClick={(event) => event.stopPropagation()}

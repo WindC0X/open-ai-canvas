@@ -488,7 +488,7 @@ export function CanvasScriptNodeContent({
                 if (top < STORYBOARD_HEADER_HEIGHT + 4 || top > STORYBOARD_HEADER_HEIGHT + tableHeight - 4) return null;
                 return (
                     <div key={`ports-${row.id}`}>
-                        <RowHandle side="left" top={top} scale={scale} tone={batchItemTone(batchItemByRowId.get(row.id)) || row.status} theme={theme} onPointerDown={(event) => onConnectStart(event, row.id, "target")} />
+                        <RowHandle side="left" top={top} scale={scale} tone={batchItemTone(batchItemByRowId.get(row.id)) || row.status} theme={theme} title={`镜头 ${row.shotNumber} · 连接角色或资产节点作为本镜参考`} onPointerDown={(event) => onConnectStart(event, row.id, "target")} />
                         <RowHandle side="right" top={top} scale={scale} tone={batchItemTone(batchItemByRowId.get(row.id)) || row.status} theme={theme} onPointerDown={(event) => onConnectStart(event, row.id, "source")} />
                     </div>
                 );

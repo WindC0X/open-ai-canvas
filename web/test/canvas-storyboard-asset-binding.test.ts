@@ -115,3 +115,17 @@ describe("storyboardRowAssetBindingPatch", () => {
         expect(storyboardRowAssetBindingPatch(makeRow(), "missing", "add", nodeMap())).toBeNull();
     });
 });
+
+describe("storyboardRowAssetBindingPatch 上限(R18 自设计常量)", () => {
+    test("add 超过 MAX_ROW_ASSET_BINDINGS=8 → null", () => {
+        const bindings = Array.from({ length: 8 }, (_, index) => ({ nodeId: `n${index}`, role: "style" as const, priority: 60 }));
+        const row = makeRow({ assetBindings: bindings });
+        expect(storyboardRowAssetBindingPatch(row, "n8", "add", nodeMap([makeNode("n8")]))).toBeNull();
+    });
+    test("add 第 8 个(未超)正常返回 patch", () => {
+        const bindings = Array.from({ length: 7 }, (_, index) => ({ nodeId: `n${index}`, role: "style" as const, priority: 60 }));
+        const row = makeRow({ assetBindings: bindings });
+        const patch = storyboardRowAssetBindingPatch(row, "n7", "add", nodeMap([makeNode("n7")]));
+        expect(patch!.assetBindings).toHaveLength(8);
+    });
+});

@@ -62,6 +62,9 @@ export function storyboardAssetBindingPriority(role: StoryboardAssetRole) {
     return 60;
 }
 
+/** 每行资产绑定上限(flora 语料无上限证据, 参照 batch-table MAX_BATCH_REFERENCE_COLUMNS=6 的先例自行设计)。 */
+export const MAX_ROW_ASSET_BINDINGS = 8;
+
 /**
  * 分镜行资产绑定的纯函数 patch(2026-09-18 族3 S1): chip 增删的唯一数据入口。
  * - add: 按 storyboardAssetRoleForNode 推断 role, 去重(同 nodeId 幂等);
@@ -79,6 +82,7 @@ export function storyboardRowAssetBindingPatch(
     const bindings = row.assetBindings || [];
     if (mode === "add") {
         if (bindings.some((binding) => binding.nodeId === nodeId)) return null;
+        if (bindings.length >= MAX_ROW_ASSET_BINDINGS) return null;
         const source = nodeById.get(nodeId);
         if (!source) return null;
         const role = storyboardAssetRoleForNode(source) || "prop";
