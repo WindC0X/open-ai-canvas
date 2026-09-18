@@ -24,7 +24,7 @@
 - [x] bunx tsc 0 + bun run build（44.26s）+ 全量测试基线对照（1817 pass / 18 fail 与注册基线一致，零新增）
 - [x] 真机验收（tmwd DOM 自动化 2026-09-18）：A1 ✓ 双向闭环（+按钮→Popover 候选→点选→chip 出现→Remove 点击→回空态→reload 留存验证）；A2 部分 ✓（handle Tooltip「镜头 N · 连接角色或资产节点」DOM 验证，拖拽连线动作待用户真机）；A3 消费链代码确认+端到端待用户；A4 深色 ✓（用户截图），亮色待用户过目
 - [x] 真机发现的 P0 弹层循环根修：分镜资产 Popover portal 进 world layer 子树与挂件 worldMutations 死循环（Maximum update depth）——getPopupContainer 改 body（e25876bc 同款教训）
-- [ ] pending-test.mdx 登记 + 07-TOTAL-SCHEME-STATUS 快照刷新（P4 族序 4/4）+ 归档
+- [x] pending-test.mdx 登记 ✓ + 07-TOTAL-SCHEME-STATUS 快照刷新（P4 族序 4/4 ✅）+ 归档（本条勾选即归档前最后动作）
 - [x] 用户真机反馈五连修（2026-09-18 第二轮）：①chip 缩略 9:16 破格溢出（dev 层序 img height:auto 压过 size-full→inline 尺寸根治，复验 contained ✓）②拖线预览吸到节点中点松手才落行（预览渲染只吃 anchorRatio→命中行时回传 ratio）③HUD 亮色恒黑（useThemeStore 漏迁→useActiveTheme）④拖 Agent 面板 HUD 逐帧被挤（gesturing 中冻结让位）⑤扩展节点连接后误显 hover composer（限 image/video 白名单）；tsc 0/build 58.49s/30 测试绿
 
 ## 验证命令
