@@ -89,6 +89,17 @@
 - [x] G5 quality 域钳制（真实测试发现）：payload.quality 为空时 hook 回落全局 config.quality（"medium"）→ aspect_ratio/1k2k 域模型 400「生成质量超出支持范围」；修 = overlay 提交层 quality 域非空时总是给域内值（越域回落模型默认档）短路回落链。
 - 遗留记录：grok 429 失败节点「重新生成」报「参考图片已丢失」——任务重试链不带原任务临时 dataUrl 参考图，属重试链限制（非扩图主链），后续任务处理。
 
+## 用户终验反馈修复（2026-09-18 第四轮，提交见 git log）
+
+- [x] H1 模型参数推导（F1）：size 制模型的比例槽从分辨率档推导真实画幅（`sizeValueToRatioLabel` gcd 约分：1024x1024→1:1、1536x1024→3:2、1024x1536→2:3），不再显示与模型无关的通用组；aspect_ratio 制照旧用模型档位。
+- [x] H2 菜单统一向上（F2）：比例 Dropdown `placement="top"`、分辨率/数量 Select `placement="topLeft"`，headless 断言 `menu.bottom <= bar.top` 通过。
+- [x] H3 "扯"与"+"号重叠（F3）：定位基准从 `[data-node-id]`（含悬浮 header）改为优先 `[data-canvas-image-content]`（canvas-node-content.tsx 新 data 标记，真图片盒），上下拖拽语义即正确（headless: top 拖 -60 → top padding 135→74）；上下条带补 360ms 展开 transition（拖拽中禁用）。
+- [x] H4 真实照片全链路（F4）：生成 1536x1024 金毛幼犬实拍照 drop 入画布 → 扩图（gpt-image-2）→ 90s 出图 1492x1054，主体/构图/光照保持，扩展区（木露台、花箱、洒水壶、花园景深）协调延续。证据 .local/f06-evidence/91-puppy-outpaint.png。
+- [x] H5 重试链修复（F5）：根因 = referenceUrl 只留 storageKey/url，纯 dataUrl 的 pad 底图在 metadata.references 中丢失 → 重试时 resolveMetadataReferences 无图。修 = 提交前 `uploadImage(paddedSource)` 物化为 resource 再引用（storageKey 指向 pad 图不退化白边）。headless 断言：失败渠道触发后重试，missing-ref error 不再出现，重试任务正常创建。
+- [x] H6 比例即时重算（F6）：新纯函数 `resolveOutpaintPaddingForRatio`（联立解保精确框比 + anchor 保底既有外扩量级，补差为负回落纯解），比例菜单 onClick 即算 padding，条带/框 360ms 过渡跟随。headless: 选 3:2 框比 1.501（目标 1.500）。
+- [x] H7 提交压缩（H4 伴生）：2.4MB 原图 base64 edits 请求被 ddcat 中转断连（unexpected EOF，200s 实录）；`padImageToDataUrl` 增加 `PadImageOptions`（maxLongEdge 1536 整体等比缩 + 底图 JPEG 0.92 / mask PNG 保 alpha，同一 maxLongEdge 对齐）。
+- [ ] H8 Agent 接入（F7）：**超出本任务边界，停机待用户裁定**——agent 的 CanvasOperation 契约只有 run_generation（无 outpaint 语义）；接入需扩 operation 契约（前端 canvas-operation-contract）+ creative-agent 方案 schema + 后端 agent 工具编排提示词，后端不再零改动。选项见交付说明。
+
 ## 已定裁定（2026-09-18 用户）
 
 - 积分槽位 = 真实计价组件（requestCreditCost + quoteLogicalModel + CreditSymbol，creditsEnabled 门控）。
