@@ -80,6 +80,15 @@
 - [x] F5 参数条重排（用户裁定顺序）：✕ / 模型 / 比例 / 分辨率(1K/2K/4K 或模型 size 档，按模型能力域) / 数量 / 生成按钮(附预估消耗)。比例槽在 aspect_ratio 制模型用模型档位并提交 size；size 制模型显示分辨率档；quality 多档显示画质档。
 - 备注：排查期间 headless 测得"框脱节 1270px"为测试脚本参照物错误（querySelector 首个节点 ≠ overlay 绑定节点）的假警报，组件定位本身精确（style.left 与绑定节点 530px 处匹配）。
 
+## 用户终验反馈修复（2026-09-18 第三轮）
+
+- [x] G1 框样式减重 + 亮色适配：白边+黑圈 shadow 改 `border-primary/70`（明暗自适应）、去黑 shadow、网格减为 4 条内线 primary/15、角手柄 primary 实心+background 描边、边手柄半透明胶囊、尺寸标注换 bg-background/85+border 材质。
+- [x] G2 扩展区"+"号填充（用户参考图：砖石交错）：4 条带挖出原图区域 + 内联 SVG pattern（tile 44x22 双列错半步 + 菱形中心微弱点 opacity .4），stroke=currentColor 走 `text-primary/35` 令牌明暗自适应。
+- [x] G3 参数条分隔：✕|模型|比例|分辨率|数量 间全部加 `h-6 w-px bg-border` 分隔线；执行按钮 `text-primary-foreground` 被 antd unlayered reset 覆盖（computed #111827 实锤，PATCH-MAP #13 同款模式）→ inline style 对抗，明暗双主题 computed 验证通过。
+- [x] G4 真实生成验证：grok2api 渠道（Tailscale 内网，`CANVAS_ALLOWED_PRIVATE_UPSTREAM_HOSTS` 精确放行 + A 线库 `enc:v1:` AES-GCM 解密搬运 key）链路全通但上游账号冷却（429 upstream_cooling，且该渠道不支持图生图——用户确认）；改用用户提供的 ddcat 渠道（gpt-image-2，openai-image 协议 mask 路由）**真实扩图出图成功**：800×600 → 1421×1107 PNG，扩展区渐变无缝延续，任务 15s 完成（任务 075a8bcf、渠道 CHANNEL_000005 f06-ddcat）。
+- [x] G5 quality 域钳制（真实测试发现）：payload.quality 为空时 hook 回落全局 config.quality（"medium"）→ aspect_ratio/1k2k 域模型 400「生成质量超出支持范围」；修 = overlay 提交层 quality 域非空时总是给域内值（越域回落模型默认档）短路回落链。
+- 遗留记录：grok 429 失败节点「重新生成」报「参考图片已丢失」——任务重试链不带原任务临时 dataUrl 参考图，属重试链限制（非扩图主链），后续任务处理。
+
 ## 已定裁定（2026-09-18 用户）
 
 - 积分槽位 = 真实计价组件（requestCreditCost + quoteLogicalModel + CreditSymbol，creditsEnabled 门控）。
