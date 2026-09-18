@@ -1,10 +1,11 @@
-import { Modal } from "antd";
-import { Tooltip } from "@/components/ui/base/tooltip";
 import { useEffect, useMemo, useState } from "react";
+import { Modal, Popover } from "antd";
+import { Image as ImageIcon, Music2, Play, Plus, UserRound, X } from "lucide-react";
 
-import { Image as ImageIcon, Music2, Play, UserRound } from "lucide-react";
+import { Tooltip } from "@/components/ui/base/tooltip";
 
 import { canvasNodeVideoPreviewUrl } from "@/lib/canvas/canvas-media-preview";
+import { buildStoryboardAssetCatalog, storyboardAssetRoleForNode } from "@/lib/canvas/canvas-storyboard-assets";
 import { isStoryboardPreviewAsset } from "@/lib/canvas/canvas-storyboard-materializer";
 import { resolveMediaUrl } from "@/services/file-storage";
 import { CanvasNodeType, type CanvasNodeData, type StoryboardAssetBinding } from "@/types/canvas";
@@ -20,37 +21,116 @@ const ROLE_LABELS: Record<StoryboardAssetBinding["role"], string> = {
     audio: "音频",
 };
 
-export function StoryboardAssetsCell({ bindings, nodes, limit = 4 }: { bindings: StoryboardAssetBinding[]; nodes: CanvasNodeData[]; limit?: number }) {
+type Props = {
+    bindings: StoryboardAssetBinding[];
+    nodes: CanvasNodeData[];
+    limit?: number;
+    /** 传入时启用手动绑定交互(R17 chip 语法: Remove 按钮 + 添加入口); 缺省保持纯只读。 */
+    onAddAsset?: (nodeId: string) => void;
+    onRemoveAsset?: (nodeId: string) => void;
+};
+
+export function StoryboardAssetsCell({ bindings, nodes, limit = 4, onAddAsset, onRemoveAsset }: Props) {
     const [previewNode, setPreviewNode] = useState<CanvasNodeData | null>(null);
+    const [pickerOpen, setPickerOpen] = useState(false);
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     const assets = bindings.map((binding) => ({ binding, node: nodeById.get(binding.nodeId) })).filter((item) => !item.node || isStoryboardPreviewAsset(item.node));
     const visible = assets.slice(0, limit);
     const hiddenCount = Math.max(0, assets.length - visible.length);
+    const interactive = Boolean(onAddAsset && onRemoveAsset);
+    // 候选目录: buildStoryboardAssetCatalog 已过滤输出类节点与空资产; 这里再排除已绑定与失效节点。
+    const candidates = useMemo(() => {
+        if (!interactive) return [];
+        const bound = new Set(bindings.map((binding) => binding.nodeId));
+        return buildStoryboardAssetCatalog(nodes).filter((item) => !bound.has(item.id));
+    }, [bindings, interactive, nodes]);
 
-    if (!assets.length) return <span className="text-[var(--fs-caption)] text-foreground/35">未关联</span>;
+    if (!assets.length && !interactive) return <span className="text-[var(--fs-caption)] text-foreground/35">未关联</span>;
     return (
         <>
             <div className="flex min-w-0 items-center gap-1.5" aria-label={`已关联 ${assets.length} 个资产`}>
                 {visible.map(({ binding, node }) => (
-                    <Tooltip key={binding.nodeId} title={`${node?.title || "资产已失效"} · ${ROLE_LABELS[binding.role]}`}>
-                        <button
-                            type="button"
-                            disabled={!node}
-                            className="relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.035] text-foreground/45 outline-none transition enabled:hover:border-foreground/30 enabled:hover:text-foreground/70 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:cursor-not-allowed"
-                            aria-label={`预览${node?.title || "失效资产"}`}
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                if (node) setPreviewNode(node);
-                            }}
-                        >
-                            {node ? <AssetThumbnail node={node} /> : <ImageIcon className="size-4" />}
-                            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/65 px-1 text-[8px] leading-3 text-white">{ROLE_LABELS[binding.role].slice(0, 1)}</span>
-                        </button>
-                    </Tooltip>
+                    <div key={binding.nodeId} className="group relative shrink-0">
+                        <Tooltip title={`${node?.title || "资产已失效"} · ${ROLE_LABELS[binding.role]}`}>
+                            <button
+                                type="button"
+                                disabled={!node}
+                                className="relative grid size-9 place-items-center overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.035] text-foreground/45 outline-none transition enabled:hover:border-foreground/30 enabled:hover:text-foreground/70 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:cursor-not-allowed"
+                                aria-label={`预览${node?.title || "失效资产"}`}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onPointerDown={(event) => event.stopPropagation()}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    if (node) setPreviewNode(node);
+                                }}
+                            >
+                                {node ? <AssetThumbnail node={node} /> : <ImageIcon className="size-4" />}
+                                <span className="absolute bottom-0.5 right-0.5 rounded bg-black/65 px-1 text-[8px] leading-3 text-white">{ROLE_LABELS[binding.role].slice(0, 1)}</span>
+                            </button>
+                        </Tooltip>
+                        {interactive && node ? (
+                            // R17: remove 图标默认隐藏, hover/focus 显现; 移除仅解除行内绑定不删节点。
+                            <button
+                                type="button"
+                                aria-label={`移除 ${node.title || "资产"} 引用`}
+                                className="absolute -right-1.5 -top-1.5 grid size-4 place-items-center rounded-full border border-foreground/20 bg-background text-foreground/60 opacity-0 shadow-sm outline-none transition group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onPointerDown={(event) => event.stopPropagation()}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onRemoveAsset?.(binding.nodeId);
+                                }}
+                            >
+                                <X className="size-2.5" />
+                            </button>
+                        ) : null}
+                    </div>
                 ))}
                 {hiddenCount ? <span className="shrink-0 text-[var(--fs-caption)] font-medium text-foreground/45">+{hiddenCount}</span> : null}
+                {interactive ? (
+                    <Popover
+                        trigger="click"
+                        open={pickerOpen}
+                        onOpenChange={setPickerOpen}
+                        placement="bottomLeft"
+                        content={
+                            <div className="flex max-h-64 w-56 flex-col gap-1 overflow-y-auto" onWheel={(event) => event.stopPropagation()}>
+                                {candidates.length ? candidates.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs outline-none transition hover:bg-foreground/[0.05] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                                        onClick={() => {
+                                            onAddAsset?.(item.id);
+                                            setPickerOpen(false);
+                                        }}
+                                    >
+                                        <span className="grid size-6 shrink-0 place-items-center rounded bg-foreground/[0.06] text-foreground/55">
+                                            {item.type === "character" ? <UserRound className="size-3.5" /> : item.type === "audio" ? <Music2 className="size-3.5" /> : item.type === "video" ? <Play className="size-3.5" /> : <ImageIcon className="size-3.5" />}
+                                        </span>
+                                        <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                                        <span className="shrink-0 text-[10px] text-foreground/40">{ROLE_LABELS[storyboardAssetRoleForNode(nodeById.get(item.id)!) || "style"]?.slice(0, 1) || "资"}</span>
+                                    </button>
+                                )) : (
+                                    <span className="px-2 py-3 text-center text-[var(--fs-caption)] text-foreground/45">画布上暂无可绑定的资产节点（图片/视频/音频/角色）</span>
+                                )}
+                            </div>
+                        }
+                    >
+                        <Tooltip title="绑定画布资产（角色/图片/视频/音频）">
+                            <button
+                                type="button"
+                                aria-label="添加资产绑定"
+                                className="grid size-9 shrink-0 place-items-center rounded-md border border-dashed border-foreground/15 text-foreground/40 outline-none transition hover:border-foreground/35 hover:text-foreground/70 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onPointerDown={(event) => event.stopPropagation()}
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <Plus className="size-4" />
+                            </button>
+                        </Tooltip>
+                    </Popover>
+                ) : null}
             </div>
             <AssetPreviewModal node={previewNode} onClose={() => setPreviewNode(null)} />
         </>
