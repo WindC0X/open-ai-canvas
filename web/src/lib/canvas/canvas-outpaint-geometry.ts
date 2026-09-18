@@ -1,4 +1,7 @@
-export type OutpaintPadding = { left: number; top: number; right: number; bottom: number };
+import type { ImagePadRect } from "./canvas-image-data";
+
+// 世界坐标下的外扩框四边 padding；像素域复用同一形状（见 padImageToDataUrl）。
+export type OutpaintPadding = ImagePadRect;
 
 export type OutpaintDragEdge = "left" | "top" | "right" | "bottom" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
 

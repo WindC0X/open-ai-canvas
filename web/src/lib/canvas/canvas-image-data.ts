@@ -32,6 +32,34 @@ export type ImageSplitPiece = {
     dataUrl: string;
 };
 
+export type ImagePadRect = {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+};
+
+// 将原图按四边 padding 合成到目标画幅：fill 提供颜色时先铺底色（白底补边），
+// fill 为 "transparent" 时新增区保持透明（扩图 mask 极性：透明区 = 要生成的区域）。失败时回落原图。
+export async function padImageToDataUrl(dataUrl: string, padding: ImagePadRect, fill: string | "transparent" = "#FFFFFF") {
+    const image = await loadImage(dataUrl);
+    const left = Math.max(0, Math.round(padding.left));
+    const top = Math.max(0, Math.round(padding.top));
+    const right = Math.max(0, Math.round(padding.right));
+    const bottom = Math.max(0, Math.round(padding.bottom));
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width + left + right;
+    canvas.height = image.height + top + bottom;
+    const context = canvas.getContext("2d");
+    if (!context) return dataUrl;
+    if (fill !== "transparent") {
+        context.fillStyle = fill;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    context.drawImage(image, left, top);
+    return canvas.toDataURL("image/png");
+}
+
 export async function cropDataUrl(dataUrl: string, crop?: ImageCropRect) {
     const image = await loadImage(dataUrl);
     if (crop) {

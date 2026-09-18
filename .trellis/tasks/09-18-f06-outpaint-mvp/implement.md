@@ -20,8 +20,8 @@
 ## Step 2：padImageToDataUrl（提交 2：`feat(canvas): padImageToDataUrl 补边合成`）
 
 - [ ] 2.1 `canvas-image-data.ts` 加 `ImagePadRect` + `padImageToDataUrl`（design §5，复用文件内 loadImage）。
-- [ ] 2.2 视现有 canvas 测试 mock 先例（`canvas-media-download.test.ts`）补 1–2 个用例；无先例 mock 则以 1.2 几何测试 + Step 6 真机为准并在交付说明标注。
-- [ ] 2.3 验证：`bun test canvas-image-data`（若有）+ `bun test` 全量无回归。
+- [x] 2.2 无 canvas stub 先例（bun test 无 DOM，全库零先例），按预留路径：padImageToDataUrl 保持与 cropDataUrl 同构的薄实现，几何契约由 Step 1 测试锁定，真机验证兜底（Step 6），交付说明标注。
+- [x] 2.3 验证：专项几何测试 11 pass；tsc --noEmit 通过；全量 1831 tests / 1813 pass / **18 fail = 枝点存量基线**（stash 对照实证：去掉本枝未提交改动后同样 18 fail；失败集中 storyboard/creative-agent/director-diagnostics/toolbar-mode-switch 等 6 个无关文件，零 import 关联）。降级门口径 = 交付时 fail 集合 ⊆ 这 18 个。
 
 ## Step 3：提交链（提交 3：`feat(canvas): outpaintImageNode 扩图提交链`）
 
