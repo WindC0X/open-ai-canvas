@@ -48,6 +48,8 @@ const EDGE_HANDLES: Array<{ edge: OutpaintDragEdge; className: string }> = [
     { edge: "right", className: "-right-1.5 top-1/2 h-10 w-3 -translate-y-1/2 cursor-ew-resize" },
 ];
 
+const PLUS_PATTERN_ID = "canvas-outpaint-plus-pattern";
+
 const DEFAULT_PADDING: OutpaintPadding = { left: 48, top: 48, right: 48, bottom: 48 };
 const ZERO_PADDING: OutpaintPadding = { left: 0, top: 0, right: 0, bottom: 0 };
 const FRAME_EXPAND_TRANSITION = "left 360ms cubic-bezier(0.22, 1, 0.36, 1), top 360ms cubic-bezier(0.22, 1, 0.36, 1), width 360ms cubic-bezier(0.22, 1, 0.36, 1), height 360ms cubic-bezier(0.22, 1, 0.36, 1)";
@@ -67,6 +69,7 @@ const RATIO_VALUE_MAP: Record<string, number> = { "1:1": 1, "4:3": 4 / 3, "3:4":
 export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose, onExecute }: CanvasNodeOutpaintOverlayProps) {
     const frameRef = useRef<HTMLDivElement>(null);
     const labelRef = useRef<HTMLDivElement>(null);
+    const stripRefs = useRef<{ top: HTMLDivElement | null; bottom: HTMLDivElement | null; left: HTMLDivElement | null; right: HTMLDivElement | null }>({ top: null, bottom: null, left: null, right: null });
     const barRef = useRef<HTMLDivElement>(null);
     const nodeElementRef = useRef<HTMLElement | null>(null);
     const scaleRef = useRef(1);
@@ -114,7 +117,12 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
 
     const sizeInDomain = sizeOptions.includes(sizeValue) ? sizeValue : sizeFallback;
     const submitSize = sizeParameter === "aspect_ratio" ? (ratioKey !== FREE_RATIO_KEY ? ratioKey : sizeFallback) : sizeParameter === "size" ? sizeInDomain : sizeFallback;
-    const submitQuality = qualityOptions.includes(qualityValue) ? qualityValue : undefined;
+    // 域非空时总是提交域内值（越域回落模型默认档），短路 hook 层的全局 config.quality 回落链。
+    const submitQuality = qualityOptions.length
+        ? qualityOptions.includes(qualityValue)
+            ? qualityValue
+            : imageProfile?.quality?.default || qualityOptions[0]
+        : undefined;
 
     const ratio = ratioKey === FREE_RATIO_KEY ? null : parseRatioValue(ratioKey);
 
@@ -197,6 +205,30 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         frame.style.width = `${width}px`;
         frame.style.height = `${height}px`;
 
+        const pt = current.top * scale;
+        const pb = current.bottom * scale;
+        const pl = current.left * scale;
+        const pr = current.right * scale;
+        if (stripRefs.current.top) {
+            stripRefs.current.top.style.height = `${pt}px`;
+            stripRefs.current.top.style.display = pt > 0 ? "" : "none";
+        }
+        if (stripRefs.current.bottom) {
+            stripRefs.current.bottom.style.height = `${pb}px`;
+            stripRefs.current.bottom.style.display = pb > 0 ? "" : "none";
+        }
+        if (stripRefs.current.left) {
+            stripRefs.current.left.style.width = `${pl}px`;
+            stripRefs.current.left.style.top = `${pt}px`;
+            stripRefs.current.left.style.bottom = `${pb}px`;
+            stripRefs.current.left.style.display = pl > 0 ? "" : "none";
+        }
+        if (stripRefs.current.right) {
+            stripRefs.current.right.style.width = `${pr}px`;
+            stripRefs.current.right.style.top = `${pt}px`;
+            stripRefs.current.right.style.bottom = `${pb}px`;
+            stripRefs.current.right.style.display = pr > 0 ? "" : "none";
+        }
         if (labelRef.current) {
             labelRef.current.textContent = describeOutpaintSize(current, layoutWidth, layoutHeight, contentWidth / Math.max(1, layoutWidth));
         }
@@ -328,15 +360,39 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             <div
                 ref={frameRef}
                 style={frameStyle}
-                className="absolute border-2 border-white/90 shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
+                className="absolute rounded-lg border-[1.5px] border-primary/70"
                 data-testid="canvas-outpaint-frame"
             >
-                <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3">
-                    {Array.from({ length: 9 }, (_, index) => (
-                        <div key={index} className="border border-white/25" />
-                    ))}
+                <svg width="0" height="0" className="absolute" aria-hidden>
+                    <defs>
+                        {/* 砖石交错排布：双列错半步 + 菱形中心微弱点（用户参考图 1789732625543） */}
+                        <pattern id={PLUS_PATTERN_ID} width="44" height="22" patternUnits="userSpaceOnUse">
+                            <path d="M11 2v7M7.5 5.5h7M33 13v7M29.5 16.5h7" stroke="currentColor" strokeWidth="1.6" fill="none" />
+                            <circle cx="22" cy="11" r="1" fill="currentColor" opacity="0.4" />
+                        </pattern>
+                    </defs>
+                </svg>
+                {/* 扩展区"+"号填充：四条带挖出原图区域，currentColor 随令牌明暗自适应 */}
+                <div className="pointer-events-none absolute inset-0 text-primary/35">
+                    <div ref={(el) => { stripRefs.current.top = el; }} className="absolute inset-x-0 top-0 overflow-hidden rounded-t-md">
+                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
+                    </div>
+                    <div ref={(el) => { stripRefs.current.bottom = el; }} className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-md">
+                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
+                    </div>
+                    <div ref={(el) => { stripRefs.current.left = el; }} className="absolute left-0 overflow-hidden">
+                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
+                    </div>
+                    <div ref={(el) => { stripRefs.current.right = el; }} className="absolute right-0 overflow-hidden">
+                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
+                    </div>
                 </div>
-                <div ref={labelRef} className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/65 px-2 py-0.5 text-xs font-medium text-white" />
+                {/* 三分网格只画内部 4 线，避免 9 格 border 外缘描重 */}
+                <div className="pointer-events-none absolute inset-y-0 left-1/3 w-px bg-primary/15" />
+                <div className="pointer-events-none absolute inset-y-0 left-2/3 w-px bg-primary/15" />
+                <div className="pointer-events-none absolute inset-x-0 top-1/3 h-px bg-primary/15" />
+                <div className="pointer-events-none absolute inset-x-0 top-2/3 h-px bg-primary/15" />
+                <div ref={labelRef} className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-background/85 px-2 py-0.5 text-xs font-medium text-foreground backdrop-blur" />
                 {CORNER_HANDLES.map((handle) => (
                     <div
                         key={handle.edge}
@@ -344,7 +400,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         onPointerMove={onHandlePointerMove}
                         onPointerUp={onHandlePointerUp}
                         onPointerCancel={onHandlePointerUp}
-                        className={`pointer-events-auto absolute size-3 rounded-full border-2 border-white bg-white shadow-md ${handle.className}`}
+                        className={`pointer-events-auto absolute size-3 rounded-full border-2 border-background bg-primary shadow-sm ${handle.className}`}
                         data-testid={`canvas-outpaint-handle-${handle.edge}`}
                     />
                 ))}
@@ -355,7 +411,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         onPointerMove={onHandlePointerMove}
                         onPointerUp={onHandlePointerUp}
                         onPointerCancel={onHandlePointerUp}
-                        className={`pointer-events-auto absolute rounded-full border border-white/70 bg-white/35 backdrop-blur-sm transition-colors hover:bg-white/60 ${handle.className}`}
+                        className={`pointer-events-auto absolute rounded-full border border-primary/40 bg-background/60 backdrop-blur-sm transition-colors hover:bg-primary/25 ${handle.className}`}
                         data-testid={`canvas-outpaint-handle-${handle.edge}`}
                     />
                 ))}
@@ -377,6 +433,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 >
                     <X className="size-4" />
                 </button>
+                <span className="h-6 w-px shrink-0 bg-border" />
                 <ModelPicker
                     config={config}
                     value={model}
@@ -389,6 +446,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         if (defaults.size) setSizeValue(String(defaults.size));
                     }}
                 />
+                <span className="h-6 w-px shrink-0 bg-border" />
                 <Dropdown
                     trigger={["click"]}
                     menu={{
@@ -402,6 +460,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         {ratioMenuLabel}
                     </button>
                 </Dropdown>
+                <span className="h-6 w-px shrink-0 bg-border" />
                 {resolutionOptions.length > 1 ? (
                     <Select
                         size="small"
@@ -414,6 +473,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         className="w-[86px] shrink-0"
                     />
                 ) : null}
+                <span className="h-6 w-px shrink-0 bg-border" />
                 <Select
                     size="small"
                     variant="borderless"
@@ -438,7 +498,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     aria-label={canExecute ? `预计消耗 ${credits} 积分，执行扩图` : "当前模型不支持扩图，请更换模型"}
                     disabled={!canExecute}
                     onClick={handleExecute}
-                    className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-xl bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
+                    style={{ color: "var(--primary-foreground)" }}
+                    className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-xl bg-primary px-2.5 text-sm font-medium transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                     <ArrowUp className="size-4" />
                     {canExecute && creditsEnabled ? (
