@@ -106,9 +106,16 @@
 - [x] I2 模型菜单不向上：ModelPicker 已有 `placement` prop（:49/:620），overlay 传 `placement="top"` 生效；antd 在上方空间不足时自动翻转为合理降级（框超高被 clamp 到顶部时向下，正常位置 headless 断言 upward=true）。
 - [x] I3 "+"号相位漂移（拖一边其它区域的+整体动）：4 条带各自 SVG 原点导致相位不一致。修 = 各条带内 rect 用 CSS x/y 平移到 frame 全局原点（SVG2 geometry property），四条带共享同一网格相位——拖动任一边所有 + 号静止，只有洞口变化；rect x/y 补同款 360ms transition。
 
-## Agent 接入裁定（2026-09-18 用户：本期接入）
+## Agent 接入裁定（2026-09-18 用户：本期接入）——已实施
 
-- 用户已裁定扩图接入 agent 且本期实施。边界：扩 CanvasOperation 契约（canvas-operation-contract.ts 增加 outpaint 语义）+ creative-agent 方案 schema/执行链 + 后端 agent 编排提示词（backend 不再零改动，需登记任务卡并同步文档）。**开工顺序：先完整规划（operation 语义、agent 侧参数面、确认流）再实施，作为 F-06 收尾扩展独立提交序列。**
+- 架构实测：creative agent 的工具 schema（creative_respond）、系统提示词、proposal 校验全在前端，后端仅转发 LLM 请求与承载报价/任务 API——**后端零改动成立**。
+- 接入面（提交 feat(canvas): 扩图接入 creative agent）：
+  - `creative-agent-contract.ts`：CreativeGenerationItem 增 `operation?: "outpaint"` + `outpaint?: { ratio?, paddingPx? }`。
+  - `creative-agent-state.ts` normalize：outpaint 校验（仅图片节点、恰好 1 张源图引用、ratio/paddingPx 二选一且合法）；3 例单测。
+  - `creative-agent-tools.ts`：工具 schema generation 项扩 operation/outpaint 字段 + 系统提示词扩图段落（何时用、引用规则、参数二选一、提示词边界）。
+  - `creative-agent-controller.ts` prepare 循环 outpaint 分支：按 ratio（resolveOutpaintPaddingForRatio，anchor 96 保底）或 paddingPx 合成 pad 底图+mask（buildOutpaintSubmitVariants 共享 helper）→ uploadImage 物化 → 走**既有报价确认链**提交（mask 原生支持）——agent「媒体单独批准」纪律完整保留。
+- 重构伴随：pad 合成逻辑从 hook 提炼为 canvas-image-data.ts 共享 `buildOutpaintSubmitVariants`（hook 与 controller 消除重复）；parseRatioValue 迁入 geometry 单一源导出。
+- 验证：tsc/lint/全量 18 fail=存量基线；normalize 3 例单测过。**Agent 会话端到端（LLM 真实提出 outpaint 方案→批准→生成）待用户真机验收**——需要配置 chat 模型渠道驱动 creative_respond 工具调用。
 
 ## 已定裁定（2026-09-18 用户）
 
