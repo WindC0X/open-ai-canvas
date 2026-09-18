@@ -100,6 +100,16 @@
 - [x] H7 提交压缩（H4 伴生）：2.4MB 原图 base64 edits 请求被 ddcat 中转断连（unexpected EOF，200s 实录）；`padImageToDataUrl` 增加 `PadImageOptions`（maxLongEdge 1536 整体等比缩 + 底图 JPEG 0.92 / mask PNG 保 alpha，同一 maxLongEdge 对齐）。
 - [ ] H8 Agent 接入（F7）：**超出本任务边界，停机待用户裁定**——agent 的 CanvasOperation 契约只有 run_generation（无 outpaint 语义）；接入需扩 operation 契约（前端 canvas-operation-contract）+ creative-agent 方案 schema + 后端 agent 工具编排提示词，后端不再零改动。选项见交付说明。
 
+## 用户终验反馈修复（2026-09-18 第五轮）
+
+- [x] I1 比例反解公式错误（2:3 选完是 2.333 超宽框）：旧第二分支漏 anchor 项（`W/ratio` 应为 `(W+2*anchor)/ratio`）。重写为**中心偏移保持**算法：联立 (W+sw)/(H+sh)=ratio，sw=max(当前, ratio*H−W, 0)，dL/dB 半和分配回两边——同时修掉「忽大忽小」（外扩总量只增不减）与「图片被强制居中」（偏心方位保持，图片贴左下选比例后仍在左下）。新增 5 例测试，数值验证 2:3→0.667 精确锁定。
+- [x] I2 模型菜单不向上：ModelPicker 已有 `placement` prop（:49/:620），overlay 传 `placement="top"` 生效；antd 在上方空间不足时自动翻转为合理降级（框超高被 clamp 到顶部时向下，正常位置 headless 断言 upward=true）。
+- [x] I3 "+"号相位漂移（拖一边其它区域的+整体动）：4 条带各自 SVG 原点导致相位不一致。修 = 各条带内 rect 用 CSS x/y 平移到 frame 全局原点（SVG2 geometry property），四条带共享同一网格相位——拖动任一边所有 + 号静止，只有洞口变化；rect x/y 补同款 360ms transition。
+
+## Agent 接入裁定（2026-09-18 用户：本期接入）
+
+- 用户已裁定扩图接入 agent 且本期实施。边界：扩 CanvasOperation 契约（canvas-operation-contract.ts 增加 outpaint 语义）+ creative-agent 方案 schema/执行链 + 后端 agent 编排提示词（backend 不再零改动，需登记任务卡并同步文档）。**开工顺序：先完整规划（operation 语义、agent 侧参数面、确认流）再实施，作为 F-06 收尾扩展独立提交序列。**
+
 ## 已定裁定（2026-09-18 用户）
 
 - 积分槽位 = 真实计价组件（requestCreditCost + quoteLogicalModel + CreditSymbol，creditsEnabled 门控）。
