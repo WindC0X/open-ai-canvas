@@ -85,6 +85,12 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const canExecute = (imageProfile?.references?.maxImages ?? 0) >= 1;
     const sizeOptions = imageProfile?.size?.values ?? [];
     const sizeFallback = imageProfile?.size?.default ?? "";
+    // 全局 config.size 是画幅比例语义（如 "1:1"），与模型分辨率档位不同域；
+    // 参数条只提交模型档位域内的值，越域值回落模型默认，避免后端档位校验拒绝。
+    const sizeInDomain = sizeOptions.includes(sizeValue) ? sizeValue : sizeFallback;
+    useEffect(() => {
+        if (sizeValue && sizeOptions.length && !sizeOptions.includes(sizeValue)) setSizeValue(sizeFallback);
+    }, [sizeFallback, sizeOptions, sizeValue]);
 
     // 远端报价单次价；显示价 = 单次价 × 张数（configuredCredits 已按张数折算，不重复乘）。
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
@@ -249,16 +255,16 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         onExecute(node, {
             paddingPx: target.paddingPx,
             prompt: prompt.trim(),
-            generationConfig: { model, size: sizeValue || sizeFallback, count: String(count), quality: node.metadata?.quality },
+            generationConfig: { model, size: sizeInDomain, count: String(count), quality: node.metadata?.quality },
         });
-    }, [canExecute, contentHeight, contentWidth, count, model, node, nodeHeight, nodeWidth, onExecute, padding, prompt, sizeFallback, sizeValue]);
+    }, [canExecute, contentHeight, contentWidth, count, model, node, nodeHeight, nodeWidth, onExecute, padding, prompt, sizeInDomain, sizeOptions, sizeValue]);
 
     if (!node) return null;
 
     const frameStyle: CSSProperties = { transition: visible ? "opacity 150ms ease" : "none", opacity: visible ? 1 : 0 };
 
     return (
-        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 z-[var(--z-node-toolbar)] overflow-hidden">
             <div
                 ref={frameRef}
                 style={frameStyle}
