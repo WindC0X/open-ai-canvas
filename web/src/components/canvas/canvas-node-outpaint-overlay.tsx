@@ -1,4 +1,4 @@
-import { Dropdown, Input, Select } from "antd";
+import { Button, Dropdown, Input, Select } from "antd";
 import { ArrowUp, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 
@@ -86,7 +86,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const frameRef = useRef<HTMLDivElement>(null);
     const labelRef = useRef<HTMLDivElement>(null);
     const stripRefs = useRef<{ top: HTMLDivElement | null; bottom: HTMLDivElement | null; left: HTMLDivElement | null; right: HTMLDivElement | null }>({ top: null, bottom: null, left: null, right: null });
-    const stripRectRefs = useRef<{ top: SVGRectElement | null; bottom: SVGRectElement | null; left: SVGRectElement | null; right: SVGRectElement | null }>({ top: null, bottom: null, left: null, right: null });
+    const stripPatternRefs = useRef<{ top: SVGPatternElement | null; bottom: SVGPatternElement | null; left: SVGPatternElement | null; right: SVGPatternElement | null }>({ top: null, bottom: null, left: null, right: null });
     const barRef = useRef<HTMLDivElement>(null);
     const nodeElementRef = useRef<HTMLElement | null>(null);
     const scaleRef = useRef(1);
@@ -110,6 +110,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const contentHeight = Number(node?.metadata?.naturalHeight) || layoutSize.height;
     const imageProfile = useMemo(() => (model ? modelCapabilityConfigFor(config, model).image : undefined), [config, model]);
     const canExecute = (imageProfile?.references?.maxImages ?? 0) >= 1;
+    const countMax = Math.max(1, Math.min(4, imageProfile?.references?.maxImages ?? 1));
+    const countOptions = Array.from({ length: countMax }, (_, index) => index + 1);
     const sizeParameter = imageProfile?.size?.parameter;
     const sizeOptions = imageProfile?.size?.values ?? [];
     const sizeFallback = imageProfile?.size?.default ?? "";
@@ -235,13 +237,14 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         const pb = current.bottom * scale;
         const pl = current.left * scale;
         const pr = current.right * scale;
-        // pattern 相位对齐：各条带内 rect 平移到 frame 全局原点（SVG user space 以 rect 为窗口），
-        // 使四条带共享同一网格相位——拖动任一边时所有 + 号静止，只有洞口随边框变化。
-        const setPhase = (key: "top" | "bottom" | "left" | "right", x: number, y: number) => {
-            const rect = stripRectRefs.current[key];
-            if (!rect) return;
-            rect.style.x = `${x}px`;
-            rect.style.y = `${y}px`;
+        // 网格相位锚定「图片左上」：条带 SVG 原点在 frame 内位于 (stripX, stripY)，
+        // 图片左上在 (pl, pt) → patternTransform = translate(pl - stripX, pt - stripY)。
+        // 拖动边框 / 选比例时 pl、pt 不随被拖边变化（图片不动），+ 号在图片坐标系中静止，
+        // 新露出的区域按图片边缘为基准展开（用户语义：以图片边缘线展开）。
+        const setPhase = (key: "top" | "bottom" | "left" | "right", stripX: number, stripY: number) => {
+            const pattern = stripPatternRefs.current[key];
+            if (!pattern) return;
+            pattern.setAttribute("patternTransform", `translate(${pl - stripX}, ${pt - stripY})`);
         };
         if (stripRefs.current.top) {
             stripRefs.current.top.style.height = `${pt}px`;
@@ -264,9 +267,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             stripRefs.current.right.style.display = pr > 0 ? "" : "none";
         }
         setPhase("top", 0, 0);
-        setPhase("bottom", 0, -(height - pb));
-        setPhase("left", 0, -pt);
-        setPhase("right", -(width - pr), -pt);
+        setPhase("bottom", 0, height - pb);
+        setPhase("left", 0, pt);
+        setPhase("right", width - pr, pt);
         if (labelRef.current) {
             labelRef.current.textContent = describeOutpaintSize(current, layoutWidth, layoutHeight, contentWidth / Math.max(1, layoutWidth));
         }
@@ -403,26 +406,30 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             >
                 <svg width="0" height="0" className="absolute" aria-hidden>
                     <defs>
-                        {/* 砖石交错排布：双列错半步 + 菱形中心微弱点（用户参考图 1789732625543） */}
-                        <pattern id={PLUS_PATTERN_ID} width="44" height="22" patternUnits="userSpaceOnUse">
-                            <path d="M11 2v7M7.5 5.5h7M33 13v7M29.5 16.5h7" stroke="currentColor" strokeWidth="1.6" fill="none" />
-                            <circle cx="22" cy="11" r="1" fill="currentColor" opacity="0.4" />
-                        </pattern>
+                        {/* 砖石交错排布：双列错半步 + 菱形中心微弱点（用户参考图 1789732625543）。
+                            每条带独立 pattern，patternTransform 把平铺原点对齐到「图片左上」——
+                            拖动任一边时新区域以图片边缘为基准展开（+ 号静止在图片坐标系）。 */}
+                        {(["top", "bottom", "left", "right"] as const).map((key) => (
+                            <pattern key={key} id={`${PLUS_PATTERN_ID}-${key}`} width="44" height="22" patternUnits="userSpaceOnUse" ref={(el) => { stripPatternRefs.current[key] = el; }}>
+                                <path d="M11 2v7M7.5 5.5h7M33 13v7M29.5 16.5h7" stroke="currentColor" strokeWidth="1.6" fill="none" />
+                                <circle cx="22" cy="11" r="1" fill="currentColor" opacity="0.4" />
+                            </pattern>
+                        ))}
                     </defs>
                 </svg>
                 {/* 扩展区"+"号填充：四条带挖出原图区域，currentColor 随令牌明暗自适应 */}
                 <div className="pointer-events-none absolute inset-0 text-primary/35">
                     <div ref={(el) => { stripRefs.current.top = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 top-0 overflow-hidden rounded-t-md">
-                        <svg width="100%" height="100%"><rect ref={(el) => { stripRectRefs.current.top = el; }} width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} style={{ transition: dragging ? "none" : "x 360ms cubic-bezier(0.22,1,0.36,1), y 360ms cubic-bezier(0.22,1,0.36,1)" }} /></svg>
+                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-top)`} /></svg>
                     </div>
                     <div ref={(el) => { stripRefs.current.bottom = el; }} style={{ transition: dragging ? "none" : "height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-md">
-                        <svg width="100%" height="100%"><rect ref={(el) => { stripRectRefs.current.bottom = el; }} width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} style={{ transition: dragging ? "none" : "x 360ms cubic-bezier(0.22,1,0.36,1), y 360ms cubic-bezier(0.22,1,0.36,1)" }} /></svg>
+                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-bottom)`} /></svg>
                     </div>
                     <div ref={(el) => { stripRefs.current.left = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute left-0 overflow-hidden">
-                        <svg width="100%" height="100%"><rect ref={(el) => { stripRectRefs.current.left = el; }} width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} style={{ transition: dragging ? "none" : "x 360ms cubic-bezier(0.22,1,0.36,1), y 360ms cubic-bezier(0.22,1,0.36,1)" }} /></svg>
+                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-left)`} /></svg>
                     </div>
                     <div ref={(el) => { stripRefs.current.right = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute right-0 overflow-hidden">
-                        <svg width="100%" height="100%"><rect ref={(el) => { stripRectRefs.current.right = el; }} width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} style={{ transition: dragging ? "none" : "x 360ms cubic-bezier(0.22,1,0.36,1), y 360ms cubic-bezier(0.22,1,0.36,1)" }} /></svg>
+                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-right)`} /></svg>
                     </div>
                 </div>
                 {/* 三分网格只画内部 4 线，避免 9 格 border 外缘描重 */}
@@ -461,8 +468,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 data-canvas-no-zoom
                 data-canvas-wheel-scroll
                 data-testid="canvas-outpaint-bar"
-                className="pointer-events-auto absolute flex w-[560px] max-w-[calc(100%-24px)] items-center gap-1 rounded-2xl border border-border/60 bg-background/90 p-1.5 shadow-xl backdrop-blur-xl"
+                className="pointer-events-auto absolute flex w-[640px] max-w-[calc(100%-24px)] flex-col gap-1 rounded-2xl border border-border/60 bg-background/90 p-1.5 shadow-xl backdrop-blur-xl"
             >
+                <div className="flex min-w-0 items-center gap-1">
                 <button
                     type="button"
                     aria-label="关闭扩图"
@@ -472,19 +480,25 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     <X className="size-4" />
                 </button>
                 <span className="h-6 w-px shrink-0 bg-border" />
-                <ModelPicker
-                    config={config}
-                    value={model}
-                    capability="image"
-                    placement="top"
-                    showSelectedPrice={false}
-                    showConfiguredModelName
-                    onChange={(next) => {
-                        setModel(next);
-                        const defaults = defaultImageParamsForModel(config, next);
-                        if (defaults.size) setSizeValue(String(defaults.size));
-                    }}
-                />
+                <div className="canvas-node-composer-model shrink-0">
+                    <ModelPicker
+                        config={config}
+                        value={model}
+                        capability="image"
+                        placement="topRight"
+                        variant="creation"
+                        searchable
+                        className="!h-7 !min-w-0 !text-[var(--fs-tiny)] !font-normal [&_img]:!size-3 [&_.lucide]:!size-3"
+                        popoverClassName="canvas-outpaint-picker-surface"
+                        showSelectedPrice={false}
+                        showConfiguredModelName
+                        onChange={(next) => {
+                            setModel(next);
+                            const defaults = defaultImageParamsForModel(config, next);
+                            if (defaults.size) setSizeValue(String(defaults.size));
+                        }}
+                    />
+                </div>
                 <span className="h-6 w-px shrink-0 bg-border" />
                 <Dropdown
                     trigger={["click"]}
@@ -516,7 +530,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         variant="borderless"
                         value={resolutionMode === "size" ? (sizeOptions.includes(sizeValue) ? sizeValue : sizeFallback) : qualityOptions.includes(qualityValue) ? qualityValue : qualityOptions[0]}
                         onChange={(value) => (resolutionMode === "size" ? setSizeValue(String(value)) : setQualityValue(String(value)))}
-                        options={resolutionOptions.map((value) => ({ value, label: String(value).toUpperCase() }))}
+                        options={resolutionOptions.map((value) => ({ value, label: String(value) === "auto" ? "AUTO" : String(value).toUpperCase() }))}
                         popupMatchSelectWidth={false}
                         placement="topLeft"
                         aria-label={resolutionMode === "size" ? "输出分辨率" : "输出画质"}
@@ -524,17 +538,38 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     />
                 ) : null}
                 <span className="h-6 w-px shrink-0 bg-border" />
+                {countOptions.length > 1 ? (
                 <Select
                     size="small"
                     variant="borderless"
                     value={count}
                     onChange={setCount}
-                    options={[1, 2, 3, 4].map((value) => ({ value, label: `x${value}` }))}
+                    options={countOptions.map((value) => ({ value, label: `x${value}` }))}
                     popupMatchSelectWidth={false}
                     placement="topLeft"
                     aria-label="生成张数"
                     className="w-[64px] shrink-0"
                 />
+                ) : null}
+                <Button
+                    type="text"
+                    className={`canvas-node-composer-submit canvas-node-composer-submit-canvas ${canExecute && creditsEnabled ? "has-cost" : ""}`}
+                    disabled={!canExecute}
+                    onClick={handleExecute}
+                    style={{ "--canvas-composer-submit-action": "var(--primary)", "--canvas-composer-submit-action-fg": "var(--primary-foreground)" } as CSSProperties}
+                    aria-label={canExecute ? `预计消耗 ${credits} 积分，执行扩图` : "当前模型不支持扩图，请更换模型"}
+                >
+                    {canExecute && creditsEnabled ? (
+                        <span className="canvas-node-composer-submit-cost">
+                            <CreditSymbol />
+                            <span>{credits % 1 === 0 ? credits : credits.toFixed(2)}</span>
+                        </span>
+                    ) : null}
+                    <span className="canvas-node-composer-submit-action" aria-hidden>
+                        <ArrowUp className="size-3.5" strokeWidth={2.4} />
+                    </span>
+                </Button>
+                </div>
                 <Input
                     size="small"
                     variant="borderless"
@@ -544,23 +579,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     aria-label="扩图追加说明"
                     className="min-w-0 flex-1 text-xs"
                 />
-                <button
-                    type="button"
-                    aria-label={canExecute ? `预计消耗 ${credits} 积分，执行扩图` : "当前模型不支持扩图，请更换模型"}
-                    disabled={!canExecute}
-                    onClick={handleExecute}
-                    style={{ color: "var(--primary-foreground)" }}
-                    className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-xl bg-primary px-2.5 text-sm font-medium transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                    <ArrowUp className="size-4" />
-                    {canExecute && creditsEnabled ? (
-                        <span className="flex items-center gap-0.5 text-xs font-semibold">
-                            <CreditSymbol className="size-3" />
-                            {credits % 1 === 0 ? credits : credits.toFixed(2)}
-                        </span>
-                    ) : null}
-                </button>
             </div>
+            {/* 覆盖共享 surface 的玻璃渲染：backdrop-filter 与 WebGL 画布合成时区域撕裂（Pinned 区透出下层），
+                扩图场景改为完全不透明 surface。源顺序在后 → 同特异性同 important 下本规则获胜。 */}
+            <style>{"@layer utilities { .ant-popover.canvas-outpaint-picker-surface .canvas-composer-popover-surface, .ant-popover.canvas-outpaint-picker-surface .creation-model-picker-surface { background: var(--popover) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; } }"}</style>
         </div>
     );
 }
