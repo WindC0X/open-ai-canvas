@@ -922,6 +922,9 @@ function InfiniteCanvasPage() {
         handleSegmentConfirm,
         maskEditImageNode,
         maskEditNodeId,
+        outpaintImageNode,
+        outpaintNodeId,
+        setOutpaintNodeId,
         mergeSelectedVideos,
         mergeVideosByIds,
         mergeVideoProgress,
@@ -1424,6 +1427,7 @@ function InfiniteCanvasPage() {
         imageAssets,
         infoNode,
         maskEditNode,
+        outpaintNode,
         mentionReferencesByNodeId,
         nodeById,
         previewNode,
@@ -1454,6 +1458,7 @@ function InfiniteCanvasPage() {
         infoNodeId,
         cropNodeId,
         maskEditNodeId,
+        outpaintNodeId,
         annotationNodeId,
         splitNodeId: null,
         upscaleNodeId,
@@ -2960,6 +2965,7 @@ function InfiniteCanvasPage() {
                         onSaveAsset={(node) => void saveNodeAsset(node)}
                         onAnnotate={(node) => setAnnotationNodeId(node.id)}
                         onMaskEdit={(node) => setMaskEditNodeId(node.id)}
+                        onOutpaint={(node) => setOutpaintNodeId(node.id)}
                         onEmotion={(node) => {
                             setDialogNodeId(null);
                             setEmotionNodeId((current) => (current === node.id ? null : node.id));
@@ -3395,14 +3401,18 @@ function InfiniteCanvasPage() {
                             cropNode={cropNode}
                             annotationNode={annotationNode}
                             maskEditNode={maskEditNode}
+                            outpaintNode={outpaintNode}
+                            canvasContainerRef={containerRef}
                             upscaleNode={upscaleNode}
                             onCloseCrop={() => setCropNodeId(null)}
                             onCloseAnnotation={() => setAnnotationNodeId(null)}
                             onCloseMaskEdit={() => setMaskEditNodeId(null)}
+                            onCloseOutpaint={() => setOutpaintNodeId(null)}
                             onCloseUpscale={() => setUpscaleNodeId(null)}
                             onCrop={(node, crop) => void cropImageNode(node, crop)}
                             onAnnotate={(node, dataUrl) => void saveAnnotatedImageNode(node, dataUrl)}
                             onMaskEdit={(node, payload) => void maskEditImageNode(node, payload)}
+                            onOutpaint={(node, payload) => void outpaintImageNode(node, payload)}
                             onUpscale={(node, params) => void upscaleImageNode(node, params)}
                             config={effectiveConfig}
                         />
