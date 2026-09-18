@@ -14,10 +14,11 @@
 - [x] 连线→chip 同步：连线写 assetBindings → cell 即时渲染（既有链验证通过）；chip 侧增删走 S1 patch（双向一致）
 - [ ] 提交 `feat(canvas): 角色槽位端口 - 连线绑定与空槽helper(R18契约)`
 
-## S3 分镜表格 flora 化
-- [ ] batch-table 节点视觉令牌化（玻璃 surface/滚动条权威规则/微供给接线）
-- [ ] chip 行回嵌表格
-- [ ] 提交 `feat(canvas): 分镜表格flora化 - 表格节点接入既有令牌与微供给`
+## S3 分镜表格 flora 化【2026-09-18 裁剪收口：验证性结论，零新代码】
+- [x] 微供给接线：affordance 状态机节点类型无关（affordance.ts 输入仅 nodeId/hovered/dialog/selected/selfHover），Script 节点已在体系内
+- [x] 令牌化：canvas-script-node 表格全程 theme.* token（node.stroke/panel/muted/accent），无直改 globals（PATCH-MAP 纪律 ✓）
+- [x] chip flora 视觉：S1 已复用 AssetChip 族（36px 缩略+role 徽章+hover 交互），与 flora minimum-units Character Image 306×40 横向小卡语法同构
+- [x] 语料对照：flora 无分镜表格/角色卡大面板证据 → 按"无证据不发明"不做额外改造；明暗主题真机过检并入 S4
 
 ## S4 终验收
 - [ ] bunx tsc 0 + bun run build + 全量测试基线对照（同盘）
