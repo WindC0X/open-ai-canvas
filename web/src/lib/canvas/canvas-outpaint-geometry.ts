@@ -171,21 +171,16 @@ export function resolveOutpaintPaddingForRatio(input: { nodeWidth: number; nodeH
     const ratio = Number.isFinite(input.ratio) && input.ratio > 0 ? input.ratio : 0;
     const base = sanitizePadding(input.basePadding ?? { left: 0, top: 0, right: 0, bottom: 0 });
     if (!nodeWidth || !nodeHeight || !ratio) return base;
-    const anchor = Math.max(0, Math.round(Math.max(base.left + base.right, base.top + base.bottom) / 2));
-    const nodeRatio = nodeWidth / nodeHeight;
-
-    const solve = (vertical: number) => Math.max(0, Math.round(((nodeHeight + 2 * vertical) * ratio - nodeWidth) / 2));
-    if (ratio >= nodeRatio) {
-        // 目标比更宽：上下保底 anchor，左右补差
-        const horizontal = solve(anchor);
-        if (horizontal > 0 || anchor === 0) return { left: horizontal, right: horizontal, top: anchor, bottom: anchor };
-        // 左右补差为负（anchor 过大）→ 放弃保底，最小外扩纯解
-        const pure = Math.max(0, Math.round((nodeHeight * ratio - nodeWidth) / 2));
-        return { left: pure, right: pure, top: 0, bottom: 0 };
-    }
-    // 目标比更扁：左右保底 anchor，上下补差
-    const vertical = Math.max(0, Math.round((nodeWidth / ratio - nodeHeight) / 2 - anchor));
-    if (vertical > 0 || anchor === 0) return { left: anchor, right: anchor, top: vertical, bottom: vertical };
-    const pure = Math.max(0, Math.round((nodeWidth / ratio - nodeHeight) / 2));
-    return { left: 0, right: 0, top: pure, bottom: pure };
+    // 目标：框比 = ratio，且保持图片在框内的相对方位（中心偏移 dL/dB 不变 → 图片不漂移）、
+    // 外扩总量只增不减（宽度轴不塌缩 → 无「忽大忽小」）。
+    // 联立：(W + sw) / (H + sh) = ratio，取 sw = max(当前水平外扩, ratio*H - W, 0) 保证 sh ≥ 0，
+    // sh = (W + sw)/ratio - H；dL/dB 以半和分配回两边（clamp 到 [0, sw/sh] 后差额并入对边）。
+    const dL = base.left - base.right;
+    const dB = base.top - base.bottom;
+    const sw = Math.max(base.left + base.right, ratio * nodeHeight - nodeWidth, 0);
+    const sh = Math.max(0, Math.round((nodeWidth + sw) / ratio - nodeHeight));
+    const swRounded = Math.round(sw);
+    const left = Math.min(swRounded, Math.max(0, Math.round((swRounded + dL) / 2)));
+    const top = Math.min(sh, Math.max(0, Math.round((sh + dB) / 2)));
+    return { left, right: swRounded - left, top, bottom: sh - top };
 }

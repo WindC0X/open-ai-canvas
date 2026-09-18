@@ -4,6 +4,7 @@ import {
     describeOutpaintSize,
     resolveOutpaintPadding,
     resolveOutpaintTargetPx,
+    resolveOutpaintPaddingForRatio,
     type OutpaintPadding,
 } from "../src/lib/canvas/canvas-outpaint-geometry";
 
@@ -241,5 +242,37 @@ describe("canvas-outpaint-geometry", () => {
         expect(describeOutpaintSize(NO_PADDING, 0, 1000)).toBe("0 × 0");
         expect(describeOutpaintSize({ left: NaN, top: 0, right: 0, bottom: 0 }, 1000, Number.NaN)).toBe("0 × 0");
         expect(describeOutpaintSize({ left: NaN, top: 0, right: 0, bottom: 0 }, 1000, 1000, Number.NaN)).toBe("1000 × 1000");
+    });
+});
+
+describe("resolveOutpaintPaddingForRatio", () => {
+    const frameRatio = (padding: OutpaintPadding, w: number, h: number) => (w + padding.left + padding.right) / (h + padding.top + padding.bottom);
+
+    test("locks exact ratio from a wide frame (user case 2688x1152 → 2:3)", () => {
+        const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio: 2 / 3, basePadding: { left: 576, right: 576, top: 64, bottom: 64 } });
+        expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(2 / 3, 2);
+    });
+
+    test("keeps image off-center placement (bottom-left anchored)", () => {
+        const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio: 2 / 3, basePadding: { left: 1000, right: 152, top: 0, bottom: 128 } });
+        expect(padding.left - padding.right).toBeGreaterThanOrEqual(800);
+        expect(padding.bottom - padding.top).toBeGreaterThanOrEqual(100);
+        expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(2 / 3, 2);
+    });
+
+    test("never shrinks the dominant axis when re-ratioing", () => {
+        const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio: 3 / 2, basePadding: { left: 576, right: 576, top: 64, bottom: 64 } });
+        expect(padding.left + padding.right).toBeGreaterThanOrEqual(1152 - 1);
+        expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(3 / 2, 2);
+    });
+
+    test("falls back to minimal uniform expansion when anchor would break the ratio", () => {
+        const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 800, nodeHeight: 600, ratio: 3 / 2, basePadding: { left: 48, right: 48, top: 48, bottom: 48 } });
+        expect(frameRatio(padding, 800, 600)).toBeCloseTo(3 / 2, 2);
+    });
+
+    test("safe fallbacks for invalid input", () => {
+        const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 0, nodeHeight: 0, ratio: Number.NaN, basePadding: { left: 10, right: 10, top: 10, bottom: 10 } });
+        expect(padding).toEqual({ left: 10, right: 10, top: 10, bottom: 10 });
     });
 });

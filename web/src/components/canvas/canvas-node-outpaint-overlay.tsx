@@ -92,6 +92,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const frameRef = useRef<HTMLDivElement>(null);
     const labelRef = useRef<HTMLDivElement>(null);
     const stripRefs = useRef<{ top: HTMLDivElement | null; bottom: HTMLDivElement | null; left: HTMLDivElement | null; right: HTMLDivElement | null }>({ top: null, bottom: null, left: null, right: null });
+    const stripRectRefs = useRef<{ top: SVGRectElement | null; bottom: SVGRectElement | null; left: SVGRectElement | null; right: SVGRectElement | null }>({ top: null, bottom: null, left: null, right: null });
     const barRef = useRef<HTMLDivElement>(null);
     const nodeElementRef = useRef<HTMLElement | null>(null);
     const scaleRef = useRef(1);
@@ -240,6 +241,14 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         const pb = current.bottom * scale;
         const pl = current.left * scale;
         const pr = current.right * scale;
+        // pattern 相位对齐：各条带内 rect 平移到 frame 全局原点（SVG user space 以 rect 为窗口），
+        // 使四条带共享同一网格相位——拖动任一边时所有 + 号静止，只有洞口随边框变化。
+        const setPhase = (key: "top" | "bottom" | "left" | "right", x: number, y: number) => {
+            const rect = stripRectRefs.current[key];
+            if (!rect) return;
+            rect.style.x = `${x}px`;
+            rect.style.y = `${y}px`;
+        };
         if (stripRefs.current.top) {
             stripRefs.current.top.style.height = `${pt}px`;
             stripRefs.current.top.style.display = pt > 0 ? "" : "none";
@@ -260,6 +269,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             stripRefs.current.right.style.bottom = `${pb}px`;
             stripRefs.current.right.style.display = pr > 0 ? "" : "none";
         }
+        setPhase("top", 0, 0);
+        setPhase("bottom", 0, -(height - pb));
+        setPhase("left", 0, -pt);
+        setPhase("right", -(width - pr), -pt);
         if (labelRef.current) {
             labelRef.current.textContent = describeOutpaintSize(current, layoutWidth, layoutHeight, contentWidth / Math.max(1, layoutWidth));
         }
@@ -406,16 +419,16 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 {/* 扩展区"+"号填充：四条带挖出原图区域，currentColor 随令牌明暗自适应 */}
                 <div className="pointer-events-none absolute inset-0 text-primary/35">
                     <div ref={(el) => { stripRefs.current.top = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 top-0 overflow-hidden rounded-t-md">
-                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
+                        <svg width="100%" height="100%"><rect ref={(el) => { stripRectRefs.current.top = el; }} width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} style={{ transition: dragging ? "none" : "x 360ms cubic-bezier(0.22,1,0.36,1), y 360ms cubic-bezier(0.22,1,0.36,1)" }} /></svg>
                     </div>
                     <div ref={(el) => { stripRefs.current.bottom = el; }} style={{ transition: dragging ? "none" : "height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-md">
-                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
+                        <svg width="100%" height="100%"><rect ref={(el) => { stripRectRefs.current.bottom = el; }} width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} style={{ transition: dragging ? "none" : "x 360ms cubic-bezier(0.22,1,0.36,1), y 360ms cubic-bezier(0.22,1,0.36,1)" }} /></svg>
                     </div>
                     <div ref={(el) => { stripRefs.current.left = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute left-0 overflow-hidden">
-                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
+                        <svg width="100%" height="100%"><rect ref={(el) => { stripRectRefs.current.left = el; }} width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} style={{ transition: dragging ? "none" : "x 360ms cubic-bezier(0.22,1,0.36,1), y 360ms cubic-bezier(0.22,1,0.36,1)" }} /></svg>
                     </div>
                     <div ref={(el) => { stripRefs.current.right = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute right-0 overflow-hidden">
-                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
+                        <svg width="100%" height="100%"><rect ref={(el) => { stripRectRefs.current.right = el; }} width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} style={{ transition: dragging ? "none" : "x 360ms cubic-bezier(0.22,1,0.36,1), y 360ms cubic-bezier(0.22,1,0.36,1)" }} /></svg>
                     </div>
                 </div>
                 {/* 三分网格只画内部 4 线，避免 9 格 border 外缘描重 */}
@@ -469,6 +482,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     config={config}
                     value={model}
                     capability="image"
+                    placement="top"
                     showSelectedPrice={false}
                     showConfiguredModelName
                     onChange={(next) => {
