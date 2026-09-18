@@ -1,8 +1,8 @@
 # implement — P4 族3 角色引用与分镜 flora 化
 
 ## S1 角色引用 chip 交互（R17）
-- [ ] 读生成提交链：batch 行 references 组装（canvas-batch-table.ts planBatchConnections 的 config → 提交链），确认角色图注入路径
-- [ ] 分镜行角色槽 UI：chip 行组件（复用 AssetChip 视觉，characterName + role + Remove aria-label）
+- [x] 读生成提交链：角色生成链已通（type:character 输入/CharacterGenerationReference/分镜行文本注入）；缺口=chip UI + 行生成角色图注入
+- [ ] 分镜行角色槽 UI（宿主 canvas-script-node.tsx assets 列）：chip 行组件（复用 AssetChip 视觉，characterName + Remove aria-label）
 - [ ] 数据流：chip 增删 → row.characters[] + assetBindings[] 同步写入（先查引用守则）
 - [ ] 生成链验证：绑定角色后行生成的 prompt/references 含角色图（mock 渠道冒烟）
 - [ ] 提交 `feat(canvas): 角色引用chip - 分镜行绑定角色资产节点(R17语法)`

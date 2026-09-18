@@ -14,13 +14,16 @@
 
 ## 2. 技术方案
 
-### S1 角色引用 chip（R17）
-- **挂载点**：batch-table 分镜行内 + 分镜相关节点体（画布节点行内引用行），chip = 角色资产节点缩略 + 角色名（characterName）+ role 徽章 + Remove 按钮（`aria-label="Remove <角色名>"`，remove 图标 hover 显）。
-- **数据流**：chip 增删写 `row.characters[]`（name/description/characterImageNodeId）+ `assetBindings[]`（nodeId + role="character" + priority）；删除 chip = 移除对应 binding（先查引用守则：仅行内移除不删节点）。
-- **视觉**：复用 e1f3945a 的 AssetChip token（圆角/底色/mask），零新令牌。
+### S1 角色引用 chip（R17）【2026-09-18 侦察修正】
+- **宿主修正**：分镜行宿主是 **canvas-script-node.tsx**（CanvasScriptNodeContent 行渲染 :318 + CanvasScriptEditor updateRow :647），**不是** batch-table（那是 try_on/creative 批量表）；角色 chip 挂 **StoryboardColumn.assets 列**。
+- **生成链已通（重大发现，实现量大幅缩减）**：`NodeGenerationInput.type` 已含 "character"（canvas-node-generation.ts:55）、characterReferences 已组装（:106/:263）、角色资产识别已有（:381/:414 asset.category==="character"、:586 workflowKind==="character"→characterAssetId）、分镜行角色已文本化注入（getConnectedStoryboardRows :452 "角色：名字：描述"）。
+- **真实缺口**：① 分镜行 characters[] 的 chip 编辑 UI（增删/绑定角色资产节点）；② 行生成时角色**图像**注入（现仅文本，`characterImageNodeId` 未消费）——行生成输入补图像 reference。
+- **数据流**：chip 增删写 `row.characters[]` + `assetBindings[]`；绑定源=角色资产节点（asset.category=character 或 workflowKind=character 的画布节点）；生成闭环走 CharacterGenerationReference 既有链 + 行输入图像注入。
+- **视觉**：复用 e1f3945a AssetChip token，零新令牌。
 
-### S2 角色槽位端口（R18）
-- **handle**：batch-table 节点左缘新增角色槽位 handle（id 前缀 `character:`），几何沿用 `BATCH_REFERENCE_HANDLE_TOP/GAP` 常量模式；空槽 helper 文案「连接角色图像节点」（R18 语法中文化）；连线 commit 走 `planBatchConnections` 同构扩展（planBatchCharacterConnections 或参数化）。
+### S2 角色槽位端口（R18）【宿主同步修正】
+- **handle**：**Script 节点**分镜行 `row:<shotId>` handle 已存在（getConnectedStoryboardRows 消费中）；角色端口 = Script 节点侧新增 per-row 角色子槽或行级 `row:<shotId>:character` handle；连线 commit 写行 characters[].characterImageNodeId + assetBindings。空槽 helper「连接角色图像节点」。
+- **校验**：source 必须是角色图像节点（asset.category=character / workflowKind=character / 图像节点），去重+上限常量。
 - **校验**：source 必须是图像资产节点（R18 cursor:not-allowed 语义）；重复绑定去重；上限按 MAX_BATCH_REFERENCE_COLUMNS 模式设常量。
 - **归属**：角色槽位 handle 是供给域延伸（MODEL_PICKER 同款豁免链，防止 hover 归属被截杀）——接 canvas-batch-table 现有 handle 域即可，无新豁免。
 
