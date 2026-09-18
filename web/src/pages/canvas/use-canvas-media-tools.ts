@@ -831,7 +831,9 @@ export function useCanvasMediaTools({
             : `将画面自然向外延展至底图的完整画幅，保持原图主体、构图与光照完全不变，仅在四周白色空白区域生成协调的新内容，原图区域一个像素都不要改动。${userPrompt}`;
         const paddedSource = await padImageToDataUrl(node.metadata.content, payload.paddingPx);
         const maskDataUrl = maskSupported ? await padImageToDataUrl(node.metadata.content, payload.paddingPx, "transparent") : undefined;
-        const source = { id: node.id, name: `outpaint-${node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: paddedSource, storageKey: node.metadata.storageKey };
+        // 不带 storageKey：扩图底图是 pad 后的新图，若引用原图 storageKey，提交链会按
+        // storageKey 优先解析回原图（canvas-project-generation.ts:271），白边丢失、扩图退化为原图。
+        const source = { id: node.id, name: `outpaint-${node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: paddedSource };
         const styleExecution = resolveImageEditStyle(node, prompt, generationConfig);
         if (!styleExecution) return;
         const { prompt: effectivePrompt, metadata: styleMetadata } = styleExecution;

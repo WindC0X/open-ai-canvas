@@ -1,4 +1,4 @@
-import { Dropdown, Select } from "antd";
+import { Dropdown, Input, Select } from "antd";
 import { ArrowUp, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 
@@ -53,8 +53,9 @@ const EDGE_HANDLES: Array<{ edge: OutpaintDragEdge; className: string }> = [
     { edge: "right", className: "-right-1.5 top-1/2 h-10 w-3 -translate-y-1/2 cursor-ew-resize" },
 ];
 
-// 手柄位移语义：dx/dy 为屏幕坐标 delta，拖拽时换算为世界 delta（÷scale）后再进几何纯函数。
-type DragState = { edge: OutpaintDragEdge; startX: number; startY: number } | null;
+// 手柄位移语义：dx/dy 为拖拽累计屏幕 delta（÷scale 后进几何纯函数），
+// 每次以 pointerdown 时的 startPadding 为基准重算，避免增量叠加误差。
+type DragState = { edge: OutpaintDragEdge; startX: number; startY: number; startPadding: OutpaintPadding } | null;
 
 export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose, onExecute }: CanvasNodeOutpaintOverlayProps) {
     const frameRef = useRef<HTMLDivElement>(null);
@@ -64,13 +65,12 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const scaleRef = useRef(1);
     const dragRef = useRef<DragState>(null);
     const paddingRef = useRef<OutpaintPadding>({ left: 48, top: 48, right: 48, bottom: 48 });
-    const mountedRef = useRef(false);
-
     const [padding, setPadding] = useState<OutpaintPadding>({ left: 48, top: 48, right: 48, bottom: 48 });
     const [ratioKey, setRatioKey] = useState<string>("original");
     const [model, setModel] = useState<string>(node?.metadata?.model || config.model);
     const [sizeValue, setSizeValue] = useState<string>(node?.metadata?.size || config.size || "");
     const [count, setCount] = useState(1);
+    const [prompt, setPrompt] = useState("");
     const [visible, setVisible] = useState(false);
 
     paddingRef.current = padding;
@@ -194,7 +194,6 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     // 入场过渡一拍：inline transition（后台节流下 CSS animation 不播放，cc383e14）。
     useEffect(() => {
         const timer = window.setTimeout(() => {
-            mountedRef.current = true;
             setVisible(true);
             updateFrame();
         }, 30);
@@ -209,7 +208,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         (event: ReactPointerEvent<HTMLDivElement>, edge: OutpaintDragEdge) => {
             event.stopPropagation();
             event.preventDefault();
-            dragRef.current = { edge, startX: event.clientX, startY: event.clientY };
+            dragRef.current = { edge, startX: event.clientX, startY: event.clientY, startPadding: paddingRef.current };
             event.currentTarget.setPointerCapture(event.pointerId);
         },
         [],
@@ -225,7 +224,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             const dy = (event.clientY - drag.startY) / scale;
             applyPadding(
                 resolveOutpaintPadding({
-                    padding: paddingRef.current,
+                    padding: drag.startPadding,
                     edge: drag.edge,
                     dx,
                     dy,
@@ -249,10 +248,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         if (!target.width || !target.height) return;
         onExecute(node, {
             paddingPx: target.paddingPx,
-            prompt: "",
+            prompt: prompt.trim(),
             generationConfig: { model, size: sizeValue || sizeFallback, count: String(count), quality: node.metadata?.quality },
         });
-    }, [canExecute, contentHeight, contentWidth, count, model, node, nodeHeight, nodeWidth, onExecute, padding, sizeFallback, sizeValue]);
+    }, [canExecute, contentHeight, contentWidth, count, model, node, nodeHeight, nodeWidth, onExecute, padding, prompt, sizeFallback, sizeValue]);
 
     if (!node) return null;
 
@@ -325,7 +324,15 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         {RATIO_OPTIONS.find((option) => option.key === ratioKey)?.label}
                     </button>
                 </Dropdown>
-                <span className="hidden shrink-0 text-xs opacity-60 xl:inline">拖拽外框进行扩图</span>
+                <Input
+                    size="small"
+                    variant="borderless"
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    placeholder="拖拽外框进行扩图，可输入追加说明"
+                    aria-label="扩图追加说明"
+                    className="min-w-0 flex-1 text-xs"
+                />
                 <div className="ml-auto flex shrink-0 items-center gap-1.5">
                     {sizeOptions.length > 0 ? (
                         <Select
