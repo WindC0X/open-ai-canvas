@@ -93,6 +93,9 @@ export function useCanvasConnectionController({
     const [connectionTargetNodeId, setConnectionTargetNodeId] = useState<string | null>(null);
     const [connectionApproach, setConnectionApproach] = useState<CanvasConnectionApproach>(null);
     const [connectionTargetAnchorRatio, setConnectionTargetAnchorRatio] = useState<number | undefined>();
+    // 预览线的目标 handleId(2026-09-18): activeConnectionPath 终点 y 需要它才能落到分镜行,
+    // 只传 nodeId+anchorRatio 时 connectionHandleY(undefined) 恒走节点中点(用户实测: 拖线先吸中点)。
+    const [connectionTargetHandleId, setConnectionTargetHandleId] = useState<string | undefined>();
     const [connectionReplaceHover, setConnectionReplaceHover] = useState<ConnectionReplaceHover | null>(null);
     const [pendingConnectionCreate, setPendingConnectionCreate] = useState<PendingConnectionCreate | null>(null);
     const [batchConnectionPreview, setBatchConnectionPreview] = useState<CanvasBatchConnectionPreview | null>(null);
@@ -156,6 +159,8 @@ export function useCanvasConnectionController({
             connectingPointerStartRef.current = null;
             setConnectionTargetNodeId(null);
             setConnectionTargetAnchorRatio(undefined);
+            setConnectionTargetHandleId(undefined);
+            setConnectionTargetHandleId(undefined);
         }
     }, [updateConnectionReplaceHover]);
 
@@ -672,6 +677,8 @@ export function useCanvasConnectionController({
         setConnecting({ nodeId, handleType, handleId, anchorRatio });
         setConnectionTargetNodeId(null);
         setConnectionTargetAnchorRatio(undefined);
+        setConnectionTargetHandleId(undefined);
+        setConnectionTargetHandleId(undefined);
         setSelectedConnectionId(null);
     }, [clearBatchConnection, closeConnectionCreateMenu, commitBatchConnection, connectNodes, screenToCanvas, setConnecting, setSelectedConnectionId]);
 
@@ -738,6 +745,8 @@ export function useCanvasConnectionController({
             setConnectionApproach((previous) => latchCanvasConnectionApproach(previous, dropTarget.nodeId, point));
             setConnectionTargetNodeId(dropTarget.nodeId);
             setConnectionTargetAnchorRatio(dropTarget.anchorRatio);
+            setConnectionTargetHandleId(dropTarget.handleId);
+            setConnectionTargetHandleId(dropTarget.handleId);
             setMouseWorld(point);
         };
         const handlePointerMove = (event: PointerEvent) => {
@@ -821,6 +830,7 @@ export function useCanvasConnectionController({
         connectionTargetNodeId,
         connectionApproach,
         connectionTargetAnchorRatio,
+        connectionTargetHandleId,
         connectionReplaceHover,
         connectingParams,
         createConnectedNode,

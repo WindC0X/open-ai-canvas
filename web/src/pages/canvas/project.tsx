@@ -1126,6 +1126,7 @@ function InfiniteCanvasPage() {
         cancelPendingConnectionCreate,
         closeConnectionCreateMenu,
         connectionTargetAnchorRatio,
+        connectionTargetHandleId,
         connectionTargetNodeId,
         connectionApproach,
         connectionReplaceHover,
@@ -2645,6 +2646,7 @@ function InfiniteCanvasPage() {
                                         mouseWorld={mouseWorld}
                                         connectionTargetNodeId={connectionTargetNodeId}
                                         connectionTargetAnchorRatio={connectionTargetAnchorRatio}
+                                        connectionTargetHandleId={connectionTargetHandleId}
                                         nodeById={nodeById}
                                         selectionBox={selectionBox}
                                         selectedNodeBounds={selectedNodeBounds}
