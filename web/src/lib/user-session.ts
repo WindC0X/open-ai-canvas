@@ -1,4 +1,5 @@
 import { getFeatureAvailability, type AuthSessionPayload } from "@/services/api/auth";
+import { ApiError } from "@/services/api/request";
 import { getModelCatalog, type CapabilitySpec, type ModelCatalogResponse, type OptionConstraint, type PublicChannelCatalog, type PublicLogicalModel } from "@/services/api/logical-models";
 import { localForageStorage } from "@/lib/localforage-storage";
 import { appQueryClient } from "@/lib/query-client";
@@ -275,4 +276,15 @@ export async function refreshFeatureAvailability() {
     const payload = await getFeatureAvailability();
     useUserStore.getState().setFeatures(payload.features);
     return payload.features;
+}
+
+/**
+ * 会话加载失败时的登出判定(2026-09-18): 后端对 session 失效/游客统一返回 200 + user:null,
+ * 不用 401 表达登出; 因此 /auth/session 的请求失败几乎全部是传输层瞬态(代理空窗/后端重启/网络闪断),
+ * 唯独 401/403(网关或未来契约收紧时的明确身份拒绝)才应视为登出信号。
+ * 之前 hydrator 把所有 catch 都当游客处理, 瞬态失败会把正在工作的用户误踢到登录页。
+ */
+export function isAuthRejectedStatus(error: unknown): boolean {
+    const status = error instanceof ApiError ? error.status : undefined;
+    return status === 401 || status === 403;
 }

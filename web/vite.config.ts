@@ -17,6 +17,10 @@ export default defineConfig({
         "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
     },
     server: {
+        // WSL /mnt 盘的 inotify 对外部写入(编辑器/脚本/跨会话修改)不可靠, vite 会长期
+        // 服务启动时刻的旧转换结果(2026-09-18 两次撞墙: 修复代码在磁盘但浏览器拿旧的)。
+        // polling 是 /mnt 环境的标准解; 仅 dev server 生效, 不影响构建。
+        watch: { usePolling: true, interval: 300 },
         proxy: {
             "/api": {
                 target: apiProxyTarget,
