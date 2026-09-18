@@ -8997,11 +8997,9 @@ html:not(.dark) .creation-studio-control:hover,
        CSS animation 六轮在用户浏览器全部表现为闪现而 inline transition 可见,
        机制归因与迁移见 overlays 组件注释。孤儿 pendant-expand keyframes 与
        --pendant-from-w 变量已删(P2 清理, git 历史即回溯)。 */
-    /* 挂件外形(S2): 面板顶缘连接节点底缘, composer 顶角取直(底角保持圆)。 */
-    [data-panel-pendant] .canvas-node-composer {
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
-    }
+    /* 挂件外形(2026-09-18 用户对照上游原版拍板): 删除 S2 的顶角取直设计,
+       composer 回归四角全圆(var(--canvas-composer-radius))的独立悬浮卡形态 —
+       直角顶角让面板视觉上焊死在节点下, 正是「贴合感」的真正来源(两轮调间距无感的原因)。 */
     /* 退场(hidden 期, 与卸载延迟 160ms 匹配): 向节点方向收拢渐隐;
        挂件退场收回节点内(translateY 负向)无 scale。 */
     .canvas-node-toolbar[data-affordance="hidden"] .canvas-node-toolbar-surface {
