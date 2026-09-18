@@ -227,10 +227,11 @@ func compileCloudAgentTools(req CloudAgentRequest, includeProfileTool bool) []ma
 		add("canvas_apply_ops", "创建节点或建立引用连线；先读取画布并传 snapshotHash。媒体生成使用 generate_media；每次最多20项，禁止删除、任意 metadata 和媒体 URL。不同操作需要不同字段：add_node 需要 nodeType，update_node 需要按节点能力清单填写 patch，connect_nodes 需要 fromNodeId 与 toNodeId。", map[string]any{"snapshotHash": str("canvas_get_state返回的snapshotHash"), "ops": map[string]any{"type": "array", "maxItems": 20, "items": opItem}}, "snapshotHash", "ops")
 	}
 	if req.PermissionMode != "read_only" && len(req.ContextScope) > 0 {
-		add("generate_media", "创建或续用未提交媒体草稿及引用连线，独立审批通过后才提交收费任务，auto也不能跳过审批。用户要求生成且参数齐备时应直接调用本工具进入审批，不能只填提示词就结束。先读取画布与按本次素材筛选的模型目录。可复用当前草稿、无任务的空白媒体占位节点，以及已结束且清理完成运行留下的未提交草稿；重新读取快照并重新审批。仍在其他运行审批中的草稿、已绑定任务或已有成品不能覆盖，不得循环换ID绕过限制。sourceNodeId仅文本/镜头提示词节点；图片/视频/音频只放referenceNodeIds，参考顺序对应提示词编号，不接受URL。校验错误须针对错误修正；已提交任务失败把原因告诉用户，不得再次收费生成。", map[string]any{
+		add("generate_media", "创建或续用未提交媒体草稿及引用连线，独立审批通过后才提交收费任务，auto也不能跳过审批。用户要求生成且参数齐备时应直接调用本工具进入审批，不能只填提示词就结束。先读取画布与按本次素材筛选的模型目录。可复用当前草稿、无任务的空白媒体占位节点，以及已结束且清理完成运行留下的未提交草稿；重新读取快照并重新审批。仍在其他运行审批中的草稿、已绑定任务或已有成品不能覆盖，不得循环换ID绕过限制。sourceNodeId仅文本/镜头提示词节点；图片/视频/音频只放referenceNodeIds，参考顺序对应提示词编号，不接受URL。扩图：用户要求对已有图片向外扩展画幅（补背景、扩边、改画幅比例且保持原图内容不变）时，mode=image、outpaintRatio填目标画幅比例（如16:9、3:2），且referenceNodeIds恰好指向这1张图片节点；扩图不改原图主体，提示词只描述扩展区域内容或整体画面。校验错误须针对错误修正；已提交任务失败把原因告诉用户，不得再次收费生成。", map[string]any{
 			"mode": map[string]any{"type": "string", "enum": cloudAgentGenerationModeNames()}, "prompt": str("完整生成提示词"),
 			"logicalModelId": str("selection.logicalModelId；与channelId/channelModelKey互斥"), "channelId": str("selection.channelId"), "channelModelKey": str("selection.channelModelKey"),
 			"durationSeconds": map[string]any{"type": "integer", "minimum": 0}, "size": str("模型支持的画幅，例如9:16"), "quality": str("目录支持的分辨率或质量"), "videoGenerateAudio": map[string]any{"type": "boolean", "description": "是否生成音频，仅视频可用"},
+			"outpaintRatio": str("扩图目标画幅比例（如16:9、3:2、1.5），仅mode=image且恰好1张图片参考时可用；填写后服务端自动按比例外扩并生成蒙版"),
 			"snapshotHash": str("可省略；省略时服务端使用当前画布内容快照。也可传 canvas_get_state 的 mediaSnapshotHash 或上一写操作返回的 snapshotHash"), "nodeId": str("可续用的未提交媒体草稿ID；无草稿时才使用新唯一ID"), "title": str("媒体节点名称"), "sourceNodeId": str("仅文本/镜头提示词节点ID；无文本来源则留空，绝不能填图片/视频/音频ID"), "referenceNodeIds": map[string]any{"type": "array", "maxItems": 16, "items": str("当前画布媒体参考节点ID；参考图只放此处，保持引用顺序")},
 		}, "mode", "prompt", "nodeId", "title", "referenceNodeIds")
 	}

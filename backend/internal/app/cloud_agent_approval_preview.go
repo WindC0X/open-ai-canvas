@@ -240,6 +240,9 @@ func cloudAgentMediaApprovalPreview(plan *cloudAgentMediaPlan, modelName string)
 	if args.Quality != "" {
 		details = append(details, "质量："+truncateRunes(args.Quality, 40))
 	}
+	if strings.TrimSpace(args.OutpaintRatio) != "" {
+		details = append(details, "扩图目标画幅："+truncateRunes(args.OutpaintRatio, 40))
+	}
 	if args.VideoGenerateAudio != nil {
 		value := "关闭"
 		if *args.VideoGenerateAudio {
