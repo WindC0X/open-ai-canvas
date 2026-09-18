@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "check 阶段验证纪律依据"}
+{"file": "PATCH-MAP.md", "reason": "check 阶段核对无 globals.css 直改"}
