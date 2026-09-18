@@ -71,6 +71,15 @@
 - Step 5 后：code-review-expert skill 全面审查（2026-09-18）——发现并修复 6 项：P0 拖拽增量叠加（改起点基准）、P1 storageKey 覆盖 pad 白边（去字段）、P1 节点切换状态残留（key 重挂）、P2 追加入口缺失、遮挡 bug（z-10→--z-node-toolbar 令牌）、size 值域错配（全局比例语义→模型档位域钳制）。提交 2af268b7 / 964a3560。
 - Step 6 前后：合入降级门材料（测试证据 + 截图）交付用户；合入动作由用户在 main checkout 执行。
 
+## 用户终验反馈修复（2026-09-18 第二轮，提交 165471af）
+
+- [x] F1 聚焦动画：触发扩图时 `focusCanvasImageNode` viewport 聚焦 + 框从原图 0 padding 展开到默认值（inline transition 360ms，拖拽期自动禁用跟手）。
+- [x] F2 扩图期隐藏工具栏：render-model 的 `toolbarNode` 与 project.tsx 的 `hoverToolbarNode` 双路径在 outpaintNodeId 激活时置空（工具栏+hover 微浮全隐藏，✕ 退出后恢复）。
+- [x] F3 框漂移错位：根因 = viewport 转场是 rAF 逐帧插值且 CSS transition 插值帧不触发 MutationObserver，v1 未订阅 `CANVAS_VIEWPORT_PREVIEW_EVENT` → 聚焦动画期间框停在旧位置。修复 = 补订阅逐帧重算 + `ensureNodeElement` 防虚拟化世界重建节点 DOM 后 ref 失连。复验：四边对称 ±37px、平移/缩放后精确跟随（48×scale 换算无误差）。
+- [x] F4 边手柄拖拽变平移：根因 = 比例默认"原图比例"锁定 ratio，单边拖拽被反解为对边补偿（净效果平移）。修复 = "自由"档（ratio=null），单边拖拽纯调整大小；选中具体比例仍锁定。
+- [x] F5 参数条重排（用户裁定顺序）：✕ / 模型 / 比例 / 分辨率(1K/2K/4K 或模型 size 档，按模型能力域) / 数量 / 生成按钮(附预估消耗)。比例槽在 aspect_ratio 制模型用模型档位并提交 size；size 制模型显示分辨率档；quality 多档显示画质档。
+- 备注：排查期间 headless 测得"框脱节 1270px"为测试脚本参照物错误（querySelector 首个节点 ≠ overlay 绑定节点）的假警报，组件定位本身精确（style.left 与绑定节点 530px 处匹配）。
+
 ## 已定裁定（2026-09-18 用户）
 
 - 积分槽位 = 真实计价组件（requestCreditCost + quoteLogicalModel + CreditSymbol，creditsEnabled 门控）。
