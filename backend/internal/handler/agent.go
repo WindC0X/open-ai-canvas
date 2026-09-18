@@ -236,6 +236,14 @@ func RegisterAgentRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, result)
 	})
+	r.GET("/agent/runs/:id/undo-preview", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, svc.UndoCanvasPreview(user.ID, c.Param("id")))
+	})
 	r.POST("/agent/runs/:id/approvals/:approvalId/decision", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {

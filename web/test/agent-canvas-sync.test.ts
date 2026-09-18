@@ -71,3 +71,18 @@ test("fallback snapshots obey the configured minimum refresh interval", async ()
     expect(times).toHaveLength(2);
     expect(times[1] - times[0]).toBeGreaterThanOrEqual(100);
 });
+
+test("canvas_undone event schedules a canvas refresh (undo panel wiring)", () => {
+    const events = { refresh: 0 };
+    const sync = createAgentCanvasSync({
+        canvasId: "c1",
+        applyPatches: async () => {},
+        refresh: async () => { events.refresh += 1; },
+        onError: () => {},
+    });
+    sync.receive({ eventId: "u1", runId: "r1", seq: 1, type: "canvas_undone", payload: { canvasId: "c1" }, createdAt: "2026-09-18T00:00:00Z" });
+    return new Promise((resolve) => setTimeout(resolve, 80)).then(() => {
+        sync.dispose();
+        if (events.refresh < 1) throw new Error("canvas_undone did not trigger refresh");
+    });
+});

@@ -14,7 +14,7 @@ import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { agentErrorPresentation, agentSubmissionErrorTitle } from "@/lib/canvas/agent-error-presentation";
-import { cancelAgentRun, getAgentCapabilities, getAgentProfile, getAgentRun, createAgentRun, decideAgentApproval, sendAgentInterjection, sendAgentMessage, subscribeAgentEvents, updateAgentProfile, type AgentEvent, type AgentPermissionMode, type AgentProfileScope, type AgentProfileView, type AgentReasoningMode, type AgentRun } from "@/services/api/agent";
+import { cancelAgentRun, getAgentCapabilities, getAgentProfile, getAgentRun, createAgentRun, decideAgentApproval, previewAgentUndo, sendAgentInterjection, sendAgentMessage, subscribeAgentEvents, undoAgentCanvasRun, updateAgentProfile, type AgentEvent, type AgentPermissionMode, type AgentProfileScope, type AgentProfileView, type AgentReasoningMode, type AgentRun, type AgentUndoPreview } from "@/services/api/agent";
 import { agentApprovalPresentation } from "@/lib/canvas/agent-approval-presentation";
 import { agentApprovalMatchesSettings, agentImageApproval } from "@/lib/canvas/agent-media-approval";
 import type { AgentMediaSettings } from "@/services/api/agent";
@@ -26,7 +26,7 @@ import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { applyAgentCanvasPatches, refreshCanvasAfterAgent, saveRemoteUserDataNow } from "@/services/user-data-sync";
 import { createAgentCanvasSync } from "@/services/agent-canvas-sync";
 import { buildSkillMentionReferences, resolveSkillMentions } from "@/services/skill-runtime";
-import { AgentChatComposer, AgentChatMessage, AgentPlanBar, AgentQuestionBar, AgentWorkingMessage, type CloudAgentChatMessage, type CloudAgentPlanItem } from "./canvas-cloud-agent-chat-ui";
+import { AgentChatComposer, AgentChatMessage, AgentPlanBar, AgentQuestionBar, AgentUndoBar, AgentWorkingMessage, type CloudAgentChatMessage, type CloudAgentPlanItem } from "./canvas-cloud-agent-chat-ui";
 import { CanvasAgentSkillLibraryModal } from "./canvas-agent-skill-library-modal";
 import { CanvasCloudAgentSettings, agentPermissionLabel, agentPermissionMenuItems, agentPermissionVisual, type AgentContextKey } from "./canvas-cloud-agent-settings";
 import { useAgentPanelLayout } from "./use-agent-panel-layout";
@@ -92,6 +92,9 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
     const [historyHydrated, setHistoryHydrated] = useState(false);
     const [pendingHydrated, setPendingHydrated] = useState(false);
     const [planMinimized, setPlanMinimized] = useState(false);
+    // 画布撤销(2026-09-18): run 结束后预检最近一次画布变更; undefined=不显示(运行中/无画布变更)。
+    const [undoPreview, setUndoPreview] = useState<AgentUndoPreview | null | undefined>(undefined);
+    const [undoBusy, setUndoBusy] = useState(false);
     const planItems = useMemo(() => latestAgentPlanItems(messages), [messages]);
     const planVisible = agentPlanVisible(planItems);
     const pendingQuestion = useMemo(() => pendingAgentQuestion(messages), [messages]);
@@ -472,6 +475,50 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
         }
     };
 
+    // 撤销预检时机: run 进入终态(completed/failed/cancelled/rejected)后拉一次;
+    // canvas_undone 事件会触发画布刷新, 这里再本地把 preview 失效为"已撤销"提示态。
+    useEffect(() => {
+        const runId = run?.id;
+        if (!runId || running) {
+            setUndoPreview(undefined);
+            return;
+        }
+        let cancelled = false;
+        setUndoPreview(null);
+        previewAgentUndo(runId)
+            .then((preview) => { if (!cancelled && currentScope.current === conversationScope) setUndoPreview(preview); })
+            .catch(() => { if (!cancelled && currentScope.current === conversationScope) setUndoPreview(null); });
+        return () => { cancelled = true; };
+    }, [run?.id, running, conversationScope]);
+
+    const undoLastCanvasChange = async (reason: string) => {
+        const activeRun = run;
+        if (!activeRun?.id || undoBusy) return;
+        const preview = undoPreview;
+        if (!preview?.canUndo || !preview.stepId || !preview.afterSnapshotHash) return;
+        setUndoBusy(true);
+        try {
+            await undoAgentCanvasRun(activeRun.id, { stepId: preview.stepId, expectedSnapshotHash: preview.afterSnapshotHash, reason: reason || undefined });
+            if (currentScope.current === conversationScope) {
+                setUndoPreview({ ...preview, canUndo: false, status: "undone", blockReason: "该变更已撤销" });
+                setMessages((current) => appendUniqueMessage(current, {
+                    id: `canvas-undone-${activeRun.id}-${preview.stepId}`,
+                    role: "system",
+                    text: "已撤销 Agent 最近一次画布修改",
+                }));
+                void refreshCanvasAfterAgent(canvasId).catch(() => undefined);
+            }
+        } catch (cause) {
+            if (currentScope.current === conversationScope) {
+                setMessages((current) => appendAgentError(current, `undo-${activeRun.id}-${preview.stepId}`, cause, "撤销未执行"));
+                // 撤销失败后重新预检(常见: 画布已变化):
+                previewAgentUndo(activeRun.id).then((fresh) => { if (currentScope.current === conversationScope) setUndoPreview(fresh); }).catch(() => undefined);
+            }
+        } finally {
+            setUndoBusy(false);
+        }
+    };
+
     const stop = async () => {
         const activeRun = run;
         if (!activeRun?.id || stopping) return;
@@ -733,6 +780,14 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                                         onReject={() => void submitApproval("reject")}
                                     />
                                     {planVisible ? <AgentPlanBar items={planItems} theme={theme} minimized={planMinimized} onToggle={() => setPlanMinimized((value) => !value)} /> : null}
+                                    {!running && undoPreview !== undefined && undoPreview !== null && (undoPreview.found || undoPreview.blockReason) ? (
+                                        <AgentUndoBar
+                                            theme={theme}
+                                            blockReason={undoPreview.canUndo ? undefined : undoPreview.blockReason}
+                                            busy={undoBusy}
+                                            onUndo={(reason) => void undoLastCanvasChange(reason)}
+                                        />
+                                    ) : null}
                                     {pendingQuestion ? (
                                         <AgentQuestionBar
                                             question={pendingQuestion}

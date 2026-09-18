@@ -4,7 +4,7 @@ import { Tooltip } from "@/components/ui/base/tooltip";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowUp, AtSign, CheckCircle2, ChevronDown, ChevronUp, CircleAlert, CircleDot, Eye, HelpCircle, ImagePlus, ListChecks, LoaderCircle, Pencil, Plus, RotateCcw, Sparkles, Square, X, XCircle } from "lucide-react";
+import { ArrowUp, AtSign, CheckCircle2, ChevronDown, ChevronUp, CircleAlert, CircleDot, Eye, HelpCircle, ImagePlus, ListChecks, LoaderCircle, Pencil, Plus, RotateCcw, Sparkles, Square, X, XCircle , Undo2} from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { AIMessageMarkdown } from "@/components/ai/ai-message-markdown";
@@ -395,6 +395,68 @@ export function AgentPlanBar({ items, theme, minimized, onToggle }: {
                     })}
                 </ul>
             )}
+        </div>
+    );
+}
+
+/** 撤销条: Agent 运行结束后, 最近一次画布变更可撤销时出现在输入区上方; 展开轻确认。 */
+export function AgentUndoBar({ theme, blockReason, busy, onUndo }: {
+    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
+    blockReason?: string;
+    busy?: boolean;
+    onUndo: (reason: string) => void;
+}) {
+    const [confirming, setConfirming] = useState(false);
+    const [reason, setReason] = useState("");
+    if (blockReason) {
+        return (
+            <div className="mx-3 mb-2 rounded-xl px-3 py-2 text-xs" style={{ background: theme.node.fill, border: `1px dashed ${theme.node.stroke}`, color: theme.node.label }}>
+                <span className="opacity-70">画布撤销不可用：{blockReason}</span>
+            </div>
+        );
+    }
+    if (!confirming) {
+        return (
+            <div className="mx-3 mb-2 flex items-center justify-between rounded-xl px-3 py-2" style={{ background: theme.node.fill, border: `1px solid ${theme.accent.primary}` }}>
+                <span className="text-xs font-medium" style={{ color: theme.node.text }}>Agent 修改了画布，可撤销最近一次变更</span>
+                <button
+                    type="button"
+                    disabled={busy}
+                    className="shrink-0 rounded-md border px-3 py-1 text-xs transition focus-visible:outline focus-visible:outline-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ borderColor: theme.accent.primary, color: theme.accent.primary }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => { event.stopPropagation(); setConfirming(true); }}
+                >
+                    撤销
+                </button>
+            </div>
+        );
+    }
+    return (
+        <div className="mx-3 mb-2 rounded-xl px-3 py-2" style={{ background: theme.node.fill, border: `1px solid ${theme.accent.primary}`, color: theme.node.text }}>
+            <div className="flex items-center gap-2 text-xs font-semibold">
+                <Undo2 className="size-3.5 shrink-0" style={{ color: theme.accent.primary }} />
+                <span>撤销 Agent 最近一次画布修改？</span>
+            </div>
+            <input
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                maxLength={200}
+                placeholder="撤销理由（可选）"
+                className="mt-2 w-full rounded-md border bg-transparent px-2 py-1 text-xs outline-none"
+                style={{ borderColor: theme.node.stroke, color: theme.node.text }}
+                onMouseDown={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+            />
+            <div className="mt-2 flex justify-end gap-2 text-xs">
+                <button type="button" className="rounded-md border px-3 py-1 transition" style={{ borderColor: theme.node.stroke, color: theme.node.label }} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onClick={() => { setConfirming(false); setReason(""); }}>
+                    取消
+                </button>
+                <button type="button" disabled={busy} className="rounded-md px-3 py-1 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50" style={{ background: theme.accent.primary, color: theme.canvas.background }} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onUndo(reason); }}>
+                    {busy ? "撤销中…" : "确认撤销"}
+                </button>
+            </div>
         </div>
     );
 }

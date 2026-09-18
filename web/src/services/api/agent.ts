@@ -174,6 +174,21 @@ export function cancelAgentRun(runId: string) {
     return http.post<{ accepted: boolean }>(`/agent/runs/${encodeURIComponent(runId)}/cancel`, undefined, { timeout: 15_000 });
 }
 
+export type AgentUndoPreview = {
+    found: boolean;
+    canUndo: boolean;
+    blockReason?: string;
+    stepId?: string;
+    status?: string;
+    afterSnapshotHash?: string;
+    hasSubmittedTask?: boolean;
+};
+
+/** 撤销预检: 返回最近一次 Agent 画布变更的可撤销状态与 expectedSnapshotHash 来源。 */
+export function previewAgentUndo(runId: string, signal?: AbortSignal) {
+    return http.get<AgentUndoPreview>(`/agent/runs/${encodeURIComponent(runId)}/undo-preview`, { signal });
+}
+
 export function undoAgentCanvasRun(runId: string, input: { stepId?: string; expectedSnapshotHash: string; reason?: string }, signal?: AbortSignal) {
     return http.post<{ accepted: boolean; snapshotHash: string }>(`/agent/runs/${encodeURIComponent(runId)}/undo`, input, { signal });
 }
