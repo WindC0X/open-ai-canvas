@@ -2,8 +2,8 @@
 
 ## S1 角色引用 chip 交互（R17）
 - [x] 读生成提交链：角色生成链已通（type:character 输入/CharacterGenerationReference/分镜行文本注入）；缺口=chip UI + 行生成角色图注入
-- [ ] 分镜行角色槽 UI（宿主 canvas-script-node.tsx assets 列）：chip 行组件（复用 AssetChip 视觉，characterName + Remove aria-label）
-- [ ] 数据流：chip 增删 → row.characters[] + assetBindings[] 同步写入（先查引用守则）
+- [x] 分镜行角色槽 UI（宿主 canvas-script-node.tsx assets 列）：StoryboardAssetsCell 交互化（hover Remove aria-label=`移除 <title> 引用` + 添加 Popover 列 buildStoryboardAssetCatalog 目录，排除已绑定）
+- [x] 数据流：storyboardRowAssetBindingPatch 纯函数（canvas-storyboard-assets.ts）统一增删 + characters 同步；8 单测全绿；Content/Editor 两调用点接线
 - [ ] 生成链验证：绑定角色后行生成的 prompt/references 含角色图（mock 渠道冒烟）
 - [ ] 提交 `feat(canvas): 角色引用chip - 分镜行绑定角色资产节点(R17语法)`
 
