@@ -339,13 +339,13 @@ function getConnectionMenuPosition(position: Position, viewport: ViewportTransfo
 }
 
 function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLElement, panelWidth: number) {
-    // 挂件几何(S2 语义 + 2026-09-18 用户间距拍板): 顶缘距节点底缘 8px 呼吸间距、水平居中。
-    // 曾为接力坠落动画衔接改 1px(零位移无回跳), 但位移分量删除后动画起点=最终位置,
-    // 1px 在视觉上读作"完全贴死"(用户反馈); 8px 保留衔接感(信息态坠出深度 40px 远大于此)又给足呼吸。
+    // 挂件几何(S2 语义 + 2026-09-18 用户间距两轮拍板: 8px 仍嫌贴, 回到外浮面板时代的 10px):
+    // 顶缘距节点底缘 10px、水平居中。曾为接力坠落动画衔接改 1px(零位移无回跳),
+    // 但位移分量删除后动画起点=最终位置, 1px 在视觉上读作"完全贴死"(用户反馈)。
     // 返回 centerX(中心锚点)而非 left: 挂件宽度有入场展开动画(节点宽→挂件宽),
     // 配合外层 translateX(-50%) 让宽度变化时保持对称居中展开(用户 2026-09-17: 展开过程不明显)。
     // clamp 沿用 12px 边距, 防节点贴视口缘时挂件出屏。
-    const gap = 8;
+    const gap = 10;
     const margin = 12;
     const nodeRect = nodeElement.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
@@ -359,10 +359,10 @@ function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLE
 }
 
 export function getNodePanelPosition(node: CanvasNodeData, viewport: ViewportTransform, viewportSize: { width: number; height: number }, panelWidth: number, _panelHeight: number, dragOffset?: Position | null) {
-    // 挂件化(S2 修订 + 2026-09-18 用户间距拍板): 面板顶缘距节点底缘 8px、水平居中于节点(挂件可略宽于节点,
+    // 挂件化(S2 修订 + 2026-09-18 用户间距两轮拍板): 面板顶缘距节点底缘 10px、水平居中于节点(挂件可略宽于节点,
     // 对称微展不破坏重心); 之前的居中+10px gap 是外浮面板几何(压住下方邻居误触的根源)。
     // 返回 centerX(中心锚点): 挂件宽度有入场展开动画, 配合 translateX(-50%) 对称展开。
-    const gap = 8;
+    const gap = 10;
     const margin = 12;
     const offsetX = dragOffset?.x || 0;
     const offsetY = dragOffset?.y || 0;
