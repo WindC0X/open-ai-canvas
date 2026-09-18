@@ -206,3 +206,14 @@ function loadImage(dataUrl: string) {
         image.src = dataUrl;
     });
 }
+
+// 扩图提交底图/mask 的压缩上限：超过该长边的 edits 请求体在部分中转会被断连（unexpected EOF 实录）。
+export const OUTPAINT_SUBMIT_LONG_EDGE = 1536;
+
+// 一次性合成扩图提交对：底图（JPEG 压缩、白边不透明）+ mask（PNG、扩图区透明）。
+// 两者同一 maxLongEdge 保证像素对齐；maskSupported=false 时 mask 为 undefined（指令通道）。
+export async function buildOutpaintSubmitVariants(contentDataUrl: string, paddingPx: ImagePadRect, maskSupported: boolean): Promise<{ source: string; mask?: string }> {
+    const source = await padImageToDataUrl(contentDataUrl, paddingPx, "#FFFFFF", { maxLongEdge: OUTPAINT_SUBMIT_LONG_EDGE, mimeType: "image/jpeg", quality: 0.92 });
+    const mask = maskSupported ? await padImageToDataUrl(contentDataUrl, paddingPx, "transparent", { maxLongEdge: OUTPAINT_SUBMIT_LONG_EDGE, mimeType: "image/png" }) : undefined;
+    return { source, mask };
+}

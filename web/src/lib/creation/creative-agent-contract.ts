@@ -11,7 +11,12 @@ export type CreativeAnswer = { selected: string[]; custom: string };
 export type CreativeAnswers = Record<string, CreativeAnswer>;
 export type CreativeInteractionIdentity = { interactionId: string; revision: number; status: "pending" | "submitted" | "superseded" };
 export type CreativeQuestionRequest = CreativeInteractionIdentity & { kind: "question_request"; questions: CreativeQuestion[] };
-export type CreativeGenerationItem = { ref: string; mode: "image" | "video"; model: string; size?: string; seconds?: number; quality?: string; referenceRefs?: string[] };
+export type CreativeOutpaintSpec = {
+    // 目标画幅比例（如 "16:9"）与显式四边像素外扩二选一；同时提供时 paddingPx 优先。
+    ratio?: string;
+    paddingPx?: { left: number; top: number; right: number; bottom: number };
+};
+export type CreativeGenerationItem = { ref: string; mode: "image" | "video"; model: string; size?: string; seconds?: number; quality?: string; referenceRefs?: string[]; operation?: "outpaint"; outpaint?: CreativeOutpaintSpec };
 export type CreativeProposal<T = unknown> = { id: string; version: number; title: string; summary: string; markdown: string; deliverables: string[]; workflow: CanvasWorkflowInput & { autoRun: false }; generationItems: CreativeGenerationItem[]; extra?: T };
 export type CreativePlanStep = { id: string; title: string; status: "pending" | "running" | "waiting" | "completed" | "failed" | "cancelled"; detail?: string; nodeIds?: string[] };
 export type CreativePlan = { id: string; steps: CreativePlanStep[] };

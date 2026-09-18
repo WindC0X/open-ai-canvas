@@ -7,7 +7,7 @@ import { CreditSymbol } from "@/constant/credits";
 import { defaultImageParamsForModel } from "@/lib/model-selection";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import { modelQuoteRequest, requestCreditCost } from "@/lib/model-pricing";
-import { describeOutpaintSize, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
+import { describeOutpaintSize, parseRatioValue, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -78,12 +78,6 @@ function sizeValueToRatioLabel(value: string): string | null {
         if (diff < bestDiff) { bestDiff = diff; best = item; }
     }
     return bestDiff / ratio < 0.05 ? best[0] : `${ratio.toFixed(2)}:1`;
-}
-
-function parseRatioValue(value: string): number | null {
-    const parts = value.split(":").map((item) => Number(item));
-    if (parts.length === 2 && parts.every((item) => Number.isFinite(item) && item > 0)) return parts[0] / parts[1];
-    return RATIO_VALUE_MAP[value] ?? null;
 }
 
 const RATIO_VALUE_MAP: Record<string, number> = { "1:1": 1, "4:3": 4 / 3, "3:4": 3 / 4, "16:9": 16 / 9, "9:16": 9 / 16, "2:3": 2 / 3, "3:2": 3 / 2, "21:9": 21 / 9 };

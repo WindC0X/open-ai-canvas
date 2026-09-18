@@ -51,3 +51,22 @@ describe("创作方案执行合同", () => {
         expect(mergeCreativeBrief(known, [{ field: "seconds", value: 30, source: "user", status: "confirmed", evidence: "改为30秒" }], "short-film", "时长改为30秒").seconds?.value).toBe(30);
     });
 });
+
+describe("扩图 agent 接入合同", () => {
+    test("outpaint 项通过校验并保留 operation/outpaint", () => {
+        const raw = { title: "扩图", summary: "把商品图扩成横版", markdown: "扩至16:9", deliverables: ["扩图"], workflow: { nodes: [{ ref: "src", kind: "image", title: "源图", assetId: "asset" }, { ref: "wide", kind: "image", title: "扩图结果", prompt: "延展花园背景", referenceRefs: ["src"] }], edges: [] }, generationItems: [{ ref: "wide", mode: "image", model: "managed::image-model", referenceRefs: ["src"], operation: "outpaint", outpaint: { ratio: "16:9" } }] };
+        const proposal = normalizeCreativeProposal(raw, "p", 1, config, [{ id: "asset", assetId: "asset", title: "源图", kind: "image", storageKey: "resource:src" }]);
+        expect(proposal.generationItems[0]!.operation).toBe("outpaint");
+        expect(proposal.generationItems[0]!.outpaint).toEqual({ ratio: "16:9" });
+    });
+
+    test("扩图必须恰好引用一张源图", () => {
+        const raw = { title: "扩图", summary: "s", markdown: "m", deliverables: [], workflow: { nodes: [{ ref: "a", kind: "image", title: "A", assetId: "a1" }, { ref: "b", kind: "image", title: "B", assetId: "b1" }, { ref: "wide", kind: "image", title: "结果", prompt: "p", referenceRefs: ["a", "b"] }], edges: [] }, generationItems: [{ ref: "wide", mode: "image", model: "managed::image-model", referenceRefs: ["a", "b"], operation: "outpaint", outpaint: { ratio: "16:9" } }] };
+        expect(() => normalizeCreativeProposal(raw, "p", 1, config, [{ id: "a1", assetId: "a1", title: "A", kind: "image", storageKey: "resource:a" }, { id: "b1", assetId: "b1", title: "B", kind: "image", storageKey: "resource:b" }])).toThrow("恰好 1 张源图");
+    });
+
+    test("扩图需要 ratio 或 paddingPx", () => {
+        const raw = { title: "扩图", summary: "s", markdown: "m", deliverables: [], workflow: { nodes: [{ ref: "src", kind: "image", title: "源图", assetId: "asset" }, { ref: "wide", kind: "image", title: "结果", prompt: "p", referenceRefs: ["src"] }], edges: [] }, generationItems: [{ ref: "wide", mode: "image", model: "managed::image-model", referenceRefs: ["src"], operation: "outpaint" }] };
+        expect(() => normalizeCreativeProposal(raw, "p", 1, config, [{ id: "asset", assetId: "asset", title: "源图", kind: "image", storageKey: "resource:src" }])).toThrow("outpaint.ratio");
+    });
+});

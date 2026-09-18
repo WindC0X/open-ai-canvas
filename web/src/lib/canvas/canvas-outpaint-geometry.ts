@@ -165,6 +165,15 @@ export function describeOutpaintSize(padding: OutpaintPadding, nodeWidth: number
 // 比例选择（含参数条下拉即时切换）反解四边 padding：联立解保证框比精确等于目标比例。
 // anchor = 既有外扩强度（basePadding 最大边和的一半），作为「少加的那条轴」的保底量；
 // 另一轴按 (基准 + 2*anchor) 联立补差。补差为负时放弃 anchor，回落最小外扩纯解（比例优先）。
+// 比例字符串解析："16:9" 直接除；已知别名（"21:9" 等）走映射表；无法解析返回 null（自由拖拽语义）。
+const RATIO_VALUE_MAP: Record<string, number> = { "1:1": 1, "4:3": 4 / 3, "3:4": 3 / 4, "16:9": 16 / 9, "9:16": 9 / 16, "2:3": 2 / 3, "3:2": 3 / 2, "21:9": 21 / 9 };
+
+export function parseRatioValue(value: string): number | null {
+    const parts = value.split(":").map((item) => Number(item));
+    if (parts.length === 2 && parts.every((item) => Number.isFinite(item) && item > 0)) return parts[0] / parts[1];
+    return RATIO_VALUE_MAP[value] ?? null;
+}
+
 export function resolveOutpaintPaddingForRatio(input: { nodeWidth: number; nodeHeight: number; ratio: number; basePadding?: OutpaintPadding }): OutpaintPadding {
     const nodeWidth = positiveOrZero(input.nodeWidth);
     const nodeHeight = positiveOrZero(input.nodeHeight);
