@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { activeConnectionPath, connectionHandleY } from "../src/components/canvas/canvas-connections";
 import { STORYBOARD_HEADER_HEIGHT, STORYBOARD_ROW_HEIGHT, storyboardTableHeight } from "../src/lib/canvas/canvas-storyboard-layout";
 import type { CanvasNodeData, StoryboardRow } from "../src/types/canvas";
@@ -64,4 +65,14 @@ test("preview path without target handle falls back to the node midpoint (pre-re
     const path = activeConnectionPath(sourceImage, { nodeId: sourceImage.id, handleType: "source" }, { x: 400, y: 300 }, scriptNode, 0, undefined, 0);
     const coords = path.split(" ").map(Number).filter((n) => !Number.isNaN(n));
     expect(coords[coords.length - 1]).toBeCloseTo(scriptNode.position.y + scriptNode.height / 2, 5);
+});
+
+test("leafer renders both single and batch connection previews with target handle snap", () => {
+    const source = readFileSync(new URL("../src/components/canvas/canvas-leafer-graphics-layer.tsx", import.meta.url), "utf8");
+    // 单线预览: 目标侧 handleId + 目标侧滚动偏移都要传给 activeConnectionPath;
+    // batch 预览(v2 曾漏): 多选拖拽同一语义, 防回归锚。
+    expect(source).toContain("props.connectionTargetHandleId : undefined");
+    expect(source).toContain("props.scriptScrollTopById[props.connectionTargetNodeId] || 0");
+    expect(source).toContain("batch.targetHandleId");
+    expect(source).toContain("props.scriptScrollTopById[batch.targetNodeId] || 0");
 });

@@ -92,7 +92,6 @@ export function useCanvasConnectionController({
     const [connectingParams, setConnectingParams] = useState<ConnectionHandle | null>(null);
     const [connectionTargetNodeId, setConnectionTargetNodeId] = useState<string | null>(null);
     const [connectionApproach, setConnectionApproach] = useState<CanvasConnectionApproach>(null);
-    const [connectionTargetAnchorRatio, setConnectionTargetAnchorRatio] = useState<number | undefined>();
     // 预览线的目标 handleId(2026-09-18): activeConnectionPath 终点 y 需要它才能落到分镜行,
     // 只传 nodeId+anchorRatio 时 connectionHandleY(undefined) 恒走节点中点(用户实测: 拖线先吸中点)。
     const [connectionTargetHandleId, setConnectionTargetHandleId] = useState<string | undefined>();
@@ -158,8 +157,6 @@ export function useCanvasConnectionController({
             connectingPointerIdRef.current = null;
             connectingPointerStartRef.current = null;
             setConnectionTargetNodeId(null);
-            setConnectionTargetAnchorRatio(undefined);
-            setConnectionTargetHandleId(undefined);
             setConnectionTargetHandleId(undefined);
         }
     }, [updateConnectionReplaceHover]);
@@ -484,8 +481,7 @@ export function useCanvasConnectionController({
                 const targetHandleId = node.type === CanvasNodeType.Script ? storyboardHandleAtY(node, world.y, scrollTop) : node.type === CanvasNodeType.BatchTable ? batchReferenceHandleAtY(node, world.y, handleRadius) : undefined;
                 if ((node.type === CanvasNodeType.Script || node.type === CanvasNodeType.BatchTable) && !targetHandleId) return;
                 const anchor = getConnectionTargetAnchor(node, current, targetHandleId, scrollTop);
-                // 同上: 行 handle 命中时回传 anchorRatio, batch 预览与落库 anchor 口径一致。
-                const targetAnchorRatio = targetHandleId ? (anchor.y - node.position.y) / Math.max(node.height, 1) : undefined;
+                const targetAnchorRatio = undefined;
                 const dx = world.x - anchor.x;
                 const dy = world.y - anchor.y;
                 const hitsSnapZone = dx * dx + dy * dy <= handleRadius * handleRadius;
@@ -676,8 +672,6 @@ export function useCanvasConnectionController({
         setMouseWorld(screenToCanvas(event.clientX, event.clientY));
         setConnecting({ nodeId, handleType, handleId, anchorRatio });
         setConnectionTargetNodeId(null);
-        setConnectionTargetAnchorRatio(undefined);
-        setConnectionTargetHandleId(undefined);
         setConnectionTargetHandleId(undefined);
         setSelectedConnectionId(null);
     }, [clearBatchConnection, closeConnectionCreateMenu, commitBatchConnection, connectNodes, screenToCanvas, setConnecting, setSelectedConnectionId]);
@@ -744,8 +738,6 @@ export function useCanvasConnectionController({
             const point = screenToCanvas(event.clientX, event.clientY);
             setConnectionApproach((previous) => latchCanvasConnectionApproach(previous, dropTarget.nodeId, point));
             setConnectionTargetNodeId(dropTarget.nodeId);
-            setConnectionTargetAnchorRatio(dropTarget.anchorRatio);
-            setConnectionTargetHandleId(dropTarget.handleId);
             setConnectionTargetHandleId(dropTarget.handleId);
             setMouseWorld(point);
         };
@@ -829,7 +821,6 @@ export function useCanvasConnectionController({
         closeConnectionCreateMenu,
         connectionTargetNodeId,
         connectionApproach,
-        connectionTargetAnchorRatio,
         connectionTargetHandleId,
         connectionReplaceHover,
         connectingParams,
