@@ -49,9 +49,12 @@
 - [x] 5.4 `canvas-node-toolbar.tsx`：实现时核实是否需同步（group 渲染兼容），预期小改或零改。
 - [x] 5.5 验证：`bun test` 全量 + `bun run build`。
 
-## Step 6：真机验证（用户检查点，需用户在场）
+## Step 6：真机验证（开发自测 2026-09-18 完成，用户终验待做）
 
-- [ ] 6.1 启动环境（查端口占用后）：backend `CANVAS_BACKEND_ADDR=:8181 CANVAS_BACKEND_DATA_DIR=../.local/f06-wt-debug go run ./cmd/server`；web `VITE_API_PROXY_TARGET=http://127.0.0.1:8181 bunx vite --host 0.0.0.0 --port 3001`；实证 curl 透传 + :3001 可开（vite.config.ts:10 静默回退坑，必须实测）。
+- [x] 6.1 环境实证：端口实测（8080/8081/3000/8182 被 A 线占；3001/8181 空闲按任务书启用）；backend health 200（schema 19/19，独立数据目录 .local/f06-wt-debug）；:3001 页面 200；:3001/api 代理透传返回 8181 响应（防 vite.config.ts:10 回退 8080 已实证）。**注：tmwd 桥全瘫（内容脚本孤儿化+CDP 锁死，已知状态），改用本机 Chrome headless 自测（合成事件仅作开发自测证据，最终验收由用户真机进行）。**
+- [x] 6.2 冒烟实测（headless 自测 + 后端日志证据）：AC1 外扩框包裹节点[四边 48px]/8 手柄/网格 9 格/参数条恒宽 500 在框下/容器 pointer-events:none ✓；AC2 拖手柄框变宽且节点未平移 ✓、clamp(框≥原图) ✓、4:3 比例精确锁定 1.3333 ✓（1:1 因宽图 padding 无解发生设计内让步）；缩放跟随 UI 放大 ✓；AC3 ✕ 后 overlay/bar 全消失 ✓；AC4 gpt-image-1(maxImages=16) 执行激活 + 无渠道时禁用明示 ✓、maskSupported=true 提交带 mask（请求体含 mask）✓；AC5 提交链贯通：pad 图+mask 资产上传 → POST /api/tasks 200（queued/progress 5）→ worker 出站 example.com(HTTP 405) → 节点错误态+重新生成 ✓；AC5b 积分 0.50/张 真实本地价 ✓。
+- [x] 6.3 证据：`.local/f06-evidence/*.png`（22-outpaint-active[激活态]、25-ratio-43[比例] 、30-model-picked[模型+积分]、32-after-submit[提交后]、33-task-error[错误态]）。
+- [ ] 6.4 **用户终验（待做）**：真实渠道下拖拽生成一张真实扩图；tmwd 桥需用户重载 Chrome 扩展后可用；测试账号 f06test / f06Test12345（本 worktree 独立库 .local/f06-wt-debug）；自测渠道 CHANNEL_000003(f06-selftest, example.com 占位) 可在终验前删除或替换为真实渠道。
 - [ ] 6.2 冒烟清单：AC1–AC7 + AC5b 逐条过（外扩框跟随缩放平移 / 手柄拖拽不触发画布平移 / clamp / 比例约束 / ✕ 清理 / 能力禁用明示 / 提交出图 / 结果节点连线 / 积分随模型与张数变化且报价失败回落本地价）；截图或录屏留证（CDP 合成事件不算）。
 - [ ] 6.3 明暗主题、缩放极端（很小/很大）、长图与方图各一轮。
 
@@ -65,7 +68,7 @@
 ## Review Gate
 
 - Step 0 后：核对结论若有与 design 冲突 → 回 design.md 修订再继续。
-- Step 5 后：dispatch trellis-check 或自检（spec 合规 / 类型 / 测试 / 数据流）。
+- Step 5 后：code-review-expert skill 全面审查（2026-09-18）——发现并修复 6 项：P0 拖拽增量叠加（改起点基准）、P1 storageKey 覆盖 pad 白边（去字段）、P1 节点切换状态残留（key 重挂）、P2 追加入口缺失、遮挡 bug（z-10→--z-node-toolbar 令牌）、size 值域错配（全局比例语义→模型档位域钳制）。提交 2af268b7 / 964a3560。
 - Step 6 前后：合入降级门材料（测试证据 + 截图）交付用户；合入动作由用户在 main checkout 执行。
 
 ## 已定裁定（2026-09-18 用户）
