@@ -44,12 +44,14 @@
 
 ## 3. 双层坐标架构（核心）
 
-### 3.1 外扩框 = 世界层
+### 3.1 外扩框 = 画布覆盖层内 rect 实测定位（tapnow NodeResizer 同款，2026-09-18 修订）
 
-- 挂载：overlay 主体渲染在节点世界层内的节点锚定容器（参照挂件 / selection toolbar 的 `getBoundingClientRect()` 双量测模式：`element.getBoundingClientRect()` + 容器 rect → 容器相对坐标）。
-- 几何状态：`padding: { left, top, right, bottom }`（单位 = 世界像素，即节点显示尺寸坐标系，与 `node.width/height` 同尺度）。渲染 = 相对节点原点的负偏移定位：框 left = `-padding.left`、top = `-padding.top`、width = `node.width + left + right`。
-- DOM 实测纪律：节点元素变化（拖拽预览、resize、freeResize）通过 ResizeObserver（节点元素）+ MutationObserver（style 属性过滤，参照 `canvas-workspace-overlays.tsx:55-60/172-196`）驱动重算；缩放跟随画布 transform 自然成立（世界层子元素），**禁止读 viewport React prop**（1f5cacfb）。
-- 屏幕空间 delta → 世界 delta 换算仅在手柄拖拽时需要 scale：优先实时订阅 `canvas-live-viewport`（挂件同款订阅通道），拖拽起点以 `getBoundingClientRect()` 实测框尺寸自校准（`scale = rectWidth / 逻辑宽`）作为兜底互验。
+> 修订理由：① 节点拖拽预览期间 React state 不更新（`applyCanvasNodeDragPreview` 直改 DOM），渲染在世界层 + 读 node.position 会脱节；② 世界层挂载点受节点 `overflow:hidden` 裁剪约束，挂节点外层级需额外穿透；③ tapnow 的 NodeResizer 手柄实测渲染在屏幕空间，手柄/网格/字号恒定清晰可用性好。
+
+- 挂载：与参数条同一画布级覆盖层（`absolute inset-0 pointer-events-none`），外扩框主体与手柄子元素 `pointer-events-auto`（手柄可交互、框内网格透传事件给画布）。
+- 几何：以 `[data-node-id]` 元素 `getBoundingClientRect()` 实测（屏幕空间）+ `padding × scale` 定位；`scale` 自校准 = 节点 rect 宽 / node.width；框体 border/手柄/网格/尺寸标注为恒定屏幕像素（不随缩放变形，可读性优先）。
+- 实测驱动：ResizeObserver（节点元素 layout）+ MutationObserver（worldLayer style attributes，捕捉拖拽预览与 viewport transform，挂件同款）+ `subscribeCanvasViewportPreview` 拖拽中实时 scale；一次量测两处消费（框 + 参数条）。
+- node.position/width/height 仅作初始值与 clamp/ratio/像素换算的逻辑尺寸，渲染一律以 rect 实测为准；禁读 viewport React prop 纪律不变。
 
 ### 3.2 参数条 = 屏幕空间覆盖层
 
@@ -136,6 +138,7 @@ describeOutpaintSize(padding, scale): string   // 实时尺寸标注 "2048 × 11
 | 决策 | 备选 | 理由 |
 | --- | --- | --- |
 | padding 世界坐标状态 + 负偏移渲染 | 独立世界层节点 | 外扩框语义上属于节点，随节点删除/选中生命周期，不进 nodes 文档（不污染撤销栈/持久化） |
+| 外扩框渲染在屏幕空间覆盖层 + rect 实测（tapnow NodeResizer 同款） | 渲染在世界层随 transform | 节点拖拽预览期 React state 脱节（drag preview 直改 DOM）；世界层挂载受 overflow 裁剪；手柄/网格/字号恒定可用性好（§3.1 修订 2026-09-18） |
 | 覆盖层挂 media-dialogs 文件 | 新画布层挂载点 | 接线面收敛在任务书 4 文件清单内，最小合并成本 |
 | payload 像素域（paddingPx）在 UI 层换算 | hook 内再换算 | 纯函数集中在 geometry 模块可测；hook 保持骨架形状 |
 | 一个 padImageToDataUrl 双用途（image/mask） | 两个函数 | fill 参数真实复用消除重复（AGENTS.md：新 helper 必须消除真实重复） |
