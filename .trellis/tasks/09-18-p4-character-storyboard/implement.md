@@ -8,10 +8,10 @@
 - [ ] 提交 `feat(canvas): 角色引用chip - 分镜行绑定角色资产节点(R17语法)`
 
 ## S2 角色槽位端口（R18）
-- [ ] handle 前缀 `character:` + 几何常量（沿用 BATCH_REFERENCE_HANDLE 模式）
-- [ ] planBatchConnections 角色扩展（source 校验图像资产节点/去重/上限）
-- [ ] 空槽 helper 文案 + cursor 语义（R18）
-- [ ] 连线 → chip 同步（连线 commit 写行内 characters/bindings）
+- [x] handle 方案收敛：复用既有行级 `row:<id>` handle（left=target 连资产即写 binding），**不新增** `character:` 前缀——连线→binding 写入/去重链（applyStoryboardLinkage + bindingForConnectedNode）已存在，重复造口只会分叉数据流
+- [x] 校验面：去重（连线侧已有）+ 上限 MAX_ROW_ASSET_BINDINGS=8（patch 纯函数拦截 + cell + 钮禁用；flora 无上限证据，参照 batch-table=6 先例自设计登记）
+- [x] 空槽 helper「连接角色图像节点，或点击选择画布资产」+ handle Tooltip 语义化；flora source cursor:not-allowed（technique 无输出禁连出）本地无对应物，登记不采纳
+- [x] 连线→chip 同步：连线写 assetBindings → cell 即时渲染（既有链验证通过）；chip 侧增删走 S1 patch（双向一致）
 - [ ] 提交 `feat(canvas): 角色槽位端口 - 连线绑定与空槽helper(R18契约)`
 
 ## S3 分镜表格 flora 化
