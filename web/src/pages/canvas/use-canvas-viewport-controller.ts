@@ -58,6 +58,20 @@ export function useCanvasViewportController({
         delete containerRef.current?.dataset.canvasViewportInteracting;
     }, [containerRef]);
 
+    // 后台节流硬化(2026-09-18 W2 review): commit 走 120ms setTimeout, 后台标签被 intensive throttling
+    // 推迟到 ≥1min → 窗口期内 viewport state 落后 DOM(W2 挂件错位排查时的“viewport prop 脱节”读数即此
+    // 窗口 + merge 中途混合模块图的叠加假象)。标签切回前台时立即提交, 关闭窗口; 前台正常路径不变。
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState !== "visible" || !commitTimerRef.current) return;
+            clearTimeout(commitTimerRef.current);
+            commitTimerRef.current = null;
+            commitViewport(viewportRef.current);
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        return () => document.removeEventListener("visibilitychange", onVisible);
+    }, [commitViewport, viewportRef]);
+
     const { cancelViewportTransition, transitionViewportTo } = useCanvasViewportTransition(viewportRef, previewViewport, commitViewport);
     const focusedAgentBatch = useRef<CanvasNodeData[] | null>(null);
     useEffect(() => {
