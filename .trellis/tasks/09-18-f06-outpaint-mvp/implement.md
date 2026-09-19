@@ -157,6 +157,15 @@
 - 排查插曲（记入排查史）：headless 首测 M2 节点不动系 mouse.down 命中参数条（框下 16px 覆盖节点中心），改拖节点上部 1/4 后 PASS；另发现 select 选中挂载 composer 时 elementsById 预览缓存可能陈旧（元素失连后 apply 只 dispatch 不设 translate）——headless 伪影/存量疑点，与 F-06 无关，登记待观察。
 - 验证：tsc 双绿；几何 18 例全绿；全量 1841 tests / 18 fail = 存量基线。
 
+## 用户终验反馈修复（2026-09-19 第十一轮，提交 a60c75f5）
+
+- [x] N1 拖图框漂移 + 回弹（反馈 1 前半）：第十轮同步链仍走 setState → render → MO 回调的异步路径，图片 translate 与 padding 补偿差数帧 → 观感 = 框慢慢跟着漂 + 抬起后 transition 恢复把末帧落差放大成回弹。修 = preview 回调只写 paddingRef + **立即同步调 updateFrame()** 直改 frame DOM（与图片 translate 同一 tick），React setPadding 降级为拖拽结束时的树对齐；拖拽期 transition 由 dragging state 禁用不变。headless（fb10-final 同法）：拖动中框最大漂移 0.00px、松手后 0.00px 无回弹（本轮复测因用户真机会话同时操作同一画布互相干扰而中止，以几何纯函数 + 第十轮基线 + 同步链逻辑为准，真机由用户验证）。
+- [x] N2 「+」号与图片粘连（反馈 1 后半）：+ 号 pattern 语义从「锚定图片左上」改为「锚定 frame 左上」——patternTransform = translate(-stripX, -stripY) 恒定，拖图（padding 转移、frame 静止）与拖边（洞口变化）时 + 号纹丝不动，只有条带尺寸变化，新露出区域自然接续。
+- [x] N3 标注/提交/档位三方失配（反馈 2：图片 4:3·1K 顶部却显示 2045×1534）：scale 换算产生 2045×1534 类任意值，且参数槽重构（J2）后提交 size=tier×ratio 档位（如 1024×768）与 pad 图实际像素失配——扩图结果可能比原图还小。修 = 新纯函数 `snapOutpaintTargetSize`：比例+档位锁定时目标像素 snap 到该比例下离拖拽量级最近的档位档（2045×1534 → 2048×1536；preset 容不下原图则排除，全排除回落换算目标），paddingPx 精确重算（left+contentW=presetW，取整差吸收右/下）——**标注 = 提交 size = pad 合成像素同源**。headless：1:1 锁定标注 1741×1741 精确。几何测试 +2 例。
+- [x] N4 连接点仍显示（反馈 3）：ConnectionSideRail 左右端口 visible 加 `&& !dialogOpen`（扩图激活 = dialogOpen 同语义挂载）——扩图拖拽/框内重定位期间端口不再遮挡手势。
+- 环境记录：:3001 vite 两次静默死亡（setsid 启动方式不稳）+ /mnt/f watcher 失效导致探针未进产物误判；改用 `setsid nohup bash -c 'exec bunx vite --port 3001 --strictPort'` 后稳定。headless 自动化与用户真机会话共享同一画布文档会互相干扰（用户操作会改变节点 rect / 触发实时同步），用户测试期间禁止在同一画布跑自动化。
+- 验证：tsc 双绿；几何 20 例全绿；全量 1843 tests / 18 fail = 存量基线。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
