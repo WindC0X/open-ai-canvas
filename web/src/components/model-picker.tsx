@@ -109,7 +109,11 @@ export function ModelPicker({
         const rect = anchor.getBoundingClientRect();
         const flyoutWidth = 384;
         const x = rect.right + 8 + flyoutWidth > window.innerWidth - 12 ? rect.left - flyoutWidth - 8 : rect.right + 8;
-        setFlyoutPos({ x: Math.max(12, x), y: Math.min(Math.max(12, rect.top - 8), window.innerHeight - 120) });
+        // y: 默认顶边贴 anchor; 屏幕底部放不下(面板在底部, Agent composer 场景)时向上展开 ——
+        // 旧行为硬 clamp 到 innerHeight-120, flyout 直接盖住 composer(2026-09-19 用户实测"列表框偏移")。
+        const flyoutHeight = flyoutRef.current?.offsetHeight || 0;
+        const belowFits = rect.top - 8 + flyoutHeight <= window.innerHeight - 12;
+        setFlyoutPos({ x: Math.max(12, x), y: belowFits ? Math.max(12, rect.top - 8) : Math.max(12, rect.top - 8 - flyoutHeight) });
         setFlyoutGroup(groupKey);
     };
     const scheduleFlyoutClose = () => {

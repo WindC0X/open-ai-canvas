@@ -88,6 +88,18 @@ func prepareCloudAgentCanvasMutation(repo *repository.Repository, userID, canvas
 func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloudAgentApprovalPreviewItem, error) {
 	nodes := creationMaps(doc["nodes"])
 	edges := creationMaps(doc["connections"])
+	// Agent 新增节点由服务端统一落位(2026-09-19 用户实测: 模型自报 x/y 落在画布原点角落且不带尺寸语义)。
+	// 位置是排版决策不是内容决策: 与其让模型猜坐标, 不如按现有画布包围盒放到右侧空列, 逐个向下排。
+	// 只改写 ops 的 X/Y, preview 与执行共用 creationAddedNode, 两处天然一致; 模型显式 position 语义不再保留。
+	bounds := cloudAgentNodesBounds(nodes)
+	nextX, nextY := bounds.maxX+120.0, bounds.minY
+	for i := range ops {
+		if ops[i].Type != "add_node" {
+			continue
+		}
+		ops[i].X, ops[i].Y = nextX, nextY
+		nextY += 340.0
+	}
 	items := make([]cloudAgentApprovalPreviewItem, 0, len(ops))
 	for _, op := range ops {
 		title, content := "", ""
@@ -300,4 +312,37 @@ func cloudAgentApprovalCallHash(call cloudAgentCall) string {
 	raw, _ := json.Marshal(call)
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
+}
+
+
+// cloudAgentNodesBounds 计算节点集合的包围盒; 空画布回退到原点附近的第一落位。
+type cloudAgentBounds struct{ minX, minY, maxX float64 }
+
+func cloudAgentNodesBounds(nodes []map[string]any) cloudAgentBounds {
+	result := cloudAgentBounds{minX: 0, minY: 0, maxX: 0}
+	first := true
+	for _, node := range nodes {
+		pos, _ := node["position"].(map[string]any)
+		x, _ := pos["x"].(float64)
+		y, _ := pos["y"].(float64)
+		width, _ := node["width"].(float64)
+		if width <= 0 {
+			width = 340
+		}
+		if first {
+			result.minX, result.minY, result.maxX = x, y, x+width
+			first = false
+			continue
+		}
+		if x < result.minX {
+			result.minX = x
+		}
+		if y < result.minY {
+			result.minY = y
+		}
+		if x+width > result.maxX {
+			result.maxX = x + width
+		}
+	}
+	return result
 }

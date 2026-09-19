@@ -23,7 +23,7 @@ import { addSkill, listAddedSkills, listSkills, type Skill, type SkillCategory }
 import { clearCloudAgentPendingSubmission, cloudAgentConversationTitle, loadCloudAgentConversations, loadCloudAgentPendingSubmission, saveCloudAgentConversations, saveCloudAgentPendingSubmission, type CloudAgentConversation, type CloudAgentPendingSubmission } from "@/services/cloud-agent-conversations";
 import { logicalModelIDForConfig, modelOptionName, resolveModelRequestConfig, selectableModelsByCapability, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
-import { applyAgentCanvasPatches, discardLocalCanvasProject, refreshCanvasAfterAgent, saveRemoteUserDataNow } from "@/services/user-data-sync";
+import { adoptRemoteCanvasAfterUndo, applyAgentCanvasPatches, refreshCanvasAfterAgent, saveRemoteUserDataNow } from "@/services/user-data-sync";
 import { createAgentCanvasSync } from "@/services/agent-canvas-sync";
 import { buildSkillMentionReferences, resolveSkillMentions } from "@/services/skill-runtime";
 import { AgentChatComposer, AgentChatMessage, AgentPlanBar, AgentQuestionBar, AgentUndoBar, AgentWorkingMessage, type CloudAgentChatMessage, type CloudAgentPlanItem } from "./canvas-cloud-agent-chat-ui";
@@ -506,13 +506,12 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                     role: "system",
                     text: "已撤销 Agent 最近一次画布修改",
                 }));
-                // 撤销改的是云端画布; 本地(内存/IndexedDB/水位)任何残留都会在下次加载时被
-                // S08"仅本地领先"路径当作未同步修改推回云端(实测: 撤销 95 秒后被自动同步反噬)。
-                // 弃用本地缓存, 下次加载纯远端采纳; 能撤成功说明本地与 mutation 后云端一致, 丢弃安全。
-                await discardLocalCanvasProject(canvasId);
-                // refresh 完成后再强制 drain 一次同步队列: 若 1.2s 防抖 drain 抢在 refresh 前执行,
-                // 会把撤销前的本地快照推回云端(实测 B1 轮反噬)。此刻 local==ack(均为回滚态), drain 无写。
-                refreshCanvasAfterAgent(canvasId)
+                // 撤销改的是云端画布; 本地内容/基线/水位必须强制对齐云端(回滚态), 否则残留快照会被
+                // S08"仅本地领先"路径推回云端(实测: 撤销 95 秒后被自动同步反噬)。
+                // 用 adoptRemoteCanvasAfterUndo 而非 discard+refresh: 后者 previous=undefined 投影会让
+                // 全部节点被误判为 Agent 新建 → 全选 + 视角飞行(用户实测); adopt 保留 viewport、
+                // 对齐基线与水位, delta 语义与上游 Agent 画布更新一致。
+                adoptRemoteCanvasAfterUndo(canvasId)
                     .then(() => saveRemoteUserDataNow())
                     .catch(() => undefined);
             }

@@ -171,6 +171,37 @@ export async function refreshCanvasAfterAgent(id: string) {
     });
 }
 
+/**
+ * 撤销专用画布采纳(2026-09-19): 强制以云端内容覆盖本地该画布, 但保留本地 viewport。
+ *
+ * 不走 discardLocalCanvasProject(整体移除再重加): 那会让 refreshCanvasAfterAgent 以
+ * previous=undefined 投影, 触发"全部节点被判 Agent 新建→全选+视角飞行"(用户实测)。
+ * 与 refreshCanvasAfterAgent 的差异: 后者在本地 dirty 时抛冲突保留本地; 撤销场景本地
+ * 内容即将被云端(回滚态)覆盖, dirty 无需保护 —— 直接对齐基线+水位, 抑制反向反噬。
+ */
+export async function adoptRemoteCanvasAfterUndo(id: string) {
+    const epoch = sessionEpoch;
+    await withRemoteUserDataSyncExclusive(async () => {
+        if (epoch !== sessionEpoch) throw new Error("账号已切换");
+        if (!activeRemoteUserId) throw new Error("请先登录");
+        const { project } = await getRemoteCanvasProject(id);
+        if (epoch !== sessionEpoch) throw new Error("账号已切换");
+        const current = useCanvasStore.getState().projects.find((candidate) => candidate.id === id);
+        // 保留本地视口: 撤销是内容级回滚, 不应带用户飞行到远端保存的旧视口。
+        const projected = current ? { ...project, viewport: current.viewport } : project;
+        for (const listener of agentCanvasListeners) listener(projected, current);
+        acknowledgedProjects.set(id, project);
+        verifiedProjects.add(id);
+        watermarkProjects.set(id, project.updatedAt);
+        persistWatermarks();
+        if (current && sameEntitySnapshot(current, projected)) {
+            useCanvasStore.setState((state) => ({ projects: state.projects.map((candidate) => (candidate.id === id ? projected : candidate)) }));
+        } else {
+            useCanvasStore.setState((state) => ({ projects: [...state.projects.filter((candidate) => candidate.id !== id), projected] }));
+        }
+    });
+}
+
 export async function applyAgentCanvasPatches(id: string, patches: AgentCanvasPatch[]) {
     const epoch = sessionEpoch;
     return withRemoteUserDataSyncExclusive(async () => {
