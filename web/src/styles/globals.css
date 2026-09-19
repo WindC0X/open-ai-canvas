@@ -8350,7 +8350,10 @@ html:not(.dark) .creation-studio-control:hover,
     .canvas-model-picker-flyout {
         position: fixed;
         z-index: 1200;
-        width: 384px;
+        /* 宽度跟随内容(单模型组不再渲染成 384px 孤立长条, 2026-09-19 用户实测), 上限仍 384。 */
+        width: max-content;
+        min-width: 224px;
+        max-width: 384px;
         max-height: min(420px, calc(100vh - 32px));
         overflow-y: auto;
         /* L1/L2 一致: padding 同唯一源 .creation-model-picker-menu 8px; 玻璃与 canvas L1

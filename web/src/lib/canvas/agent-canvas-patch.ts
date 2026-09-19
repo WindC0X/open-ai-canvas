@@ -1,13 +1,14 @@
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
 import type { CanvasConnection, CanvasNodeData } from "@/types/canvas";
 
-type Change<T> = { before: T | null; after: T };
+type Change<T> = { before: T | null; after: T | null };
 export type AgentCanvasPatch = {
     canvasId: string;
     updatedAt: string;
     nodes: Change<CanvasNodeData>[];
     connections: Change<CanvasConnection>[];
 };
+// (Change.after 可为 null: 仅撤销采纳路径产生删除语义; 见 mergeItems。)
 
 function record(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -44,6 +45,13 @@ function mergeItems<T extends { id: string }>(items: T[], changes: Change<T>[]):
     if (!changes.length) return items;
     const next = new Map(items.map((item) => [item.id, item]));
     for (const { before, after } of changes) {
+        // after=null 是删除语义。唯一合法来源是撤销采纳(云端回滚); canvas_apply_ops 禁止删除,
+        // 实时 canvas_updated 增量永不产生 after=null, 因此不会误伤 Agent 运行中的增量。
+        if (after === null) {
+            if (!before?.id) throw new Error("无效的画布增量节点");
+            next.delete(before.id);
+            continue;
+        }
         if (!after?.id || (before && before.id !== after.id)) throw new Error("无效的画布增量节点");
         next.set(after.id, mergeValue(next.get(after.id) ?? null, before, after) as T);
     }
@@ -55,6 +63,8 @@ export function applyAgentCanvasPatch(project: CanvasProject, patch: AgentCanvas
     if (patch.canvasId !== project.id || !Array.isArray(patch.nodes) || !Array.isArray(patch.connections)) throw new Error("画布增量不属于当前画布或格式无效");
     const byId = new Map(project.nodes.map((node) => [node.id, node]));
     const nodeChanges = patch.nodes.map((change) => {
+        // 删除语义(after=null)不经任务守卫: 撤销回滚必须能移除生成节点绑定的任务结果。
+        if (change.after === null) return change;
         const current = byId.get(change.after.id);
         const beforeTask = change.before?.metadata?.taskId;
         const afterTask = change.after.metadata?.taskId;
@@ -81,8 +91,10 @@ export function mergeAgentCanvasEditor(previous: CanvasProject, incoming: Canvas
     const changes = <T extends { id: string }>(before: T[], after: T[]): Change<T>[] => {
         const byId = new Map(before.map((item) => [item.id, item]));
         const afterIds = new Set(after.map((item) => item.id));
-        if (before.some((item) => !afterIds.has(item.id))) throw new Error("画布节点已删除，请先同步本地编辑");
-        return after.filter((item) => !equal(item, byId.get(item.id))).map((item) => ({ before: byId.get(item.id) ?? null, after: item }));
+        // 撤销会删除节点(2026-09-19 用户实测: 删除被当作冲突抛出, 撤销后画布纹丝不动)。
+        // here 的删除只可能来自撤销采纳(云端权威回滚), 按删除语义下发而不是拒绝。
+        const removals = before.filter((item) => !afterIds.has(item.id)).map((item) => ({ before: item, after: null }));
+        return [...removals, ...after.filter((item) => !equal(item, byId.get(item.id))).map((item) => ({ before: byId.get(item.id) ?? null, after: item }))];
     };
     return applyAgentCanvasPatch({ ...previous, nodes, connections }, {
         canvasId: previous.id,

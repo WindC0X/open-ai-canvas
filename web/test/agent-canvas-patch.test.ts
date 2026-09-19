@@ -67,3 +67,15 @@ test("task progress ahead of the server checkpoint still accepts terminal state"
     expect(result.nodes[0].metadata?.taskStatus).toBe("failed");
     expect(isCanvasNodeGenerating(result.nodes[0])).toBe(false);
 });
+
+test("undo adoption removes agent-created nodes (deletion semantics)", () => {
+    const created: CanvasNodeData = { ...node, id: "x1", title: "X", metadata: { content: "x", status: "idle" } };
+    const withCreated = applyAgentCanvasPatch(project, { ...patch, nodes: [{ before: null, after: created }], connections: [] });
+    expect(withCreated.nodes.some((item) => item.id === "x1")).toBe(true);
+    // 撤销 = 云端权威回滚: after=null 删除语义必须生效, 不能再当作"冲突"拒绝(2026-09-19 用户实测撤销后画布纹丝不动)。
+    const rolledBack = applyAgentCanvasPatch(withCreated, { ...patch, updatedAt: "t3", nodes: [{ before: withCreated.nodes.find((item) => item.id === "x1")!, after: null }], connections: [] });
+    expect(rolledBack.nodes.some((item) => item.id === "x1")).toBe(false);
+    // 编辑器合并路径(mergeAgentCanvasEditor)同样放行删除 — 否则撤销投影永远抛"画布节点已删除"。
+    const editor = mergeAgentCanvasEditor(withCreated, rolledBack, withCreated.nodes, withCreated.connections);
+    expect(editor.nodes.some((item) => item.id === "x1")).toBe(false);
+});

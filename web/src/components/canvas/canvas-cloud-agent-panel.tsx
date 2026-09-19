@@ -330,6 +330,10 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
     useEffect(() => {
         if (!run?.id) return;
         lastSeqRef.current = 0;
+        // 终态 run 的订阅是纯历史回放(会话切换/刷新后 after=0): 回放里的 canvas_updated 会把
+        // 用户已删除的节点重新 patch 回画布(2026-09-19 用户实测"会话切换复原已删节点")。
+        // 终态运行没有新的画布事件, 画布以 store/云端为准 — 只回放 UI 消息, 不喂同步通道。
+        const replayOnly = ["completed", "failed", "cancelled", "rejected"].includes(run.status);
         return subscribeAgentEvents(
             run.id,
             (event) => {
@@ -337,12 +341,12 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                 // Snapshot-derived UI events intentionally use seq=0.
                 if (event.seq > 0) {
                     if (event.seq <= lastSeqRef.current) return;
-                    if (event.seq > lastSeqRef.current + 1) canvasSyncRef.current?.reconcile();
+                    if (event.seq > lastSeqRef.current + 1 && !replayOnly) canvasSyncRef.current?.reconcile();
                     lastSeqRef.current = event.seq;
                 }
                 setMessages((current) => current.filter((item) => item.id !== `stream-error-${run.id}`));
                 applyAgentEvent(event, setMessages, setRun, setApproval, setPrompt);
-                canvasSyncRef.current?.receive(event);
+                if (!replayOnly) canvasSyncRef.current?.receive(event);
             },
             {
                 after: 0,
@@ -513,7 +517,9 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                 // 对齐基线与水位, delta 语义与上游 Agent 画布更新一致。
                 adoptRemoteCanvasAfterUndo(canvasId)
                     .then(() => saveRemoteUserDataNow())
-                    .catch(() => undefined);
+                    .catch((cause) => {
+                        setMessages((current) => appendAgentError(current, `undo-adopt-${activeRun.id}-${preview.stepId}`, cause, "画布已撤销，但本地画布刷新失败"));
+                    });
             }
         } catch (cause) {
             if (currentScope.current === conversationScope) {

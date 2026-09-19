@@ -109,11 +109,9 @@ export function ModelPicker({
         const rect = anchor.getBoundingClientRect();
         const flyoutWidth = 384;
         const x = rect.right + 8 + flyoutWidth > window.innerWidth - 12 ? rect.left - flyoutWidth - 8 : rect.right + 8;
-        // y: 默认顶边贴 anchor; 屏幕底部放不下(面板在底部, Agent composer 场景)时向上展开 ——
-        // 旧行为硬 clamp 到 innerHeight-120, flyout 直接盖住 composer(2026-09-19 用户实测"列表框偏移")。
-        const flyoutHeight = flyoutRef.current?.offsetHeight || 0;
-        const belowFits = rect.top - 8 + flyoutHeight <= window.innerHeight - 12;
-        setFlyoutPos({ x: Math.max(12, x), y: belowFits ? Math.max(12, rect.top - 8) : Math.max(12, rect.top - 8 - flyoutHeight) });
+        // y 初值=顶边贴 anchor; 首开时 ref 尚未挂载读不到真实高度(读恒为 0, 永远判"放得下"),
+        // 底部溢出的向上翻转改由挂载后的 useLayoutEffect 实测校正(2026-09-19 Agent 面板实测)。
+        setFlyoutPos({ x: Math.max(12, x), y: Math.max(12, rect.top - 8) });
         setFlyoutGroup(groupKey);
     };
     const scheduleFlyoutClose = () => {
@@ -132,6 +130,16 @@ export function ModelPicker({
             setFlyoutGroup(null);
         }
     }, [open]);
+    // flyout 真实高度挂载后才可知: 底部溢出(面板 composer 场景)时向上翻, 底边贴 anchor 顶。
+    // 依赖不含 y: 校正写入的 y 不再触发本 effect, 无回环。
+    useLayoutEffect(() => {
+        if (!flyoutGroup) return;
+        const el = flyoutRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const overflow = rect.bottom - (window.innerHeight - 12);
+        if (overflow > 0) setFlyoutPos((pos) => ({ ...pos, y: Math.max(12, pos.y - overflow - 4) }));
+    }, [flyoutGroup, flyoutPos.x]);
     // flora Providers 二级语法: L1=渠道/产商行钻取, L2=该组模型列表; 单组直接 L2, 搜索态展开全部
     const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
