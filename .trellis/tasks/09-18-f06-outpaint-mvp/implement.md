@@ -117,6 +117,12 @@
 - 重构伴随：pad 合成逻辑从 hook 提炼为 canvas-image-data.ts 共享 `buildOutpaintSubmitVariants`（hook 与 controller 消除重复）；parseRatioValue 迁入 geometry 单一源导出。
 - 验证：tsc/lint/全量 18 fail=存量基线；normalize 3 例单测过。**Agent 会话端到端（LLM 真实提出 outpaint 方案→批准→生成）待用户真机验收**——需要配置 chat 模型渠道驱动 creative_respond 工具调用。
 
+## 用户终验反馈修复（2026-09-20 第十七轮，提交 ac3bcb29 / ff48181b）
+
+- [x] S1 「超级加倍」根因实锤（bun -e 序列模拟）：resolveOutpaintPaddingForRatio 的 closest-by-log-area 度量单调棘轮——面积距离总偏爱保持当前外扩量的候选、锚定轴只增不减，依次点击比例 3283² → 41499² 爆炸 160 倍。修复 = 第三次重写为**和守恒语义**：守恒 S=sw+sh（切比例不改变外扩总量），联立解 sh'=(W+S−r·H)/(1+r)、sw'=S−sh'，S 不足达到比例时回落最小合法框；同比例重选=精确 no-op，逐点点击全程稳定。测试更新（翻转用例 2189×3283、雪球回归用例），几何 25 pass。
+- [x] S2 「沙漏缺口」根因实锤（最小复现 HTML + 逐 + 号存在性地图）：`clip-path: polygon(evenodd, 外环4点, 内环4点)` 在 CSS 里是**单条连续 8 顶点路径**——外环末点→内环首点的跳边与隐式闭合边是两条横贯左 gap 的长对角线，evenodd 逐点奇偶翻转把对角线扫过区误剪成沙漏（绕数计算与 28×6 存在性地图完全吻合）。洞居中时 gap 窄沙漏不可见（历次 headless 全过的原因）；用户放大框后 gap 128px 缺口显现。**修复 = 弃用 evenodd 多边形，改 SVG mask（白底全显 + 黑洞矩形 ref），writeClipHole 同签名改写 4 个 attribute**。最小复现 mask 版 0 缺失；真应用比例点击 + 拖图后四 gap 存在性扫描全满铺、拖图中途帧无沙漏、洞=图片矩形精确。
+- 备注：本节奏再次验证「DOM 度量断言全过 ≠ 视觉正确」——缺口是渲染语义 bug，只有像素级扫描/目视才能抓到（用户两轮坚持截图质疑是对的）。
+
 ## 已定裁定（2026-09-18 用户）
 
 - 积分槽位 = 真实计价组件（requestCreditCost + quoteLogicalModel + CreditSymbol，creditsEnabled 门控）。
