@@ -104,6 +104,10 @@ export function ModelPicker({
     const [flyoutPos, setFlyoutPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const flyoutRef = useRef<HTMLDivElement>(null);
     const flyoutCloseTimer = useRef<number | null>(null);
+    // 锚点元素留存: antd 菜单 zoom 入场动画期间行的 rect 是中间态(整体向触发器压缩),
+    // mouseenter 此时读到的坐标会让 flyout 沉底(2026-09-19 用户实测"子菜单悬浮输入框上")。
+    // 动画结束后按锚点终态位置重测校正。
+    const flyoutAnchorRef = useRef<HTMLElement | null>(null);
     const openFlyout = (groupKey: string, anchor: HTMLElement) => {
         if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);
         const rect = anchor.getBoundingClientRect();
@@ -111,6 +115,7 @@ export function ModelPicker({
         const x = rect.right + 8 + flyoutWidth > window.innerWidth - 12 ? rect.left - flyoutWidth - 8 : rect.right + 8;
         // y 初值=顶边贴 anchor; 首开时 ref 尚未挂载读不到真实高度(读恒为 0, 永远判"放得下"),
         // 底部溢出的向上翻转改由挂载后的 useLayoutEffect 实测校正(2026-09-19 Agent 面板实测)。
+        flyoutAnchorRef.current = anchor;
         setFlyoutPos({ x: Math.max(12, x), y: Math.max(12, rect.top - 8) });
         setFlyoutGroup(groupKey);
     };
@@ -139,6 +144,24 @@ export function ModelPicker({
         const rect = el.getBoundingClientRect();
         const overflow = rect.bottom - (window.innerHeight - 12);
         if (overflow > 0) setFlyoutPos((pos) => ({ ...pos, y: Math.max(12, pos.y - overflow - 4) }));
+        // 菜单入场动画(~200ms)期间锚点 rect 在漂移: 逐帧按锚点终态重贴, 连续两帧稳定即停。
+        let stable = 0;
+        let raf = 0;
+        const tick = () => {
+            const anchor = flyoutAnchorRef.current;
+            if (!anchor || !anchor.isConnected) return;
+            const ar = anchor.getBoundingClientRect();
+            setFlyoutPos((pos) => {
+                const x = Math.max(12, ar.right + 8 + 384 > window.innerWidth - 12 ? ar.left - 384 - 8 : ar.right + 8);
+                const y = Math.max(12, ar.top - 8);
+                if (Math.abs(pos.x - x) < 1 && Math.abs(pos.y - y) < 1) { stable += 1; return pos; }
+                stable = 0;
+                return { x, y };
+            });
+            if (stable < 2) raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
     }, [flyoutGroup, flyoutPos.x]);
     // flora Providers 二级语法: L1=渠道/产商行钻取, L2=该组模型列表; 单组直接 L2, 搜索态展开全部
     const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
@@ -823,9 +846,10 @@ function modelMediaTypes(config: AiConfig, model: string, capability?: ModelCapa
             return kind === "image" ? refs?.maxImages ?? 0 : kind === "video" ? refs?.maxVideos ?? 0 : kind === "audio" ? refs?.maxAudios ?? 0 : 0;
         }
         if (capability === "text") {
-            // 文本模型的图片/视频理解徽章维持旧行为(不显示)——能力摘要副标题由 S08 面板重设计统一处理,
-            // 本轮修复严格限定在用户报告的 image/video 请求域。
-            return 0;
+            // 文本模型的图片/视频理解徽章按渠道 capabilityConfig 正常显示
+            // (2026-09-19 用户实测: 后台配置最大参考图片数 16, 列表却不显示"可输入图像")。
+            const refs = configured?.text?.references;
+            return kind === "image" ? refs?.maxImages ?? 0 : kind === "video" ? refs?.maxVideos ?? 0 : kind === "audio" ? 0 : 0;
         }
         return 0;
     };
