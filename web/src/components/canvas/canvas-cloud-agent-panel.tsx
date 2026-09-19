@@ -486,7 +486,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
         let cancelled = false;
         setUndoPreview(null);
         previewAgentUndo(runId)
-            .then((preview) => { if (!cancelled && currentScope.current === conversationScope) setUndoPreview(preview); })
+            .then((preview) => { if (!cancelled && currentScope.current === conversationScope) setUndoPreview(preview.found ? preview : undefined); })
             .catch(() => { if (!cancelled && currentScope.current === conversationScope) setUndoPreview(null); });
         return () => { cancelled = true; };
     }, [run?.id, running, conversationScope]);
@@ -510,7 +510,11 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                 // S08"仅本地领先"路径当作未同步修改推回云端(实测: 撤销 95 秒后被自动同步反噬)。
                 // 弃用本地缓存, 下次加载纯远端采纳; 能撤成功说明本地与 mutation 后云端一致, 丢弃安全。
                 await discardLocalCanvasProject(canvasId);
-                void refreshCanvasAfterAgent(canvasId).catch(() => undefined);
+                // refresh 完成后再强制 drain 一次同步队列: 若 1.2s 防抖 drain 抢在 refresh 前执行,
+                // 会把撤销前的本地快照推回云端(实测 B1 轮反噬)。此刻 local==ack(均为回滚态), drain 无写。
+                refreshCanvasAfterAgent(canvasId)
+                    .then(() => saveRemoteUserDataNow())
+                    .catch(() => undefined);
             }
         } catch (cause) {
             if (currentScope.current === conversationScope) {
