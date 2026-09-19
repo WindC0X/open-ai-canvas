@@ -110,13 +110,15 @@ export function ModelPicker({
     const flyoutAnchorRef = useRef<HTMLElement | null>(null);
     const openFlyout = (groupKey: string, anchor: HTMLElement) => {
         if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);
-        const rect = anchor.getBoundingClientRect();
+        // 横向锚定用 L1 菜单容器(而非行): Provider 行在部分变体下不满宽, 行右缘落在 L1 的
+        // 空白列里, L2 会直接叠进 L1(2026-09-19 用户实测)。容器右缘才是 L1 的真实边界。
+        const menuRect = menuRef.current?.getBoundingClientRect() || anchor.getBoundingClientRect();
         const flyoutWidth = 384;
-        const x = rect.right + 8 + flyoutWidth > window.innerWidth - 12 ? rect.left - flyoutWidth - 8 : rect.right + 8;
+        const x = menuRect.right + 8 + flyoutWidth > window.innerWidth - 12 ? menuRect.left - flyoutWidth - 8 : menuRect.right + 8;
         // y 初值=顶边贴 anchor; 首开时 ref 尚未挂载读不到真实高度(读恒为 0, 永远判"放得下"),
         // 底部溢出的向上翻转改由挂载后的 useLayoutEffect 实测校正(2026-09-19 Agent 面板实测)。
         flyoutAnchorRef.current = anchor;
-        setFlyoutPos({ x: Math.max(12, x), y: Math.max(12, rect.top - 8) });
+        setFlyoutPos({ x: Math.max(12, x), y: Math.max(12, menuRect.top - 8) });
         setFlyoutGroup(groupKey);
     };
     const scheduleFlyoutClose = () => {
@@ -152,7 +154,8 @@ export function ModelPicker({
             if (!anchor || !anchor.isConnected) return;
             const ar = anchor.getBoundingClientRect();
             setFlyoutPos((pos) => {
-                const x = Math.max(12, ar.right + 8 + 384 > window.innerWidth - 12 ? ar.left - 384 - 8 : ar.right + 8);
+                const mr = menuRef.current?.getBoundingClientRect() || ar;
+                const x = Math.max(12, mr.right + 8 + 384 > window.innerWidth - 12 ? mr.left - 384 - 8 : mr.right + 8);
                 const y = Math.max(12, ar.top - 8);
                 if (Math.abs(pos.x - x) < 1 && Math.abs(pos.y - y) < 1) { stable += 1; return pos; }
                 stable = 0;
