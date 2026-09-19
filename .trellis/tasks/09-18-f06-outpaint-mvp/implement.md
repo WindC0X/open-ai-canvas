@@ -212,6 +212,15 @@
 - [x] S4 环境坑新增记录：①「图片工具」下拉是 click 触发的受控 antd Dropdown，evaluate 的 .click() 不展开（须真实鼠标 click）；② 激活扩图会触发 viewport 聚焦动画，激活前采集的节点坐标全部过期（鼠标落空白触发画布 pan），必须激活后重采；③ 节点互相重叠时 elementFromPoint 命中错误节点，须 5×5 网格采样找属于目标节点的命中点；④ 节点拖拽管线在 mousemove 中（非 rAF）逐帧写 applyCanvasNodeDragPreview。
 - 验证：tsc/eslint/build 双绿；全量 1843 tests / 18 fail = 存量基线；**拖图与拖手柄全程截图目视逐张复核**（10/12/13/14-big.png）：拖图 = 图片跟手 + +号纹理填原位 + 框静止；松手 = 图片停在新位 + 无跳动；拖手柄 = 框扩 + 图片不动；调试探针（f06-commit console.log）已全部移除并 curl 验证产物。
 
+## 用户终验反馈修复（2026-09-19 第十六轮，提交见 git log）
+
+- [x] T1 拖图左右空缺/重叠（用户大框截图）：**世界域单位 bug**——updateImageDragVisual 把屏幕域位移 tx 直接写 wrapper 的 left/top，但 wrapper 在世界层内、left/top 走世界布局坐标，写入值被画布缩放 k 衰减（写 18px 实动 14px）→ 拖得越远洞与图片错位越大（截图 35% 重叠）。修 = tx/scale、ty/scale 域换算后再写。headless（scale 0.78）：left 23.077 世界 ×0.78 = 18px 屏幕位移逐帧 1:1；域换算与 clamp 余量换算同源后贴边行为精确。
+- [x] T2 角拖拽跳变：dragAxis 每帧按累计 |dx|≥|dy| 现判主轴，斜拖时两条求解分支来回切换 = 框尺寸跳变。修 = 拖拽会话在首次显著位移（≥3px 死区）时锁定主轴（DragState.axis，resolveOutpaintPadding 新增 axis 参数）。headless：右下角斜拖 14 帧尺寸序列 651→832 平滑（比例恒 1.5），跳变 0。
+- [x] T3 AUTO 标注超模型域（截图 3283×2189，模型仅 1K）：AUTO 档 presetCandidates 为空 → 标注/提交落 scale 换算裸值，admission 也会拒。修 = 新统一解析 resolveOutpaintSubmitTarget：锁定档位走既有精确比例 snap；AUTO/自由走全域 ratio 感知 snap（snapOutpaintTargetSize 新增 targetRatio，距离 = 面积项+比例项×2 比例占优）——标注/提交/pad 同源、恒落渠道 16 对齐档。本轮实测 AUTO 标注 = 1536×1024。附带修：超域目标（>4096）回落域内最大档而非 null（提交恒有效）。
+- [x] T4 比例切换巨量放大（3:2 大框翻 2:3 溢出屏幕）：resolveOutpaintPaddingForRatio 旧「外扩总量只增不减」恒锚横轴——翻转时巨量横向外扩被强行保留、纵轴按比例爆炸。重写为**最近合法解**：两个锚定候选（锚横反解纵 / 锚纵反解横，被解轴允许收缩负值回落最小合法框）按对数面积距离取近者，并列取外扩更大者（同比例重选保持原框）；方位保持（dL/dB 半和分配）不变，轴塌缩时偏移让位于最小合法框。单测：3283×2189 框翻 2:3 → 1536×2304（旧实现 3283×4924）。
+- [x] T5 参数条重心偏左（实测 frame 中心 352 vs bar 内容中心 160）：bar 盒宽恒 640 且盒中心已精确居中，但内容行左对齐挤在左侧 250px → 视觉重心偏左。修 = w-max 自适应内容宽 + 内容行 flex-wrap + barRef ResizeObserver（选模型/档位改变行宽时重定位）。
+- 验证：tsc/lint/build 三绿；全量 1847 tests / 1829 pass / 18 fail = 存量基线；几何 24 例全绿（新增翻转/并列/AUTO snap 4 例）；模拟人工验证（真实鼠标 + 逐帧采样 + 截图目视）：拖图域换算精确、角拖零跳变、AUTO 标注域内、+纹理 L 形区域完整铺满（放大目视复核，先前"锯齿缺口"疑点为 frame 外画布点阵区误判）。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
