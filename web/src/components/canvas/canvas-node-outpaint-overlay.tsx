@@ -15,7 +15,7 @@ import {
     type ImageResolutionTier,
 } from "@/lib/image-resolution-tiers";
 import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
-import { subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
+import { subscribeCanvasNodeDragPreview, subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { quoteLogicalModel } from "@/services/api/logical-models";
@@ -412,52 +412,36 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     }, []);
 
-    // 拖动图片 = 框内重定位（用户反馈 2026-09-19）：拦截内容盒 pointerdown（capture 阶段阻断
-    // 节点拖拽管线），位移转成四边 padding 转移；贴边续拖则框随图扩（ratio 锁定时总量守恒）。
-    const imageDragRef = useRef<{ startX: number; startY: number; startPadding: OutpaintPadding } | null>(null);
-    const onImagePointerDown = useCallback(
-        (event: PointerEvent) => {
-            if (event.button !== 0) return;
-            event.stopPropagation();
-            event.preventDefault();
-            const target = event.currentTarget as HTMLElement;
-            imageDragRef.current = { startX: event.clientX, startY: event.clientY, startPadding: paddingRef.current };
-            setDragging(true);
-            try {
-                target.setPointerCapture(event.pointerId);
-            } catch {
-                /* pointer capture 失败时降级为普通跟随 */
-            }
-            const onMove = (move: PointerEvent) => {
-                const drag = imageDragRef.current;
-                if (!drag) return;
-                move.stopPropagation();
-                const scale = scaleRef.current || 1;
-                const dx = (move.clientX - drag.startX) / scale;
-                const dy = (move.clientY - drag.startY) / scale;
-                applyPadding(relocateOutpaintPadding(drag.startPadding, dx, dy, ratio !== null));
-            };
-            const onUp = () => {
-                imageDragRef.current = null;
-                setDragging(false);
-                target.removeEventListener("pointermove", onMove);
-                target.removeEventListener("pointerup", onUp);
-                target.removeEventListener("pointercancel", onUp);
-            };
-            target.addEventListener("pointermove", onMove);
-            target.addEventListener("pointerup", onUp);
-            target.addEventListener("pointercancel", onUp);
-        },
-        [applyPadding, ratio],
-    );
-
-    // 内容盒挂截获监听（capture 先于节点拖拽管线）；虚拟化重建后由 ensureNodeElement 重新解析。
+    // 拖动图片 = 框内重定位（用户反馈 2026-09-19，第二轮修订）：不再拦截节点拖拽——图片直接跟手
+    // （现有节点拖拽管线），overlay 订阅拖拽预览事件，同步把位移反向转成 padding 补偿：
+    // 图片移 dx 时 left 增 dx / right 减 dx，框 rect 数学上静止；贴边后 padding 无余量，框随图扩展。
+    // ratio 锁定时外扩总量守恒（拖图不破坏锁定比例）。
+    const imageDragRef = useRef<{ startPadding: OutpaintPadding } | null>(null);
+    const ratioRef = useRef(ratio);
+    ratioRef.current = ratio;
     useLayoutEffect(() => {
-        const content = ensureNodeElement();
-        if (!content) return;
-        content.addEventListener("pointerdown", onImagePointerDown, { capture: true });
-        return () => content.removeEventListener("pointerdown", onImagePointerDown, { capture: true });
-    }, [ensureNodeElement, node, onImagePointerDown]);
+        const container = containerRef.current;
+        if (!container || !node) return;
+        const unsubscribe = subscribeCanvasNodeDragPreview(container, (preview) => {
+            if (!preview || !preview.nodeIds.has(node.id)) {
+                if (imageDragRef.current) {
+                    imageDragRef.current = null;
+                    setDragging(false);
+                }
+                return;
+            }
+            if (!imageDragRef.current) {
+                imageDragRef.current = { startPadding: paddingRef.current };
+                setDragging(true);
+            }
+            const scale = scaleRef.current || 1;
+            applyPadding(relocateOutpaintPadding(imageDragRef.current.startPadding, preview.x / scale, preview.y / scale, ratioRef.current !== null));
+        });
+        return () => {
+            unsubscribe();
+            imageDragRef.current = null;
+        };
+    }, [containerRef, node, applyPadding]);
 
     const handleExecute = useCallback(() => {
         if (!node || !canExecute) return;

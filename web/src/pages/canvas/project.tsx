@@ -2720,7 +2720,8 @@ function InfiniteCanvasPage() {
                                     }}
                                     onNodeMouseDown={handleNodeMouseDown}
                                     hoveredNodeId={hoveredNodeId}
-                                    dialogOpenNodeId={dialogNodeId}
+                                    // 扩图激活时目标节点同语义挂载：抑制节点内 hover 信息态 composer（用户反馈：内部 composer 仍弹出）
+                                    dialogOpenNodeId={outpaintNodeId ?? dialogNodeId}
                                     onConnectStart={handleConnectStart}
                                     onNodeResize={handleNodeResize}
                                     onToggleFrame={handleFrameToggle}
