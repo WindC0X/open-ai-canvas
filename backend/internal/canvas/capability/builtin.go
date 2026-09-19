@@ -8,7 +8,7 @@ const (
 func BuiltinRegistry() *Registry {
 	registry, err := NewRegistry([]Descriptor{
 		{
-			Type: "text", Version: "1", Label: "文本", DefaultWidth: 340, DefaultHeight: 240,
+			Type: "text", Version: "1", Label: "文本", DefaultWidth: 384, DefaultHeight: 384, // flora 文本族 384×384(S08③), 对齐 web NODE_DEFAULT_SIZE(2026-09-19 用户实测 Agent 节点偏小)
 			Purpose:     "承载普通说明、创意草稿和单段提示词。",
 			GoodFor:     []string{"单个创意", "一次性提示词", "临时备注", "快速试验"},
 			NotIdealFor: []string{"多镜头脚本", "需要逐镜修改的内容", "需要镜头级资产关系的内容"},
