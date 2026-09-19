@@ -95,6 +95,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
     // 画布撤销(2026-09-18): run 结束后预检最近一次画布变更; undefined=不显示(运行中/无画布变更)。
     const [undoPreview, setUndoPreview] = useState<AgentUndoPreview | null | undefined>(undefined);
     const [undoBusy, setUndoBusy] = useState(false);
+    // 撤销条"不撤销"本地收起: 服务端撤销能力不变, 预检变化(新 run/会话切换/重预检)时自动重现。
+    const [undoDismissed, setUndoDismissed] = useState(false);
     const planItems = useMemo(() => latestAgentPlanItems(messages), [messages]);
     const planVisible = agentPlanVisible(planItems);
     const pendingQuestion = useMemo(() => pendingAgentQuestion(messages), [messages]);
@@ -495,6 +497,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
         return () => { cancelled = true; };
     }, [run?.id, running, conversationScope]);
 
+    useEffect(() => { setUndoDismissed(false); }, [run?.id, undoPreview?.stepId]);
+
     const undoLastCanvasChange = async (reason: string) => {
         const activeRun = run;
         if (!activeRun?.id || undoBusy) return;
@@ -807,12 +811,13 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                                         onReject={() => void submitApproval("reject")}
                                     />
                                     {planVisible ? <AgentPlanBar items={planItems} theme={theme} minimized={planMinimized} onToggle={() => setPlanMinimized((value) => !value)} /> : null}
-                                    {!running && undoPreview !== undefined && undoPreview !== null && (undoPreview.found || undoPreview.blockReason) ? (
+                                    {!running && !undoDismissed && undoPreview !== undefined && undoPreview !== null && (undoPreview.found || undoPreview.blockReason) ? (
                                         <AgentUndoBar
                                             theme={theme}
                                             blockReason={undoPreview.canUndo ? undefined : undoPreview.blockReason}
                                             busy={undoBusy}
                                             onUndo={(reason) => void undoLastCanvasChange(reason)}
+                                            onDismiss={() => setUndoDismissed(true)}
                                         />
                                     ) : null}
                                     {pendingQuestion ? (

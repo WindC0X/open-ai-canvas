@@ -399,30 +399,50 @@ export function AgentPlanBar({ items, theme, minimized, onToggle }: {
     );
 }
 
-/** 撤销条: Agent 运行结束后, 最近一次画布变更可撤销时出现在输入区上方; 展开轻确认。 */
-export function AgentUndoBar({ theme, blockReason, busy, onUndo }: {
+/** 撤销条: Agent 运行结束后, 最近一次画布变更可撤销时出现在输入区上方; 展开轻确认。
+ *  与 PlanBar 同卡片家族(node.fill + node.stroke 边框), 不用 accent 高对比框(2026-09-19 用户质感反馈)。 */
+export function AgentUndoBar({ theme, blockReason, busy, onUndo, onDismiss }: {
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
     blockReason?: string;
     busy?: boolean;
     onUndo: (reason: string) => void;
+    onDismiss?: () => void;
 }) {
     const [confirming, setConfirming] = useState(false);
     const [reason, setReason] = useState("");
     if (blockReason) {
         return (
-            <div className="mx-3 mb-2 rounded-xl px-3 py-2 text-xs" style={{ background: theme.node.fill, border: `1px dashed ${theme.node.stroke}`, color: theme.node.label }}>
-                <span className="opacity-70">画布撤销不可用：{blockReason}</span>
+            <div className="mx-3 mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs" style={{ background: theme.node.fill, border: `1px solid ${theme.node.stroke}`, color: theme.node.label }}>
+                <Undo2 className="size-3.5 shrink-0 opacity-60" />
+                <span className="min-w-0 flex-1 break-words opacity-80">画布撤销不可用：{blockReason}</span>
+                {onDismiss ? (
+                    <button type="button" aria-label="关闭撤销提示" className="shrink-0 rounded p-0.5 opacity-50 transition hover:opacity-100 focus-visible:outline focus-visible:outline-2" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onDismiss(); }}>
+                        <X className="size-3.5" />
+                    </button>
+                ) : null}
             </div>
         );
     }
     if (!confirming) {
         return (
-            <div className="mx-3 mb-2 flex items-center justify-between rounded-xl px-3 py-2" style={{ background: theme.node.fill, border: `1px solid ${theme.accent.primary}` }}>
-                <span className="text-xs font-medium" style={{ color: theme.node.text }}>Agent 修改了画布，可撤销最近一次变更</span>
+            <div className="mx-3 mb-2 flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: theme.node.fill, border: `1px solid ${theme.node.stroke}`, color: theme.node.text }}>
+                <Undo2 className="size-3.5 shrink-0" style={{ color: theme.node.muted }} />
+                <span className="min-w-0 flex-1 text-xs font-semibold">Agent 修改了画布，可撤销最近一次变更</span>
                 <button
                     type="button"
                     disabled={busy}
-                    className="shrink-0 rounded-md border px-3 py-1 text-xs transition focus-visible:outline focus-visible:outline-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="shrink-0 rounded-md border px-2.5 py-1 text-xs transition focus-visible:outline focus-visible:outline-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ borderColor: theme.node.stroke, color: theme.node.text }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => { event.stopPropagation(); onDismiss?.(); }}
+                >
+                    不撤销
+                </button>
+                <button
+                    type="button"
+                    disabled={busy}
+                    className="shrink-0 rounded-md border px-2.5 py-1 text-xs transition focus-visible:outline focus-visible:outline-2 disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ borderColor: theme.accent.primary, color: theme.accent.primary }}
                     onMouseDown={(event) => event.stopPropagation()}
                     onPointerDown={(event) => event.stopPropagation()}

@@ -28,12 +28,16 @@ var cloudAgentStructuredProjectors = map[string]cloudAgentStructuredProjector{
 }
 
 // Viewport autosaves must not invalidate approved content; node edits still do.
+// 对话/外观类字段(chatSessions/activeChatId/背景等)同样不参与 hash(2026-09-19 真机实测):
+// 撤销成功后面板会追加"已撤销"系统条目 → 画布 chatSessions 变化 → 全文档 hash 变化 →
+// 链式撤销永远命中"画布已发生后续变化"自毁。hash 只覆盖画布图内容语义。
 func cloudAgentCanvasHash(doc map[string]any) string {
 	content := make(map[string]any, len(doc))
 	for key, value := range doc {
-		if key != "viewport" && key != "updatedAt" {
-			content[key] = value
+		if key == "viewport" || key == "updatedAt" || key == "chatSessions" || key == "activeChatId" || key == "backgroundMode" || key == "showImageInfo" {
+			continue
 		}
+		content[key] = value
 	}
 	return creationHash(content)
 }
