@@ -23,7 +23,7 @@ import { addSkill, listAddedSkills, listSkills, type Skill, type SkillCategory }
 import { clearCloudAgentPendingSubmission, cloudAgentConversationTitle, loadCloudAgentConversations, loadCloudAgentPendingSubmission, saveCloudAgentConversations, saveCloudAgentPendingSubmission, type CloudAgentConversation, type CloudAgentPendingSubmission } from "@/services/cloud-agent-conversations";
 import { logicalModelIDForConfig, modelOptionName, resolveModelRequestConfig, selectableModelsByCapability, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
-import { applyAgentCanvasPatches, refreshCanvasAfterAgent, saveRemoteUserDataNow } from "@/services/user-data-sync";
+import { applyAgentCanvasPatches, discardLocalCanvasProject, refreshCanvasAfterAgent, saveRemoteUserDataNow } from "@/services/user-data-sync";
 import { createAgentCanvasSync } from "@/services/agent-canvas-sync";
 import { buildSkillMentionReferences, resolveSkillMentions } from "@/services/skill-runtime";
 import { AgentChatComposer, AgentChatMessage, AgentPlanBar, AgentQuestionBar, AgentUndoBar, AgentWorkingMessage, type CloudAgentChatMessage, type CloudAgentPlanItem } from "./canvas-cloud-agent-chat-ui";
@@ -506,6 +506,10 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                     role: "system",
                     text: "已撤销 Agent 最近一次画布修改",
                 }));
+                // 撤销改的是云端画布; 本地(内存/IndexedDB/水位)任何残留都会在下次加载时被
+                // S08"仅本地领先"路径当作未同步修改推回云端(实测: 撤销 95 秒后被自动同步反噬)。
+                // 弃用本地缓存, 下次加载纯远端采纳; 能撤成功说明本地与 mutation 后云端一致, 丢弃安全。
+                await discardLocalCanvasProject(canvasId);
                 void refreshCanvasAfterAgent(canvasId).catch(() => undefined);
             }
         } catch (cause) {
