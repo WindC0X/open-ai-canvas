@@ -201,6 +201,17 @@
 - [x] R3 参数条居中（反馈 2）：判定为 R1 拖图 bug 的伴生症状（框被顶走后 bar 跟随歪框；J4 曾实测 deltaCX=0），拖图根修后 frame 位置稳定即恢复；待用户复测确认。
 - 验证口径（如实声明）：tsc/eslint/build 双绿；全量 1843 tests / 18 fail = 存量基线；几何纯函数无新改动（clamp 在 UI 层）。**拖图手感、贴边停住、洞跟随、松手零跳变均属真机交互，headless 合成事件无法等价验证（第十四轮教训）**——以上由用户真机验收，不再宣称自测通过。
 
+## 用户终验反馈修复（2026-09-19 第十五轮，提交 a97969ef + 044a1e9e）
+
+- [x] S1 验证方式根变（用户质问「验证都是脚本而不是模拟人工？」成立）：新增 /tmp/f06-final-verify.py 模拟人工链路 = 真实鼠标 hover 工具条（图片工具是 click 触发的受控 Dropdown，evaluate 假点击无效）→ 点开 → 点扩图 → 真实 mouse 拖手柄/拖图片 → **逐帧 DOM 采样 + 每步截图目视复核**。本轮全部结论以截图目视为准，数值断言只作辅助。
+- [x] S2 拖图撕裂总根源（三处叠加，逐个实证）：
+  1. **视觉通道**：拖图写 style.transform 覆盖 React 节点定位 transform → 节点瞬移 3913px（拖图前 rect 520 vs 拖图中 4433 实锤）；改 translate 属性后实锤 **contain:layout style 节点上 translate 写入渲染不生效**（rect 恒定不动）；最终通道 = **绝对定位 left/top**（React 空闲、与 transform 定位叠加生效），SAMPLE 实测 wrapperL 533→548 精确跟手。
+  2. **事件仲裁**：pointerdown 的 stopPropagation 阻不断**独立派发的 mousedown**——节点拖拽管线监听 mousedown 照常启动、每帧写世界域 translate 与我们的补偿叠加 + 双重 commit。修 = mousedown 捕获阶段独立阻断（onMouseDownBlock）+ 手柄拖拽会话防御（dragRef 非空时忽略节点卡上的 pointer 事件——手柄悬于节点卡上方，其松手事件会被拖图 up handler 误捕获引发错误 commit，实锤 commit 栈指向 onPointerUp :587）。
+  3. **洞基准**：拖图中每帧重读 rect 会被 viewport/transition 的 rect 幻影污染（拖图瞬间 rect 跳 3913px）→ 修 = pointerdown 冻结 holeBase（图片盒相对 frame 偏移），拖图中洞 = 冻结基准 + 我们自己的位移，与图片严格同源。
+- [x] S3 clamp 精确性：位移钳制在 padding 余量×scale 内（SAMPLE5 37.44 = 48×0.78 精确贴边），图片永不越出 frame；松手 translate/left 清零 + 节点 position commit（世界域）+ padding 重分布同批提交，gapL 76/gapT 1 精确衔接（1px 为显示舍入）。
+- [x] S4 环境坑新增记录：①「图片工具」下拉是 click 触发的受控 antd Dropdown，evaluate 的 .click() 不展开（须真实鼠标 click）；② 激活扩图会触发 viewport 聚焦动画，激活前采集的节点坐标全部过期（鼠标落空白触发画布 pan），必须激活后重采；③ 节点互相重叠时 elementFromPoint 命中错误节点，须 5×5 网格采样找属于目标节点的命中点；④ 节点拖拽管线在 mousemove 中（非 rAF）逐帧写 applyCanvasNodeDragPreview。
+- 验证：tsc/eslint/build 双绿；全量 1843 tests / 18 fail = 存量基线；**拖图与拖手柄全程截图目视逐张复核**（10/12/13/14-big.png）：拖图 = 图片跟手 + +号纹理填原位 + 框静止；松手 = 图片停在新位 + 无跳动；拖手柄 = 框扩 + 图片不动；调试探针（f06-commit console.log）已全部移除并 curl 验证产物。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
