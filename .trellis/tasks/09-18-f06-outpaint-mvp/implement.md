@@ -142,6 +142,14 @@
 - [x] J5 Agent 扩图证据链补强（反馈 1：确定是扩图工具而非提示词？）：三条独立证据 = 任务表 operation='image_outpaint'；结果节点 metadata.size='1376x784'（服务端 snap16 对齐的目标像素，纯提示词生图无此值）；面板显示「16:9 · 1K · 自动」= formatImageResolutionSize(1376x784) 的映射结果。另发现并修复合成资源幂等 key 未含目标画幅的真实缺陷（合成算法迭代后同 key 命中陈旧尺寸 pad 图，mask/底图与提交 size 失配）→ key 追加 :WxH；run9 复验 1376x784 正确物化 + 真实出图 1678×937（.local/f06-evidence/agent-outpaint-run9.png 视觉复核通过）。
 - 验证：几何测试 15 例全绿（含新等比语义 5 例）；全量 1820 pass/18 fail=存量基线；tsc/build 双绿；vite 重启后 headless 实测（/mnt/f watcher 失效坑再证）。
 
+## 用户终验反馈修复（2026-09-19 第九轮，提交 9863775a）
+
+- [x] K1 扩图模式隐藏 composer（反馈 1：怎么还出来了 composer）：根因 = 扩图激活时 dialogNodeId 仍指向目标节点，CanvasNodePromptPanel 照常挂载。修 = project.tsx selectedPanelNode 排除 outpaintNodeId 目标节点；headless 验证扩图激活后 composer 面板数 0。
+- [x] K2 拖动图片 = 框内重定位（反馈 2）：新纯函数 `relocateOutpaintPadding`（拖图位移转为四边 padding 转移；ratio 锁定时总量守恒）+ overlay capture 阶段拦截内容盒 pointerdown（阻断节点拖拽管线）。headless：拖 20 → padL 38→59/padR 38→18、上下不动；往返拖回精确还原 38/38/38/38（数学自洽）；拖 120 > 右 pad 余量 → 贴边后框随图扩展（padR→1）。±1px 为显示舍入。
+- [x] K3 执行按钮无反应（反馈 3）：headless 复现主链路完全正常（按钮非禁用、点击后 POST /api/assets/batch + POST /api/tasks 200、bar 正常关闭）——判定为 K1 修复前 composer 浮层（CanvasNodePanelOverlay 世界层）遮挡参数条点击所致，K1 修复即解；若真机复测仍有无反应场景需用户提供具体节点与操作序列。
+- [x] K4 扩图提示词封装（反馈 4+5+6）：实锤两处暴露——前端链 canvasGenerationPromptMetadata(composerContent=追加, prompt=模板全文) composer 显示追加说明（不暴露 ✓）；**agent 链后端 createCloudAgentMediaNode 把 LLM 提示词同时写进 composerContent → 结果节点 composer 直接展示内部提示词（截图 5 实锤）**。修 = 后端对 outpaint 任务（mode=image && OutpaintRatio 非空）composerContent 置空 + metadata.outpaint={ratio} 标记（prompt 保留供重试/审计）；agent 扩图结果节点 composer 回归占位态。前端工具链生成节点无需改动（composerContent 语义已正确）。
+- 验证：几何 18 例全绿（relocate 3 例新增）；全量 1841 tests / 18 fail = 存量基线；tsc/build 双绿；go test app 包 media/outpaint 全绿。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
