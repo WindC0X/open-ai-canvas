@@ -555,6 +555,16 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         };
     }, [applyPadding, containerRef, node, onNodeMove, updateImageDragVisual]);
 
+    // 卸载清理：拖图会话中关闭扩图（✕/节点删除）时，图片 transform 残留会让节点保持歪斜。
+    useEffect(() => {
+        return () => {
+            if (imageDragRef.current) {
+                imageDragRef.current.contentEl.style.transform = "";
+                imageDragRef.current = null;
+            }
+        };
+    }, []);
+
     const handleExecute = useCallback(() => {
         if (!node || !canExecute) return;
         const layoutWidth = nodeElementRef.current?.offsetWidth || layoutSize.width;
