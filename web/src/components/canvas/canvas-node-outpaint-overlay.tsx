@@ -112,7 +112,19 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const [padding, setPadding] = useState<OutpaintPadding>(ZERO_PADDING);
     const [dragging, setDragging] = useState(false);
     // 拖图会话句柄：非空 = 冻结 frame DOM（updateFrame 早退）+ transform/洞直写（声明必须先于 updateFrame）。
-    const imageDragRef = useRef<{ pointerId: number; startX: number; startY: number; startPadding: OutpaintPadding; tx: number; ty: number; contentEl: HTMLElement } | null>(null);
+    const imageDragRef = useRef<{
+        pointerId: number;
+        startX: number;
+        startY: number;
+        startPadding: OutpaintPadding;
+        tx: number;
+        ty: number;
+        contentEl: HTMLElement;
+        wrapperEl: HTMLElement;
+        // 拖图开始时冻结的洞基准（图片盒相对 frame 的偏移与尺寸）：拖图中洞 = 冻结基准 + transform，
+        // 不重读 rect——外部（viewport/transition/虚拟化）的 rect 漂移不参与洞计算，洞与图片严格同步。
+        holeBase: { x: number; y: number; w: number; h: number };
+    } | null>(null);
     // 框位置/尺寸的 transition 只在比例切换展开动画时开启（用户裁定交互）；恒开会让
     // viewport 跟随 / 拖图松手后的末帧位置修正都被 360ms 动画放大 = 框游动与回弹。
     const [expanding, setExpanding] = useState(false);
@@ -443,6 +455,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
 
     const onHandlePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
         dragRef.current = null;
+        imageDragRef.current = null;
         setDragging(false);
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     }, []);
@@ -458,35 +471,67 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     // ratioRef 仅用于 relocate 语义兼容（现守恒统一，两模式同数学）。
     const ratioRef = useRef(ratio);
     ratioRef.current = ratio;
-    const updateImageDragVisual = useCallback((contentEl: HTMLElement, tx: number, ty: number) => {
-        contentEl.style.transform = tx || ty ? `translate(${tx}px, ${ty}px)` : "";
-        const nodeElement = nodeElementRef.current;
-        const frame = frameRef.current;
-        if (!nodeElement || !frame) return;
-        // getBoundingClientRect 已含刚写入的 transform（rect = 布局位置 + translate），
-        // 相对 frame 即洞位置——不得再加 tx/ty（双重位移会让洞跑在图片前面）。
-        const nodeRect = nodeElement.getBoundingClientRect();
-        const frameRect = frame.getBoundingClientRect();
-        writeClipHole(nodeRect.left - frameRect.left, nodeRect.top - frameRect.top, nodeRect.width, nodeRect.height);
+    const updateImageDragVisual = useCallback((drag: NonNullable<typeof imageDragRef.current>, tx: number, ty: number) => {
+        // transform 整个节点卡（卡壳+图片+标题栏一起走）。必须写独立 CSS translate 属性——
+        // wrapper 的 style.transform 是 React 的节点定位（世界坐标），覆盖它会让节点瞬间飞到
+        // 世界原点附近（真机/headless 双双实锤 3913px 跳变）；translate 与 transform 叠加生效，
+        // 与节点拖拽管线 preview（applyCanvasNodeDragPreview 写 style.translate）同机制。
+        drag.wrapperEl.style.translate = tx || ty ? `${tx}px ${ty}px` : "";
+        // 洞 = 冻结基准（pointerdown 时的图片盒相对 frame 偏移）+ 本次 transform。
+        // 不重读 rect：viewport transition / 虚拟化的 rect 幻影（实测拖图开始瞬间 rect 跳 3913px）
+        // 不参与洞计算，洞与图片 transform 严格同源同步。
+        writeClipHole(drag.holeBase.x + tx, drag.holeBase.y + ty, drag.holeBase.w, drag.holeBase.h);
     }, [writeClipHole]);
 
     useLayoutEffect(() => {
         const container = containerRef.current;
         if (!container || !node) return;
-        // 容器级捕获委托（目标时刻解析 contentEl）：虚拟化世界重建节点 DOM 后监听不失连。
-        const resolveContentEl = () => {
+        // 容器级捕获委托（目标时刻解析节点卡）：虚拟化世界重建节点 DOM 后监听不失连。
+        // 拦截范围 = 节点卡整体（图片盒 + 卡壳 + 标题栏）——用户拖「图片」时可能落在卡片任意区域，
+        // 只拦图片盒会漏掉 header 拖拽（走原生节点管线把节点拖走、框留在原地 = 全面错位）。
+        // 按钮类交互（铅笔编辑等）放行，不参与拖拽。
+        const resolveDragEl = () => {
             const wrapper = container.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
-            return wrapper?.querySelector<HTMLElement>("[data-canvas-image-content]") || null;
+            const content = wrapper?.querySelector<HTMLElement>("[data-canvas-image-content]");
+            return { wrapper, content };
+        };
+        // 命中判定（pointerdown 与 mousedown 共用）：节点卡内非按钮区域。
+        const hitDragTarget = (event: MouseEvent | PointerEvent) => {
+            if (event.button !== 0) return null;
+            const { wrapper, content } = resolveDragEl();
+            const target = event.target as HTMLElement | null;
+            if (!wrapper || !target || !wrapper.contains(target)) return null;
+            if (target.closest("button, input, textarea, [data-no-outpaint-drag]")) return null;
+            return { wrapper, content: content || wrapper };
+        };
+        // 关键：pointerdown 的 stopPropagation 阻不断后续独立派发的 mousedown——节点拖拽管线
+        // 监听 mousedown（React 合成），必须单独阻断，否则管线照常启动并每帧写 translate（世界域
+        // 位移），与我们的补偿叠加 + 双重 commit（真机/headless 双实锤的框图错位总根源）。
+        const onMouseDownBlock = (event: MouseEvent) => {
+            if (hitDragTarget(event)) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
         };
         const onPointerDown = (event: PointerEvent) => {
             if (event.button !== 0 || imageDragRef.current) return;
-            const contentEl = resolveContentEl();
-            const target = event.target as Node | null;
-            if (!contentEl || !target || !(target === contentEl || contentEl.contains(target))) return;
+            // 扩图手柄拖拽会话中，落在节点卡上的事件不是拖图意图（手柄在 frame 上、可能悬于节点卡上方）。
+            if (dragRef.current) return;
+            const hit = hitDragTarget(event);
+            if (!hit) return;
+            const { wrapper } = hit;
+            const contentEl = hit.content;
             // 阻断节点拖拽管线（React 合成事件挂根容器，目标捕获阶段 stopPropagation 即到不了根）
             // 与画布 selection/pan 手势。
             event.stopPropagation();
             event.preventDefault();
+            // 冻结洞基准：图片盒相对 frame 的偏移（与 updateFrame 同基准 = 图片内容盒）。
+            const frameNow = frameRef.current;
+            const cr = contentEl.getBoundingClientRect();
+            const fr = frameNow?.getBoundingClientRect();
+            const holeBase = fr
+                ? { x: cr.left - fr.left, y: cr.top - fr.top, w: cr.width, h: cr.height }
+                : { x: 0, y: 0, w: cr.width, h: cr.height };
             imageDragRef.current = {
                 pointerId: event.pointerId,
                 startX: event.clientX,
@@ -495,6 +540,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 tx: 0,
                 ty: 0,
                 contentEl,
+                wrapperEl: wrapper,
+                holeBase,
             };
             // 同步关掉洞的展开过渡：React render（dragging state）生效前到达的首帧 move 不能拖尾。
             if (clipHoleRef.current) clipHoleRef.current.style.transition = "none";
@@ -507,7 +554,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         };
         const onPointerMove = (event: PointerEvent) => {
             const drag = imageDragRef.current;
-            if (!drag || event.pointerId !== drag.pointerId) return;
+            if (!drag || event.pointerId !== drag.pointerId || dragRef.current) return;
             event.stopPropagation();
             const scale = scaleRef.current || 1;
             const start = drag.startPadding;
@@ -517,17 +564,17 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             drag.tx = tx;
             drag.ty = ty;
             paddingRef.current = relocateOutpaintPadding(start, tx / scale, ty / scale, ratioRef.current !== null);
-            updateImageDragVisual(drag.contentEl, tx, ty);
+            updateImageDragVisual(drag, tx, ty);
         };
         const onPointerUp = (event: PointerEvent) => {
             const drag = imageDragRef.current;
-            if (!drag || event.pointerId !== drag.pointerId) return;
+            if (!drag || event.pointerId !== drag.pointerId || dragRef.current) return;
             event.stopPropagation();
             const scale = scaleRef.current || 1;
             const dxWorld = drag.tx / scale;
             const dyWorld = drag.ty / scale;
             imageDragRef.current = null;
-            drag.contentEl.style.transform = "";
+            drag.wrapperEl.style.translate = "";
             // 恢复洞的展开过渡（拖图期间被直写为 none；React style diff 判同值时不会重写）
             if (clipHoleRef.current) clipHoleRef.current.style.transition = "";
             try {
@@ -544,11 +591,13 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             applyPadding(paddingRef.current);
         };
         container.addEventListener("pointerdown", onPointerDown, true);
+        container.addEventListener("mousedown", onMouseDownBlock, true);
         container.addEventListener("pointermove", onPointerMove, true);
         container.addEventListener("pointerup", onPointerUp, true);
         container.addEventListener("pointercancel", onPointerUp, true);
         return () => {
             container.removeEventListener("pointerdown", onPointerDown, true);
+            container.removeEventListener("mousedown", onMouseDownBlock, true);
             container.removeEventListener("pointermove", onPointerMove, true);
             container.removeEventListener("pointerup", onPointerUp, true);
             container.removeEventListener("pointercancel", onPointerUp, true);
@@ -559,7 +608,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     useEffect(() => {
         return () => {
             if (imageDragRef.current) {
-                imageDragRef.current.contentEl.style.transform = "";
+                imageDragRef.current.wrapperEl.style.translate = "";
                 imageDragRef.current = null;
             }
         };
