@@ -197,6 +197,45 @@ export function describeOutpaintSize(padding: OutpaintPadding, nodeWidth: number
     return `${width} × ${height}`;
 }
 
+// 档位 snap（用户反馈 2026-09-19 第十一轮）：比例+分辨率档锁定时，目标像素不是 scale 换算的
+// 任意值（2045×1534），而是该比例下离目标量级最近的档位像素（如 4:3 → 2048×1536）。
+// 约束：扩图不能缩小原图（preset 任一边 < 原图真实像素 → 出局；全部出局则返回 null 回落换算目标）。
+// snap 后 paddingPx 精确重算：left+contentW = presetW（取整差吸收进 right/bottom），
+// 保证 pad 图尺寸 = 提交 size 端到端一致。
+export function snapOutpaintTargetSize(input: {
+    targetWidth: number;
+    targetHeight: number;
+    contentWidth: number;
+    contentHeight: number;
+    paddingPx: OutpaintPadding;
+    presets: Array<{ width: number; height: number }>;
+}): { width: number; height: number; paddingPx: OutpaintPadding } | null {
+    const targetWidth = positiveOrZero(input.targetWidth);
+    const targetHeight = positiveOrZero(input.targetHeight);
+    const contentWidth = positiveOrZero(input.contentWidth);
+    const contentHeight = positiveOrZero(input.contentHeight);
+    if (!targetWidth || !targetHeight || !contentWidth || !contentHeight || !input.presets.length) return null;
+    let best: { width: number; height: number; delta: number } | null = null;
+    for (const preset of input.presets) {
+        const width = positiveOrZero(preset.width);
+        const height = positiveOrZero(preset.height);
+        if (!width || !height) continue;
+        // 扩图不缩原图：preset 必须容下完整原图
+        if (width < contentWidth || height < contentHeight) continue;
+        const delta = Math.abs(Math.log((width * height) / (targetWidth * targetHeight)));
+        if (!best || delta < best.delta) best = { width, height, delta };
+    }
+    if (!best) return null;
+    const scaleX = best.width / targetWidth;
+    const scaleY = best.height / targetHeight;
+    const source = sanitizePadding(input.paddingPx);
+    const left = Math.max(0, Math.round(source.left * scaleX));
+    const top = Math.max(0, Math.round(source.top * scaleY));
+    const right = Math.max(0, best.width - contentWidth - left);
+    const bottom = Math.max(0, best.height - contentHeight - top);
+    return { width: best.width, height: best.height, paddingPx: roundPadding({ left, top, right, bottom }) };
+}
+
 // 比例选择（含参数条下拉即时切换）反解四边 padding：联立解保证框比精确等于目标比例。
 // anchor = 既有外扩强度（basePadding 最大边和的一半），作为「少加的那条轴」的保底量；
 // 另一轴按 (基准 + 2*anchor) 联立补差。补差为负时放弃 anchor，回落最小外扩纯解（比例优先）。

@@ -14,7 +14,7 @@ import {
     type ImageResolutionChoice,
     type ImageResolutionTier,
 } from "@/lib/image-resolution-tiers";
-import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
+import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { subscribeCanvasNodeDragPreview, subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -189,6 +189,21 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             : imageProfile?.quality?.default || qualityOptions[0]
         : undefined;
 
+    // 档位 snap 候选（第十一轮）：比例+分辨率档锁定时目标像素 = 该比例下离拖拽量级最近的档位
+    // 像素（4:3+1K 档配 2045×1534 的拖拽量级 → snap 到 2048×1536），标注与提交共用同一结果，
+    // 消除「标注 scale 换算值 ≠ 提交档位值」的失配。空数组 = 未锁定，走 scale 换算。
+    const presetCandidates = useMemo(
+        () =>
+            sizeParameter === "size" && selectedTier !== "auto" && lockedRatioKey
+                ? sizePresetOptions
+                      .filter((option) => option.tier === selectedTier && option.ratio === lockedRatioKey)
+                      .map((option) => ({ width: option.width, height: option.height }))
+                : [],
+        [lockedRatioKey, selectedTier, sizeParameter, sizePresetOptions],
+    );
+    const presetCandidatesRef = useRef(presetCandidates);
+    presetCandidatesRef.current = presetCandidates;
+
     const ratio = ratioKey === FREE_RATIO_KEY ? null : parseRatioValue(ratioKey);
 
     // 远端报价单次价；显示价 = 单次价 × 张数（configuredCredits 已按张数折算，不重复乘）。
@@ -231,6 +246,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         setPadding(next);
         paddingRef.current = next;
     }, []);
+
+    // updateFrame 的 ref 中转：拖图 preview 回调需要在图片 translate 同一 tick 内同步直改
+    // frame DOM，不能等 React setState → MO 回调的异步链（滞后数帧 = 框漂移 + 抬起回弹）。
+    const updateFrameRef = useRef<(() => void) | null>(null);
 
     // 虚拟化世界会在 viewport 提交时重建节点 DOM 元素；ref 失连后必须重新解析，
     // 否则 gBCR 返回 0 尺寸，updateFrame 早退、框停留在旧位置（漂移错位根因）。
@@ -276,14 +295,14 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         const pb = current.bottom * scale;
         const pl = current.left * scale;
         const pr = current.right * scale;
-        // 网格相位锚定「图片左上」：条带 SVG 原点在 frame 内位于 (stripX, stripY)，
-        // 图片左上在 (pl, pt) → patternTransform = translate(pl - stripX, pt - stripY)。
-        // 拖动边框 / 选比例时 pl、pt 不随被拖边变化（图片不动），+ 号在图片坐标系中静止，
-        // 新露出的区域按图片边缘为基准展开（用户语义：以图片边缘线展开）。
+        // 网格相位锚定「frame 左上」（第十一轮修订）：pattern 原点 = frame 原点，条带内
+        // patternTransform = translate(-stripX, -stripY)。拖图（padding 转移、frame 静止）与
+        // 拖边（洞口变化、frame 原点不动）时 + 号纹丝不动，只有条带尺寸变化，新露出区域接续。
+        // 旧锚定「图片左上」会让 + 号跟图片粘在一起移动（拖图重定位语义下的观感缺陷）。
         const setPhase = (key: "top" | "bottom" | "left" | "right", stripX: number, stripY: number) => {
             const pattern = stripPatternRefs.current[key];
             if (!pattern) return;
-            pattern.setAttribute("patternTransform", `translate(${pl - stripX}, ${pt - stripY})`);
+            pattern.setAttribute("patternTransform", `translate(${-stripX}, ${-stripY})`);
         };
         if (stripRefs.current.top) {
             stripRefs.current.top.style.height = `${pt}px`;
@@ -310,7 +329,18 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         setPhase("left", 0, pt);
         setPhase("right", width - pr, pt);
         if (labelRef.current) {
-            labelRef.current.textContent = describeOutpaintSize(current, layoutWidth, layoutHeight, contentWidth / Math.max(1, layoutWidth));
+            // 标注 = 实际提交目标（第十一轮）：档位锁定时显示 snap 后的档位精确像素（与提交同源），
+            // 自由/未锁档时显示 scale 换算预览。同源后顶部标注不再是 2045×1534 这类换算余数。
+            const candidates = presetCandidatesRef.current;
+            let labelText: string | null = null;
+            if (candidates.length) {
+                const target = resolveOutpaintTargetPx({ contentWidth, contentHeight, nodeWidth: layoutWidth, nodeHeight: layoutHeight, padding: current });
+                const snapped = target.width && target.height
+                    ? snapOutpaintTargetSize({ targetWidth: target.width, targetHeight: target.height, contentWidth, contentHeight, paddingPx: target.paddingPx, presets: candidates })
+                    : null;
+                if (snapped) labelText = `${snapped.width} × ${snapped.height}`;
+            }
+            labelRef.current.textContent = labelText ?? describeOutpaintSize(current, layoutWidth, layoutHeight, contentWidth / Math.max(1, layoutWidth));
         }
         if (barRef.current) {
             const bar = barRef.current;
@@ -324,6 +354,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             bar.style.top = `${barTop}px`;
         }
     }, [containerRef, contentWidth, ensureNodeElement]);
+
+    useEffect(() => {
+        updateFrameRef.current = updateFrame;
+    }, [updateFrame]);
 
     // DOM 实测驱动（禁读 viewport prop）：节点 layout（RO）+ worldLayer style（MO，捕捉拖拽预览与
     // viewport transform）+ live-viewport 订阅；一次量测消费框与参数条两处定位。
@@ -427,6 +461,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 if (imageDragRef.current) {
                     imageDragRef.current = null;
                     setDragging(false);
+                    // 拖拽结束把 ref 终值对齐 React 树（拖拽期间只写 ref 不 setState）。
+                    applyPadding(paddingRef.current);
                 }
                 return;
             }
@@ -435,7 +471,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 setDragging(true);
             }
             const scale = scaleRef.current || 1;
-            applyPadding(relocateOutpaintPadding(imageDragRef.current.startPadding, preview.x / scale, preview.y / scale, ratioRef.current !== null));
+            // 同步链：ref 直写 + 立即调 updateFrame 直改 frame DOM，与图片 translate 同一 tick 生效。
+            // 走 setState → render → MO 回调的异步链会滞后数帧：观感 = 框跟着拖慢慢漂 + 抬起回弹。
+            paddingRef.current = relocateOutpaintPadding(imageDragRef.current.startPadding, preview.x / scale, preview.y / scale, ratioRef.current !== null);
+            updateFrameRef.current?.();
         });
         return () => {
             unsubscribe();
@@ -450,12 +489,26 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         if (!layoutWidth || !layoutHeight) return;
         const target = resolveOutpaintTargetPx({ contentWidth, contentHeight, nodeWidth: layoutWidth, nodeHeight: layoutHeight, padding });
         if (!target.width || !target.height) return;
+        // 档位锁定时目标像素 snap 到该比例的档位档（4:3+1K 拖出 ≈2045×1534 → 2048×1536），
+        // pad 合成与提交 size 用同一像素，消除标注/档位/实际画幅三方失配。
+        const snapped = presetCandidatesRef.current.length
+            ? snapOutpaintTargetSize({
+                  targetWidth: target.width,
+                  targetHeight: target.height,
+                  contentWidth,
+                  contentHeight,
+                  paddingPx: target.paddingPx,
+                  presets: presetCandidatesRef.current,
+              })
+            : null;
+        const widthPx = snapped?.width ?? target.width;
+        const heightPx = snapped?.height ?? target.height;
         onExecute(node, {
-            paddingPx: target.paddingPx,
+            paddingPx: snapped?.paddingPx ?? target.paddingPx,
             prompt: prompt.trim(),
-            generationConfig: { model, size: submitSize, quality: submitQuality, count: String(count) },
+            generationConfig: { model, size: `${widthPx}x${heightPx}`, quality: submitQuality, count: String(count) },
         });
-    }, [canExecute, contentHeight, contentWidth, count, layoutSize.height, layoutSize.width, model, node, onExecute, padding, prompt, submitQuality, submitSize]);
+    }, [canExecute, contentHeight, contentWidth, count, layoutSize.height, layoutSize.width, model, node, onExecute, padding, presetCandidatesRef, prompt, submitQuality]);
 
     if (!node) return null;
 

@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
     describeOutpaintSize,
     relocateOutpaintPadding,
+    snapOutpaintTargetSize,
     resolveOutpaintPadding,
     resolveOutpaintTargetPx,
     resolveOutpaintPaddingForRatio,
@@ -283,6 +284,54 @@ describe("relocateOutpaintPadding", () => {
         expect(moved.bottom).toBe(96);
         expect(moved.left + moved.right).toBe(96);
         expect(moved.top + moved.bottom).toBe(96);
+    });
+});
+
+describe("snapOutpaintTargetSize", () => {
+    const presets43 = [
+        { width: 1024, height: 768 },
+        { width: 2048, height: 1536 },
+        { width: 4096, height: 3072 },
+    ];
+
+    test("snaps a scale-derived target to the nearest tier pixel and rescales padding", () => {
+        const snapped = snapOutpaintTargetSize({
+            targetWidth: 2045,
+            targetHeight: 1534,
+            contentWidth: 1403,
+            contentHeight: 1121,
+            paddingPx: { left: 190, top: 47, right: 452, bottom: 366 },
+            presets: presets43,
+        });
+        // 1K preset（1024×768）容不下 1403×1121 的原图 → 被排除；最近量级 = 2K。
+        expect(snapped?.width).toBe(2048);
+        expect(snapped?.height).toBe(1536);
+        // paddingPx 重算后 left+content = preset 宽。
+        expect(snapped && snapped.paddingPx.left + 1403).toBe(2048);
+        expect(snapped && snapped.paddingPx.top + 1121).toBe(1536);
+    });
+
+    test("excludes presets smaller than the source image and falls back when all are excluded", () => {
+        const snapped = snapOutpaintTargetSize({
+            targetWidth: 1024,
+            targetHeight: 768,
+            contentWidth: 1403,
+            contentHeight: 1121,
+            paddingPx: { left: 0, top: 0, right: 0, bottom: 0 },
+            presets: presets43,
+        });
+        // 1K 容不下原图 → 用 2K（唯一合法候选）。
+        expect(snapped?.width).toBe(2048);
+        const none = snapOutpaintTargetSize({
+            targetWidth: 8000,
+            targetHeight: 6000,
+            contentWidth: 1403,
+            contentHeight: 1121,
+            paddingPx: { left: 0, top: 0, right: 0, bottom: 0 },
+            presets: presets43,
+        });
+        // 目标 8000×6000 超过全部 preset → 回落换算目标（返回 null）。
+        expect(none).toBeNull();
     });
 });
 
