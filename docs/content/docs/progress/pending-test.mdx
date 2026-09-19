@@ -3184,3 +3184,8 @@ d (docs(progress): 登记视频族S6裁剪批与持久化自愈修复)
 
 
 **Agent 撤销真机自验结果（2026-09-19，playwright 真实 chromium 驱动 + 真实 LLM(gpt-5.6-luna) 工作流）**：A1 ✓（撤销条随 run 终态出现）；A2 ✓（撤销→确认→节点消失→系统条目"已撤销 Agent 最近一次画布修改"）；A3 ✓ 链式（C1/C2 两轮逐一撤销，云端双双消失互不污染）；A4 ✓（修复后硬刷新保持回滚态）；A5 ✓（Agent 后手动拖节点→撤销被拒"画布已发生后续变化"且不误伤，节点本地+云端完好）；A8 ✓（纯对话轮零噪音）。**发现并修复的缺陷**：①撤销反噬——撤销只改云端，本地 IndexedDB/水位残留被 S08"仅本地领先"路径推回云端（实测撤销 95 秒后被自动同步反噬）→ 成功路径 discardLocalCanvasProject + refresh 后强制 drain（PUT trace 实锤：撤销后 PUT 推回滚态）；②纯对话轮禁用条噪音。**登记未修**：③**generate_media 图片模式被 videoGenerateAudio 校验拦截**（工具 schema 未限制该字段 video-only，模型传了→提交前被拒→媒体任务无法提交，无扣费）→ A6(已提交任务的撤销被拒)真机不可达，由后端单测 TestUndoCloudAgentCanvasRejectsChangedCanvasAndSubmittedTask 代偿；修复排验收后。A7 主题：撤销条/确认态全走 canvasThemes token（代码保证），亮色实态留用户一眼。**验证通道备注**：tmwd 合成指针在此页面不可用（React 状态不响应），改用 playwright 持久 profile 真实输入（isTrusted=true），登录凭据 .local/dev-test-account.md。
+
+## 撤销前 flush 未同步编辑（2026-09-19 review P2-1）
+
+- 撤销 POST 前强制 `saveRemoteUserDataNow()`：预检后用户的本地编辑先上云，服务端哈希随之变化 → undo 被正确拒绝（"画布已发生后续变化"），不再出现"撤销成功但本地未同步编辑被 adopt 静默覆盖"。
+- 待人眼：预检 → 立即拖动画布（1.2s 内）→ 确认撤销 → 应看到"撤销未执行/画布已发生后续变化"，且本地拖动保留。
