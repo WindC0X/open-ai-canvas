@@ -133,6 +133,15 @@
 - [x] A3 测试：go test ./internal/app/ 全绿（TestDeleteGeneratedAssetTaskReferences 首跑 SQLite db busy flaky，复跑过）；./internal/prompts/ 绿（media policy v3→4 断言同步）。
 - 备注：调试期间的后端重启需 pkill 与启动分两次调用（pkill 自杀问题）；tmp debug log 已移除。
 
+## 用户终验反馈修复（2026-09-19 第八轮，提交 5a6e9d2b）
+
+- [x] J1 拖拽语义重写（反馈 2+3：拖边整框动 / 锁比例不锁比）：`resolveOutpaintPadding` 的 ratio 分支从「反解对边补偿」（被拖边动→对边跟着反解重算=整框平移观感）重写为**等比缩放扩图区域**——被拖轴对边锚定（padding 不变）、被拖边跟手、另一轴外扩总量按 ratio 联动并按「图片方位保持」（dL/dB 半和分配，与 resolveOutpaintPaddingForRatio 同款）分配；触底回推保 clamp。自由分支保持纯边 clamp。真机数值：1:1 锁定拖右边 +160px → padL 38 不变、padT/B 各 +80 对称、框比恒 1.000；自由拖底边 → 仅底边 +90 其余三边不动。
+- [x] J2 参数槽对齐渠道结构化档位（反馈 4+5：2.33:1 是什么 / 分辨率混入比例）：比例槽不再对全 tier WxH values 逐项 gcd 推导（2048x878→2.33:1、3808x1632→7:3 的重复垃圾档根因），改用渠道能力配置的结构化 presets（image-resolution-tiers.ts buildImageResolutionOptions：tier×ratio→WxH）去重——gpt-image-2.5 显示渠道配置的 10 个比例；分辨率槽显示 AUTO+启用 tier（AUTO/1K）而非逐 WxH 列表；提交 size = tier×ratio 的渠道精确像素（自由比例或 auto → "auto"）。真机：GPT Image 1 菜单 = 自由/1:1/3:2/2:3（恰为其 presets 3 项）+ AUTO/1K。
+- [x] J3 无模型隐藏参数槽（反馈 6：没有模型怎么也有参数）：根因 = modelCapabilityConfigFor 对空 model 回落默认能力域 → hasModel 判定失效。修 = hasModel=Boolean(model) 严格判定，无模型时比例/分辨率/张数槽全部隐藏、执行禁用；报价请求空模型短路。
+- [x] J4 参数条居中（反馈 7）：真机量测 deltaCX=0（bar 中心=框中心）——居中本已生效，用户截图观感偏移源于 J1 的框漂移 bug（框被反解拖歪后 bar 跟随歪框）。
+- [x] J5 Agent 扩图证据链补强（反馈 1：确定是扩图工具而非提示词？）：三条独立证据 = 任务表 operation='image_outpaint'；结果节点 metadata.size='1376x784'（服务端 snap16 对齐的目标像素，纯提示词生图无此值）；面板显示「16:9 · 1K · 自动」= formatImageResolutionSize(1376x784) 的映射结果。另发现并修复合成资源幂等 key 未含目标画幅的真实缺陷（合成算法迭代后同 key 命中陈旧尺寸 pad 图，mask/底图与提交 size 失配）→ key 追加 :WxH；run9 复验 1376x784 正确物化 + 真实出图 1678×937（.local/f06-evidence/agent-outpaint-run9.png 视觉复核通过）。
+- 验证：几何测试 15 例全绿（含新等比语义 5 例）；全量 1820 pass/18 fail=存量基线；tsc/build 双绿；vite 重启后 headless 实测（/mnt/f watcher 失效坑再证）。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
