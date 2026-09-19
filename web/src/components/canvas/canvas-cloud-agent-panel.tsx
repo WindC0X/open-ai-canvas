@@ -502,6 +502,10 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
         if (!preview?.canUndo || !preview.stepId || !preview.afterSnapshotHash) return;
         setUndoBusy(true);
         try {
+            // P2-1(2026-09-19 review): 先把未同步本地编辑推上云再撤销。若用户在预检后改过画布,
+            // 上云后服务端哈希变化会让 undo 被正确拒绝("画布已发生后续变化"), 而不是撤销成功后
+            // adoptRemoteCanvasAfterUndo 把未同步编辑静默覆盖掉。flush 失败时 fail-closed 不撤销。
+            await saveRemoteUserDataNow();
             await undoAgentCanvasRun(activeRun.id, { stepId: preview.stepId, expectedSnapshotHash: preview.afterSnapshotHash, reason: reason || undefined });
             if (currentScope.current === conversationScope) {
                 setUndoPreview({ ...preview, canUndo: false, status: "undone", blockReason: "该变更已撤销" });
