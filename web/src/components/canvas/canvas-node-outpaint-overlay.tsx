@@ -472,11 +472,12 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const ratioRef = useRef(ratio);
     ratioRef.current = ratio;
     const updateImageDragVisual = useCallback((drag: NonNullable<typeof imageDragRef.current>, tx: number, ty: number) => {
-        // transform 整个节点卡（卡壳+图片+标题栏一起走）。必须写独立 CSS translate 属性——
-        // wrapper 的 style.transform 是 React 的节点定位（世界坐标），覆盖它会让节点瞬间飞到
-        // 世界原点附近（真机/headless 双双实锤 3913px 跳变）；translate 与 transform 叠加生效，
-        // 与节点拖拽管线 preview（applyCanvasNodeDragPreview 写 style.translate）同机制。
-        drag.wrapperEl.style.translate = tx || ty ? `${tx}px ${ty}px` : "";
+        // transform 整个节点卡（卡壳+图片+标题栏一起走）。写入通道 = 绝对定位的 left/top：
+        // · style.transform 是 React 的节点定位（世界坐标），覆盖它 = 节点飞到世界原点（3913px 跳变实锤）；
+        // · style.translate 在 contain:layout style 的节点上写入后渲染不生效（实测 rect 不动）；
+        // · left/top 空闲且与 transform 定位叠加生效（absolute 元素布局位置偏移）。
+        drag.wrapperEl.style.left = tx || ty ? `${tx}px` : "";
+        drag.wrapperEl.style.top = tx || ty ? `${ty}px` : "";
         // 洞 = 冻结基准（pointerdown 时的图片盒相对 frame 偏移）+ 本次 transform。
         // 不重读 rect：viewport transition / 虚拟化的 rect 幻影（实测拖图开始瞬间 rect 跳 3913px）
         // 不参与洞计算，洞与图片 transform 严格同源同步。
@@ -574,7 +575,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             const dxWorld = drag.tx / scale;
             const dyWorld = drag.ty / scale;
             imageDragRef.current = null;
-            drag.wrapperEl.style.translate = "";
+            drag.wrapperEl.style.left = "";
+            drag.wrapperEl.style.top = "";
             // 恢复洞的展开过渡（拖图期间被直写为 none；React style diff 判同值时不会重写）
             if (clipHoleRef.current) clipHoleRef.current.style.transition = "";
             try {
@@ -608,7 +610,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     useEffect(() => {
         return () => {
             if (imageDragRef.current) {
-                imageDragRef.current.wrapperEl.style.translate = "";
+                imageDragRef.current.wrapperEl.style.left = "";
+                imageDragRef.current.wrapperEl.style.top = "";
                 imageDragRef.current = null;
             }
         };
