@@ -2376,7 +2376,8 @@ function InfiniteCanvasPage() {
     // selected 实例(dialog 驱动, 常驻)。isPanelCarrier 排除 BatchTable(与上游语义一致):
     // BatchTable 编辑全内联在节点 body(CanvasBatchTableNodeContent 的 onPatchTable 直改), 无独立面板;
     // P0 双挂载根修删除的旧裸挂载点同样排除它 —— 注释曾误写为"并入", 2026-09-17 review 更正。
-    const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
+    // 扩图激活时隐藏目标节点的 composer（用户反馈 2026-09-19：扩图模式不应同时弹出图片生成面板）；✕ 退出后恢复。
+    const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && dialogNode.id !== outpaintNodeId && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
     // hover 实例已退役(S2): hover 微态由节点内信息态 composer 承担; hoverSupplyTarget 仍供工具栏双槽位使用
     const hoverSupplyTarget = hoveredNode ?? exitingNode;
     // toolbarNode?.id 排除即双槽位去重(与 composer 转换帧 duplicate-key 防御同语义, 在派生层完成;

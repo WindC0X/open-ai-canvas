@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
     describeOutpaintSize,
+    relocateOutpaintPadding,
     resolveOutpaintPadding,
     resolveOutpaintTargetPx,
     resolveOutpaintPaddingForRatio,
@@ -248,6 +249,40 @@ describe("canvas-outpaint-geometry", () => {
         expect(describeOutpaintSize(NO_PADDING, 0, 1000)).toBe("0 × 0");
         expect(describeOutpaintSize({ left: NaN, top: 0, right: 0, bottom: 0 }, 1000, Number.NaN)).toBe("0 × 0");
         expect(describeOutpaintSize({ left: NaN, top: 0, right: 0, bottom: 0 }, 1000, 1000, Number.NaN)).toBe("1000 × 1000");
+    });
+});
+
+describe("relocateOutpaintPadding", () => {
+    test("moves padding between edges without resizing the frame", () => {
+        const moved = relocateOutpaintPadding({ left: 48, top: 48, right: 48, bottom: 48 }, 30, -20, false);
+        expect(moved.left).toBe(78);
+        expect(moved.right).toBe(18);
+        expect(moved.top).toBe(28);
+        expect(moved.bottom).toBe(68);
+        expect(moved.left + moved.right).toBe(96);
+        expect(moved.top + moved.bottom).toBe(96);
+    });
+
+    test("keeps expanding the frame when the image is dragged past an edge", () => {
+        const moved = relocateOutpaintPadding({ left: 48, top: 48, right: 48, bottom: 48 }, 100, 0, false);
+        expect(moved.left).toBe(148);
+        expect(moved.right).toBe(0);
+        expect(moved.left + moved.right).toBe(148);
+        const opposite = relocateOutpaintPadding({ left: 48, top: 48, right: 48, bottom: 48 }, -100, 0, false);
+        expect(opposite.left).toBe(0);
+        expect(opposite.right).toBe(148);
+        // 框宽 = 原框 96 + 52 贴边过冲：left 不足的位移自然转为框扩展
+        expect(opposite.left + opposite.right).toBe(148);
+    });
+
+    test("keeps the total expansion constant when ratio is locked", () => {
+        const moved = relocateOutpaintPadding({ left: 48, top: 48, right: 48, bottom: 48 }, 100, -60, true);
+        expect(moved.left).toBe(96);
+        expect(moved.right).toBe(0);
+        expect(moved.top).toBe(0);
+        expect(moved.bottom).toBe(96);
+        expect(moved.left + moved.right).toBe(96);
+        expect(moved.top + moved.bottom).toBe(96);
     });
 });
 

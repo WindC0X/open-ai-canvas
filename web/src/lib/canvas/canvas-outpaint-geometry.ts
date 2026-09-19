@@ -209,6 +209,30 @@ export function parseRatioValue(value: string): number | null {
     return RATIO_VALUE_MAP[value] ?? null;
 }
 
+// 拖动图片 = 扩图框内重定位（用户裁定 2026-09-19）：框不跟拖，仅四边 padding 相互转移。
+// 图片右移 dx>0 → left 增、right 减；右 pad 耗尽后差额转为框扩展（贴边续拖 = 框随图扩）。
+// ratio 锁定时外扩总量守恒（只转移不扩展），避免拖图破坏锁定比例。
+export function relocateOutpaintPadding(padding: OutpaintPadding, dx: number, dy: number, ratioLocked: boolean): OutpaintPadding {
+    const base = sanitizePadding(padding);
+    const safeDx = Number.isFinite(dx) ? dx : 0;
+    const safeDy = Number.isFinite(dy) ? dy : 0;
+    if (ratioLocked) {
+        const horizontalTotal = base.left + base.right;
+        const left = Math.min(horizontalTotal, Math.max(0, base.left + safeDx));
+        const verticalTotal = base.top + base.bottom;
+        const top = Math.min(verticalTotal, Math.max(0, base.top + safeDy));
+        return roundPadding({ left, right: horizontalTotal - left, top, bottom: verticalTotal - top });
+    }
+    const rawLeft = base.left + safeDx;
+    const rawTop = base.top + safeDy;
+    return roundPadding({
+        left: Math.max(0, rawLeft),
+        right: Math.max(0, base.right - safeDx),
+        top: Math.max(0, rawTop),
+        bottom: Math.max(0, base.bottom - safeDy),
+    });
+}
+
 export function resolveOutpaintPaddingForRatio(input: { nodeWidth: number; nodeHeight: number; ratio: number; basePadding?: OutpaintPadding }): OutpaintPadding {
     const nodeWidth = positiveOrZero(input.nodeWidth);
     const nodeHeight = positiveOrZero(input.nodeHeight);

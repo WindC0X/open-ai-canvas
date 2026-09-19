@@ -594,6 +594,12 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 		}
 	}
 	meta := map[string]any{"status": "idle", "agentDraftRunId": a.DraftRunID, "prompt": a.Prompt, "composerContent": a.Prompt, "referenceNodeIds": a.ReferenceNodeIDs}
+	// 扩图任务封装语义（用户反馈 2026-09-19）：LLM 生成的扩图提示词只留 prompt 供重试/审计，
+	// composerContent 置空避免结果节点 composer 直接展示内部提示词；outpaint 标记供前端识别封装态。
+	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
+		meta["composerContent"] = ""
+		meta["outpaint"] = map[string]any{"ratio": a.OutpaintRatio}
+	}
 	if a.Size != "" && (a.Mode == "image" || a.Mode == "video") {
 		meta["size"] = a.Size
 	}
