@@ -124,7 +124,7 @@
 
 ## Agent 扩图端到端验证（2026-09-19 完成，提交 0779f1c4 + e30f8472）
 
-- [x] A1 E2E 全链贯通（run ag6c7f8d4e8479b535631a03fc74d74dba，gpt-5.6-luna 驱动）：plan → canvas_get_state → model_list → generate_media(outpaintRatio=16:9) → 审批卡带「扩图目标画幅：16:9」→ 批准 → 服务端 pad+mask 合成物化（1380x777）→ POST /api/tasks（image_outpaint, size=1677x938? 实为 1376x944 系 snap16 对齐后值）→ ddcat gpt-image-2.5-4k 真实出图 **1677×938（≈16:9）** → 结果回写画布节点 outpaint-16x9-golden-puppy-v2 并连回原图。证据 .local/f06-evidence/agent-outpaint-result.png（视觉复核：扩展区木露台/花园/天空协调延续，主体保持）。
+- [x] A1 E2E 全链贯通（run ag6c7f8d4e8479b535631a03fc74d74dba，gpt-5.6-luna 驱动）：plan → canvas_get_state → model_list → generate_media(outpaintRatio=16:9) → 审批卡带「扩图目标画幅：16:9」→ 批准 → 服务端 pad+mask 合成物化（1380x777）→ POST /api/tasks（image_outpaint，config.size = snap16 对齐像素，admission 16 倍数校验通过——前两轮 1381x778 未对齐被拒、本轮放行即证）→ ddcat gpt-image-2.5-4k 真实出图 **1677×938（≈16:9）** → 结果回写画布节点 outpaint-16x9-golden-puppy-v2 并连回原图。证据 .local/f06-evidence/agent-outpaint-result.png（视觉复核：扩展区木露台/花园/天空协调延续，主体保持）。
 - [x] A2 修复过程暴露 4 个真 bug（均在 e30f8472）：
   - LLM 冗余传视频默认字段（durationSeconds:0/videoGenerateAudio:false）被 image 模式拒绝 → 容错：仅拦语义冲突（audio 模式 duration!=0、非视频却要音频）。
   - 扩图任务 config.size 落到渠道默认 "16:9" → 上游 edits 端点要 WxH 格式 400。修 = applyCloudAgentOutpaint 返回 pad 后目标像素并显式提交 config.size。
