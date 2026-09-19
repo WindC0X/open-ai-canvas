@@ -217,7 +217,10 @@ func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerM
 	if err != nil {
 		return padded, nil, fmt.Errorf("合成扩图底图失败：%w", err)
 	}
-	baseResource, err := s.storeResourceFromBytes(userID, "image", "agent-outpaint-base.png", "image/png", baseBytes, targetW, targetH, "agent:outpaint:base:"+resourceID)
+	// 幂等 key 必须含目标画幅：合成算法迭代（snap16 对齐等）会改变同一源图的目标尺寸，
+	// 否则命中旧尺寸的陈旧资源，底图/蒙版与提交 size 失配。
+	sizeTag := fmt.Sprintf("%dx%d", targetW, targetH)
+	baseResource, err := s.storeResourceFromBytes(userID, "image", "agent-outpaint-base.png", "image/png", baseBytes, targetW, targetH, "agent:outpaint:base:"+resourceID+":"+sizeTag)
 	if err != nil {
 		return padded, nil, fmt.Errorf("保存扩图底图失败：%w", err)
 	}
@@ -227,7 +230,7 @@ func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerM
 	if err != nil {
 		return padded, nil, fmt.Errorf("合成扩图蒙版失败：%w", err)
 	}
-	maskResource, err := s.storeResourceFromBytes(userID, "image", "agent-outpaint-mask.png", "image/png", maskBytes, maskW, maskH, "agent:outpaint:mask:"+resourceID)
+	maskResource, err := s.storeResourceFromBytes(userID, "image", "agent-outpaint-mask.png", "image/png", maskBytes, maskW, maskH, "agent:outpaint:mask:"+resourceID+":"+sizeTag)
 	if err != nil {
 		return padded, nil, fmt.Errorf("保存扩图蒙版失败：%w", err)
 	}

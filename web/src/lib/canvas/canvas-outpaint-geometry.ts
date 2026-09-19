@@ -94,20 +94,55 @@ export function resolveOutpaintPadding(input: {
         return roundPadding(next);
     }
 
-    // ratio 锁定：被拖拽边应用意图（clamp >= 0），再反解主导轴上的对边保持
-    // (nodeW+L+R)/(nodeH+T+B) = ratio；对边反解出负值时 clamp 到 0，比例让步（非负 padding 优先）。
+    // ratio 锁定 = 等比缩放扩图区域（用户裁定 2026-09-19）：被拖轴上对边锚定（padding 不变）、
+    // 被拖边跟手；另一轴外扩总量按 ratio 联动，增量按「图片方位保持」半和分配（dL/dB 不变，
+    // 与 resolveOutpaintPaddingForRatio 同款）——图片既不居中漂移也不贴边跳动；
+    // 框不可小于原图（触底时以原图尺寸回推主导轴，比例让步优先非负 padding）。
     if (dragAxis(input.edge, dx, dy) === "horizontal") {
-        const anchored = input.edge === "left" || input.edge === "topLeft" || input.edge === "bottomLeft" ? "left" : "right";
-        const opposite = anchored === "left" ? "right" : "left";
-        const frameHeight = nodeHeight + next.top + next.bottom;
-        next[opposite] = Math.max(0, ratio * frameHeight - nodeWidth - next[anchored]);
-    } else {
-        const anchored = input.edge === "top" || input.edge === "topLeft" || input.edge === "topRight" ? "top" : "bottom";
-        const opposite = anchored === "top" ? "bottom" : "top";
-        const frameWidth = nodeWidth + next.left + next.right;
-        next[opposite] = Math.max(0, frameWidth / ratio - nodeHeight - next[anchored]);
+        const draggedLeft = input.edge === "left" || input.edge === "topLeft" || input.edge === "bottomLeft";
+        const dragged = draggedLeft ? "left" : "right";
+        const opposite = draggedLeft ? "right" : "left";
+        let frameWidth = nodeWidth + next[opposite] + Math.max(0, next[dragged]);
+        let frameHeight = frameWidth / ratio;
+        if (frameHeight < nodeHeight) {
+            frameHeight = nodeHeight;
+            frameWidth = ratio * nodeHeight;
+        }
+        const growWidth = Math.round(frameWidth) - nodeWidth;
+        const shTotal = Math.max(0, Math.round(frameHeight) - nodeHeight);
+        const dV = padding.top - padding.bottom;
+        const top = Math.min(shTotal, Math.max(0, Math.round((shTotal + dV) / 2)));
+        const bottom = shTotal - top;
+        const oppositePad = next[opposite];
+        return roundPadding({
+            ...next,
+            [dragged]: Math.max(0, growWidth - oppositePad),
+            [opposite]: oppositePad,
+            top,
+            bottom,
+        });
     }
-    return roundPadding(next);
+    const draggedTop = input.edge === "top" || input.edge === "topLeft" || input.edge === "topRight";
+    const dragged = draggedTop ? "top" : "bottom";
+    const opposite = draggedTop ? "bottom" : "top";
+    let frameHeight = nodeHeight + next[opposite] + Math.max(0, next[dragged]);
+    let frameWidth = frameHeight * ratio;
+    if (frameWidth < nodeWidth) {
+        frameWidth = nodeWidth;
+        frameHeight = nodeWidth / ratio;
+    }
+    const swTotal = Math.max(0, Math.round(frameWidth) - nodeWidth);
+    const dH = padding.left - padding.right;
+    const left = Math.min(swTotal, Math.max(0, Math.round((swTotal + dH) / 2)));
+    const right = swTotal - left;
+    const oppositePad = next[opposite];
+    return roundPadding({
+        ...next,
+        [dragged]: Math.max(0, Math.round(frameHeight) - nodeHeight - oppositePad),
+        [opposite]: oppositePad,
+        left,
+        right,
+    });
 }
 
 export function resolveOutpaintTargetPx(input: {

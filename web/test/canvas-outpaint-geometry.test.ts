@@ -59,7 +59,7 @@ describe("canvas-outpaint-geometry", () => {
         expect(corner).toEqual({ left: 0, top: 20, right: 30, bottom: 0 });
     });
 
-    test("keeps frame ratio when dragging a horizontal edge (width dominates)", () => {
+    test("ratio-locked horizontal drag scales the outpaint area proportionally (anchor = opposite edge)", () => {
         const result = resolveOutpaintPadding({
             padding: NO_PADDING,
             edge: "right",
@@ -69,16 +69,36 @@ describe("canvas-outpaint-geometry", () => {
             nodeHeight: 1000,
             ratio: 16 / 9,
         });
-        expect(result.right).toBe(260);
-        // frameH = 1000 → frameW = 16/9 × 1000 → left = 1777.78 - 1000 - 260 = 517.78 → 518
-        expect(result.left).toBeCloseTo((16 / 9) * 1000 - 1000 - 260, 0);
+        // 右边意图 260 → frameW=1260 → frameH=709 < 原图高 → 触底回推 frameW = 16/9×1000
         const frameW = 1000 + result.left + result.right;
         const frameH = 1000 + result.top + result.bottom;
         expect(frameW / frameH).toBeCloseTo(16 / 9, 2);
+        expect(result.left).toBe(0); // 对边锚定不动
+        expect(result.right).toBeCloseTo((16 / 9) * 1000 - 1000, 0);
+        expect(frameH).toBe(1000); // 触底：上下无外扩
     });
 
-    test("keeps frame ratio when dragging a vertical edge (height dominates)", () => {
+    test("ratio-locked vertical drag keeps the opposite edge anchored and grows symmetrically", () => {
         const result = resolveOutpaintPadding({
+            padding: { left: 0, right: 900, top: 0, bottom: 0 },
+            edge: "bottom",
+            dx: 0,
+            dy: 200,
+            nodeWidth: 1000,
+            nodeHeight: 1000,
+            ratio: 1,
+        });
+        const frameW = 1000 + result.left + result.right;
+        const frameH = 1000 + result.top + result.bottom;
+        // bottom 意图 200 → frameH=1200 → frameW=1200 → 水平外扩总量 200，dH=-900（图片贴左）→ left=0、right=200
+        expect(result.right).toBe(200); // 1:1 锁定下水平外扩量由 frameH 决定，图片方位保持（贴左）
+        expect(result.left).toBe(0);
+        expect(result.bottom).toBe(200);
+        expect(result.top).toBe(0);
+        expect(frameW / frameH).toBeCloseTo(1, 2);
+
+        // 无既有外扩时拖垂直边 → 水平对称生长
+        const plain = resolveOutpaintPadding({
             padding: NO_PADDING,
             edge: "bottom",
             dx: 0,
@@ -87,15 +107,13 @@ describe("canvas-outpaint-geometry", () => {
             nodeHeight: 1000,
             ratio: 9 / 16,
         });
-        expect(result.bottom).toBe(200);
-        // frameW = 1000 → frameH = 1000 ÷ (9/16) → top = 1777.78 - 1000 - 200 = 577.78 → 578
-        expect(result.top).toBeCloseTo(1000 / (9 / 16) - 1000 - 200, 0);
-        const frameW = 1000 + result.left + result.right;
-        const frameH = 1000 + result.top + result.bottom;
-        expect(frameW / frameH).toBeCloseTo(9 / 16, 2);
+        // frameH=1200 → frameW=675 < 1000 触底 → frameW=1000、frameH=16000/9 → bottom=778
+        expect(plain.left).toBe(0);
+        expect(plain.right).toBe(0);
+        expect(1000 / (1000 + plain.top + plain.bottom)).toBeCloseTo(9 / 16, 2);
     });
 
-    test("corner drag picks the dominant axis and resolves the opposite edge", () => {
+    test("corner drag keeps ratio and anchors the opposite corner (dominant axis ignored on the other)", () => {
         const horizontal = resolveOutpaintPadding({
             padding: NO_PADDING,
             edge: "topLeft",
@@ -105,41 +123,29 @@ describe("canvas-outpaint-geometry", () => {
             nodeHeight: 1000,
             ratio: 1.5,
         });
-        expect(horizontal.left).toBe(100);
-        expect(horizontal.top).toBe(40);
-        // frameH = 1040 → frameW = 1560 → right = 1560 - 1000 - 100 = 460
-        expect(horizontal.right).toBe(460);
-        expect((1000 + horizontal.left + horizontal.right) / (1000 + horizontal.top + horizontal.bottom)).toBeCloseTo(1.5, 2);
+        // |dx|>|dy| → 水平主导：left 意图 100 → frameW=1100 → frameH=733 < 1000 触底 →
+        // frameW=1500、left=500、top/bottom=0
+        expect(horizontal.left).toBe(500);
+        expect(horizontal.right).toBe(0);
+        expect(horizontal.top).toBe(0);
+        expect(horizontal.bottom).toBe(0);
+        expect((1000 + horizontal.left + horizontal.right) / 1000).toBeCloseTo(1.5, 2);
 
-        const vertical = resolveOutpaintPadding({
-            padding: NO_PADDING,
-            edge: "bottomRight",
-            dx: 20,
-            dy: 80,
-            nodeWidth: 1000,
-            nodeHeight: 1000,
-            ratio: 0.8,
-        });
-        expect(vertical.right).toBe(20);
-        expect(vertical.bottom).toBe(80);
-        // frameW = 1020 → frameH = 1020 ÷ 0.8 = 1275 → top = 1275 - 1000 - 80 = 195
-        expect(vertical.top).toBe(195);
-        expect((1000 + vertical.left + vertical.right) / (1000 + vertical.top + vertical.bottom)).toBeCloseTo(0.8, 2);
-    });
-
-    test("ratio lock yields to non-negative padding when constraints conflict", () => {
-        const result = resolveOutpaintPadding({
+        const square = resolveOutpaintPadding({
             padding: NO_PADDING,
             edge: "topLeft",
             dx: -100,
             dy: -40,
             nodeWidth: 1000,
             nodeHeight: 1000,
-            ratio: 1, // frameW = frameH = 1040 需要 right = -60，不可满足 → right clamp 0
+            ratio: 1,
         });
-        expect(result.left).toBe(100);
-        expect(result.top).toBe(40);
-        expect(result.right).toBe(0);
+        // frameW=1100 → frameH=1100 → 垂直增量 100 对称 → top=50、bottom=50；left=100、right=0
+        expect(square.left).toBe(100);
+        expect(square.right).toBe(0);
+        expect(square.top).toBe(50);
+        expect(square.bottom).toBe(50);
+        expect((1000 + square.left + square.right) / (1000 + square.top + square.bottom)).toBeCloseTo(1, 2);
     });
 
     test("scales the whole target down when the long edge exceeds the cap", () => {

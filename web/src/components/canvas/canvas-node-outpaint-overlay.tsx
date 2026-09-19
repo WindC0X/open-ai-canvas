@@ -7,6 +7,13 @@ import { CreditSymbol } from "@/constant/credits";
 import { defaultImageParamsForModel } from "@/lib/model-selection";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import { modelQuoteRequest, requestCreditCost } from "@/lib/model-pricing";
+import {
+    buildImageResolutionOptions,
+    imageSizeForResolution,
+    imageResolutionChoices,
+    type ImageResolutionChoice,
+    type ImageResolutionTier,
+} from "@/lib/image-resolution-tiers";
 import { describeOutpaintSize, parseRatioValue, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
@@ -108,8 +115,11 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
 
     const contentWidth = Number(node?.metadata?.naturalWidth) || layoutSize.width;
     const contentHeight = Number(node?.metadata?.naturalHeight) || layoutSize.height;
-    const imageProfile = useMemo(() => (model ? modelCapabilityConfigFor(config, model).image : undefined), [config, model]);
-    const canExecute = (imageProfile?.references?.maxImages ?? 0) >= 1;
+    // 无模型态红线（用户反馈 2026-09-19：未选模型不得预填参数）：modelCapabilityConfigFor 对空 model
+    // 会回落默认能力域，不能用 imageProfile 是否存在判定“已选模型”。
+    const hasModel = Boolean(model);
+    const imageProfile = useMemo(() => (hasModel ? modelCapabilityConfigFor(config, model).image : undefined), [config, hasModel, model]);
+    const canExecute = hasModel && (imageProfile?.references?.maxImages ?? 0) >= 1;
     const countMax = Math.max(1, Math.min(4, imageProfile?.references?.maxImages ?? 1));
     const countOptions = Array.from({ length: countMax }, (_, index) => index + 1);
     const sizeParameter = imageProfile?.size?.parameter;
@@ -117,22 +127,40 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const sizeFallback = imageProfile?.size?.default ?? "";
     const qualityOptions = imageProfile?.quality?.supported ? imageProfile.quality.values ?? [] : [];
 
-    // 比例槽：aspect_ratio 制用模型档位；size 制从分辨率档推导真实画幅（1024x1024→1:1、1536x1024→3:2）；
-    // 其余模型用通用比例组（只锁框几何，不进提交参数）。"自由" = 解除比例锁定。
+    // size 制模型的结构化分辨率档（tier×ratio→WxH，来自渠道能力配置；values 里的比例字符串被解析过滤）。
+    const sizePresetOptions = useMemo(
+        () => (sizeParameter === "size" ? buildImageResolutionOptions(sizeOptions) : []),
+        [sizeParameter, sizeOptions],
+    );
+    // 分辨率槽选项：auto + 已启用 tier（对齐渠道「编辑模型」的 1K/2K/4K 语义，不再是逐 WxH 列表）。
+    const tierChoices = useMemo(
+        () => (sizeParameter === "size" ? imageResolutionChoices(sizeOptions) : []),
+        [sizeParameter, sizeOptions],
+    );
+
+    // 比例槽：aspect_ratio 制用模型档位；size 制用渠道结构化 presets 的去重比例（10 个比例就是 10 个，
+    // 不再从全 tier WxH 推导出 2.33:1/7:3 之类重复档）；未选模型时不显示参数槽。
     const ratioOptions = useMemo(() => {
-        let base: string[];
+        if (!hasModel) return [];
         if (sizeParameter === "aspect_ratio") {
-            base = sizeOptions.filter((value) => parseRatioValue(value) !== null);
-        } else if (sizeParameter === "size") {
-            base = [...new Set(sizeOptions.map((value) => sizeValueToRatioLabel(String(value))).filter(Boolean))] as string[];
-        } else {
-            base = GENERIC_RATIO_OPTIONS;
+            return [FREE_RATIO_KEY, ...sizeOptions.filter((value) => parseRatioValue(value) !== null)];
         }
-        return [FREE_RATIO_KEY, ...base];
-    }, [sizeParameter, sizeOptions]);
-    // 分辨率槽：size 制模型显示其分辨率档（提交 size），quality 多档模型显示 1K/2K/4K（提交 quality）。
-    const resolutionMode: "size" | "quality" | null = sizeParameter === "size" ? "size" : qualityOptions.length > 1 ? "quality" : null;
-    const resolutionOptions = resolutionMode === "size" ? sizeOptions : resolutionMode === "quality" ? qualityOptions : [];
+        if (sizeParameter === "size" && sizePresetOptions.length) {
+            const ratios: string[] = [];
+            for (const preset of sizePresetOptions) if (!ratios.includes(preset.ratio)) ratios.push(preset.ratio);
+            return [FREE_RATIO_KEY, ...ratios];
+        }
+        return [FREE_RATIO_KEY, ...GENERIC_RATIO_OPTIONS];
+    }, [hasModel, sizeParameter, sizeOptions, sizePresetOptions]);
+    // 分辨率槽：size 制模型显示 auto+tier 档（提交 size = tier×ratio 的渠道配置像素），quality 多档模型显示画质档。
+    const resolutionMode: "size" | "quality" | null = !hasModel
+        ? null
+        : sizeParameter === "size"
+          ? "size"
+          : qualityOptions.length > 1
+            ? "quality"
+            : null;
+    const resolutionOptions = resolutionMode === "size" ? tierChoices : resolutionMode === "quality" ? qualityOptions : [];
 
     // 模型切换时把比例/档位选择重置进新模型的能力域。
     useEffect(() => {
@@ -141,8 +169,19 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         setQualityValue("");
     }, [model]);
 
-    const sizeInDomain = sizeOptions.includes(sizeValue) ? sizeValue : sizeFallback;
-    const submitSize = sizeParameter === "aspect_ratio" ? (ratioKey !== FREE_RATIO_KEY ? ratioKey : sizeFallback) : sizeParameter === "size" ? sizeInDomain : sizeFallback;
+    // size 制的分辨率档（sizeValue 语义 = tier）；默认 auto = 模型自选。
+    const selectedTier: ImageResolutionChoice =
+        sizeValue && (tierChoices as string[]).includes(sizeValue) ? (sizeValue as ImageResolutionChoice) : "auto";
+    const lockedRatioKey = ratioKey !== FREE_RATIO_KEY ? ratioKey : null;
+    const submitSize =
+        sizeParameter === "aspect_ratio"
+            ? (lockedRatioKey ?? sizeFallback)
+            : sizeParameter === "size"
+              ? // 比例锁定 + 分辨率档 → 渠道配置的精确像素；自由比例或 auto → 模型自选（auto）。
+                selectedTier !== "auto" && lockedRatioKey
+                  ? (imageSizeForResolution(sizePresetOptions, selectedTier as ImageResolutionTier, lockedRatioKey) ?? sizeFallback)
+                  : "auto"
+              : sizeFallback;
     // 域非空时总是提交域内值（越域回落模型默认档），短路 hook 层的全局 config.quality 回落链。
     const submitQuality = qualityOptions.length
         ? qualityOptions.includes(qualityValue)
@@ -168,7 +207,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             }),
         [config, count, model, priceChannel],
     );
-    const quoteRequest = useMemo(() => modelQuoteRequest(config, model, "image"), [config, model]);
+    const quoteRequest = useMemo(() => (model ? modelQuoteRequest(config, model, "image") : null), [config, model]);
     const [quotedCredits, setQuotedCredits] = useState<number | null>(null);
     const quoted = quotedCredits !== null ? quotedCredits * count : null;
     const credits = quoted ?? configuredCredits ?? 0;
@@ -492,64 +531,68 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         popoverClassName="canvas-outpaint-picker-surface"
                         showSelectedPrice={false}
                         showConfiguredModelName
-                        onChange={(next) => {
-                            setModel(next);
-                            const defaults = defaultImageParamsForModel(config, next);
-                            if (defaults.size) setSizeValue(String(defaults.size));
-                        }}
+                        onChange={(next) => setModel(next)}
                     />
                 </div>
-                <span className="h-6 w-px shrink-0 bg-border" />
-                <Dropdown
-                    trigger={["click"]}
-                    placement="top"
-                    menu={{
-                        items: ratioOptions.map((option) => ({ key: option, label: option === FREE_RATIO_KEY ? "自由" : option })),
-                        selectable: true,
-                        selectedKeys: [ratioKey],
-                        onClick: ({ key }) => {
-                            setRatioKey(key);
-                            if (key === FREE_RATIO_KEY || !node) return;
-                            const nextRatio = parseRatioValue(key);
-                            if (!nextRatio) return;
-                            const layoutWidth = nodeElementRef.current?.offsetWidth || layoutSize.width;
-                            const layoutHeight = nodeElementRef.current?.offsetHeight || layoutSize.height;
-                            if (!layoutWidth || !layoutHeight) return;
-                            applyPadding(resolveOutpaintPaddingForRatio({ nodeWidth: layoutWidth, nodeHeight: layoutHeight, ratio: nextRatio, basePadding: paddingRef.current }));
-                        },
-                    }}
-                >
-                    <button type="button" className="flex h-8 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-foreground/8" aria-label="目标画幅比例">
-                        {ratioMenuLabel}
-                    </button>
-                </Dropdown>
-                <span className="h-6 w-px shrink-0 bg-border" />
-                {resolutionOptions.length > 1 ? (
-                    <Select
-                        size="small"
-                        variant="borderless"
-                        value={resolutionMode === "size" ? (sizeOptions.includes(sizeValue) ? sizeValue : sizeFallback) : qualityOptions.includes(qualityValue) ? qualityValue : qualityOptions[0]}
-                        onChange={(value) => (resolutionMode === "size" ? setSizeValue(String(value)) : setQualityValue(String(value)))}
-                        options={resolutionOptions.map((value) => ({ value, label: String(value) === "auto" ? "AUTO" : String(value).toUpperCase() }))}
-                        popupMatchSelectWidth={false}
-                        placement="topLeft"
-                        aria-label={resolutionMode === "size" ? "输出分辨率" : "输出画质"}
-                        className="w-[86px] shrink-0"
-                    />
-                ) : null}
-                <span className="h-6 w-px shrink-0 bg-border" />
-                {countOptions.length > 1 ? (
-                <Select
-                    size="small"
-                    variant="borderless"
-                    value={count}
-                    onChange={setCount}
-                    options={countOptions.map((value) => ({ value, label: `x${value}` }))}
-                    popupMatchSelectWidth={false}
-                    placement="topLeft"
-                    aria-label="生成张数"
-                    className="w-[64px] shrink-0"
-                />
+                {hasModel ? (
+                    <>
+                        <span className="h-6 w-px shrink-0 bg-border" />
+                        <Dropdown
+                            trigger={["click"]}
+                            placement="top"
+                            menu={{
+                                items: ratioOptions.map((option) => ({ key: option, label: option === FREE_RATIO_KEY ? "自由" : option })),
+                                selectable: true,
+                                selectedKeys: [ratioKey],
+                                onClick: ({ key }) => {
+                                    setRatioKey(key);
+                                    if (key === FREE_RATIO_KEY || !node) return;
+                                    const nextRatio = parseRatioValue(key);
+                                    if (!nextRatio) return;
+                                    const layoutWidth = nodeElementRef.current?.offsetWidth || layoutSize.width;
+                                    const layoutHeight = nodeElementRef.current?.offsetHeight || layoutSize.height;
+                                    if (!layoutWidth || !layoutHeight) return;
+                                    applyPadding(resolveOutpaintPaddingForRatio({ nodeWidth: layoutWidth, nodeHeight: layoutHeight, ratio: nextRatio, basePadding: paddingRef.current }));
+                                },
+                            }}
+                        >
+                            <button type="button" className="flex h-8 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-foreground/8" aria-label="目标画幅比例">
+                                {ratioMenuLabel}
+                            </button>
+                        </Dropdown>
+                        {resolutionOptions.length > 1 ? (
+                            <>
+                                <span className="h-6 w-px shrink-0 bg-border" />
+                                <Select
+                                    size="small"
+                                    variant="borderless"
+                                    value={resolutionMode === "size" ? selectedTier : qualityOptions.includes(qualityValue) ? qualityValue : qualityOptions[0]}
+                                    onChange={(value) => (resolutionMode === "size" ? setSizeValue(String(value)) : setQualityValue(String(value)))}
+                                    options={resolutionOptions.map((value) => ({ value, label: String(value) === "auto" ? "AUTO" : String(value).toUpperCase() }))}
+                                    popupMatchSelectWidth={false}
+                                    placement="topLeft"
+                                    aria-label={resolutionMode === "size" ? "输出分辨率" : "输出画质"}
+                                    className="w-[86px] shrink-0"
+                                />
+                            </>
+                        ) : null}
+                        {countOptions.length > 1 ? (
+                            <>
+                                <span className="h-6 w-px shrink-0 bg-border" />
+                                <Select
+                                    size="small"
+                                    variant="borderless"
+                                    value={count}
+                                    onChange={setCount}
+                                    options={countOptions.map((value) => ({ value, label: `x${value}` }))}
+                                    popupMatchSelectWidth={false}
+                                    placement="topLeft"
+                                    aria-label="生成张数"
+                                    className="w-[64px] shrink-0"
+                                />
+                            </>
+                        ) : null}
+                    </>
                 ) : null}
                 <Button
                     type="text"
