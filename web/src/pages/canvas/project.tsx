@@ -3415,6 +3415,10 @@ function InfiniteCanvasPage() {
                             onCloseAnnotation={() => setAnnotationNodeId(null)}
                             onCloseMaskEdit={() => setMaskEditNodeId(null)}
                             onCloseOutpaint={() => setOutpaintNodeId(null)}
+                            // 扩图拖图松手提交：图片在框内重定位 = 节点 position 移动 + padding 重分布（frame 不动）。
+                            onOutpaintNodeMove={(nodeId, position) => {
+                                setNodes((current) => current.map((item) => (item.id === nodeId ? { ...item, position } : item)));
+                            }}
                             onCloseUpscale={() => setUpscaleNodeId(null)}
                             onCrop={(node, crop) => void cropImageNode(node, crop)}
                             onAnnotate={(node, dataUrl) => void saveAnnotatedImageNode(node, dataUrl)}

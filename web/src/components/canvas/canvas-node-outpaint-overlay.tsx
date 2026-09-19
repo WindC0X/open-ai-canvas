@@ -15,7 +15,7 @@ import {
     type ImageResolutionTier,
 } from "@/lib/image-resolution-tiers";
 import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
-import { subscribeCanvasNodeDragPreview, subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
+import { subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { quoteLogicalModel } from "@/services/api/logical-models";
@@ -36,9 +36,14 @@ type CanvasNodeOutpaintOverlayProps = {
     config: AiConfig;
     onClose: () => void;
     onExecute: (node: CanvasNodeData, payload: CanvasImageOutpaintPayload) => void;
+    // 拖图松手提交：节点位移写入节点 position（扩图模式内图片在框内重定位的本质 = 移动节点 +
+    // padding 重分布，frame 数学位置不变）。与 setPadding 同批 React 提交，无闪帧。
+    onNodeMove: (nodeId: string, position: { x: number; y: number }) => void;
 };
 
 const FREE_RATIO_KEY = "free";
+// 原图比例（用户裁定 2026-09-19 第十四轮）：默认选项，框比 = 原图真实宽高比。
+const ORIGINAL_RATIO_KEY = "original";
 
 // 通用比例组（size.parameter 非 aspect_ratio 的模型走这组，只约束框几何，不进提交参数）。
 const GENERIC_RATIO_OPTIONS = ["1:1", "4:3", "3:4", "16:9", "9:16"];
@@ -91,11 +96,12 @@ function sizeValueToRatioLabel(value: string): string | null {
 
 const RATIO_VALUE_MAP: Record<string, number> = { "1:1": 1, "4:3": 4 / 3, "3:4": 3 / 4, "16:9": 16 / 9, "9:16": 9 / 16, "2:3": 2 / 3, "3:2": 3 / 2, "21:9": 21 / 9 };
 
-export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose, onExecute }: CanvasNodeOutpaintOverlayProps) {
+export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose, onExecute, onNodeMove }: CanvasNodeOutpaintOverlayProps) {
     const frameRef = useRef<HTMLDivElement>(null);
     const labelRef = useRef<HTMLDivElement>(null);
-    const stripRefs = useRef<{ top: HTMLDivElement | null; bottom: HTMLDivElement | null; left: HTMLDivElement | null; right: HTMLDivElement | null }>({ top: null, bottom: null, left: null, right: null });
-    const stripPatternRefs = useRef<{ top: SVGPatternElement | null; bottom: SVGPatternElement | null; left: SVGPatternElement | null; right: SVGPatternElement | null }>({ top: null, bottom: null, left: null, right: null });
+    // 扩展区纹理层：单一全铺 pattern + clip-path 挖出图片视觉矩形（洞跟随拖图 transform 逐帧直写）。
+    // 取代旧「四条带挖洞」——拖图时洞跟图片走、原位露纹理（tapnow 同款），frame 内部零布局变化。
+    const clipHoleRef = useRef<HTMLDivElement>(null);
     const barRef = useRef<HTMLDivElement>(null);
     const nodeElementRef = useRef<HTMLElement | null>(null);
     const scaleRef = useRef(1);
@@ -105,8 +111,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const [layoutSize, setLayoutSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [padding, setPadding] = useState<OutpaintPadding>(ZERO_PADDING);
     const [dragging, setDragging] = useState(false);
-    // 拖图会话句柄：非空 = 冻结 frame DOM + 只累积 paddingRef（声明必须先于 updateFrame）。
-    const imageDragRef = useRef<{ startPadding: OutpaintPadding } | null>(null);
+    // 拖图会话句柄：非空 = 冻结 frame DOM（updateFrame 早退）+ transform/洞直写（声明必须先于 updateFrame）。
+    const imageDragRef = useRef<{ pointerId: number; startX: number; startY: number; startPadding: OutpaintPadding; tx: number; ty: number; contentEl: HTMLElement } | null>(null);
     // 框位置/尺寸的 transition 只在比例切换展开动画时开启（用户裁定交互）；恒开会让
     // viewport 跟随 / 拖图松手后的末帧位置修正都被 360ms 动画放大 = 框游动与回弹。
     const [expanding, setExpanding] = useState(false);
@@ -116,7 +122,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         if (expandingTimerRef.current) window.clearTimeout(expandingTimerRef.current);
         expandingTimerRef.current = window.setTimeout(() => setExpanding(false), 420);
     }, []);
-    const [ratioKey, setRatioKey] = useState<string>(FREE_RATIO_KEY);
+    const [ratioKey, setRatioKey] = useState<string>(ORIGINAL_RATIO_KEY);
     const [model, setModel] = useState<string>(node?.metadata?.model || config.model);
     const [sizeValue, setSizeValue] = useState<string>("");
     const [qualityValue, setQualityValue] = useState<string>("");
@@ -152,20 +158,25 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     );
 
 
-    // 比例槽：aspect_ratio 制用模型档位；size 制用渠道结构化 presets 的去重比例（10 个比例就是 10 个，
-    // 不再从全 tier WxH 推导出 2.33:1/7:3 之类重复档）；未选模型时不显示参数槽。
+    // 比例槽（用户裁定 2026-09-19 第十四轮）：「原图比例」恒为默认首项；模型枚举档位随后；
+    // 「自由」仅在模型允许自定义尺寸时出现（allowCustom=false 的渠道模型不该有自由档）。
     const ratioOptions = useMemo(() => {
         if (!hasModel) return [];
+        const allowCustom = Boolean(imageProfile?.size.allowCustom);
+        const options = [ORIGINAL_RATIO_KEY];
         if (sizeParameter === "aspect_ratio") {
-            return [FREE_RATIO_KEY, ...sizeOptions.filter((value) => parseRatioValue(value) !== null)];
-        }
-        if (sizeParameter === "size" && sizePresetOptions.length) {
+            options.push(...sizeOptions.filter((value) => parseRatioValue(value) !== null));
+        } else if (sizeParameter === "size" && sizePresetOptions.length) {
             const ratios: string[] = [];
             for (const preset of sizePresetOptions) if (!ratios.includes(preset.ratio)) ratios.push(preset.ratio);
-            return [FREE_RATIO_KEY, ...ratios];
+            options.push(...ratios);
+        } else {
+            options.push(...GENERIC_RATIO_OPTIONS);
         }
-        return [FREE_RATIO_KEY, ...GENERIC_RATIO_OPTIONS];
-    }, [hasModel, sizeParameter, sizeOptions, sizePresetOptions]);
+        if (allowCustom) options.push(FREE_RATIO_KEY);
+        return options;
+    }, [hasModel, imageProfile, sizeParameter, sizeOptions, sizePresetOptions]);
+    const ratioOptionLabel = (key: string) => (key === FREE_RATIO_KEY ? "自由" : key === ORIGINAL_RATIO_KEY ? "原图比例" : key);
     // 分辨率槽：size 制模型显示 auto+tier 档（提交 size = tier×ratio 的渠道配置像素），quality 多档模型显示画质档。
     const resolutionMode: "size" | "quality" | null = !hasModel
         ? null
@@ -178,7 +189,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
 
     // 模型切换时把比例/档位选择重置进新模型的能力域。
     useEffect(() => {
-        setRatioKey(FREE_RATIO_KEY);
+        setRatioKey(ORIGINAL_RATIO_KEY);
         setSizeValue("");
         setQualityValue("");
     }, [model]);
@@ -187,9 +198,12 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const selectedTier: ImageResolutionChoice =
         sizeValue && (tierChoices as string[]).includes(sizeValue) ? (sizeValue as ImageResolutionChoice) : "auto";
     const lockedRatioKey = ratioKey !== FREE_RATIO_KEY ? ratioKey : null;
+    const contentRatio = contentWidth / Math.max(1, contentHeight);
+    const lockedRatio = lockedRatioKey === ORIGINAL_RATIO_KEY ? contentRatio : parseRatioValue(lockedRatioKey ?? "");
     const submitSize =
         sizeParameter === "aspect_ratio"
-            ? (lockedRatioKey ?? sizeFallback)
+            ? // 原图比例不是模型枚举值 → 提交模型默认；枚举档位直接提交。
+              sizeOptions.includes(lockedRatioKey ?? "") ? (lockedRatioKey as string) : sizeFallback
             : sizeParameter === "size"
               ? // 比例锁定 + 分辨率档 → 渠道配置的精确像素；自由比例或 auto → 模型自选（auto）。
                 selectedTier !== "auto" && lockedRatioKey
@@ -210,7 +224,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         () =>
             sizeParameter === "size" && selectedTier !== "auto" && lockedRatioKey
                 ? sizePresetOptions
-                      .filter((option) => option.tier === selectedTier && option.ratio === lockedRatioKey)
+                      // 原图比例：模型枚举无该比例 → 该 tier 全部 preset 进 snap 候选（按面积就近取档，
+                      // 提交像素必落模型域内）；枚举比例：精确匹配。
+                      .filter((option) => option.tier === selectedTier && (lockedRatioKey === ORIGINAL_RATIO_KEY || option.ratio === lockedRatioKey))
                       .map((option) => ({ width: option.width, height: option.height }))
                 : [],
         [lockedRatioKey, selectedTier, sizeParameter, sizePresetOptions],
@@ -218,7 +234,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const presetCandidatesRef = useRef(presetCandidates);
     presetCandidatesRef.current = presetCandidates;
 
-    const ratio = ratioKey === FREE_RATIO_KEY ? null : parseRatioValue(ratioKey);
+    const ratio = ratioKey === FREE_RATIO_KEY ? null : lockedRatio;
 
     // 远端报价单次价；显示价 = 单次价 × 张数（configuredCredits 已按张数折算，不重复乘）。
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
@@ -276,6 +292,15 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         return fresh;
     }, [containerRef, node]);
 
+    // 扩展区纹理洞直写（frame 相对坐标）：evenodd 双环 polygon，内环 = 图片视觉矩形。
+    // 拖图 pointermove 与松手 commit 都走这里；比例切换/手柄路径由 updateFrame 调用（位移 0）。
+    const writeClipHole = useCallback((x: number, y: number, w: number, h: number) => {
+        const clip = clipHoleRef.current;
+        if (!clip) return;
+        const hole = `${x.toFixed(2)}px ${y.toFixed(2)}px, ${(x + w).toFixed(2)}px ${y.toFixed(2)}px, ${(x + w).toFixed(2)}px ${(y + h).toFixed(2)}px, ${x.toFixed(2)}px ${(y + h).toFixed(2)}px`;
+        clip.style.clipPath = `polygon(evenodd, 0px 0px, 100% 0px, 100% 100%, 0px 100%, ${hole})`;
+    }, []);
+
     const updateFrame = useCallback(() => {
         // 拖图会话中冻结 frame DOM：图片 translate 与 padding 补偿每帧数像素级舍入差会让框微震
         // （用户反馈第十三轮）；冻结后框完全静止，松手时 padding 终值 + 节点 commit 位置一次重算衔接。
@@ -305,43 +330,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         frame.style.width = `${width}px`;
         frame.style.height = `${height}px`;
 
-        const pt = current.top * scale;
-        const pb = current.bottom * scale;
-        const pl = current.left * scale;
-        const pr = current.right * scale;
-        // 网格相位锚定「frame 左上」（第十一轮修订）：pattern 原点 = frame 原点，条带内
-        // patternTransform = translate(-stripX, -stripY)。拖图（padding 转移、frame 静止）与
-        // 拖边（洞口变化、frame 原点不动）时 + 号纹丝不动，只有条带尺寸变化，新露出区域接续。
-        // 旧锚定「图片左上」会让 + 号跟图片粘在一起移动（拖图重定位语义下的观感缺陷）。
-        const setPhase = (key: "top" | "bottom" | "left" | "right", stripX: number, stripY: number) => {
-            const pattern = stripPatternRefs.current[key];
-            if (!pattern) return;
-            pattern.setAttribute("patternTransform", `translate(${-stripX}, ${-stripY})`);
-        };
-        if (stripRefs.current.top) {
-            stripRefs.current.top.style.height = `${pt}px`;
-            stripRefs.current.top.style.display = pt > 0 ? "" : "none";
-        }
-        if (stripRefs.current.bottom) {
-            stripRefs.current.bottom.style.height = `${pb}px`;
-            stripRefs.current.bottom.style.display = pb > 0 ? "" : "none";
-        }
-        if (stripRefs.current.left) {
-            stripRefs.current.left.style.width = `${pl}px`;
-            stripRefs.current.left.style.top = `${pt}px`;
-            stripRefs.current.left.style.bottom = `${pb}px`;
-            stripRefs.current.left.style.display = pl > 0 ? "" : "none";
-        }
-        if (stripRefs.current.right) {
-            stripRefs.current.right.style.width = `${pr}px`;
-            stripRefs.current.right.style.top = `${pt}px`;
-            stripRefs.current.right.style.bottom = `${pb}px`;
-            stripRefs.current.right.style.display = pr > 0 ? "" : "none";
-        }
-        setPhase("top", 0, 0);
-        setPhase("bottom", 0, height - pb);
-        setPhase("left", 0, pt);
-        setPhase("right", width - pr, pt);
+        // 扩展区纹理洞（clip-path evenodd 双环）：洞 = 图片视觉矩形（未拖图时 = 节点 rect 相对 frame）。
+        // 拖图时洞由 pointermove 逐帧直写跟随 transform，updateFrame 冻结中不触碰。
+        writeClipHole(nodeRect.left - left, nodeRect.top - top, nodeRect.width, nodeRect.height);
         if (labelRef.current) {
             // 标注 = 实际提交目标（第十一轮）：档位锁定时显示 snap 后的档位精确像素（与提交同源），
             // 自由/未锁档时显示 scale 换算预览。同源后顶部标注不再是 2045×1534 这类换算余数。
@@ -367,7 +358,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             bar.style.left = `${barLeft}px`;
             bar.style.top = `${barTop}px`;
         }
-    }, [containerRef, contentWidth, ensureNodeElement]);
+    }, [containerRef, contentWidth, ensureNodeElement, writeClipHole]);
 
     // DOM 实测驱动（禁读 viewport prop）：节点 layout（RO）+ worldLayer style（MO，捕捉拖拽预览与
     // viewport transform）+ live-viewport 订阅；一次量测消费框与参数条两处定位。
@@ -456,40 +447,113 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     }, []);
 
-    // 拖动图片 = 框内重定位（用户反馈 2026-09-19，第二轮修订）：不再拦截节点拖拽——图片直接跟手
-    // （现有节点拖拽管线），overlay 订阅拖拽预览事件，同步把位移反向转成 padding 补偿：
-    // 图片移 dx 时 left 增 dx / right 减 dx，框 rect 数学上静止；贴边后 padding 无余量，框随图扩展。
-    // ratio 锁定时外扩总量守恒（拖图不破坏锁定比例）。
+    // 拖动图片 = 框内重定位（用户反馈 2026-09-19 第十四轮重构）：不再借道节点拖拽管线做
+    // 「位移 + padding 反向补偿」的抵消式架构——那条路径在贴边后补偿封顶，节点继续跟手就变成
+    // 「框被顶着移动」，且图片能被拖出框（真机实锤）。现改为自实现拖拽：
+    //   · 内容盒 capture pointerdown 阻断节点拖拽/画布手势管线，setPointerCapture 接管；
+    //   · pointermove：位移 clamp 在 padding 余量内（图片永不越出 frame、贴边即停），
+    //     图片 transform 直改跟手 + 纹理洞 clip-path 同帧跟随 + paddingRef 累积（relocate 守恒）；
+    //   · 松手同批提交：节点 position += 位移（世界域）+ padding 重分布 state 提交 → 二者抵消后
+    //     frame = node' + pad' 仍等于拖动前的冻结位置（零跳变），transform 清零、洞回到节点 rect。
+    // ratioRef 仅用于 relocate 语义兼容（现守恒统一，两模式同数学）。
     const ratioRef = useRef(ratio);
     ratioRef.current = ratio;
+    const updateImageDragVisual = useCallback((contentEl: HTMLElement, tx: number, ty: number) => {
+        contentEl.style.transform = tx || ty ? `translate(${tx}px, ${ty}px)` : "";
+        const nodeElement = nodeElementRef.current;
+        const frame = frameRef.current;
+        if (!nodeElement || !frame) return;
+        // getBoundingClientRect 已含刚写入的 transform（rect = 布局位置 + translate），
+        // 相对 frame 即洞位置——不得再加 tx/ty（双重位移会让洞跑在图片前面）。
+        const nodeRect = nodeElement.getBoundingClientRect();
+        const frameRect = frame.getBoundingClientRect();
+        writeClipHole(nodeRect.left - frameRect.left, nodeRect.top - frameRect.top, nodeRect.width, nodeRect.height);
+    }, [writeClipHole]);
+
     useLayoutEffect(() => {
         const container = containerRef.current;
         if (!container || !node) return;
-        const unsubscribe = subscribeCanvasNodeDragPreview(container, (preview) => {
-            if (!preview || !preview.nodeIds.has(node.id)) {
-                if (imageDragRef.current) {
-                    imageDragRef.current = null;
-                    setDragging(false);
-                    // 拖拽结束把 ref 终值对齐 React 树（拖拽期间只写 ref 不 setState）。
-                    applyPadding(paddingRef.current);
-                }
-                return;
-            }
-            if (!imageDragRef.current) {
-                imageDragRef.current = { startPadding: paddingRef.current };
-                setDragging(true);
-            }
-            // preview.x/y 已是世界域位移（selection-controller 除以 viewport.k 后发布），
-            // padding 也是世界域——直接使用，不得再除 scale（双重换算会让补偿量随缩放倍增，
-            // 真机非 1:1 视野下表现为框反向大幅移动；headless 适应画布后 scale≈1 测不出）。
-            // 只累积 paddingRef，不触碰 frame DOM（updateFrame 冻结中）——框拖动全程零写入。
-            paddingRef.current = relocateOutpaintPadding(imageDragRef.current.startPadding, preview.x, preview.y, ratioRef.current !== null);
-        });
-        return () => {
-            unsubscribe();
-            imageDragRef.current = null;
+        // 容器级捕获委托（目标时刻解析 contentEl）：虚拟化世界重建节点 DOM 后监听不失连。
+        const resolveContentEl = () => {
+            const wrapper = container.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
+            return wrapper?.querySelector<HTMLElement>("[data-canvas-image-content]") || null;
         };
-    }, [containerRef, node, applyPadding]);
+        const onPointerDown = (event: PointerEvent) => {
+            if (event.button !== 0 || imageDragRef.current) return;
+            const contentEl = resolveContentEl();
+            const target = event.target as Node | null;
+            if (!contentEl || !target || !(target === contentEl || contentEl.contains(target))) return;
+            // 阻断节点拖拽管线（React 合成事件挂根容器，目标捕获阶段 stopPropagation 即到不了根）
+            // 与画布 selection/pan 手势。
+            event.stopPropagation();
+            event.preventDefault();
+            imageDragRef.current = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                startPadding: paddingRef.current,
+                tx: 0,
+                ty: 0,
+                contentEl,
+            };
+            // 同步关掉洞的展开过渡：React render（dragging state）生效前到达的首帧 move 不能拖尾。
+            if (clipHoleRef.current) clipHoleRef.current.style.transition = "none";
+            setDragging(true);
+            try {
+                contentEl.setPointerCapture(event.pointerId);
+            } catch {
+                // 捕获失败（元素已在拖拽中）回落：仍由 container 级 pointermove 兜底
+            }
+        };
+        const onPointerMove = (event: PointerEvent) => {
+            const drag = imageDragRef.current;
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            event.stopPropagation();
+            const scale = scaleRef.current || 1;
+            const start = drag.startPadding;
+            // clamp = 图片视觉 rect 不越出 frame：右移上限 = 右 padding 余量，左移上限 = 左 padding 余量。
+            const tx = Math.min(start.right * scale, Math.max(-start.left * scale, event.clientX - drag.startX));
+            const ty = Math.min(start.bottom * scale, Math.max(-start.top * scale, event.clientY - drag.startY));
+            drag.tx = tx;
+            drag.ty = ty;
+            paddingRef.current = relocateOutpaintPadding(start, tx / scale, ty / scale, ratioRef.current !== null);
+            updateImageDragVisual(drag.contentEl, tx, ty);
+        };
+        const onPointerUp = (event: PointerEvent) => {
+            const drag = imageDragRef.current;
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            event.stopPropagation();
+            const scale = scaleRef.current || 1;
+            const dxWorld = drag.tx / scale;
+            const dyWorld = drag.ty / scale;
+            imageDragRef.current = null;
+            drag.contentEl.style.transform = "";
+            // 恢复洞的展开过渡（拖图期间被直写为 none；React style diff 判同值时不会重写）
+            if (clipHoleRef.current) clipHoleRef.current.style.transition = "";
+            try {
+                if (drag.contentEl.hasPointerCapture(event.pointerId)) drag.contentEl.releasePointerCapture(event.pointerId);
+            } catch {
+                // 已释放
+            }
+            setDragging(false);
+            // 同批提交（React 事件批处理 → 一次 paint）：节点位移 + padding 重分布互为抵消，
+            // frame 数学位置不变；transform 已在同一帧清零，无闪跳。
+            if (Math.abs(dxWorld) > 0.5 || Math.abs(dyWorld) > 0.5) {
+                onNodeMove(node.id, { x: node.position.x + dxWorld, y: node.position.y + dyWorld });
+            }
+            applyPadding(paddingRef.current);
+        };
+        container.addEventListener("pointerdown", onPointerDown, true);
+        container.addEventListener("pointermove", onPointerMove, true);
+        container.addEventListener("pointerup", onPointerUp, true);
+        container.addEventListener("pointercancel", onPointerUp, true);
+        return () => {
+            container.removeEventListener("pointerdown", onPointerDown, true);
+            container.removeEventListener("pointermove", onPointerMove, true);
+            container.removeEventListener("pointerup", onPointerUp, true);
+            container.removeEventListener("pointercancel", onPointerUp, true);
+        };
+    }, [applyPadding, containerRef, node, onNodeMove, updateImageDragVisual]);
 
     const handleExecute = useCallback(() => {
         if (!node || !canExecute) return;
@@ -529,7 +593,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
 
     // 框位置/尺寸的 transition 只在比例切换展开动画时开启（用户裁定交互）；恒开会让
     // viewport 跟随 / 拖图松手后的末帧位置修正都被 360ms 动画放大 = 框游动与回弹。
-    const ratioMenuLabel = ratioKey === FREE_RATIO_KEY ? "自由" : ratioKey;
+    const ratioMenuLabel = ratioOptionLabel(ratioKey);
 
     return (
         <div className="pointer-events-none absolute inset-0 z-[var(--z-node-toolbar)] overflow-hidden">
@@ -542,30 +606,25 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 <svg width="0" height="0" className="absolute" aria-hidden>
                     <defs>
                         {/* 砖石交错排布：双列错半步 + 菱形中心微弱点（用户参考图 1789732625543）。
-                            每条带独立 pattern，patternTransform 把平铺原点对齐到「图片左上」——
-                            拖动任一边时新区域以图片边缘为基准展开（+ 号静止在图片坐标系）。 */}
-                        {(["top", "bottom", "left", "right"] as const).map((key) => (
-                            <pattern key={key} id={`${PLUS_PATTERN_ID}-${key}`} width="44" height="22" patternUnits="userSpaceOnUse" ref={(el) => { stripPatternRefs.current[key] = el; }}>
-                                <path d="M11 2v7M7.5 5.5h7M33 13v7M29.5 16.5h7" stroke="currentColor" strokeWidth="1.6" fill="none" />
-                                <circle cx="22" cy="11" r="1" fill="currentColor" opacity="0.4" />
-                            </pattern>
-                        ))}
+                            单一 pattern 全铺整框，平铺原点 = frame 原点（天然锚定，拖边手柄时
+                            新露出区域以 frame 基准接续，+ 号相位恒定）。 */}
+                        <pattern id={PLUS_PATTERN_ID} width="44" height="22" patternUnits="userSpaceOnUse">
+                            <path d="M11 2v7M7.5 5.5h7M33 13v7M29.5 16.5h7" stroke="currentColor" strokeWidth="1.6" fill="none" />
+                            <circle cx="22" cy="11" r="1" fill="currentColor" opacity="0.4" />
+                        </pattern>
                     </defs>
                 </svg>
-                {/* 扩展区"+"号填充：四条带挖出原图区域，currentColor 随令牌明暗自适应 */}
-                <div className="pointer-events-none absolute inset-0 text-primary/35">
-                    <div ref={(el) => { stripRefs.current.top = el; }} style={{ transition: dragging || !expanding ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 top-0 overflow-hidden rounded-t-md">
-                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-top)`} /></svg>
-                    </div>
-                    <div ref={(el) => { stripRefs.current.bottom = el; }} style={{ transition: dragging || !expanding ? "none" : "height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-md">
-                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-bottom)`} /></svg>
-                    </div>
-                    <div ref={(el) => { stripRefs.current.left = el; }} style={{ transition: dragging || !expanding ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute left-0 overflow-hidden">
-                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-left)`} /></svg>
-                    </div>
-                    <div ref={(el) => { stripRefs.current.right = el; }} style={{ transition: dragging || !expanding ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute right-0 overflow-hidden">
-                        <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-right)`} /></svg>
-                    </div>
+                {/* 扩展区"+"号纹理：全铺 + clip-path evenodd 挖出图片视觉矩形。拖图时洞跟随
+                    transform 逐帧直写（原位露纹理、图片永在洞中可见），手柄拖边时洞随 frame 重算。 */}
+                <div
+                    ref={clipHoleRef}
+                    className="pointer-events-none absolute inset-0 text-primary/35"
+                    style={{
+                        clipPath: "polygon(evenodd, 0px 0px, 100% 0px, 100% 100%, 0px 100%, -16px -16px, -16px -16px, -16px -16px, -16px -16px)",
+                        transition: dragging || !expanding ? "none" : "clip-path 360ms cubic-bezier(0.22,1,0.36,1)",
+                    }}
+                >
+                    <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
                 </div>
                 {/* 三分网格只画内部 4 线，避免 9 格 border 外缘描重 */}
                 <div className="pointer-events-none absolute inset-y-0 left-1/3 w-px bg-primary/30" />
@@ -637,7 +696,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                             trigger={["click"]}
                             placement="top"
                             menu={{
-                                items: ratioOptions.map((option) => ({ key: option, label: option === FREE_RATIO_KEY ? "自由" : option })),
+                                items: ratioOptions.map((option) => ({ key: option, label: ratioOptionLabel(option) })),
                                 selectable: true,
                                 selectedKeys: [ratioKey],
                                 onClick: ({ key }) => {
