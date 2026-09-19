@@ -7,7 +7,7 @@ export type OutpaintDragEdge = "left" | "top" | "right" | "bottom" | "topLeft" |
 
 export const OUTPAINT_MAX_LONG_EDGE = 4096;
 
-type FrameAxis = "horizontal" | "vertical";
+export type FrameAxis = "horizontal" | "vertical";
 
 const ZERO_PADDING: OutpaintPadding = { left: 0, top: 0, right: 0, bottom: 0 };
 
@@ -60,7 +60,7 @@ function dragDeltas(edge: OutpaintDragEdge, dx: number, dy: number): Partial<Out
     }
 }
 
-function dragAxis(edge: OutpaintDragEdge, dx: number, dy: number): FrameAxis {
+export function resolveDragAxis(edge: OutpaintDragEdge, dx: number, dy: number): FrameAxis {
     if (edge === "left" || edge === "right") return "horizontal";
     if (edge === "top" || edge === "bottom") return "vertical";
     return Math.abs(dx) >= Math.abs(dy) ? "horizontal" : "vertical";
@@ -74,6 +74,9 @@ export function resolveOutpaintPadding(input: {
     nodeWidth: number;
     nodeHeight: number;
     ratio: number | null;
+    // 主轴冻结（用户反馈 2026-09-19 第十六轮）：角手柄斜拖时 |dx|≥|dy| 逐帧翻转会让两条
+    // 求解分支来回切换 = 框跳变。拖拽会话在首次显著位移时锁定主轴，此后恒用该轴求解。
+    axis?: FrameAxis;
 }): OutpaintPadding {
     const padding = sanitizePadding(input.padding);
     const dx = finiteOrZero(input.dx);
@@ -98,7 +101,7 @@ export function resolveOutpaintPadding(input: {
     // 被拖边跟手；另一轴外扩总量按 ratio 联动，增量按「图片方位保持」半和分配（dL/dB 不变，
     // 与 resolveOutpaintPaddingForRatio 同款）——图片既不居中漂移也不贴边跳动；
     // 框不可小于原图（触底时以原图尺寸回推主导轴，比例让步优先非负 padding）。
-    if (dragAxis(input.edge, dx, dy) === "horizontal") {
+    if ((input.axis ?? resolveDragAxis(input.edge, dx, dy)) === "horizontal") {
         const draggedLeft = input.edge === "left" || input.edge === "topLeft" || input.edge === "bottomLeft";
         const dragged = draggedLeft ? "left" : "right";
         const opposite = draggedLeft ? "right" : "left";
@@ -205,16 +208,22 @@ export function snapOutpaintTargetSize(input: {
     targetHeight: number;
     paddingPx: OutpaintPadding;
     presets: Array<{ width: number; height: number }>;
+    // 域感知 snap（用户反馈 2026-09-19 第十六轮）：AUTO 档无比例锁定，纯面积距离会选到与
+    // 当前框比例无关的档（1K 模型 3:2 框 → 1024×1024，绕开更近的 1536×1024）。给定目标比时
+    // 距离 = 面积项 + 比例项（比例占优），标注/提交都落模型域内、同比例的档。
+    targetRatio?: number;
 }): { width: number; height: number; paddingPx: OutpaintPadding } | null {
     const targetWidth = positiveOrZero(input.targetWidth);
     const targetHeight = positiveOrZero(input.targetHeight);
     if (!targetWidth || !targetHeight || !input.presets.length) return null;
+    const ratio = input.targetRatio && Number.isFinite(input.targetRatio) && input.targetRatio > 0 ? input.targetRatio : null;
     let best: { width: number; height: number; delta: number } | null = null;
     for (const preset of input.presets) {
         const width = positiveOrZero(preset.width);
         const height = positiveOrZero(preset.height);
         if (!width || !height) continue;
-        const delta = Math.abs(Math.log((width * height) / (targetWidth * targetHeight)));
+        const delta = Math.abs(Math.log((width * height) / (targetWidth * targetHeight)))
+            + (ratio ? Math.abs(Math.log((width / height) / ratio)) * 2 : 0);
         if (!best || delta < best.delta) best = { width, height, delta };
     }
     if (!best) return null;
@@ -268,16 +277,42 @@ export function resolveOutpaintPaddingForRatio(input: { nodeWidth: number; nodeH
     const ratio = Number.isFinite(input.ratio) && input.ratio > 0 ? input.ratio : 0;
     const base = sanitizePadding(input.basePadding ?? { left: 0, top: 0, right: 0, bottom: 0 });
     if (!nodeWidth || !nodeHeight || !ratio) return base;
-    // 目标：框比 = ratio，且保持图片在框内的相对方位（中心偏移 dL/dB 不变 → 图片不漂移）、
-    // 外扩总量只增不减（宽度轴不塌缩 → 无「忽大忽小」）。
-    // 联立：(W + sw) / (H + sh) = ratio，取 sw = max(当前水平外扩, ratio*H - W, 0) 保证 sh ≥ 0，
-    // sh = (W + sw)/ratio - H；dL/dB 以半和分配回两边（clamp 到 [0, sw/sh] 后差额并入对边）。
-    const dL = base.left - base.right;
-    const dB = base.top - base.bottom;
-    const sw = Math.max(base.left + base.right, ratio * nodeHeight - nodeWidth, 0);
-    const sh = Math.max(0, Math.round((nodeWidth + sw) / ratio - nodeHeight));
-    const swRounded = Math.round(sw);
-    const left = Math.min(swRounded, Math.max(0, Math.round((swRounded + dL) / 2)));
-    const top = Math.min(sh, Math.max(0, Math.round((sh + dB) / 2)));
-    return { left, right: swRounded - left, top, bottom: sh - top };
+    // 目标：框比 = ratio，且新框与当前框「最接近」（对数面积距离）——切比例是重排不是放大。
+    // 两个合法解：锚定横轴总外扩反解纵轴 / 锚定纵轴反解横轴（锚定轴只增不减，被解轴按比例
+    // 精确反解且允许收缩，负值时回落最小合法框）。旧实现恒锚横轴，3:2 大框翻 2:3 时巨量
+    // 横向外扩被强行保留、纵轴按比例爆炸（框溢出屏幕，用户实测）。
+    const solveFromHorizontal = (swIn: number): { sw: number; sh: number } => {
+        let sw = Math.max(0, swIn);
+        let sh = (nodeWidth + sw) / ratio - nodeHeight;
+        if (sh < 0) {
+            sh = 0;
+            sw = Math.max(0, ratio * nodeHeight - nodeWidth);
+        }
+        return { sw, sh };
+    };
+    const solveFromVertical = (shIn: number): { sw: number; sh: number } => {
+        let sh = Math.max(0, shIn);
+        let sw = ratio * (nodeHeight + sh) - nodeWidth;
+        if (sw < 0) {
+            sw = 0;
+            sh = Math.max(0, nodeWidth / ratio - nodeHeight);
+        }
+        return { sw, sh };
+    };
+    const candidateH = solveFromHorizontal(base.left + base.right);
+    const candidateV = solveFromVertical(base.top + base.bottom);
+    const currentArea = (nodeWidth + base.left + base.right) * (nodeHeight + base.top + base.bottom);
+    const distance = (c: { sw: number; sh: number }) => Math.abs(Math.log(((nodeWidth + c.sw) * (nodeHeight + c.sh)) / currentArea));
+    const distH = distance(candidateH);
+    const distV = distance(candidateV);
+    // 并列（同比例重选等）取外扩更大者：锚定轴「只增不减」语义在等价解下保留。
+    const chosen = Math.abs(distH - distV) < 0.01
+        ? (candidateH.sw + candidateH.sh >= candidateV.sw + candidateV.sh ? candidateH : candidateV)
+        : (distH < distV ? candidateH : candidateV);
+    // 分配（图片方位保持：dL/dB 中心偏移半和分配，clamp 到 [0, 总量]，差额自然并入对边）。
+    const swRounded = Math.round(chosen.sw);
+    const left = Math.min(swRounded, Math.max(0, Math.round((swRounded + (base.left - base.right)) / 2)));
+    const shRounded = Math.round(chosen.sh);
+    const top = Math.min(shRounded, Math.max(0, Math.round((shRounded + (base.top - base.bottom)) / 2)));
+    return { left, right: swRounded - left, top, bottom: shRounded - top };
 }

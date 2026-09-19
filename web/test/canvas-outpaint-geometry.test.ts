@@ -305,9 +305,9 @@ describe("snapOutpaintTargetSize", () => {
         // 最近量级 = 2K（2048×1536）；paddingPx 同比例缩放到 preset 域（原图可缩放，扩空间非像素）。
         expect(snapped?.width).toBe(2048);
         expect(snapped?.height).toBe(1536);
-        const k = 2048 / 2045;
-        expect(snapped?.paddingPx.left).toBeCloseTo(190 * k, 2);
-        expect(snapped?.paddingPx.top).toBeCloseTo(47 * k, 2);
+        // paddingPx 经 roundPadding 整数化：190×(2048/2045)=190.28 → 190。
+        expect(snapped?.paddingPx.left).toBe(190);
+        expect(snapped?.paddingPx.top).toBe(47);
     });
 
     test("allows presets smaller than the source image (expansion is about space, not pixel size)", () => {
@@ -321,14 +321,35 @@ describe("snapOutpaintTargetSize", () => {
         expect(snapped?.width).toBe(1024);
         expect(snapped?.height).toBe(768);
         expect(snapped?.paddingPx.left).toBeCloseTo(100 * (1024 / 1024), 2);
-        const none = snapOutpaintTargetSize({
+        const exceeded = snapOutpaintTargetSize({
             targetWidth: 8000,
             targetHeight: 6000,
             paddingPx: { left: 0, top: 0, right: 0, bottom: 0 },
             presets: presets43,
         });
-        // 目标 8000×6000 超过全部 preset → 回落换算目标（返回 null）。
-        expect(none).toBeNull();
+        // 目标 8000×6000 超过全部 preset → 就近取域内最大档（4096×3072），提交恒落模型域。
+        expect(exceeded?.width).toBe(4096);
+        expect(exceeded?.height).toBe(3072);
+    });
+
+    test("ratio-aware snap for AUTO tier (1K model, 3:2 frame → 1536x1024 not 1024x1024)", () => {
+        const presets1k = [
+            { width: 1024, height: 1024 },
+            { width: 1536, height: 1024 },
+            { width: 1024, height: 1536 },
+        ];
+        const snapped = snapOutpaintTargetSize({
+            targetWidth: 3283,
+            targetHeight: 2189,
+            paddingPx: { left: 100, top: 60, right: 100, bottom: 60 },
+            presets: presets1k,
+            targetRatio: 3283 / 2189,
+        });
+        // 比例距离占优：3:2 框 snap 到 1536×1024（同比例），面积距离次之。
+        expect(snapped?.width).toBe(1536);
+        expect(snapped?.height).toBe(1024);
+        const k = 1536 / 3283;
+        expect(snapped?.paddingPx.left).toBe(Math.round(100 * k));
     });
 });
 
@@ -340,11 +361,43 @@ describe("resolveOutpaintPaddingForRatio", () => {
         expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(2 / 3, 2);
     });
 
-    test("keeps image off-center placement (bottom-left anchored)", () => {
+    test("axis-collapse yields the offset to the minimal legal frame (vertical bias preserved)", () => {
+        // 宽框翻 2:3 时横轴塌缩到 0（框=图宽，偏移无保留空间，物理必然）；纵轴偏移在
+        // [0, sh] 内保留（dB=-128 → top<bottom，图片保持略偏下）。
         const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio: 2 / 3, basePadding: { left: 1000, right: 152, top: 0, bottom: 128 } });
-        expect(padding.left - padding.right).toBeGreaterThanOrEqual(800);
-        expect(padding.bottom - padding.top).toBeGreaterThanOrEqual(100);
         expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(2 / 3, 2);
+        expect(padding.left).toBe(0);
+        expect(padding.right).toBe(0);
+        expect(padding.bottom).toBeGreaterThan(padding.top);
+    });
+
+    test("keeps image off-center placement when the axis has room (same-axis anchor)", () => {
+        // 锚定轴有保留空间时方位保持：3:2 → 4:3（近距），横轴只增不减、dL 半和分配。
+        const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio: 4 / 3, basePadding: { left: 1000, right: 152, top: 64, bottom: 64 } });
+        expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(4 / 3, 2);
+        expect(padding.left).toBeGreaterThan(padding.right);
+    });
+
+    test("flipping a large 3:2 frame to 2:3 does not explode (user case 3283x2189 → overflow)", () => {
+        // 用户实测：3:2 大框（横向外扩 1747/1165）选 2:3 时，旧恒锚横轴实现把巨量横向外扩
+        // 强行保留 → 纵轴按比例爆炸溢出屏幕。新语义 = 取与当前框最接近的合法解（锚纵轴，
+        // 横轴收回最小量），框量级不变。
+        const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio: 2 / 3, basePadding: { left: 874, right: 873, top: 583, bottom: 582 } });
+        expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(2 / 3, 2);
+        const frameW = 1536 + padding.left + padding.right;
+        const frameH = 1024 + padding.top + padding.bottom;
+        // 最小合法 2:3 框 = 1536×2304（含 1536 宽原图，纵轴 1280 外扩）；旧实现为 3283×4924。
+        expect(frameW).toBe(1536);
+        expect(frameH).toBe(2304);
+    });
+
+    test("same-ratio re-selection keeps the frame (closest-solution tie goes to larger expansion)", () => {
+        const base = { left: 874, right: 873, top: 583, bottom: 582 };
+        const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio: 3 / 2, basePadding: base });
+        // 3:2 重选 3:2：两解同距（都是当前框），取外扩更大者 = 保持当前框。
+        expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(3 / 2, 2);
+        expect(padding.left).toBeGreaterThanOrEqual(873);
+        expect(padding.top).toBeGreaterThanOrEqual(582);
     });
 
     test("never shrinks the dominant axis when re-ratioing", () => {
