@@ -14,7 +14,7 @@ import {
     type ImageResolutionChoice,
     type ImageResolutionTier,
 } from "@/lib/image-resolution-tiers";
-import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveOutpaintPadding, resolveOutpaintPaddingForPreset, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
+import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { subscribeCanvasNodeDragPreview, subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -24,6 +24,8 @@ import type { CanvasNodeData } from "@/types/canvas";
 export type CanvasImageOutpaintPayload = {
     paddingPx: OutpaintPadding;
     prompt: string;
+    // 锁定档位时非空：提交 size/pad 合成尺寸 = 该精确像素，原图按占比缩放（用户语义第十三轮）。
+    submitTarget?: { width: number; height: number };
     generationConfig: { model: string; imageModel?: string; size?: string; quality?: string; count: string };
 };
 
@@ -103,6 +105,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const [layoutSize, setLayoutSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [padding, setPadding] = useState<OutpaintPadding>(ZERO_PADDING);
     const [dragging, setDragging] = useState(false);
+    // 拖图会话句柄：非空 = 冻结 frame DOM + 只累积 paddingRef（声明必须先于 updateFrame）。
+    const imageDragRef = useRef<{ startPadding: OutpaintPadding } | null>(null);
     // 框位置/尺寸的 transition 只在比例切换展开动画时开启（用户裁定交互）；恒开会让
     // viewport 跟随 / 拖图松手后的末帧位置修正都被 360ms 动画放大 = 框游动与回弹。
     const [expanding, setExpanding] = useState(false);
@@ -146,16 +150,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         () => (sizeParameter === "size" ? imageResolutionChoices(sizeOptions) : []),
         [sizeParameter, sizeOptions],
     );
-    // 档位有效性过滤（用户语义第十一轮）：比例+档位锁定后目标画幅 = 档位×比例的精确像素，
-    // 容不下原图真实像素的档位无意义（目标不可能小于原图），从菜单剔除。auto 始终保留。
-    const tierChoicesValid = useMemo(() => {
-        if (!tierChoices.length) return tierChoices;
-        return tierChoices.filter((tier) => {
-            if (tier === "auto") return true;
-            const candidates = sizePresetOptions.filter((option) => option.tier === tier);
-            return candidates.some((option) => option.width >= contentWidth && option.height >= contentHeight);
-        });
-    }, [contentHeight, contentWidth, sizePresetOptions, tierChoices]);
+
 
     // 比例槽：aspect_ratio 制用模型档位；size 制用渠道结构化 presets 的去重比例（10 个比例就是 10 个，
     // 不再从全 tier WxH 推导出 2.33:1/7:3 之类重复档）；未选模型时不显示参数槽。
@@ -179,7 +174,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
           : qualityOptions.length > 1
             ? "quality"
             : null;
-    const resolutionOptions = resolutionMode === "size" ? tierChoicesValid : resolutionMode === "quality" ? qualityOptions : [];
+    const resolutionOptions = resolutionMode === "size" ? tierChoices : resolutionMode === "quality" ? qualityOptions : [];
 
     // 模型切换时把比例/档位选择重置进新模型的能力域。
     useEffect(() => {
@@ -192,10 +187,6 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const selectedTier: ImageResolutionChoice =
         sizeValue && (tierChoices as string[]).includes(sizeValue) ? (sizeValue as ImageResolutionChoice) : "auto";
     const lockedRatioKey = ratioKey !== FREE_RATIO_KEY ? ratioKey : null;
-    // 锁定档位+比例 = 目标画幅定死（preset 精确像素）：手柄禁用（框不再拖拽缩放，
-    // 用户语义第十一轮：调节只能调原图位置/占比），拖图重定位仍可用；
-    // 自由或未锁档时手柄可用（框自由外扩，提交目标 clamp 模型最大长边）。
-    const frameLocked = resolutionMode === "size" && selectedTier !== "auto" && Boolean(lockedRatioKey);
     const submitSize =
         sizeParameter === "aspect_ratio"
             ? (lockedRatioKey ?? sizeFallback)
@@ -270,9 +261,6 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         paddingRef.current = next;
     }, []);
 
-    // updateFrame 的 ref 中转：拖图 preview 回调需要在图片 translate 同一 tick 内同步直改
-    // frame DOM，不能等 React setState → MO 回调的异步链（滞后数帧 = 框漂移 + 抬起回弹）。
-    const updateFrameRef = useRef<(() => void) | null>(null);
 
     // 虚拟化世界会在 viewport 提交时重建节点 DOM 元素；ref 失连后必须重新解析，
     // 否则 gBCR 返回 0 尺寸，updateFrame 早退、框停留在旧位置（漂移错位根因）。
@@ -289,6 +277,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     }, [containerRef, node]);
 
     const updateFrame = useCallback(() => {
+        // 拖图会话中冻结 frame DOM：图片 translate 与 padding 补偿每帧数像素级舍入差会让框微震
+        // （用户反馈第十三轮）；冻结后框完全静止，松手时 padding 终值 + 节点 commit 位置一次重算衔接。
+        if (imageDragRef.current) return;
         const container = containerRef.current;
         const frame = frameRef.current;
         const nodeElement = ensureNodeElement();
@@ -359,7 +350,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             if (candidates.length) {
                 const target = resolveOutpaintTargetPx({ contentWidth, contentHeight, nodeWidth: layoutWidth, nodeHeight: layoutHeight, padding: current });
                 const snapped = target.width && target.height
-                    ? snapOutpaintTargetSize({ targetWidth: target.width, targetHeight: target.height, contentWidth, contentHeight, paddingPx: target.paddingPx, presets: candidates })
+                    ? snapOutpaintTargetSize({ targetWidth: target.width, targetHeight: target.height, paddingPx: target.paddingPx, presets: candidates })
                     : null;
                 if (snapped) labelText = `${snapped.width} × ${snapped.height}`;
             }
@@ -377,10 +368,6 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             bar.style.top = `${barTop}px`;
         }
     }, [containerRef, contentWidth, ensureNodeElement]);
-
-    useEffect(() => {
-        updateFrameRef.current = updateFrame;
-    }, [updateFrame]);
 
     // DOM 实测驱动（禁读 viewport prop）：节点 layout（RO）+ worldLayer style（MO，捕捉拖拽预览与
     // viewport transform）+ live-viewport 订阅；一次量测消费框与参数条两处定位。
@@ -473,7 +460,6 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     // （现有节点拖拽管线），overlay 订阅拖拽预览事件，同步把位移反向转成 padding 补偿：
     // 图片移 dx 时 left 增 dx / right 减 dx，框 rect 数学上静止；贴边后 padding 无余量，框随图扩展。
     // ratio 锁定时外扩总量守恒（拖图不破坏锁定比例）。
-    const imageDragRef = useRef<{ startPadding: OutpaintPadding } | null>(null);
     const ratioRef = useRef(ratio);
     ratioRef.current = ratio;
     useLayoutEffect(() => {
@@ -496,8 +482,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             // preview.x/y 已是世界域位移（selection-controller 除以 viewport.k 后发布），
             // padding 也是世界域——直接使用，不得再除 scale（双重换算会让补偿量随缩放倍增，
             // 真机非 1:1 视野下表现为框反向大幅移动；headless 适应画布后 scale≈1 测不出）。
+            // 只累积 paddingRef，不触碰 frame DOM（updateFrame 冻结中）——框拖动全程零写入。
             paddingRef.current = relocateOutpaintPadding(imageDragRef.current.startPadding, preview.x, preview.y, ratioRef.current !== null);
-            updateFrameRef.current?.();
         });
         return () => {
             unsubscribe();
@@ -518,8 +504,6 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             ? snapOutpaintTargetSize({
                   targetWidth: target.width,
                   targetHeight: target.height,
-                  contentWidth,
-                  contentHeight,
                   paddingPx: target.paddingPx,
                   presets: presetCandidatesRef.current,
               })
@@ -529,6 +513,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         onExecute(node, {
             paddingPx: snapped?.paddingPx ?? target.paddingPx,
             prompt: prompt.trim(),
+            // 锁定档位：提交 size = preset 精确像素，合成按占比缩放原图（padImageToDataUrl target 模式）。
+            submitTarget: snapped ? { width: snapped.width, height: snapped.height } : undefined,
             generationConfig: { model, size: `${widthPx}x${heightPx}`, quality: submitQuality, count: String(count) },
         });
     }, [canExecute, contentHeight, contentWidth, count, layoutSize.height, layoutSize.width, model, node, onExecute, padding, presetCandidatesRef, prompt, submitQuality]);
@@ -582,30 +568,30 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     </div>
                 </div>
                 {/* 三分网格只画内部 4 线，避免 9 格 border 外缘描重 */}
-                <div className="pointer-events-none absolute inset-y-0 left-1/3 w-px bg-primary/15" />
-                <div className="pointer-events-none absolute inset-y-0 left-2/3 w-px bg-primary/15" />
-                <div className="pointer-events-none absolute inset-x-0 top-1/3 h-px bg-primary/15" />
-                <div className="pointer-events-none absolute inset-x-0 top-2/3 h-px bg-primary/15" />
+                <div className="pointer-events-none absolute inset-y-0 left-1/3 w-px bg-primary/30" />
+                <div className="pointer-events-none absolute inset-y-0 left-2/3 w-px bg-primary/30" />
+                <div className="pointer-events-none absolute inset-x-0 top-1/3 h-px bg-primary/30" />
+                <div className="pointer-events-none absolute inset-x-0 top-2/3 h-px bg-primary/30" />
                 <div ref={labelRef} className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-background/85 px-2 py-0.5 text-xs font-medium text-foreground backdrop-blur" />
                 {CORNER_HANDLES.map((handle) => (
                     <div
                         key={handle.edge}
-                        onPointerDown={(event) => { if (!frameLocked) onHandlePointerDown(event, handle.edge); }}
+                        onPointerDown={(event) => onHandlePointerDown(event, handle.edge)}
                         onPointerMove={onHandlePointerMove}
                         onPointerUp={onHandlePointerUp}
                         onPointerCancel={onHandlePointerUp}
-                        className={`pointer-events-auto absolute size-3 rounded-full border-2 border-background bg-primary shadow-sm ${frameLocked ? "opacity-40" : ""} ${handle.className}`}
+                        className={`pointer-events-auto absolute size-3 rounded-full border-2 border-background bg-primary shadow-sm ${handle.className}`}
                         data-testid={`canvas-outpaint-handle-${handle.edge}`}
                     />
                 ))}
                 {EDGE_HANDLES.map((handle) => (
                     <div
                         key={handle.edge}
-                        onPointerDown={(event) => { if (!frameLocked) onHandlePointerDown(event, handle.edge); }}
+                        onPointerDown={(event) => onHandlePointerDown(event, handle.edge)}
                         onPointerMove={onHandlePointerMove}
                         onPointerUp={onHandlePointerUp}
                         onPointerCancel={onHandlePointerUp}
-                        className={`pointer-events-auto absolute rounded-full border border-primary/40 bg-background/60 backdrop-blur-sm transition-colors hover:bg-primary/25 ${frameLocked ? "opacity-40" : ""} ${handle.className}`}
+                        className={`pointer-events-auto absolute rounded-full border border-primary/40 bg-background/60 backdrop-blur-sm transition-colors hover:bg-primary/25 ${handle.className}`}
                         data-testid={`canvas-outpaint-handle-${handle.edge}`}
                     />
                 ))}
@@ -664,15 +650,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                                     if (!layoutWidth || !layoutHeight) return;
                                     // 唯一开启位置/尺寸 transition 的入口：比例切换的 360ms 展开跟随。
                                     startExpandAnimation();
-                                    if (sizeParameter === "size" && selectedTier !== "auto") {
-                                        // 锁定档位（用户语义第十一轮）：目标画幅 = 档位×比例 的 preset 精确像素，
-                                        // 原图居中，框定死——后续拖图只调位置，手柄禁用。
-                                        const preset = sizePresetOptions.find((option) => option.tier === selectedTier && option.ratio === key);
-                                        if (preset) {
-                                            applyPadding(resolveOutpaintPaddingForPreset({ contentWidth, contentHeight, nodeWidth: layoutWidth, nodeHeight: layoutHeight, presetWidth: preset.width, presetHeight: preset.height }));
-                                            return;
-                                        }
-                                    }
+                                    // 比例锁定只重排框形状（占比语义）：框显示大小仍由手柄/拖图决定，
+                                    // 提交目标恒 = 档位×比例的 preset 精确像素（handleExecute 换算）。
                                     applyPadding(resolveOutpaintPaddingForRatio({ nodeWidth: layoutWidth, nodeHeight: layoutHeight, ratio: nextRatio, basePadding: paddingRef.current }));
                                 },
                             }}
@@ -691,18 +670,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                                     onChange={(value) => {
                                         const next = String(value);
                                         if (resolutionMode === "size") {
+                                            // 档位切换只改提交目标（preset 精确像素，handleExecute 换算），框显示不动。
                                             setSizeValue(next);
-                                            // 锁定档位切换（用户语义第十一轮）：档位×当前比例 → preset 精确目标，
-                                            // 原图居中重新布局；auto 回落自由外扩语义（手柄恢复可用）。
-                                            if (next !== "auto" && lockedRatioKey && node) {
-                                                const preset = sizePresetOptions.find((option) => option.tier === next && option.ratio === lockedRatioKey);
-                                                const layoutWidth = nodeElementRef.current?.offsetWidth || layoutSize.width;
-                                                const layoutHeight = nodeElementRef.current?.offsetHeight || layoutSize.height;
-                                                if (preset && layoutWidth && layoutHeight) {
-                                                    startExpandAnimation();
-                                                    applyPadding(resolveOutpaintPaddingForPreset({ contentWidth, contentHeight, nodeWidth: layoutWidth, nodeHeight: layoutHeight, presetWidth: preset.width, presetHeight: preset.height }));
-                                                }
-                                            }
                                             return;
                                         }
                                         setQualityValue(next);

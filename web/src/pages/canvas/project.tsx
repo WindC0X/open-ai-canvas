@@ -1245,6 +1245,8 @@ function InfiniteCanvasPage() {
         containerRef,
         nodesRef,
         viewportRef,
+        // 扩图激活时禁用拖拽对齐导引线（用户反馈第十三轮：扩图拖图/框内重定位不需要画布对齐）。
+        alignmentSuppressed: Boolean(outpaintNodeId),
         selectedNodeIdsRef,
         historyPausedRef,
         screenToCanvas,

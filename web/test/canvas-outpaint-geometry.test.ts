@@ -3,7 +3,6 @@ import { describe, expect, test } from "bun:test";
 import {
     describeOutpaintSize,
     relocateOutpaintPadding,
-    resolveOutpaintPaddingForPreset,
     snapOutpaintTargetSize,
     resolveOutpaintPadding,
     resolveOutpaintTargetPx,
@@ -265,16 +264,16 @@ describe("relocateOutpaintPadding", () => {
         expect(moved.top + moved.bottom).toBe(96);
     });
 
-    test("keeps expanding the frame when the image is dragged past an edge", () => {
+    test("keeps the frame static when the image is dragged past an edge (conservation)", () => {
+        // 第十三轮语义：拖图到框边 = 图片贴边停住，框永不被顶着移动（总量守恒）。
         const moved = relocateOutpaintPadding({ left: 48, top: 48, right: 48, bottom: 48 }, 100, 0, false);
-        expect(moved.left).toBe(148);
+        expect(moved.left).toBe(96);
         expect(moved.right).toBe(0);
-        expect(moved.left + moved.right).toBe(148);
+        expect(moved.left + moved.right).toBe(96);
         const opposite = relocateOutpaintPadding({ left: 48, top: 48, right: 48, bottom: 48 }, -100, 0, false);
         expect(opposite.left).toBe(0);
-        expect(opposite.right).toBe(148);
-        // 框宽 = 原框 96 + 52 贴边过冲：left 不足的位移自然转为框扩展
-        expect(opposite.left + opposite.right).toBe(148);
+        expect(opposite.right).toBe(96);
+        expect(opposite.left + opposite.right).toBe(96);
     });
 
     test("keeps the total expansion constant when ratio is locked", () => {
@@ -288,22 +287,6 @@ describe("relocateOutpaintPadding", () => {
     });
 });
 
-describe("resolveOutpaintPaddingForPreset", () => {
-    test("centers the source inside the preset target in world units", () => {
-        // 原图 1403×1121 显示 701.5×560.5（scale=0.5）；目标 2048×1536 → pad 像素 322.5×207.5 → 世界 161.25×103.75。
-        const padding = resolveOutpaintPaddingForPreset({ contentWidth: 1403, contentHeight: 1121, nodeWidth: 701.5, nodeHeight: 560.5, presetWidth: 2048, presetHeight: 1536 });
-        expect(padding.left).toBeCloseTo(161.25, 2);
-        expect(padding.right).toBeCloseTo(161.25, 2);
-        expect(padding.top).toBeCloseTo(103.75, 2);
-        expect(padding.bottom).toBeCloseTo(103.75, 2);
-    });
-
-    test("clamps to zero when the preset is smaller than the content", () => {
-        const padding = resolveOutpaintPaddingForPreset({ contentWidth: 1403, contentHeight: 1121, nodeWidth: 701.5, nodeHeight: 560.5, presetWidth: 1024, presetHeight: 768 });
-        expect(padding.left).toBe(0);
-        expect(padding.top).toBe(0);
-    });
-});
 
 describe("snapOutpaintTargetSize", () => {
     const presets43 = [
@@ -316,35 +299,31 @@ describe("snapOutpaintTargetSize", () => {
         const snapped = snapOutpaintTargetSize({
             targetWidth: 2045,
             targetHeight: 1534,
-            contentWidth: 1403,
-            contentHeight: 1121,
             paddingPx: { left: 190, top: 47, right: 452, bottom: 366 },
             presets: presets43,
         });
-        // 1K preset（1024×768）容不下 1403×1121 的原图 → 被排除；最近量级 = 2K。
+        // 最近量级 = 2K（2048×1536）；paddingPx 同比例缩放到 preset 域（原图可缩放，扩空间非像素）。
         expect(snapped?.width).toBe(2048);
         expect(snapped?.height).toBe(1536);
-        // paddingPx 重算后 left+content = preset 宽。
-        expect(snapped && snapped.paddingPx.left + 1403).toBe(2048);
-        expect(snapped && snapped.paddingPx.top + 1121).toBe(1536);
+        const k = 2048 / 2045;
+        expect(snapped?.paddingPx.left).toBeCloseTo(190 * k, 2);
+        expect(snapped?.paddingPx.top).toBeCloseTo(47 * k, 2);
     });
 
-    test("excludes presets smaller than the source image and falls back when all are excluded", () => {
+    test("allows presets smaller than the source image (expansion is about space, not pixel size)", () => {
+        // 用户语义第十三轮：2K 图也可用 1K 档生成（原图合成时缩放），档位不再受原图尺寸约束。
         const snapped = snapOutpaintTargetSize({
             targetWidth: 1024,
             targetHeight: 768,
-            contentWidth: 1403,
-            contentHeight: 1121,
-            paddingPx: { left: 0, top: 0, right: 0, bottom: 0 },
+            paddingPx: { left: 100, top: 50, right: 100, bottom: 50 },
             presets: presets43,
         });
-        // 1K 容不下原图 → 用 2K（唯一合法候选）。
-        expect(snapped?.width).toBe(2048);
+        expect(snapped?.width).toBe(1024);
+        expect(snapped?.height).toBe(768);
+        expect(snapped?.paddingPx.left).toBeCloseTo(100 * (1024 / 1024), 2);
         const none = snapOutpaintTargetSize({
             targetWidth: 8000,
             targetHeight: 6000,
-            contentWidth: 1403,
-            contentHeight: 1121,
             paddingPx: { left: 0, top: 0, right: 0, bottom: 0 },
             presets: presets43,
         });

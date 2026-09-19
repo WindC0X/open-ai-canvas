@@ -831,7 +831,8 @@ export function useCanvasMediaTools({
         const prompt = maskSupported
             ? `将画面自然向外延展，保持原图主体、构图与光照完全不变，仅生成透明新增区域的内容。${userPrompt}`
             : `将画面自然向外延展至底图的完整画幅，保持原图主体、构图与光照完全不变，仅在四周白色空白区域生成协调的新内容，原图区域一个像素都不要改动。${userPrompt}`;
-        const { source: paddedSource, mask: maskDataUrl } = await buildOutpaintSubmitVariants(node.metadata.content, payload.paddingPx, maskSupported);
+        // 锁定档位（submitTarget）时合成图尺寸 = preset 精确像素、原图按占比缩放（扩空间信息而非像素尺寸）。
+        const { source: paddedSource, mask: maskDataUrl } = await buildOutpaintSubmitVariants(node.metadata.content, payload.paddingPx, maskSupported, { target: payload.submitTarget });
         // pad 底图物化为 resource 后再引用：不带 storageKey 的纯 dataUrl 会被 buildImageGenerationMetadata
         // 的 referenceUrl 丢弃（只留 storageKey/url），重试链 resolveMetadataReferences 拿不到底图 →
         // 「参考图片已丢失」。先上传后引用不会退化回原图：storageKey 指向的就是 pad 后白边图。

@@ -197,31 +197,23 @@ export function describeOutpaintSize(padding: OutpaintPadding, nodeWidth: number
     return `${width} × ${height}`;
 }
 
-// 档位 snap（用户反馈 2026-09-19 第十一轮）：比例+分辨率档锁定时，目标像素不是 scale 换算的
-// 任意值（2045×1534），而是该比例下离目标量级最近的档位像素（如 4:3 → 2048×1536）。
-// 约束：扩图不能缩小原图（preset 任一边 < 原图真实像素 → 出局；全部出局则返回 null 回落换算目标）。
-// snap 后 paddingPx 精确重算：left+contentW = presetW（取整差吸收进 right/bottom），
-// 保证 pad 图尺寸 = 提交 size 端到端一致。
+// 档位提交换算（用户语义 2026-09-19 第十三轮修订）：比例+档位锁定时提交目标 = preset 精确像素，
+// 与拖拽量级解耦（扩图扩的是空间信息，2K 图也可用 1K 档生成——原图在合成时按占比缩放）。
+// paddingPx 同比例缩放到 preset 域（k = preset/target），供 padImageToDataUrl target 模式使用。
 export function snapOutpaintTargetSize(input: {
     targetWidth: number;
     targetHeight: number;
-    contentWidth: number;
-    contentHeight: number;
     paddingPx: OutpaintPadding;
     presets: Array<{ width: number; height: number }>;
 }): { width: number; height: number; paddingPx: OutpaintPadding } | null {
     const targetWidth = positiveOrZero(input.targetWidth);
     const targetHeight = positiveOrZero(input.targetHeight);
-    const contentWidth = positiveOrZero(input.contentWidth);
-    const contentHeight = positiveOrZero(input.contentHeight);
-    if (!targetWidth || !targetHeight || !contentWidth || !contentHeight || !input.presets.length) return null;
+    if (!targetWidth || !targetHeight || !input.presets.length) return null;
     let best: { width: number; height: number; delta: number } | null = null;
     for (const preset of input.presets) {
         const width = positiveOrZero(preset.width);
         const height = positiveOrZero(preset.height);
         if (!width || !height) continue;
-        // 扩图不缩原图：preset 必须容下完整原图
-        if (width < contentWidth || height < contentHeight) continue;
         const delta = Math.abs(Math.log((width * height) / (targetWidth * targetHeight)));
         if (!best || delta < best.delta) best = { width, height, delta };
     }
@@ -229,11 +221,16 @@ export function snapOutpaintTargetSize(input: {
     const scaleX = best.width / targetWidth;
     const scaleY = best.height / targetHeight;
     const source = sanitizePadding(input.paddingPx);
-    const left = Math.max(0, Math.round(source.left * scaleX));
-    const top = Math.max(0, Math.round(source.top * scaleY));
-    const right = Math.max(0, best.width - contentWidth - left);
-    const bottom = Math.max(0, best.height - contentHeight - top);
-    return { width: best.width, height: best.height, paddingPx: roundPadding({ left, top, right, bottom }) };
+    return {
+        width: best.width,
+        height: best.height,
+        paddingPx: roundPadding({
+            left: source.left * scaleX,
+            top: source.top * scaleY,
+            right: source.right * scaleX,
+            bottom: source.bottom * scaleY,
+        }),
+    };
 }
 
 // 比例选择（含参数条下拉即时切换）反解四边 padding：联立解保证框比精确等于目标比例。
@@ -251,52 +248,18 @@ export function parseRatioValue(value: string): number | null {
 // 拖动图片 = 扩图框内重定位（用户裁定 2026-09-19）：框不跟拖，仅四边 padding 相互转移。
 // 图片右移 dx>0 → left 增、right 减；右 pad 耗尽后差额转为框扩展（贴边续拖 = 框随图扩）。
 // ratio 锁定时外扩总量守恒（只转移不扩展），避免拖图破坏锁定比例。
-export function relocateOutpaintPadding(padding: OutpaintPadding, dx: number, dy: number, ratioLocked: boolean): OutpaintPadding {
+export function relocateOutpaintPadding(padding: OutpaintPadding, dx: number, dy: number, _ratioLocked: boolean): OutpaintPadding {
     const base = sanitizePadding(padding);
     const safeDx = Number.isFinite(dx) ? dx : 0;
     const safeDy = Number.isFinite(dy) ? dy : 0;
-    if (ratioLocked) {
-        const horizontalTotal = base.left + base.right;
-        const left = Math.min(horizontalTotal, Math.max(0, base.left + safeDx));
-        const verticalTotal = base.top + base.bottom;
-        const top = Math.min(verticalTotal, Math.max(0, base.top + safeDy));
-        return roundPadding({ left, right: horizontalTotal - left, top, bottom: verticalTotal - top });
-    }
-    const rawLeft = base.left + safeDx;
-    const rawTop = base.top + safeDy;
-    return roundPadding({
-        left: Math.max(0, rawLeft),
-        right: Math.max(0, base.right - safeDx),
-        top: Math.max(0, rawTop),
-        bottom: Math.max(0, base.bottom - safeDy),
-    });
-}
-
-// 锁定档位+比例（用户语义 2026-09-19 第十一轮）：目标画幅 = 档位×比例的 preset 精确像素，
-// 原图居中摆放。padding 世界域 = (preset - content)/2 × (nodeSize/contentSize)。
-// preset 必须已由档位过滤保证容得下原图（容不下时 clamp 为 0，框退化为原图）。
-export function resolveOutpaintPaddingForPreset(input: {
-    contentWidth: number;
-    contentHeight: number;
-    nodeWidth: number;
-    nodeHeight: number;
-    presetWidth: number;
-    presetHeight: number;
-}): OutpaintPadding {
-    const contentWidth = positiveOrZero(input.contentWidth);
-    const contentHeight = positiveOrZero(input.contentHeight);
-    const nodeWidth = positiveOrZero(input.nodeWidth);
-    const nodeHeight = positiveOrZero(input.nodeHeight);
-    const presetWidth = positiveOrZero(input.presetWidth);
-    const presetHeight = positiveOrZero(input.presetHeight);
-    if (!contentWidth || !contentHeight || !nodeWidth || !nodeHeight || !presetWidth || !presetHeight) {
-        return ZERO_PADDING;
-    }
-    const padPixelX = Math.max(0, (presetWidth - contentWidth) / 2);
-    const padPixelY = Math.max(0, (presetHeight - contentHeight) / 2);
-    const left = (padPixelX * nodeWidth) / contentWidth;
-    const top = (padPixelY * nodeHeight) / contentHeight;
-    return roundPadding({ left, top, right: left, bottom: top });
+    // 统一总量守恒（用户反馈 2026-09-19 第十三轮）：拖图到框边 = 图片贴边停住，框永不被顶着移动。
+    // 自由与 ratio 锁定同语义——扩图总量由手柄/档位决定，拖图只做框内位置调整。
+    // （_ratioLocked 参数保留：历史调用点仍传；两分支语义已统一。）
+    const horizontalTotal = base.left + base.right;
+    const left = Math.min(horizontalTotal, Math.max(0, base.left + safeDx));
+    const verticalTotal = base.top + base.bottom;
+    const top = Math.min(verticalTotal, Math.max(0, base.top + safeDy));
+    return roundPadding({ left, right: horizontalTotal - left, top, bottom: verticalTotal - top });
 }
 
 export function resolveOutpaintPaddingForRatio(input: { nodeWidth: number; nodeHeight: number; ratio: number; basePadding?: OutpaintPadding }): OutpaintPadding {
