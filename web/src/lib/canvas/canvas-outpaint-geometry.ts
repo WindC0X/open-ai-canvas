@@ -272,6 +272,33 @@ export function relocateOutpaintPadding(padding: OutpaintPadding, dx: number, dy
     });
 }
 
+// 锁定档位+比例（用户语义 2026-09-19 第十一轮）：目标画幅 = 档位×比例的 preset 精确像素，
+// 原图居中摆放。padding 世界域 = (preset - content)/2 × (nodeSize/contentSize)。
+// preset 必须已由档位过滤保证容得下原图（容不下时 clamp 为 0，框退化为原图）。
+export function resolveOutpaintPaddingForPreset(input: {
+    contentWidth: number;
+    contentHeight: number;
+    nodeWidth: number;
+    nodeHeight: number;
+    presetWidth: number;
+    presetHeight: number;
+}): OutpaintPadding {
+    const contentWidth = positiveOrZero(input.contentWidth);
+    const contentHeight = positiveOrZero(input.contentHeight);
+    const nodeWidth = positiveOrZero(input.nodeWidth);
+    const nodeHeight = positiveOrZero(input.nodeHeight);
+    const presetWidth = positiveOrZero(input.presetWidth);
+    const presetHeight = positiveOrZero(input.presetHeight);
+    if (!contentWidth || !contentHeight || !nodeWidth || !nodeHeight || !presetWidth || !presetHeight) {
+        return ZERO_PADDING;
+    }
+    const padPixelX = Math.max(0, (presetWidth - contentWidth) / 2);
+    const padPixelY = Math.max(0, (presetHeight - contentHeight) / 2);
+    const left = (padPixelX * nodeWidth) / contentWidth;
+    const top = (padPixelY * nodeHeight) / contentHeight;
+    return roundPadding({ left, top, right: left, bottom: top });
+}
+
 export function resolveOutpaintPaddingForRatio(input: { nodeWidth: number; nodeHeight: number; ratio: number; basePadding?: OutpaintPadding }): OutpaintPadding {
     const nodeWidth = positiveOrZero(input.nodeWidth);
     const nodeHeight = positiveOrZero(input.nodeHeight);

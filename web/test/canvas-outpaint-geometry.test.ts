@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
     describeOutpaintSize,
     relocateOutpaintPadding,
+    resolveOutpaintPaddingForPreset,
     snapOutpaintTargetSize,
     resolveOutpaintPadding,
     resolveOutpaintTargetPx,
@@ -284,6 +285,23 @@ describe("relocateOutpaintPadding", () => {
         expect(moved.bottom).toBe(96);
         expect(moved.left + moved.right).toBe(96);
         expect(moved.top + moved.bottom).toBe(96);
+    });
+});
+
+describe("resolveOutpaintPaddingForPreset", () => {
+    test("centers the source inside the preset target in world units", () => {
+        // 原图 1403×1121 显示 701.5×560.5（scale=0.5）；目标 2048×1536 → pad 像素 322.5×207.5 → 世界 161.25×103.75。
+        const padding = resolveOutpaintPaddingForPreset({ contentWidth: 1403, contentHeight: 1121, nodeWidth: 701.5, nodeHeight: 560.5, presetWidth: 2048, presetHeight: 1536 });
+        expect(padding.left).toBeCloseTo(161.25, 2);
+        expect(padding.right).toBeCloseTo(161.25, 2);
+        expect(padding.top).toBeCloseTo(103.75, 2);
+        expect(padding.bottom).toBeCloseTo(103.75, 2);
+    });
+
+    test("clamps to zero when the preset is smaller than the content", () => {
+        const padding = resolveOutpaintPaddingForPreset({ contentWidth: 1403, contentHeight: 1121, nodeWidth: 701.5, nodeHeight: 560.5, presetWidth: 1024, presetHeight: 768 });
+        expect(padding.left).toBe(0);
+        expect(padding.top).toBe(0);
     });
 });
 

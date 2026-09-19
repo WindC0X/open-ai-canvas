@@ -14,7 +14,7 @@ import {
     type ImageResolutionChoice,
     type ImageResolutionTier,
 } from "@/lib/image-resolution-tiers";
-import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
+import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveOutpaintPadding, resolveOutpaintPaddingForPreset, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { subscribeCanvasNodeDragPreview, subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -103,6 +103,15 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const [layoutSize, setLayoutSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [padding, setPadding] = useState<OutpaintPadding>(ZERO_PADDING);
     const [dragging, setDragging] = useState(false);
+    // 框位置/尺寸的 transition 只在比例切换展开动画时开启（用户裁定交互）；恒开会让
+    // viewport 跟随 / 拖图松手后的末帧位置修正都被 360ms 动画放大 = 框游动与回弹。
+    const [expanding, setExpanding] = useState(false);
+    const expandingTimerRef = useRef<number | null>(null);
+    const startExpandAnimation = useCallback(() => {
+        setExpanding(true);
+        if (expandingTimerRef.current) window.clearTimeout(expandingTimerRef.current);
+        expandingTimerRef.current = window.setTimeout(() => setExpanding(false), 420);
+    }, []);
     const [ratioKey, setRatioKey] = useState<string>(FREE_RATIO_KEY);
     const [model, setModel] = useState<string>(node?.metadata?.model || config.model);
     const [sizeValue, setSizeValue] = useState<string>("");
@@ -137,6 +146,16 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         () => (sizeParameter === "size" ? imageResolutionChoices(sizeOptions) : []),
         [sizeParameter, sizeOptions],
     );
+    // 档位有效性过滤（用户语义第十一轮）：比例+档位锁定后目标画幅 = 档位×比例的精确像素，
+    // 容不下原图真实像素的档位无意义（目标不可能小于原图），从菜单剔除。auto 始终保留。
+    const tierChoicesValid = useMemo(() => {
+        if (!tierChoices.length) return tierChoices;
+        return tierChoices.filter((tier) => {
+            if (tier === "auto") return true;
+            const candidates = sizePresetOptions.filter((option) => option.tier === tier);
+            return candidates.some((option) => option.width >= contentWidth && option.height >= contentHeight);
+        });
+    }, [contentHeight, contentWidth, sizePresetOptions, tierChoices]);
 
     // 比例槽：aspect_ratio 制用模型档位；size 制用渠道结构化 presets 的去重比例（10 个比例就是 10 个，
     // 不再从全 tier WxH 推导出 2.33:1/7:3 之类重复档）；未选模型时不显示参数槽。
@@ -160,7 +179,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
           : qualityOptions.length > 1
             ? "quality"
             : null;
-    const resolutionOptions = resolutionMode === "size" ? tierChoices : resolutionMode === "quality" ? qualityOptions : [];
+    const resolutionOptions = resolutionMode === "size" ? tierChoicesValid : resolutionMode === "quality" ? qualityOptions : [];
 
     // 模型切换时把比例/档位选择重置进新模型的能力域。
     useEffect(() => {
@@ -173,6 +192,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const selectedTier: ImageResolutionChoice =
         sizeValue && (tierChoices as string[]).includes(sizeValue) ? (sizeValue as ImageResolutionChoice) : "auto";
     const lockedRatioKey = ratioKey !== FREE_RATIO_KEY ? ratioKey : null;
+    // 锁定档位+比例 = 目标画幅定死（preset 精确像素）：手柄禁用（框不再拖拽缩放，
+    // 用户语义第十一轮：调节只能调原图位置/占比），拖图重定位仍可用；
+    // 自由或未锁档时手柄可用（框自由外扩，提交目标 clamp 模型最大长边）。
+    const frameLocked = resolutionMode === "size" && selectedTier !== "auto" && Boolean(lockedRatioKey);
     const submitSize =
         sizeParameter === "aspect_ratio"
             ? (lockedRatioKey ?? sizeFallback)
@@ -470,10 +493,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 imageDragRef.current = { startPadding: paddingRef.current };
                 setDragging(true);
             }
-            const scale = scaleRef.current || 1;
-            // 同步链：ref 直写 + 立即调 updateFrame 直改 frame DOM，与图片 translate 同一 tick 生效。
-            // 走 setState → render → MO 回调的异步链会滞后数帧：观感 = 框跟着拖慢慢漂 + 抬起回弹。
-            paddingRef.current = relocateOutpaintPadding(imageDragRef.current.startPadding, preview.x / scale, preview.y / scale, ratioRef.current !== null);
+            // preview.x/y 已是世界域位移（selection-controller 除以 viewport.k 后发布），
+            // padding 也是世界域——直接使用，不得再除 scale（双重换算会让补偿量随缩放倍增，
+            // 真机非 1:1 视野下表现为框反向大幅移动；headless 适应画布后 scale≈1 测不出）。
+            paddingRef.current = relocateOutpaintPadding(imageDragRef.current.startPadding, preview.x, preview.y, ratioRef.current !== null);
             updateFrameRef.current?.();
         });
         return () => {
@@ -514,9 +537,12 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
 
     const frameStyle: CSSProperties = {
         opacity: visible ? 1 : 0,
-        transition: dragging ? "opacity 150ms ease" : `${FRAME_EXPAND_TRANSITION}, opacity 150ms ease`,
+        // 位置/尺寸 transition 仅 expanding（比例切换展开动画）时开启；拖图与 viewport 跟随路径直改 DOM 即时生效。
+        transition: dragging || !expanding ? "opacity 150ms ease" : `${FRAME_EXPAND_TRANSITION}, opacity 150ms ease`,
     };
 
+    // 框位置/尺寸的 transition 只在比例切换展开动画时开启（用户裁定交互）；恒开会让
+    // viewport 跟随 / 拖图松手后的末帧位置修正都被 360ms 动画放大 = 框游动与回弹。
     const ratioMenuLabel = ratioKey === FREE_RATIO_KEY ? "自由" : ratioKey;
 
     return (
@@ -542,16 +568,16 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 </svg>
                 {/* 扩展区"+"号填充：四条带挖出原图区域，currentColor 随令牌明暗自适应 */}
                 <div className="pointer-events-none absolute inset-0 text-primary/35">
-                    <div ref={(el) => { stripRefs.current.top = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 top-0 overflow-hidden rounded-t-md">
+                    <div ref={(el) => { stripRefs.current.top = el; }} style={{ transition: dragging || !expanding ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 top-0 overflow-hidden rounded-t-md">
                         <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-top)`} /></svg>
                     </div>
-                    <div ref={(el) => { stripRefs.current.bottom = el; }} style={{ transition: dragging ? "none" : "height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-md">
+                    <div ref={(el) => { stripRefs.current.bottom = el; }} style={{ transition: dragging || !expanding ? "none" : "height 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-md">
                         <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-bottom)`} /></svg>
                     </div>
-                    <div ref={(el) => { stripRefs.current.left = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute left-0 overflow-hidden">
+                    <div ref={(el) => { stripRefs.current.left = el; }} style={{ transition: dragging || !expanding ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute left-0 overflow-hidden">
                         <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-left)`} /></svg>
                     </div>
-                    <div ref={(el) => { stripRefs.current.right = el; }} style={{ transition: dragging ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute right-0 overflow-hidden">
+                    <div ref={(el) => { stripRefs.current.right = el; }} style={{ transition: dragging || !expanding ? "none" : "width 360ms cubic-bezier(0.22,1,0.36,1), top 360ms cubic-bezier(0.22,1,0.36,1), bottom 360ms cubic-bezier(0.22,1,0.36,1)" }} className="absolute right-0 overflow-hidden">
                         <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID}-right)`} /></svg>
                     </div>
                 </div>
@@ -564,22 +590,22 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 {CORNER_HANDLES.map((handle) => (
                     <div
                         key={handle.edge}
-                        onPointerDown={(event) => onHandlePointerDown(event, handle.edge)}
+                        onPointerDown={(event) => { if (!frameLocked) onHandlePointerDown(event, handle.edge); }}
                         onPointerMove={onHandlePointerMove}
                         onPointerUp={onHandlePointerUp}
                         onPointerCancel={onHandlePointerUp}
-                        className={`pointer-events-auto absolute size-3 rounded-full border-2 border-background bg-primary shadow-sm ${handle.className}`}
+                        className={`pointer-events-auto absolute size-3 rounded-full border-2 border-background bg-primary shadow-sm ${frameLocked ? "opacity-40" : ""} ${handle.className}`}
                         data-testid={`canvas-outpaint-handle-${handle.edge}`}
                     />
                 ))}
                 {EDGE_HANDLES.map((handle) => (
                     <div
                         key={handle.edge}
-                        onPointerDown={(event) => onHandlePointerDown(event, handle.edge)}
+                        onPointerDown={(event) => { if (!frameLocked) onHandlePointerDown(event, handle.edge); }}
                         onPointerMove={onHandlePointerMove}
                         onPointerUp={onHandlePointerUp}
                         onPointerCancel={onHandlePointerUp}
-                        className={`pointer-events-auto absolute rounded-full border border-primary/40 bg-background/60 backdrop-blur-sm transition-colors hover:bg-primary/25 ${handle.className}`}
+                        className={`pointer-events-auto absolute rounded-full border border-primary/40 bg-background/60 backdrop-blur-sm transition-colors hover:bg-primary/25 ${frameLocked ? "opacity-40" : ""} ${handle.className}`}
                         data-testid={`canvas-outpaint-handle-${handle.edge}`}
                     />
                 ))}
@@ -636,6 +662,17 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                                     const layoutWidth = nodeElementRef.current?.offsetWidth || layoutSize.width;
                                     const layoutHeight = nodeElementRef.current?.offsetHeight || layoutSize.height;
                                     if (!layoutWidth || !layoutHeight) return;
+                                    // 唯一开启位置/尺寸 transition 的入口：比例切换的 360ms 展开跟随。
+                                    startExpandAnimation();
+                                    if (sizeParameter === "size" && selectedTier !== "auto") {
+                                        // 锁定档位（用户语义第十一轮）：目标画幅 = 档位×比例 的 preset 精确像素，
+                                        // 原图居中，框定死——后续拖图只调位置，手柄禁用。
+                                        const preset = sizePresetOptions.find((option) => option.tier === selectedTier && option.ratio === key);
+                                        if (preset) {
+                                            applyPadding(resolveOutpaintPaddingForPreset({ contentWidth, contentHeight, nodeWidth: layoutWidth, nodeHeight: layoutHeight, presetWidth: preset.width, presetHeight: preset.height }));
+                                            return;
+                                        }
+                                    }
                                     applyPadding(resolveOutpaintPaddingForRatio({ nodeWidth: layoutWidth, nodeHeight: layoutHeight, ratio: nextRatio, basePadding: paddingRef.current }));
                                 },
                             }}
@@ -651,7 +688,25 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                                     size="small"
                                     variant="borderless"
                                     value={resolutionMode === "size" ? selectedTier : qualityOptions.includes(qualityValue) ? qualityValue : qualityOptions[0]}
-                                    onChange={(value) => (resolutionMode === "size" ? setSizeValue(String(value)) : setQualityValue(String(value)))}
+                                    onChange={(value) => {
+                                        const next = String(value);
+                                        if (resolutionMode === "size") {
+                                            setSizeValue(next);
+                                            // 锁定档位切换（用户语义第十一轮）：档位×当前比例 → preset 精确目标，
+                                            // 原图居中重新布局；auto 回落自由外扩语义（手柄恢复可用）。
+                                            if (next !== "auto" && lockedRatioKey && node) {
+                                                const preset = sizePresetOptions.find((option) => option.tier === next && option.ratio === lockedRatioKey);
+                                                const layoutWidth = nodeElementRef.current?.offsetWidth || layoutSize.width;
+                                                const layoutHeight = nodeElementRef.current?.offsetHeight || layoutSize.height;
+                                                if (preset && layoutWidth && layoutHeight) {
+                                                    startExpandAnimation();
+                                                    applyPadding(resolveOutpaintPaddingForPreset({ contentWidth, contentHeight, nodeWidth: layoutWidth, nodeHeight: layoutHeight, presetWidth: preset.width, presetHeight: preset.height }));
+                                                }
+                                            }
+                                            return;
+                                        }
+                                        setQualityValue(next);
+                                    }}
                                     options={resolutionOptions.map((value) => ({ value, label: String(value) === "auto" ? "AUTO" : String(value).toUpperCase() }))}
                                     popupMatchSelectWidth={false}
                                     placement="topLeft"
