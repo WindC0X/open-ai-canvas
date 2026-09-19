@@ -150,6 +150,13 @@
 - [x] K4 扩图提示词封装（反馈 4+5+6）：实锤两处暴露——前端链 canvasGenerationPromptMetadata(composerContent=追加, prompt=模板全文) composer 显示追加说明（不暴露 ✓）；**agent 链后端 createCloudAgentMediaNode 把 LLM 提示词同时写进 composerContent → 结果节点 composer 直接展示内部提示词（截图 5 实锤）**。修 = 后端对 outpaint 任务（mode=image && OutpaintRatio 非空）composerContent 置空 + metadata.outpaint={ratio} 标记（prompt 保留供重试/审计）；agent 扩图结果节点 composer 回归占位态。前端工具链生成节点无需改动（composerContent 语义已正确）。
 - 验证：几何 18 例全绿（relocate 3 例新增）；全量 1841 tests / 18 fail = 存量基线；tsc/build 双绿；go test app 包 media/outpaint 全绿。
 
+## 用户终验反馈修复（2026-09-19 第十轮，提交 299fadee）
+
+- [x] L1 拖图方向反转（反馈 1：按住图片拖动变成框反向移动）：K2 拦截方案的结构性缺陷——padding 转移数学正确但图片本身不跟手（rect 不动、框随 padding 移动）= 视觉反向。重构：**删除内容盒 pointerdown 拦截，图片恢复原生节点拖拽（跟手）**，overlay 订阅 `subscribeCanvasNodeDragPreview` 拖拽预览事件实时反向补偿 padding——图片移 dx 则 left 增 dx / right 减 dx，框 rect 数学静止；贴边后 padding 无余量框随图扩展；ratio 锁定时总量守恒。headless：拖 (73,19) 图片跟手、框 drift (0.0,0.0) 精确静止、preview 事件 12 个正常流动。
+- [x] L2 内部 composer 仍弹出（反馈 2）：「内部 composer」= 节点内 hover 信息态卡（CanvasNodeHoverComposer，flora S1），与画布级 composer 是两个实例——扩图激活时前者只由 dialogOpen 抑制而扩图 overlay 不是 dialog 挂件。修 = project.tsx `dialogOpenNodeId={outpaintNodeId ?? dialogNodeId}`（扩图目标节点同语义挂载 → hoverComposerVisible=false）；headless：扩图激活态 `data-node-hover-composer="visible"` 数 0。另修信息态取值顺序 `composerContent ?? prompt`（原 `prompt ?? composerContent` 会优先显示提交链合成文本=扩图模板全文），追加说明优先、模板不暴露。存量污染节点（composerContent 已被旧版写入全文）依赖 dialogOpen 抑制兜底。
+- 排查插曲（记入排查史）：headless 首测 M2 节点不动系 mouse.down 命中参数条（框下 16px 覆盖节点中心），改拖节点上部 1/4 后 PASS；另发现 select 选中挂载 composer 时 elementsById 预览缓存可能陈旧（元素失连后 apply 只 dispatch 不设 translate）——headless 伪影/存量疑点，与 F-06 无关，登记待观察。
+- 验证：tsc 双绿；几何 18 例全绿；全量 1841 tests / 18 fail = 存量基线。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
