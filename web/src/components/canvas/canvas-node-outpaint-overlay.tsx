@@ -102,6 +102,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     // 扩展区纹理层：单一全铺 pattern + clip-path 挖出图片视觉矩形（洞跟随拖图 transform 逐帧直写）。
     // 取代旧「四条带挖洞」——拖图时洞跟图片走、原位露纹理（tapnow 同款），frame 内部零布局变化。
     const clipHoleRef = useRef<HTMLDivElement>(null);
+    const maskRectRef = useRef<SVGRectElement>(null);
     const barRef = useRef<HTMLDivElement>(null);
     const nodeElementRef = useRef<HTMLElement | null>(null);
     const scaleRef = useRef(1);
@@ -328,10 +329,15 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     // 扩展区纹理洞直写（frame 相对坐标）：evenodd 双环 polygon，内环 = 图片视觉矩形。
     // 拖图 pointermove 与松手 commit 都走这里；比例切换/手柄路径由 updateFrame 调用（位移 0）。
     const writeClipHole = useCallback((x: number, y: number, w: number, h: number) => {
-        const clip = clipHoleRef.current;
-        if (!clip) return;
-        const hole = `${x.toFixed(2)}px ${y.toFixed(2)}px, ${(x + w).toFixed(2)}px ${y.toFixed(2)}px, ${(x + w).toFixed(2)}px ${(y + h).toFixed(2)}px, ${x.toFixed(2)}px ${(y + h).toFixed(2)}px`;
-        clip.style.clipPath = `polygon(evenodd, 0px 0px, 100% 0px, 100% 100%, 0px 100%, ${hole})`;
+        // 洞用 SVG mask 矩形实现，不用 clip-path polygon(evenodd)：CSS polygon 是单条连续
+        // 路径，外环末点到内环首点的跳边 + 隐式闭合边是横贯 gap 的长对角线，evenodd 逐点
+        // 奇偶翻转把对角线扫过区误剪（第十七轮"沙漏缺口"根源，数学复现实证）。
+        const mask = maskRectRef.current;
+        if (!mask) return;
+        mask.setAttribute("x", `${x.toFixed(2)}`);
+        mask.setAttribute("y", `${y.toFixed(2)}`);
+        mask.setAttribute("width", `${Math.max(0, w).toFixed(2)}`);
+        mask.setAttribute("height", `${Math.max(0, h).toFixed(2)}`);
     }, []);
 
     const updateFrame = useCallback(() => {
@@ -581,8 +587,6 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 wrapperEl: wrapper,
                 holeBase,
             };
-            // 同步关掉洞的展开过渡：React render（dragging state）生效前到达的首帧 move 不能拖尾。
-            if (clipHoleRef.current) clipHoleRef.current.style.transition = "none";
             setDragging(true);
             try {
                 contentEl.setPointerCapture(event.pointerId);
@@ -615,7 +619,6 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             drag.wrapperEl.style.left = "";
             drag.wrapperEl.style.top = "";
             // 恢复洞的展开过渡（拖图期间被直写为 none；React style diff 判同值时不会重写）
-            if (clipHoleRef.current) clipHoleRef.current.style.transition = "";
             try {
                 if (drag.contentEl.hasPointerCapture(event.pointerId)) drag.contentEl.releasePointerCapture(event.pointerId);
             } catch {
@@ -706,17 +709,19 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         </pattern>
                     </defs>
                 </svg>
-                {/* 扩展区"+"号纹理：全铺 + clip-path evenodd 挖出图片视觉矩形。拖图时洞跟随
-                    transform 逐帧直写（原位露纹理、图片永在洞中可见），手柄拖边时洞随 frame 重算。 */}
-                <div
-                    ref={clipHoleRef}
-                    className="pointer-events-none absolute inset-0 text-primary/35"
-                    style={{
-                        clipPath: "polygon(evenodd, 0px 0px, 100% 0px, 100% 100%, 0px 100%, -16px -16px, -16px -16px, -16px -16px, -16px -16px)",
-                        transition: dragging || !expanding ? "none" : "clip-path 360ms cubic-bezier(0.22,1,0.36,1)",
-                    }}
-                >
-                    <svg width="100%" height="100%"><rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} /></svg>
+                {/* 扩展区"+"号纹理：全铺 + SVG mask 挖出图片视觉矩形（白=显示/黑=隐藏）。
+                    拖图时洞跟随 transform 逐帧直写（原位露纹理、图片永在洞中可见），
+                    手柄拖边时洞随 frame 重算；mask 矩形无多边形对角线伪影。 */}
+                <div ref={clipHoleRef} className="pointer-events-none absolute inset-0 text-primary/35">
+                    <svg width="100%" height="100%">
+                        <defs>
+                            <mask id={`${PLUS_PATTERN_ID}-hole`} maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
+                                <rect width="100%" height="100%" fill="white" />
+                                <rect ref={maskRectRef} x="-16" y="-16" width="0" height="0" fill="black" />
+                            </mask>
+                        </defs>
+                        <rect width="100%" height="100%" fill={`url(#${PLUS_PATTERN_ID})`} mask={`url(#${PLUS_PATTERN_ID}-hole)`} />
+                    </svg>
                 </div>
                 {/* 三分网格只画内部 4 线，避免 9 格 border 外缘描重 */}
                 <div className="pointer-events-none absolute inset-y-0 left-1/3 w-px bg-primary/30" />

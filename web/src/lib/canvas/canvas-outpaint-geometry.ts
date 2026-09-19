@@ -277,42 +277,36 @@ export function resolveOutpaintPaddingForRatio(input: { nodeWidth: number; nodeH
     const ratio = Number.isFinite(input.ratio) && input.ratio > 0 ? input.ratio : 0;
     const base = sanitizePadding(input.basePadding ?? { left: 0, top: 0, right: 0, bottom: 0 });
     if (!nodeWidth || !nodeHeight || !ratio) return base;
-    // 目标：框比 = ratio，且新框与当前框「最接近」（对数面积距离）——切比例是重排不是放大。
-    // 两个合法解：锚定横轴总外扩反解纵轴 / 锚定纵轴反解横轴（锚定轴只增不减，被解轴按比例
-    // 精确反解且允许收缩，负值时回落最小合法框）。旧实现恒锚横轴，3:2 大框翻 2:3 时巨量
-    // 横向外扩被强行保留、纵轴按比例爆炸（框溢出屏幕，用户实测）。
-    const solveFromHorizontal = (swIn: number): { sw: number; sh: number } => {
-        let sw = Math.max(0, swIn);
-        let sh = (nodeWidth + sw) / ratio - nodeHeight;
-        if (sh < 0) {
-            sh = 0;
-            sw = Math.max(0, ratio * nodeHeight - nodeWidth);
-        }
-        return { sw, sh };
-    };
-    const solveFromVertical = (shIn: number): { sw: number; sh: number } => {
-        let sh = Math.max(0, shIn);
-        let sw = ratio * (nodeHeight + sh) - nodeWidth;
-        if (sw < 0) {
-            sw = 0;
-            sh = Math.max(0, nodeWidth / ratio - nodeHeight);
-        }
-        return { sw, sh };
-    };
-    const candidateH = solveFromHorizontal(base.left + base.right);
-    const candidateV = solveFromVertical(base.top + base.bottom);
-    const currentArea = (nodeWidth + base.left + base.right) * (nodeHeight + base.top + base.bottom);
-    const distance = (c: { sw: number; sh: number }) => Math.abs(Math.log(((nodeWidth + c.sw) * (nodeHeight + c.sh)) / currentArea));
-    const distH = distance(candidateH);
-    const distV = distance(candidateV);
-    // 并列（同比例重选等）取外扩更大者：锚定轴「只增不减」语义在等价解下保留。
-    const chosen = Math.abs(distH - distV) < 0.01
-        ? (candidateH.sw + candidateH.sh >= candidateV.sw + candidateV.sh ? candidateH : candidateV)
-        : (distH < distV ? candidateH : candidateV);
+    // 用户裁定 2026-09-19 第十七轮：比例切换 = 外扩总量（sw+sh）守恒的重排——框量级不变、
+    // 形状按目标比例重排、图片方位保持。旧「锚定候选 + 面积最近」把当前框面积当基准，
+    // 锚定轴只增不减 → 连续切换比例时面积滚雪球（超级加倍实测）。
+    // 联立：sw + sh = S，(W+sw)/(H+sh) = ratio → sh = (W + S − r·H)/(1 + r)，sw = S − sh。
+    // S 不足以满足比例（小于最小合法框的外扩和）时回落最小合法框（比例优先于守恒）。
+    const total = base.left + base.right + base.top + base.bottom;
+    let minW = nodeWidth;
+    let minH = nodeWidth / ratio;
+    if (minH < nodeHeight) {
+        minH = nodeHeight;
+        minW = ratio * nodeHeight;
+    }
+    const minSum = minW - nodeWidth + (minH - nodeHeight);
+    let sw: number;
+    let sh: number;
+    if (total <= minSum) {
+        sh = minH - nodeHeight;
+        sw = minW - nodeWidth;
+    } else {
+        sh = (nodeWidth + total - ratio * nodeHeight) / (1 + ratio);
+        sw = total - sh;
+    }
+    if (sh < 0 || sw < 0) {
+        sh = minH - nodeHeight;
+        sw = minW - nodeWidth;
+    }
     // 分配（图片方位保持：dL/dB 中心偏移半和分配，clamp 到 [0, 总量]，差额自然并入对边）。
-    const swRounded = Math.round(chosen.sw);
+    const swRounded = Math.round(sw);
     const left = Math.min(swRounded, Math.max(0, Math.round((swRounded + (base.left - base.right)) / 2)));
-    const shRounded = Math.round(chosen.sh);
+    const shRounded = Math.round(sh);
     const top = Math.min(shRounded, Math.max(0, Math.round((shRounded + (base.top - base.bottom)) / 2)));
     return { left, right: swRounded - left, top, bottom: shRounded - top };
 }

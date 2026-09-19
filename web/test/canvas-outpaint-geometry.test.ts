@@ -378,17 +378,31 @@ describe("resolveOutpaintPaddingForRatio", () => {
         expect(padding.left).toBeGreaterThan(padding.right);
     });
 
-    test("flipping a large 3:2 frame to 2:3 does not explode (user case 3283x2189 → overflow)", () => {
-        // 用户实测：3:2 大框（横向外扩 1747/1165）选 2:3 时，旧恒锚横轴实现把巨量横向外扩
-        // 强行保留 → 纵轴按比例爆炸溢出屏幕。新语义 = 取与当前框最接近的合法解（锚纵轴，
-        // 横轴收回最小量），框量级不变。
+    test("flipping a large 3:2 frame to 2:3 transposes magnitude (sum conservation, user case 3283x2189)", () => {
+        // 用户实测第十六/十七轮：比例切换既不能巨量放大（恒锚横轴爆炸）也不能超级加倍
+        // （面积最近候选滚雪球）。裁定语义 = 外扩总量守恒的重排：3283×2189 翻 2:3 → 2189×3283。
         const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio: 2 / 3, basePadding: { left: 874, right: 873, top: 583, bottom: 582 } });
         expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(2 / 3, 2);
         const frameW = 1536 + padding.left + padding.right;
         const frameH = 1024 + padding.top + padding.bottom;
-        // 最小合法 2:3 框 = 1536×2304（含 1536 宽原图，纵轴 1280 外扩）；旧实现为 3283×4924。
-        expect(frameW).toBe(1536);
-        expect(frameH).toBe(2304);
+        expect(frameW).toBe(2189);
+        expect(frameH).toBe(3283);
+        // 总外扩守恒：1747+1165 = 2912。
+        expect(padding.left + padding.right + padding.top + padding.bottom).toBe(1747 + 1165);
+    });
+
+    test("clicking through the ratio list never snowballs (super-doubling regression)", () => {
+        let base = { left: 874, right: 873, top: 583, bottom: 582 };
+        const initialTotal = 1747 + 1165;
+        let maxArea = 0;
+        for (const ratio of [1, 16 / 9, 9 / 16, 4 / 3, 3 / 4, 3 / 2, 2 / 3, 1, 21 / 9, 1]) {
+            base = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio, basePadding: base });
+            const total = base.left + base.right + base.top + base.bottom;
+            expect(total).toBeLessThanOrEqual(initialTotal + 2);
+            maxArea = Math.max(maxArea, (1536 + base.left + base.right) * (1024 + base.top + base.bottom));
+        }
+        // 面积始终 ~S 守恒量级（≤1.25 倍初始），绝不滚雪球。
+        expect(maxArea).toBeLessThan((1536 + 874 + 873) * (1024 + 583 + 582) * 1.25);
     });
 
     test("same-ratio re-selection keeps the frame (closest-solution tie goes to larger expansion)", () => {
@@ -400,9 +414,9 @@ describe("resolveOutpaintPaddingForRatio", () => {
         expect(padding.top).toBeGreaterThanOrEqual(582);
     });
 
-    test("never shrinks the dominant axis when re-ratioing", () => {
+    test("re-ratioing conserves the outpaint total (magnitude follows user drags, not ratio switches)", () => {
         const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 1536, nodeHeight: 1024, ratio: 3 / 2, basePadding: { left: 576, right: 576, top: 64, bottom: 64 } });
-        expect(padding.left + padding.right).toBeGreaterThanOrEqual(1152 - 1);
+        expect(padding.left + padding.right + padding.top + padding.bottom).toBe(1152 + 128);
         expect(frameRatio(padding, 1536, 1024)).toBeCloseTo(3 / 2, 2);
     });
 
