@@ -179,6 +179,15 @@
 - [x] O4 环境根修：:3001 dev server 反复静默死亡 = bunx 后台包装不稳定；改 `nohup node node_modules/vite/bin/vite.js --port 3001 --strictPort`（与主 checkout 同款方式）后稳定。**启动必须带 VITE_API_PROXY_TARGET=http://127.0.0.1:8181**（漏带即 502"后端不可用"，上一轮"登录失败"根因）。proxy/env/探活已入启动命令模板。
 - 验证：tsc 双绿；几何 22 例全绿（preset 居中 2 例新增）；全量 1845 tests / 18 fail = 存量基线；build 通过；页面/代理双 200 + 新代码进产物实测。
 
+## 用户终验反馈修复（2026-09-19 第十三轮，提交见 git log）
+
+- [x] Q1 档位语义再纠正（用户教学：扩图扩的是**空间/信息**，不是实际分辨率扩大——2K 图可用 1K 档生成；档位/比例只需在**所选模型支持域**内；自由模式 = 模型支持自定义；"不超 4K" = 模型最大分辨率约束）：撤销第十二轮的档位过滤（tierChoicesValid）与手柄禁用（frameLocked）——两者建立在"目标 ≥ 原图"的错误约束上。**新语义**：锁定档位+比例 → 提交 size 恒 = preset 精确像素（与拖拽量级解耦）；框显示自由（手柄可用、比例锁定重排）；**合成按占比缩放**——padImageToDataUrl 新增 target 模式（合成画布 = preset 像素、原图 drawImage 按 k=preset/框像素 缩放摆入），buildOutpaintSubmitVariants 透传 target；snapOutpaintTargetSize 去 content 排除参数（paddingPx×k 缩放）。resolveOutpaintPaddingForPreset 删除（居中方案废弃）。
+- [x] Q2 拖图微震动 + 贴边顶框（反馈 2）：微震动 = preview 位移与 padding 补偿的浮点舍入差逐帧残留 → 修 = **拖图会话冻结 frame DOM**（updateFrame 对 imageDragRef 非空早退，preview 回调只累积 paddingRef 不触碰 DOM）——拖动全程框零写入=零震动；松手 padding 终值 + 节点 commit 位置一次重算精确衔接。贴边顶框 = relocate 自由分支的 overflow 扩展语义 → **统一总量守恒**（自由与锁定同语义：拖图到边图片停住，框永不被顶着移动；扩图总量由手柄/档位决定）。relocate 测试更新（守恒 2 例）。
+- [x] Q3 扩图模式禁用画布对齐线（反馈 3）：useCanvasSelectionController 新增 alignmentSuppressed 参数（ref 镜像，拖拽帧与 mouseup commit 两处跳过 calculateNodeAlignment），project.tsx 传 Boolean(outpaintNodeId)。
+- [x] Q4 九宫格线增强（反馈 4）：三分内线 primary/15 → /30（+号之外可辨识，辅助框内拖动定位）。
+- [x] Q5 跨线端口协作（A 线对照单）：B 线占用 :3001（vite，proxy→:8181 backend，数据目录 .local/f06-wt-debug）；不碰 A 线的 :3000/:8081/tab 62；tmwd 桥（18765/18766）B 线不使用（headless 用本地 playwright）；接受前台互斥与 batch 纪律。已确认两线端口零交叠。
+- 验证：tsc/build 双绿；几何 20 例全绿（relocate 守恒 + snap 占比缩放语义更新）；全量 1843 tests / 18 fail = 存量基线；vite 重启后新代码进产物实测（preset 函数 0 残留、守卫 1 处）。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
