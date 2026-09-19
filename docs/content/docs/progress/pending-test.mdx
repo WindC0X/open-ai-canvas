@@ -3203,3 +3203,18 @@ d (docs(progress): 登记视频族S6裁剪批与持久化自愈修复)
 - ❌ **缺陷 D2（前端，P1）：页面刷新后撤销条永久消失**。`conversation.run` 未被持久化（IndexedDB 会话文档 868KB 中无任何 `"run":` 键，仅有消息 detail 里的旧 runId 文本）→ reload 后 hydrate 出的 run 为 null/失真 → 撤销预检 effect 依赖 `run?.id` 不触发 → 服务端明明可撤销，UI 永远不显示撤销条。需手动 API 调用才能确认撤销可用。
 - ⚠️ 观测：测试期间"同意执行"审批按钮在**画布上**而非面板内，面板状态一度显示"等待审批"但无批准入口（跨容器审批 UI 可达性）。
 - 复测环境：后端 22:11 新二进制（applied-only）+ vite polling 前端，测试会话 lJVWIfO7 画布。
+
+## 撤销链自毁双根修与 A3 链式真机全通（2026-09-20）
+
+### 已修复（真机验证通过）
+
+1. **hash 口径对话字段自毁**：撤销成功后面板追加"已撤销"系统条目 → 画布 `chatSessions` 变化 → 全文档 hash 变化 → 链式撤销永远命中"画布已发生后续变化"。修复：`cloudAgentCanvasHash` 排除 chatSessions/activeChatId/backgroundMode/showImageInfo（viewport/updatedAt 原已排除）。
+2. **节点时间戳自毁**：Agent 写入的节点不带时间戳，本地同步 PUT 补 `createdAt/updatedAt` → 仅时间戳之差改变 hash，同样自毁链式。修复：hash 归一化递归剔除所有层级的 createdAt/updatedAt。
+3. **归一化反射修**：执行链把 nodes 归一成 `[]map[string]any`（JSON 解析后是 `[]any`），type switch 对具体 Go 类型失配导致整棵子树跳过剔除，prepare 口径与 patch 口径分叉 4.7KB。修复：改用 reflect 递归。
+4. **撤销条质感与"不撤销"**：撤销条改 PlanBar 同卡片家族（node.fill+node.stroke），新增"不撤销"收起钮（服务端能力不变，预检变化自动重现），不可撤销提示同家族化。
+
+### 真机验证记录（tmwd 实测）
+
+- A3 链式双连撤：65→64→63 节点，第一撤后撤销条回归呈现上一步（重预检 canUndo:true），第二撤后无可撤消失，服务端 mutation 链 applied→undone 正确
+- 撤销成功 adopt 后本地与服务端节点数一致，无反噬（PUT 回滚态被覆盖问题未复现）
+- 存量 mutation 因 hash 口径变更作废（dev 库清空，生产无存量）
