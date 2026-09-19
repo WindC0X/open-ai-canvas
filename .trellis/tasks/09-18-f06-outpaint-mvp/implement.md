@@ -188,6 +188,19 @@
 - [x] Q5 跨线端口协作（A 线对照单）：B 线占用 :3001（vite，proxy→:8181 backend，数据目录 .local/f06-wt-debug）；不碰 A 线的 :3000/:8081/tab 62；tmwd 桥（18765/18766）B 线不使用（headless 用本地 playwright）；接受前台互斥与 batch 纪律。已确认两线端口零交叠。
 - 验证：tsc/build 双绿；几何 20 例全绿（relocate 守恒 + snap 占比缩放语义更新）；全量 1843 tests / 18 fail = 存量基线；vite 重启后新代码进产物实测（preset 函数 0 残留、守卫 1 处）。
 
+## 用户终验反馈修复（2026-09-19 第十四轮，提交见 git log）
+
+- [x] R1 拖图架构根重构（反馈 1：拖图原位空掉/图片拖出框/松手回填/框被顶走——补偿-抵消架构真机失效）：**放弃借道节点拖拽管线的补偿式方案**（贴边后 padding 补偿封顶、节点继续跟手 = 框被顶走；管线无边界 = 图片可拖出框；headless scale≈1 测不出）。新架构 = overlay 自实现拖拽：
+  - 容器级捕获委托 pointerdown（目标时刻解析 contentEl，虚拟化重建不失连；stopPropagation 阻断节点拖拽/画布手势管线）+ setPointerCapture；
+  - pointermove：位移 **clamp 在 padding 余量内**（图片视觉 rect 永不越出 frame，贴边即停）；图片 transform 直改跟手 + **纹理洞 clip-path（evenodd 双环）同帧跟随**（洞 = 图片视觉矩形，rect 已含 transform，直接相对 frame，不得再加位移）+ paddingRef 累积（relocate 守恒）；
+  - frame 拖动全程冻结（imageDragRef 早退，DOM 零写入 = 零震动）；
+  - 松手**同批提交**：onNodeMove（节点 position += 位移世界域）+ applyPadding（重分布）→ frame = node' + pad' 数学不变（零跳变）+ transform 清零。React 18 事件批处理一次 paint 无闪帧。
+  - 纹理层从「四条带挖洞」重构为**单一 pattern 全铺 + clip-path 洞**：拖图时洞跟图片走、原位露 + 号纹理（tapnow 同款），frame 内部零布局变化；拖洞 transition 在 pointerdown 同步置 none（防 React render 前首帧拖尾），pointerup 清 inline 恢复。
+  - onNodeMove 接线：overlay → media-dialogs（onOutpaintNodeMove）→ project.tsx setNodes 包装（stampCanvasNodeChanges 走既有持久化链）。
+- [x] R2 「原图比例」默认 + 「自由」allowCustom 门控（反馈 3，截图实锤模型编辑弹窗「允许自定义」=关但扩图仍显示自由）：ratioOptions = [原图比例(默认首项), ...模型枚举档位, ...(allowCustom ? [自由] : [])]；ORIGINAL_RATIO_KEY 数值 = 原图真实宽高比（contentWidth/contentHeight）；初始与模型切换默认原图比例；aspect_ratio 制 original 提交回落模型默认（枚举无该值）；size 制 original+tier → snap 候选 = 该 tier 全部 presets（按面积就近取档，提交像素必落模型域内）。
+- [x] R3 参数条居中（反馈 2）：判定为 R1 拖图 bug 的伴生症状（框被顶走后 bar 跟随歪框；J4 曾实测 deltaCX=0），拖图根修后 frame 位置稳定即恢复；待用户复测确认。
+- 验证口径（如实声明）：tsc/eslint/build 双绿；全量 1843 tests / 18 fail = 存量基线；几何纯函数无新改动（clamp 在 UI 层）。**拖图手感、贴边停住、洞跟随、松手零跳变均属真机交互，headless 合成事件无法等价验证（第十四轮教训）**——以上由用户真机验收，不再宣称自测通过。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
