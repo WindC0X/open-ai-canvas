@@ -9,8 +9,10 @@
 }
 
 .agent-model-picker-popover .canvas-model-picker-menu {
-    width: min(340px, calc(100vw - 24px)) !important;
-    max-width: min(340px, calc(100vw - 24px)) !important;
+    /* 与 globals.css .canvas-model-picker-popover 外壳 384 同宽(2026-09-19): 两条 !important
+       分别钉外壳 384/菜单 340 时, 差值变成外壳右侧玻璃空白列, flyout 左缘被视觉融合遮住。 */
+    width: min(384px, calc(100vw - 24px)) !important;
+    max-width: min(384px, calc(100vw - 24px)) !important;
 }
 
 /* Flex 子页必须允许收缩，长模型名和 Skill 文案不能决定窗口宽度。 */

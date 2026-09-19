@@ -7803,6 +7803,14 @@ html:not(.dark) .creation-studio-control:hover,
         width: min(384px, calc(100vw - 24px)) !important;
     }
 
+    /* 外壳钉 384 后内层菜单必须同宽: 菜单默认 w-[var(--panel-width-compact)](320),
+      比外壳窄出 ~49px 玻璃空白列, flyout(锚定菜单右缘+8) 左缘落进空白列, 同色玻璃
+      视觉融合成 "L1 空白列压住 L2"(2026-09-19 用户实测截图)。菜单填满外壳后
+      menuRef 右缘 == 外壳右缘, flyout 锚点自动对齐。 */
+    .canvas-model-picker-popover .canvas-model-picker-menu {
+        width: min(384px, calc(100vw - 24px)) !important;
+    }
+
     /* 节点悬浮工具栏: 同一玻璃材质族(2026-09-12 微供给任务)。
        与模型菜单/参数面板同源值, radius 14(h-11 密度下 16 过圆), 无阴影。 */
     .canvas-node-toolbar .canvas-node-toolbar-surface {
