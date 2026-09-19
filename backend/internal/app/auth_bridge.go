@@ -9,7 +9,7 @@ import (
 )
 
 // SessionCookieName 转发 auth 包的可配置 cookie 名(见 auth.SessionCookieName 的多实例隔离说明)。
-var SessionCookieName = auth.SessionCookieName
+func SessionCookieName() string { return auth.SessionCookieName }
 
 type (
 	EmailCodeCooldownError     = auth.EmailCodeCooldownError

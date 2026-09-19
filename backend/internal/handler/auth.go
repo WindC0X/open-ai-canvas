@@ -1171,7 +1171,7 @@ func currentUser(c *gin.Context, svc *service.Service) (*model.User, error) {
 }
 
 func sessionCookie(c *gin.Context) string {
-	value, _ := c.Cookie(service.SessionCookieName)
+	value, _ := c.Cookie(service.SessionCookieName())
 	return value
 }
 
@@ -1183,7 +1183,7 @@ func passwordResetRateLimitSubject(value string) string {
 func setSessionCookie(c *gin.Context, value string, maxAge int) {
 	secure := c.Request.TLS != nil || strings.EqualFold(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")), "https")
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     service.SessionCookieName,
+		Name:     service.SessionCookieName(),
 		Value:    value,
 		Path:     "/",
 		MaxAge:   maxAge,
@@ -1196,7 +1196,7 @@ func setSessionCookie(c *gin.Context, value string, maxAge int) {
 func clearSessionCookie(c *gin.Context) {
 	secure := c.Request.TLS != nil || strings.EqualFold(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")), "https")
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     service.SessionCookieName,
+		Name:     service.SessionCookieName(),
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,

@@ -98,7 +98,9 @@ func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloud
 			continue
 		}
 		ops[i].X, ops[i].Y = nextX, nextY
-		nextY += 340.0
+		// 步长=该类型默认高度+100 间距(2026-09-19 review P1): 文本节点默认高度已 384,
+		// 固定 340 步长会让多节点纵向压叠 44px。未知类型回退 384。
+		nextY += cloudAgentNodeDefaultHeight(string(ops[i].NodeType)) + 100.0
 	}
 	items := make([]cloudAgentApprovalPreviewItem, 0, len(ops))
 	for _, op := range ops {
@@ -327,7 +329,7 @@ func cloudAgentNodesBounds(nodes []map[string]any) cloudAgentBounds {
 		y, _ := pos["y"].(float64)
 		width, _ := node["width"].(float64)
 		if width <= 0 {
-			width = 340
+			width = 384
 		}
 		if first {
 			result.minX, result.minY, result.maxX = x, y, x+width
@@ -345,4 +347,13 @@ func cloudAgentNodesBounds(nodes []map[string]any) cloudAgentBounds {
 		}
 	}
 	return result
+}
+
+
+// cloudAgentNodeDefaultHeight 返回节点类型的默认高度(落位步长用), 未知/未注册类型回退 384。
+func cloudAgentNodeDefaultHeight(nodeType string) float64 {
+	if d, ok := capability.BuiltinRegistry().Resolve(nodeType); ok && d.DefaultHeight > 0 {
+		return d.DefaultHeight
+	}
+	return 384.0
 }

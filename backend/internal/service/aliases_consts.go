@@ -82,4 +82,4 @@ const (
 )
 
 // SessionCookieName 转发 auth 包的可配置 cookie 名(见 auth.SessionCookieName 的多实例隔离说明)。
-var SessionCookieName = app.SessionCookieName
+func SessionCookieName() string { return app.SessionCookieName() }

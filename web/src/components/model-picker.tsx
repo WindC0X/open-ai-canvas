@@ -157,7 +157,10 @@ export function ModelPicker({
             setFlyoutPos((pos) => {
                 const mr = menuRef.current?.getBoundingClientRect() || ar;
                 const x = Math.max(12, mr.right + 2 + 384 > window.innerWidth - 12 ? mr.left - 384 - 2 : mr.right + 2);
-                const y = Math.max(12, ar.top - 8);
+                // 重算贴底溢出(2026-09-19 review P2-3): 否则逐帧校验会把首帧的向上翻转量覆盖还原。
+                const fr = flyoutRef.current?.getBoundingClientRect();
+                const overflow = fr ? fr.bottom - (window.innerHeight - 12) : 0;
+                const y = Math.max(12, ar.top - 8 - (overflow > 0 ? overflow + 4 : 0));
                 if (Math.abs(pos.x - x) < 1 && Math.abs(pos.y - y) < 1) { stable += 1; return pos; }
                 stable = 0;
                 return { x, y };

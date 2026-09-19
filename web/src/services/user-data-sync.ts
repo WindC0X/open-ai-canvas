@@ -190,7 +190,8 @@ export async function adoptRemoteCanvasAfterUndo(id: string) {
         // 保留本地视口: 撤销是内容级回滚, 不应带用户飞行到远端保存的旧视口。
         const projected = current ? { ...project, viewport: current.viewport } : project;
         for (const listener of agentCanvasListeners) listener(projected, current);
-        acknowledgedProjects.set(id, project);
+        // 基线对齐 projected(含本地视口, 2026-09-19 review P3): 否则视口差被判 dirty, 撤销后立刻多一轮空 PUT。
+        acknowledgedProjects.set(id, projected);
         verifiedProjects.add(id);
         watermarkProjects.set(id, project.updatedAt);
         persistWatermarks();

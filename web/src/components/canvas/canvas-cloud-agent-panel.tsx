@@ -519,12 +519,22 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                 // 用 adoptRemoteCanvasAfterUndo 而非 discard+refresh: 后者 previous=undefined 投影会让
                 // 全部节点被误判为 Agent 新建 → 全选 + 视角飞行(用户实测); adopt 保留 viewport、
                 // 对齐基线与水位, delta 语义与上游 Agent 画布更新一致。
-                adoptRemoteCanvasAfterUndo(canvasId)
-                    .then(() => saveRemoteUserDataNow())
-                    .catch((cause) => {
-                        setMessages((current) => appendAgentError(current, `undo-adopt-${activeRun.id}-${preview.stepId}`, cause, "画布已撤销，但本地画布刷新失败"));
-                    });
             }
+            // 画布级采纳不受会话 scope 制约(2026-09-19 review P2-2): 云端已回滚, 若用户在 POST
+            // 返回前切了会话而跳过 adopt, 本地基线/水位将永久分叉。仅 UI 提示受 scope 管控。
+            adoptRemoteCanvasAfterUndo(canvasId)
+                .then(() => saveRemoteUserDataNow())
+                .then(() => {
+                    // 链式撤销: 成功后重新预检, 让撤销条直接呈现"上一步"(canUndo=true)而非终态。
+                    if (currentScope.current === conversationScope) {
+                        previewAgentUndo(activeRun.id).then((fresh) => { if (currentScope.current === conversationScope) setUndoPreview(fresh.found ? fresh : undefined); }).catch(() => undefined);
+                    }
+                })
+                .catch((cause) => {
+                    if (currentScope.current === conversationScope) {
+                        setMessages((current) => appendAgentError(current, `undo-adopt-${activeRun.id}-${preview.stepId}`, cause, "画布已撤销，但本地画布刷新失败"));
+                    }
+                });
         } catch (cause) {
             if (currentScope.current === conversationScope) {
                 setMessages((current) => appendAgentError(current, `undo-${activeRun.id}-${preview.stepId}`, cause, "撤销未执行"));

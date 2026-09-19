@@ -64,11 +64,13 @@ func TestUndoCloudAgentCanvasRestoresLatestMutationAndIsIdempotent(t *testing.T)
 	if restored.PayloadJSON != canvas.PayloadJSON {
 		t.Fatal("undo did not restore the exact before snapshot")
 	}
+	// 链式语义(review P2-4, PRD A3): applied-only 查询下单 mutation 撤销后, 重复请求
+	// 命中"无可撤销的画布变更", 不再返回 accepted 幂等成功。
 	result, err = s.UndoCloudAgentCanvas("user", run.ID, call.ID, beforeHash, "重复请求")
-	if err != nil || result["accepted"] != true {
-		t.Fatalf("undo should be idempotent: result=%+v err=%v", result, err)
+	if err == nil {
+		t.Fatalf("repeat undo should be rejected under chain semantics: result=%+v", result)
 	}
-	mutation, err := s.repo.LatestCloudAgentCanvasMutation("user", run.ID)
+	mutation, err := s.repo.LatestCloudAgentCanvasMutationAllStatuses("user", run.ID)
 	if err != nil || mutation.Status != "undone" {
 		t.Fatalf("mutation was not marked undone: %+v %v", mutation, err)
 	}
@@ -191,8 +193,9 @@ func TestUndoCanvasPreviewReflectsMutationState(t *testing.T) {
 	if _, err := s.UndoCloudAgentCanvas("user", run.ID, call.ID, cloudAgentCanvasHash(mutatedDoc), "test"); err != nil {
 		t.Fatal(err)
 	}
+	// 链式语义: 撤销后 applied-only 预检找不到 mutation → found=false(无下一条可撤销)。
 	undone := s.UndoCanvasPreview("user", run.ID)
-	if undone["canUndo"] != false || undone["status"] != "undone" {
-		t.Fatalf("undone mutation should preview as not undoable: %+v", undone)
+	if undone["canUndo"] != false || undone["found"] != false {
+		t.Fatalf("after undo, preview should report no undoable mutation: %+v", undone)
 	}
 }
