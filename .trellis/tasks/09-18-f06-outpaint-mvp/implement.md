@@ -166,6 +166,19 @@
 - 环境记录：:3001 vite 两次静默死亡（setsid 启动方式不稳）+ /mnt/f watcher 失效导致探针未进产物误判；改用 `setsid nohup bash -c 'exec bunx vite --port 3001 --strictPort'` 后稳定。headless 自动化与用户真机会话共享同一画布文档会互相干扰（用户操作会改变节点 rect / 触发实时同步），用户测试期间禁止在同一画布跑自动化。
 - 验证：tsc 双绿；几何 20 例全绿；全量 1843 tests / 18 fail = 存量基线。
 
+## 用户终验反馈修复（2026-09-19 第十二轮，提交见 git log）
+
+- [x] O1 拖图框反向移动（反馈 1）：**真单位 bug**——`CANVAS_NODE_DRAG_PREVIEW_EVENT` 的 x/y 是世界域位移（selection-controller 除以 viewport.k 后发布），overlay 回调又除以 scaleRef = 双重换算，补偿量随缩放倍增 → 非 1:1 视野下框大幅反向移动。headless 适应画布后 scale≈1 测不出（假 PASS 根因）。修 = 直接使用 preview.x/y（世界域对世界域）。教训：跨层事件必须标注坐标域。
+- [x] O2 回弹（反馈 1）：FRAME_EXPAND_TRANSITION（left/top/width/height 360ms）恒开——松手 commit 后末帧位置修正被 360ms 动画放大 = 回弹；viewport 平移/缩放跟随同理"游动"。修 = transition 仅 expanding 标志开启（比例切换/档位切换的唯一入口，420ms 后自动关闭），拖图与 viewport 跟随路径直改 DOM 即时生效。
+- [x] O3 锁定档位语义（反馈 2 用户教学：比例+档位定下→分辨率定下→调节只是调原图位置/占比）：
+  - 档位过滤：容不下原图真实像素的档位（如 3:4 的 1K preset < 1492×1054 原图）从分辨率菜单剔除，杜绝"目标比原图还小"的无效组合；
+  - 锁定档位+比例 → 目标画幅 = preset 精确像素定死：新纯函数 `resolveOutpaintPaddingForPreset`（原图居中），选比例/选档位即按 preset 重算 padding；**手柄禁用**（opacity-40 + pointerdown early-return，框不再拖拽缩放）；拖图重定位仍可用（relocate ratio 锁定总量守恒 = 框静止、图位移）；
+  - 自由/auto 模式：手柄恢复可用（框自由外扩），提交目标 clamp 模型最大长边（既有 4096）；
+  - 标注/提交/pad 同源 preset（N3 snap 链在锁定模式下数学恒等，保留兜底）。
+  - 待用户裁定：锁定档位下"原图占比缩放"交互（手柄调 zoom）是否需要——现实现拖图=位置、框=preset 定死，占比调整需节点缩放支持（预览管线不支持 scale transform），超出本轮范围。
+- [x] O4 环境根修：:3001 dev server 反复静默死亡 = bunx 后台包装不稳定；改 `nohup node node_modules/vite/bin/vite.js --port 3001 --strictPort`（与主 checkout 同款方式）后稳定。**启动必须带 VITE_API_PROXY_TARGET=http://127.0.0.1:8181**（漏带即 502"后端不可用"，上一轮"登录失败"根因）。proxy/env/探活已入启动命令模板。
+- 验证：tsc 双绿；几何 22 例全绿（preset 居中 2 例新增）；全量 1845 tests / 18 fail = 存量基线；build 通过；页面/代理双 200 + 新代码进产物实测。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
