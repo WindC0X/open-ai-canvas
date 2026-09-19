@@ -50,6 +50,7 @@ func cloudAgentOutpaintRatioValue(raw string) (float64, int, int) {
 
 // cloudAgentOutpaintPlan 计算把源图 pad 到目标画幅所需的四边扩展像素（源图坐标系）。
 // 语义与前端 resolveOutpaintPaddingForRatio 一致：锚定中心偏移、外扩总量只增不减。
+// 目标总画幅对齐到 16 的倍数（gpt-image 系自定义尺寸校验要求；对其它模型无害）。
 func cloudAgentOutpaintPlan(srcWidth, srcHeight int, ratio float64) (map[string]int, error) {
 	if srcWidth <= 0 || srcHeight <= 0 || ratio <= 0 {
 		return nil, errors.New("扩图参考图无效")
@@ -57,10 +58,37 @@ func cloudAgentOutpaintPlan(srcWidth, srcHeight int, ratio float64) (map[string]
 	sourceRatio := float64(srcWidth) / float64(srcHeight)
 	spaceWidth := math.Round(math.Max(float64(srcWidth)*0.25, cloudAgentOutpaintMinPadding*2))
 	spaceHeight := math.Round(math.Max(float64(srcHeight)*0.25, cloudAgentOutpaintMinPadding*2))
+	round16 := func(v int) int { return ((v + 8) / 16) * 16 }
+	floor16 := func(v int) int { return (v / 16) * 16 }
+	pickAligned := func(wTotal, hTotal int) (int, int) {
+		// 在 floor16/round16 的 2x2 组合里选比例最接近目标的一组；候选必须全部对齐 16，
+		// 原始未对齐值不能进入候选（否则取整永远落选，返回值回到未对齐尺寸）。
+		bestW, bestH, bestDelta := round16(wTotal), round16(hTotal), math.MaxFloat64
+		for _, w := range [2]int{floor16(wTotal), round16(wTotal)} {
+			for _, h := range [2]int{floor16(hTotal), round16(hTotal)} {
+				if w < srcWidth || h < srcHeight || w == 0 || h == 0 {
+					continue
+				}
+				delta := math.Abs(float64(w)/float64(h) - ratio)
+				if delta < bestDelta {
+					bestW, bestH, bestDelta = w, h, delta
+				}
+			}
+		}
+		if bestW < srcWidth {
+			bestW = round16(srcWidth)
+		}
+		if bestH < srcHeight {
+			bestH = round16(srcHeight)
+		}
+		return bestW, bestH
+	}
+
 	switch {
 	case math.Abs(sourceRatio-ratio) < 0.005:
 		// 同比例：四边均匀外扩。
-		return map[string]int{"left": int(spaceWidth / 2), "right": int(spaceWidth / 2), "top": int(spaceHeight / 2), "bottom": int(spaceHeight / 2)}, nil
+		wTotal, hTotal := pickAligned(srcWidth+int(spaceWidth), srcHeight+int(spaceHeight))
+		return map[string]int{"left": (wTotal - srcWidth) / 2, "right": (wTotal - srcWidth) - (wTotal-srcWidth)/2, "top": (hTotal - srcHeight) / 2, "bottom": (hTotal - srcHeight) - (hTotal-srcHeight)/2}, nil
 	case ratio < sourceRatio:
 		// 目标更"竖"：竖直外扩锁定为 spaceHeight，水平外扩由比例反解并保底 spaceWidth。
 		vertical := int(spaceHeight)
@@ -71,6 +99,9 @@ func cloudAgentOutpaintPlan(srcWidth, srcHeight int, ratio float64) (map[string]
 		if needVertical := int(math.Round(float64(srcWidth+horizontal)/ratio)) - srcHeight; needVertical > vertical {
 			vertical = needVertical
 		}
+		horizontal, vertical = pickAligned(srcWidth+horizontal, srcHeight+vertical)
+		horizontal -= srcWidth
+		vertical -= srcHeight
 		return map[string]int{"left": horizontal / 2, "right": horizontal - horizontal/2, "top": vertical / 2, "bottom": vertical - vertical/2}, nil
 	default:
 		// 目标更"横"：水平外扩锁定为 spaceWidth，竖直外扩由比例反解；
@@ -84,6 +115,9 @@ func cloudAgentOutpaintPlan(srcWidth, srcHeight int, ratio float64) (map[string]
 		if needHorizontal := int(math.Round(ratio * float64(srcHeight+vertical))) - srcWidth; needHorizontal > horizontal {
 			horizontal = needHorizontal
 		}
+		horizontal, vertical = pickAligned(srcWidth+horizontal, srcHeight+vertical)
+		horizontal -= srcWidth
+		vertical -= srcHeight
 		return map[string]int{"left": horizontal / 2, "right": horizontal - horizontal/2, "top": vertical / 2, "bottom": vertical - vertical/2}, nil
 	}
 }
@@ -103,12 +137,26 @@ func cloudAgentOutpaintScale(width, height, padding int) float64 {
 func cloudAgentOutpaintPaint(src image.Image, padding map[string]int, scale float64, mask bool) ([]byte, int, int, error) {
 	srcW := src.Bounds().Dx()
 	srcH := src.Bounds().Dy()
+	// snap16 就近对齐 16 的倍数（gpt-image 系自定义尺寸校验要求）；小尺寸（<16）不参与对齐。
+	snap16 := func(v int) int {
+		if v < 16 {
+			return v
+		}
+		if d := v % 16; d > 8 {
+			return v + 16 - d
+		} else {
+			return v - d
+		}
+	}
 	padLeft := int(math.Round(float64(padding["left"]) * scale))
 	padTop := int(math.Round(float64(padding["top"]) * scale))
 	padRight := int(math.Round(float64(padding["right"]) * scale))
 	padBottom := int(math.Round(float64(padding["bottom"]) * scale))
-	targetW := int(math.Round(float64(srcW)*scale)) + padLeft + padRight
-	targetH := int(math.Round(float64(srcH)*scale)) + padTop + padBottom
+	targetW := snap16(int(math.Round(float64(srcW)*scale)) + padLeft + padRight)
+	targetH := snap16(int(math.Round(float64(srcH)*scale)) + padTop + padBottom)
+	// 取整差全部吸收进右/下 padding，左/上 padding 保持不变（锚定语义）。
+	padRight = targetW - int(math.Round(float64(srcW)*scale)) - padLeft
+	padBottom = targetH - int(math.Round(float64(srcH)*scale)) - padTop
 	canvas := image.NewNRGBA(image.Rect(0, 0, targetW, targetH))
 	if !mask {
 		// 底图：白底填满，避免 JPEG 有透明语义歧义。
@@ -198,45 +246,39 @@ func (s *Service) storeResourceFromBytes(userID, kind, fileName, mimeType string
 	return resource, nil
 }
 
-// applyCloudAgentOutpaint 把扩图请求的输入替换为合成产物：
-// 恰好 1 张图片参考 → pad 底图 + mask（都已是账号资源），其余输入原样保留。
-func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a cloudAgentMediaArgs) (map[string]any, error) {
+// applyCloudAgentOutpaint 把扩图请求的参考字段就地替换为合成产物：
+// 恰好 1 张图片参考 → pad 底图 + mask（都已是账号资源）；mode/prompt/config 等其余键原样保留。
+// 返回 pad 后目标画幅（像素），调用方用它显式提交 config.size。
+func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a cloudAgentMediaArgs) (int, int, error) {
 	images, _ := refs["referenceImages"].([]any)
 	if len(images) != 1 {
-		return nil, BadAuthRequest("扩图必须恰好引用 1 张图片节点；多图或无图时请改用普通图生图")
+		return 0, 0, BadAuthRequest("扩图必须恰好引用 1 张图片节点；多图或无图时请改用普通图生图")
 	}
 	sourceMap, _ := images[0].(map[string]any)
 	if sourceMap == nil {
-		return nil, BadAuthRequest("扩图参考节点无效")
+		return 0, 0, BadAuthRequest("扩图参考节点无效")
 	}
 	source := providerMedia{ID: stringValue(sourceMap["id"]), Name: stringValue(sourceMap["name"]), Type: "image", StorageKey: stringValue(sourceMap["storageKey"]), MimeType: stringValue(sourceMap["mimeType"]), Width: cloudAgentMediaInt(sourceMap["width"]), Height: cloudAgentMediaInt(sourceMap["height"])}
 	if source.Width <= 0 || source.Height <= 0 {
-		return nil, BadAuthRequest("扩图参考图缺少真实尺寸")
+		return 0, 0, BadAuthRequest("扩图参考图缺少真实尺寸")
 	}
 	ratio, _, _ := cloudAgentOutpaintRatioValue(a.OutpaintRatio)
 	if ratio <= 0 {
-		return nil, BadAuthRequest("扩图画幅比例无效，请传如 16:9 / 3:2 / 1.5")
+		return 0, 0, BadAuthRequest("扩图画幅比例无效，请传如 16:9 / 3:2 / 1.5")
 	}
 	padding, err := cloudAgentOutpaintPlan(source.Width, source.Height, ratio)
 	if err != nil {
-		return nil, err
+		return 0, 0, err
 	}
 	padded, mask, err := s.cloudAgentOutpaintMaterialize(userID, &source, padding)
 	if err != nil {
-		return nil, err
+		return 0, 0, err
 	}
-	next := map[string]any{}
-	for key, value := range refs {
-		if key == "referenceImages" {
-			continue
-		}
-		next[key] = value
-	}
-	next["referenceImages"] = []any{map[string]any{"id": padded.ID, "name": padded.Name, "storageKey": padded.StorageKey, "type": padded.Type, "mimeType": padded.MimeType, "bytes": padded.Bytes, "width": padded.Width, "height": padded.Height}}
+	refs["referenceImages"] = []any{map[string]any{"id": padded.ID, "name": padded.Name, "storageKey": padded.StorageKey, "type": padded.Type, "mimeType": padded.MimeType, "bytes": padded.Bytes, "width": padded.Width, "height": padded.Height}}
 	if mask != nil {
-		next["mask"] = map[string]any{"id": mask.ID, "name": mask.Name, "storageKey": mask.StorageKey, "type": mask.Type, "mimeType": mask.MimeType, "bytes": mask.Bytes, "width": mask.Width, "height": mask.Height}
+		refs["mask"] = map[string]any{"id": mask.ID, "name": mask.Name, "storageKey": mask.StorageKey, "type": mask.Type, "mimeType": mask.MimeType, "bytes": mask.Bytes, "width": mask.Width, "height": mask.Height}
 	}
-	return next, nil
+	return padded.Width, padded.Height, nil
 }
 
 // cloudAgentMediaInt 宽容解析画布 JSON 里的数值尺寸（float64/int/string）。

@@ -37,7 +37,7 @@ func TestCloudAgentOutpaintPlan(t *testing.T) {
 	}
 	width := 1024 + padding["left"] + padding["right"]
 	height := 1024 + padding["top"] + padding["bottom"]
-	if ratio := float64(width) / float64(height); absDiff(ratio, 1.5) > 0.01 {
+	if ratio := float64(width) / float64(height); absDiff(ratio, 1.5) > 0.02 {
 		t.Fatalf("plan ratio = %.4f, want 1.5 (padding %+v)", ratio, padding)
 	}
 	if padding["top"]+padding["bottom"] <= 0 {
@@ -50,8 +50,27 @@ func TestCloudAgentOutpaintPlan(t *testing.T) {
 	}
 	width = 1024 + padding["left"] + padding["right"]
 	height = 1024 + padding["top"] + padding["bottom"]
-	if ratio := float64(width) / float64(height); absDiff(ratio, 2.0/3.0) > 0.01 {
+	if ratio := float64(width) / float64(height); absDiff(ratio, 2.0/3.0) > 0.02 {
 		t.Fatalf("plan ratio = %.4f, want %.4f (padding %+v)", ratio, 2.0/3.0, padding)
+	}
+}
+
+func TestCloudAgentOutpaintPlanAlignedTo16(t *testing.T) {
+	for _, c := range []struct{ w, h int; ratio float64 }{
+		{1536, 1024, 16.0 / 9.0}, {1024, 1024, 1.5}, {1024, 1024, 2.0 / 3.0}, {896, 1200, 16.0 / 9.0}, {1536, 1024, 1.0},
+	} {
+		padding, err := cloudAgentOutpaintPlan(c.w, c.h, c.ratio)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w := c.w + padding["left"] + padding["right"]
+		h := c.h + padding["top"] + padding["bottom"]
+		if w%16 != 0 || h%16 != 0 {
+			t.Fatalf("target %dx%d not aligned to 16 (padding %+v)", w, h, padding)
+		}
+		if ratio := float64(w) / float64(h); absDiff(ratio, c.ratio) > 0.02 {
+			t.Fatalf("%dx%d ratio %.4f, want %.4f", w, h, ratio, c.ratio)
+		}
 	}
 }
 

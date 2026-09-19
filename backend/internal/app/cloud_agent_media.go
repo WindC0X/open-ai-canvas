@@ -366,11 +366,13 @@ func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime
 			return BadAuthRequest("视频生成必须明确 durationSeconds")
 		}
 	case "image", "audio":
-		if a.Duration != 0 {
+		// LLM 存在冗余携带默认值（durationSeconds:0 / videoGenerateAudio:false）的训练惯性；
+		// 图片/音频模式直接忽略视频专属字段，只拦真正的语义冲突（非视频却要生成音频）。
+		if mode == "audio" && a.Duration != 0 {
 			return BadAuthRequest("只有视频生成允许设置 durationSeconds")
 		}
-		if a.VideoGenerateAudio != nil {
-			return BadAuthRequest("videoGenerateAudio 仅适用于视频生成")
+		if a.VideoGenerateAudio != nil && *a.VideoGenerateAudio {
+			return BadAuthRequest("只有视频生成支持同步音频")
 		}
 	}
 	if len(a.ReferenceNodeIDs) > 16 {
@@ -523,11 +525,15 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	// 扩图：恰好 1 张图片参考时，服务端合成 pad 底图 + mask 并物化为资源后替换参考，
 	// 后续路由/校验/计价/执行与 image_to_image 完全同构（输入只有 resource 引用）。
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
-		next, err := s.applyCloudAgentOutpaint(run.UserID, refs, a)
+		targetW, targetH, err := s.applyCloudAgentOutpaint(run.UserID, input, a)
 		if err != nil {
 			return CreateTaskRequest{}, nil, err
 		}
-		input = next
+		// 扩图目标画幅 = pad 后精确像素（16 倍数对齐），显式覆盖渠道默认 size ——
+		// 上游 edits 端点要 WxH 格式，ratio 形式或渠道默认值都会被拒。
+		if cfg, ok := input["config"].(map[string]any); ok {
+			cfg["size"] = fmt.Sprintf("%dx%d", targetW, targetH)
+		}
 	}
 	operation := cloudAgentMediaOperation(a.Mode, input)
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
