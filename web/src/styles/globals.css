@@ -3568,32 +3568,7 @@
         font-size: 12px;
     }
 
-    .creation-model-picker-heading {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 10px 7px;
-        color: #8e949d;
-        font-size: 12px;
-    }
-
-    .creation-model-picker-heading strong {
-        min-width: 0;
-        overflow: hidden;
-        color: #e6e8eb;
-        font-weight: 500;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .dark .creation-model-picker-heading {
-        color: #69717c;
-    }
-
-    .dark .creation-model-picker-heading strong {
-        color: #f2f4f6;
-    }
+    /* creation-model-picker-heading 已删(2026-09-19): 触发按钮已显示当前模型, 标题冗余。 */
 
     .creation-model-picker-menu .canvas-model-picker-option {
         min-height: 53px;

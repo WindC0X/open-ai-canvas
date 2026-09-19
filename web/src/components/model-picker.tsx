@@ -114,7 +114,8 @@ export function ModelPicker({
         // 空白列里, L2 会直接叠进 L1(2026-09-19 用户实测)。容器右缘才是 L1 的真实边界。
         const menuRect = menuRef.current?.getBoundingClientRect() || anchor.getBoundingClientRect();
         const flyoutWidth = 384;
-        const x = menuRect.right + 8 + flyoutWidth > window.innerWidth - 12 ? menuRect.left - flyoutWidth - 8 : menuRect.right + 8;
+        // 缝隙 2px(2026-09-19 用户拍板): flora 二级菜单视觉上贴住 L1, 8px 分离缝被读成两个断开面板。
+        const x = menuRect.right + 2 + flyoutWidth > window.innerWidth - 12 ? menuRect.left - flyoutWidth - 2 : menuRect.right + 2;
         // y 初值=顶边贴 anchor; 首开时 ref 尚未挂载读不到真实高度(读恒为 0, 永远判"放得下"),
         // 底部溢出的向上翻转改由挂载后的 useLayoutEffect 实测校正(2026-09-19 Agent 面板实测)。
         flyoutAnchorRef.current = anchor;
@@ -155,7 +156,7 @@ export function ModelPicker({
             const ar = anchor.getBoundingClientRect();
             setFlyoutPos((pos) => {
                 const mr = menuRef.current?.getBoundingClientRect() || ar;
-                const x = Math.max(12, mr.right + 8 + 384 > window.innerWidth - 12 ? mr.left - 384 - 8 : mr.right + 8);
+                const x = Math.max(12, mr.right + 2 + 384 > window.innerWidth - 12 ? mr.left - 384 - 2 : mr.right + 2);
                 const y = Math.max(12, ar.top - 8);
                 if (Math.abs(pos.x - x) < 1 && Math.abs(pos.y - y) < 1) { stable += 1; return pos; }
                 stable = 0;
@@ -627,12 +628,7 @@ export function ModelPicker({
                     />
                 </div>
             ) : null}
-            {creationVariant && !searchable ? (
-                <div className="creation-model-picker-heading">
-                    <span>选择模型</span>
-                    {current ? <strong>{pickerModelDisplayName(config, current, showConfiguredModelName)}</strong> : null}
-                </div>
-            ) : null}
+            {/* 选择模型标题已删(2026-09-19 用户拍板): 触发按钮本身已显示当前模型, 双重展示冗余。 */}
             {/* MenuBody 以函数调用内联: 若写成 <MenuBody />, 组件标识每 render 新建,
                 整棵菜单子树随之重挂载(任意 state 变化丢滚动位置/重置 hover)。 */}
             {MenuBody()}
