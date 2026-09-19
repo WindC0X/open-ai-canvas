@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"infinite-canvas/backend/internal/model"
+	"infinite-canvas/backend/internal/kernel"
 	"infinite-canvas/backend/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -155,7 +156,15 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 	r.GET("/auth/session", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {
-			ok(c, gin.H{"user": nil})
+			// 仅 401/403(未登录/登录失效)等价匿名会话。瞬态存储故障若也吞成 user:null,
+			// Agent 生成期的数据库写峰值会让下一次刷新被误登出(2026-09-19 用户实测:
+			// 每生成一轮刷新即掉线)。非鉴权错误必须如实 5xx, 由前端显示"连接中断"而非登出。
+			var appErr *kernel.AppError
+			if errors.As(err, &appErr) && (appErr.Code == kernel.CodeUnauthorized || appErr.Code == kernel.CodeForbidden) {
+				ok(c, gin.H{"user": nil})
+				return
+			}
+			failService(c, err)
 			return
 		}
 		publicUser, err := svc.PublicAuthUser(user)
