@@ -52,7 +52,7 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	if err := db.Model(&model.CanvasProject{}).Where("id = ?", "agent-canvas").Update("payload_json", string(raw)).Error; err != nil {
 		t.Fatal(err)
 	}
-	latest := cloudAgentCanvasHash(doc)
+	latest := cloudAgentContentHash(doc)
 	if latest == base {
 		t.Fatal("测试前提不成立：画布哈希没变")
 	}
@@ -108,7 +108,7 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	if err := db.Model(&model.CanvasProject{}).Where("id = ?", "agent-canvas").Update("payload_json", string(rawBound)).Error; err != nil {
 		t.Fatal(err)
 	}
-	afterBind := cloudAgentCanvasHash(doc)
+	afterBind := cloudAgentContentHash(doc)
 	if afterBind == latest {
 		t.Fatal("测试前提不成立：提交第一条后画布哈希没变")
 	}

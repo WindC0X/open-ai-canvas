@@ -71,6 +71,33 @@ func cloudAgentHashNormalizable(value any) any {
 	}
 }
 
+// cloudAgentContentHash 是模型可见的画布快照口径: 在 cloudAgentCanvasHash 之上再剔除节点 position。
+// 位置拖动是排版决策, 不改变 Agent 写入的内容语义; 用户在 Agent 执行期间拖动画布不应使 Agent
+// 基于旧内容快照的写入失效(2026-09-20 用户实测: 执行期间拖动任意节点 → canvas_apply_ops 被
+// "画布已变化"拒绝, Agent 需重读重审批)。所有面向模型的 snapshotHash(canvas_get_state 返回、
+// 工具结果、同轮刷新)都用本口径; mutation 账本与 undo 校验仍用完整口径, 保住 A5"用户手动变更
+// 阻断撤销"的语义(撤销不得静默回滚用户拖动)。
+func cloudAgentContentHash(doc map[string]any) string {
+	projected := make(map[string]any, len(doc))
+	for key, value := range doc {
+		projected[key] = value
+	}
+	nodes := creationMaps(doc["nodes"])
+	stripped := make([]map[string]any, 0, len(nodes))
+	for _, node := range nodes {
+		item := make(map[string]any, len(node))
+		for key, value := range node {
+			if key == "position" {
+				continue
+			}
+			item[key] = value
+		}
+		stripped = append(stripped, item)
+	}
+	projected["nodes"] = stripped
+	return cloudAgentCanvasHash(projected)
+}
+
 // Generation does not depend on node positions. Keep the full canvas hash for
 // mutations and undo, which must still detect layout edits before restoring data.
 func cloudAgentMediaContentHash(doc map[string]any) string {
@@ -207,7 +234,7 @@ func cloudAgentCanvasState(repo *repository.Repository, userID string, doc map[s
 			edges = append(edges, map[string]any{"id": edge["id"], "fromNodeId": edge["fromNodeId"], "toNodeId": edge["toNodeId"]})
 		}
 	}
-	return map[string]any{"snapshotHash": cloudAgentCanvasHash(doc), "mediaSnapshotHash": cloudAgentMediaContentHash(doc), "nodes": nodes, "connections": edges, "totalNodes": len(all), "nextOffset": next, "hasMore": next > 0}, nil
+	return map[string]any{"snapshotHash": cloudAgentContentHash(doc), "mediaSnapshotHash": cloudAgentMediaContentHash(doc), "nodes": nodes, "connections": edges, "totalNodes": len(all), "nextOffset": next, "hasMore": next > 0}, nil
 }
 
 func cloudAgentSafeNumber(value any) (any, bool) {

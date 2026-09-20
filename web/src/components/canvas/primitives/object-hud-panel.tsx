@@ -97,7 +97,9 @@ export function ObjectHudPanel({ node, config, rightInset, topInset = 88, action
 
     const shellStyle: CSSProperties = {
         position: "fixed",
-        right: rightInset ?? 16,
+        // 让位量钳制在屏内(2026-09-20 用户实测: Agent 浮窗被拉到超宽时, 让位 inset 大于视口,
+        // HUD 几乎整体滑出左缘只剩残边)。min 取两者较小 → 面板再宽 HUD 也完整可见(贴左缘)。
+        right: rightInset ? `min(${rightInset}, calc(100vw - 288px - var(--canvas-inset-x, 16px)))` : 16,
         top: topInset,
         width: 288,
         maxHeight: "calc(100vh - 176px)",

@@ -222,7 +222,7 @@ func TestCloudAgentStoryboardEditPreservesRowsAndRenumbers(t *testing.T) {
 	}
 	currentHash := func() string {
 		doc, _ := creationDocument(canvas.PayloadJSON)
-		return cloudAgentCanvasHash(doc)
+		return cloudAgentContentHash(doc)
 	}
 
 	rows := apply(cloudAgentStoryboardCall(t, "canvas_edit_storyboard", "update-row", map[string]any{

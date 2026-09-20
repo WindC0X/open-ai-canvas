@@ -37,7 +37,7 @@ func agentMediaFixture(t *testing.T) (*Service, *gorm.DB, cloudAgentMediaArgs) {
 		t.Fatal(err)
 	}
 	audio := true
-	a := cloudAgentMediaArgs{Mode: "video", Prompt: "镜头1，参考图1是英雄，参考图2是叮当猫", ChannelID: "channel", ChannelModelKey: "seedance-test", Duration: 12, Size: "9:16", VideoGenerateAudio: &audio, SnapshotHash: creationHash(doc), NodeID: "video-shot-1", Title: "镜头1视频", SourceNodeID: "shot-1", ReferenceNodeIDs: []string{"hero", "cat"}}
+	a := cloudAgentMediaArgs{Mode: "video", Prompt: "镜头1，参考图1是英雄，参考图2是叮当猫", ChannelID: "channel", ChannelModelKey: "seedance-test", Duration: 12, Size: "9:16", VideoGenerateAudio: &audio, SnapshotHash: cloudAgentContentHash(doc), NodeID: "video-shot-1", Title: "镜头1视频", SourceNodeID: "shot-1", ReferenceNodeIDs: []string{"hero", "cat"}}
 	return s, db, a
 }
 
@@ -534,7 +534,7 @@ func TestCloudAgentMediaDraftReuseLifecycle(t *testing.T) {
 			if err := db.Model(canvas).Update("payload_json", string(raw)).Error; err != nil {
 				t.Fatal(err)
 			}
-			a.DraftRunID, a.SnapshotHash = "next-run", cloudAgentCanvasHash(doc)
+			a.DraftRunID, a.SnapshotHash = "next-run", cloudAgentContentHash(doc)
 			_, _, _, err := cloudAgentMediaDocument(s.repo, "user", "agent-canvas", a)
 			if (err == nil) != tc.allowed {
 				t.Fatalf("allowed=%v error=%v", tc.allowed, err)
@@ -562,7 +562,7 @@ func TestCloudAgentMediaPreviousDraftRequiresNewApproval(t *testing.T) {
 	if !strings.Contains(string(encoded), `"ownerStatus":"cancelled"`) || !strings.Contains(string(encoded), `"submitted":false`) {
 		t.Fatalf("missing draft lifecycle: %s", encoded)
 	}
-	a.SnapshotHash = cloudAgentCanvasHash(doc)
+	a.SnapshotHash = cloudAgentContentHash(doc)
 	a.ReferenceNodeIDs = []string{"hero"}
 	next, nextState := agentMediaRun(t, s, a, "auto", "resume-draft-next-turn")
 	if next.ID == run.ID {
@@ -639,7 +639,7 @@ func TestCloudAgentAutoMediaDraftRequiresExplicitApproval(t *testing.T) {
 			}
 			// Another run may not take over this draft, even with the latest snapshot.
 			foreign := a
-			foreign.DraftRunID, foreign.SnapshotHash = "another-run", cloudAgentCanvasHash(doc)
+			foreign.DraftRunID, foreign.SnapshotHash = "another-run", cloudAgentContentHash(doc)
 			if _, _, _, err := cloudAgentMediaDocument(s.repo, "user", "agent-canvas", foreign); err == nil {
 				t.Fatal("foreign draft overwrite accepted")
 			}
@@ -790,7 +790,7 @@ func TestCloudAgentCanvasUpdatesExistingVideoDraftThroughCapabilityContract(t *t
 
 	call := cloudAgentCall{ID: "update-video-draft"}
 	arguments, _ := json.Marshal(map[string]any{
-		"snapshotHash": cloudAgentCanvasHash(doc),
+		"snapshotHash": cloudAgentContentHash(doc),
 		"ops": []map[string]any{{
 			"type": "update_node", "id": "video-1789310237935-mmh3-baby-fullmoon",
 			"patch": map[string]any{"title": "满月庆祝视频草稿（舒缓呼吸感）", "content": "下一版舒缓视频提示词"},

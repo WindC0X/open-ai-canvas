@@ -111,7 +111,7 @@ func TestCloudAgentCanReadAndEditBatchTableRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	call := cloudAgentBatchTableCall(t, "canvas_edit_batch_table", "append-row", map[string]any{
-		"snapshotHash": cloudAgentCanvasHash(doc), "nodeId": "batch-1", "action": "append",
+		"snapshotHash": cloudAgentContentHash(doc), "nodeId": "batch-1", "action": "append",
 		"patch": map[string]any{"inputNodeIds": []string{"image-1", "image-2"}, "prompt": "保持模特身份，替换为参考服装"},
 	})
 	plan, err := prepareCloudAgentBatchTableEdit(s.repo, "user", canvas.ID, call)
@@ -193,7 +193,7 @@ func TestCloudAgentBatchTableRejectsUnsafeAndStaleEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hash := cloudAgentCanvasHash(doc)
+	hash := cloudAgentContentHash(doc)
 	unsafe := cloudAgentBatchTableCall(t, "canvas_edit_batch_table", "unsafe-row", map[string]any{
 		"snapshotHash": hash, "nodeId": "batch-1", "action": "append",
 		"patch": map[string]any{"inputNodeIds": []string{"image-1"}, "outputNodeId": "forged-output"},

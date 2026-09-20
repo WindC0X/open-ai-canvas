@@ -184,8 +184,9 @@ func prepareCloudAgentStoryboardCreate(repo *repository.Repository, userID, canv
 	if err != nil {
 		return nil, err
 	}
+	// 账本口径(完整含 position)与模型可见口径(内容, 剔 position)分离: 拖动不改内容语义。
 	beforeHash := cloudAgentCanvasHash(doc)
-	if beforeHash != args.SnapshotHash {
+	if cloudAgentContentHash(doc) != args.SnapshotHash {
 		return nil, creationConflict("画布已变化，本次未写入；请重新读取并重新申请审批")
 	}
 	for _, node := range creationMaps(doc["nodes"]) {
@@ -243,8 +244,9 @@ func prepareCloudAgentStoryboardEdit(repo *repository.Repository, userID, canvas
 	if err != nil {
 		return nil, err
 	}
+	// 账本口径(完整含 position)与模型可见口径(内容, 剔 position)分离: 拖动不改内容语义。
 	beforeHash := cloudAgentCanvasHash(doc)
-	if beforeHash != args.SnapshotHash {
+	if cloudAgentContentHash(doc) != args.SnapshotHash {
 		return nil, creationConflict("画布已变化，本次未写入；请重新读取并重新申请审批")
 	}
 	node, storyboard, rows, err := storyboardNodeFromDocument(doc, args.NodeID)
@@ -346,7 +348,7 @@ func applyCloudAgentStoryboardMutation(repo *repository.Repository, userID, canv
 	if len(plan.Preview.Items) > 0 {
 		nodeID = plan.Preview.Items[0].NodeID
 	}
-	return map[string]any{"canvasId": canvasID, "nodeId": nodeID, "snapshotHash": cloudAgentCanvasHash(plan.Document), "summary": plan.Preview.Description, "preview": plan.Preview}, nil
+	return map[string]any{"canvasId": canvasID, "nodeId": nodeID, "snapshotHash": cloudAgentContentHash(plan.Document), "summary": plan.Preview.Description, "preview": plan.Preview}, nil
 }
 
 func mapsAsAny(values []map[string]any) []any {

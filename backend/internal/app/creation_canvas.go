@@ -395,7 +395,18 @@ func validateCreationCanvasDiff(repo *repository.Repository, userID string, run 
 			return creationConflict("节点未获方案批准")
 		}
 		expected := creationAddedNode(op)
-		if !reflect.DeepEqual(expected, node) {
+		// creationAddedNode 现在带 createdAt/updatedAt(对齐手动创建语义), 而客户端提交的新节点
+		// 时间戳由前端生成/规范化, 不属于批准方案范围; 比对时剔除时间戳。
+		delete(expected, "createdAt")
+		delete(expected, "updatedAt")
+		trimmed := make(map[string]any, len(node))
+		for key, value := range node {
+			if key == "createdAt" || key == "updatedAt" {
+				continue
+			}
+			trimmed[key] = value
+		}
+		if !reflect.DeepEqual(expected, trimmed) {
 			return creationConflict("新增节点参数与批准方案不同")
 		}
 	}
@@ -426,6 +437,10 @@ func validateCreationCanvasDiff(repo *repository.Repository, userID string, run 
 	return nil
 }
 func creationAddedNode(op CreationCanvasOp) map[string]any {
+	// Agent 创建的节点与服务端/手动创建一致带上时间戳(2026-09-20 用户实测: Agent 节点 HUD 无"创建"行,
+	// 前端 normalizeCanvasNodeTimestamps 会把缺失回退到画布级时间, 误导)。hash 归一化已剔除节点级
+	// createdAt/updatedAt, 此处补时间戳不影响撤销链口径。
+	now := time.Now().UTC().Format(time.RFC3339Nano)
 	capability, known := cloudAgentNodeCapabilityForType(op.NodeType)
 	width, height, title := 340.0, 240.0, "Note"
 	if known {
@@ -454,7 +469,7 @@ func creationAddedNode(op CreationCanvasOp) map[string]any {
 			position["y"] = *op.Y
 		}
 	}
-	return map[string]any{"id": op.ID, "type": op.NodeType, "title": title, "position": position, "width": width, "height": height, "metadata": mergeCreationMaps(metadata, op.Metadata)}
+	return map[string]any{"id": op.ID, "type": op.NodeType, "title": title, "position": position, "width": width, "height": height, "metadata": mergeCreationMaps(metadata, op.Metadata), "createdAt": now, "updatedAt": now}
 }
 
 func validateCreationResultMetadata(repo *repository.Repository, userID, runID, nodeID string, before, after map[string]any) error {

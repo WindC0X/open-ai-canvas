@@ -201,8 +201,9 @@ func prepareCloudAgentBatchTableEdit(repo *repository.Repository, userID, canvas
 	if err != nil {
 		return nil, err
 	}
+	// 账本口径(完整含 position)与模型可见口径(内容, 剔 position)分离: 拖动不改内容语义。
 	beforeHash := cloudAgentCanvasHash(doc)
-	if beforeHash != args.SnapshotHash {
+	if cloudAgentContentHash(doc) != args.SnapshotHash {
 		return nil, creationConflict("画布已变化，本次未写入；请重新读取并重新申请审批")
 	}
 	node, table, rows, columns, err := batchTableNodeFromDocument(doc, args.NodeID)
@@ -366,7 +367,7 @@ func applyCloudAgentBatchTableMutation(repo *repository.Repository, userID, canv
 			return nil, err
 		}
 	}
-	return map[string]any{"canvasId": canvasID, "nodeId": plan.Preview.Items[0].NodeID, "snapshotHash": cloudAgentCanvasHash(plan.Document), "summary": plan.Preview.Description, "preview": plan.Preview}, nil
+	return map[string]any{"canvasId": canvasID, "nodeId": plan.Preview.Items[0].NodeID, "snapshotHash": cloudAgentContentHash(plan.Document), "summary": plan.Preview.Description, "preview": plan.Preview}, nil
 }
 
 func cloudAgentBatchTableReadResult(view any, nodeID string) (map[string]any, error) {

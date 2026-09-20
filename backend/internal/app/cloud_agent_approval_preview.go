@@ -67,9 +67,11 @@ func prepareCloudAgentCanvasMutation(repo *repository.Repository, userID, canvas
 	if err != nil {
 		return nil, err
 	}
+	// 账本口径(完整含 position)与模型可见口径(内容, 剔 position)分离: 用户拖动节点不改内容语义,
+	// 不应使 Agent 写入失效; 撤销链(A5)仍用完整口径, 用户拖动会阻断撤销保护其改动。
 	beforeHash := cloudAgentCanvasHash(doc)
-	if beforeHash != args.SnapshotHash {
-		return nil, creationConflict("画布已变化，本次未写入；请重新读取并重新申请审批")
+	if cloudAgentContentHash(doc) != args.SnapshotHash {
+		return nil, creationConflict("画布内容已变化，本次未写入；请重新读取并重新申请审批")
 	}
 	items, err := applyCloudAgentCanvasPlan(doc, args.Ops)
 	if err != nil {
