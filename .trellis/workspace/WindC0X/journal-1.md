@@ -247,3 +247,5 @@
 **批次五（拍板清单裁决卡）**：04-09 落盘——04 模型校验正交共存; 05 删除语义融合（上游patch语言+我方来源约束）; 06 S08结构取上游+水位门重放（跨会话硬门不可被"保留编辑分支"吞掉）; 07 canvas_undone取我方门语义（回放复活已实证）; 08 frontend目录删除=建议取上游收窄, 4消费文件清单+运维前置（系统渠道须已配置）; 09 globals直改逐条对账（新选择器收, .ant-*全局!important不搬, outline策略采纳）。
 **白名单机械项**：cloudAgentWrite（tools.go:279）预置 image_layer_split（合并前不可达, 合并后进 step_hash 接力/审批门）; 撤销账本经 recorder 内容式记账（media.go:557+runtime:894/1102）无需改; go build+相关测试绿; commit ac485844。
 **批次六**：先遣队19提交三方复验顺延（时间富余项, 子代理已做过 merge-file 模拟, 复验归入合并日执行）。
+
+**插入项：F-06 合入（门2绿信号）**：防御自查空（feat/ecom-f06-outpaint..main 无独有提交，分支头 d9fa9d0f 已含 a0cf2155）→ merge --no-ff 零冲突 efa1c4f9（含 outpaint 后端域 media_outpaint+前端 overlay/geometry+geometry 测试）→ 推送：origin(ddcat-ai) 403 按历来权限形态映射为推 fork（eab151bd..efa1c4f9 fast-forward）→ 栈重启（旧 vite/后端为合入前代码）：后端 GOSUMDB+GOTOOLCHAIN=auto+buildvcs=false 组合（go1.26.0 toolchain 下载成功），数据目录 .local/project-workbench-debug；vite 清 .vite 缓存 + VITE_API_PROXY_TARGET=8081。健康：3000/8080 双 200，/api/health ready=true go1.26.0。待用户真机复验扩图框开合。
