@@ -58,12 +58,13 @@
 - [ ] 6.2 冒烟清单：AC1–AC7 + AC5b 逐条过（外扩框跟随缩放平移 / 手柄拖拽不触发画布平移 / clamp / 比例约束 / ✕ 清理 / 能力禁用明示 / 提交出图 / 结果节点连线 / 积分随模型与张数变化且报价失败回落本地价）；截图或录屏留证（CDP 合成事件不算）。
 - [ ] 6.3 明暗主题、缩放极端（很小/很大）、长图与方图各一轮。
 
-## Step 7：文档同步 + 收口（提交 6：`docs(canvas): F-06 扩图 MVP 文档`）
+## Step 7：文档同步 + 收口（提交 6：`docs(canvas): F-06 扩图 MVP 文档`，2026-09-20 完成）
 
-- [ ] 7.1 `docs/content/docs/overview/features.mdx` 增 F-06 条目。
-- [ ] 7.2 `docs/content/docs/backend/code-map.mdx` 如涉及前端地图则补（后端零改动不触发表文档）。
-- [ ] 7.3 `docs/content/docs/progress/pending-test.mdx` 登记"已实现待用户确认"条目。
-- [ ] 7.4 最终验证：`bun test` 全绿 + `bun run build`；git log 小步提交链完整。
+- [x] 7.1 `docs/content/docs/overview/features.mdx` 增「画布图片扩图」条目（交互形态、参数条、双协议路由、画幅偏差角标、Agent 扩图）。
+- [x] 7.2 `docs/content/docs/backend/code-map.mdx` 补两处：画布核心表「画布内扩图」行（前端 5 文件）；Agent 行补 `cloud_agent_media_outpaint.go`（Agent 链后端改动如实登记——工具链后端零改动，Agent 接入引入了服务端 pad/蒙版合成）。
+- [x] 7.3 `docs/content/docs/progress/pending-test.mdx` 登记条目「画布图片扩图 F-06（2026-09-20，待用户真机验收）」：4 项真机确认清单 + 4 项已知边界（上游改幅/无硬贴回/重试链历史节点/样本集验收二期）。
+- [x] 7.4 最终验证：`bun test` 全量 1848 tests / 1830 pass / **18 fail = 存量基线集合完全一致**（canvas-mention/toolbar-switch/storyboard/creative-controller/director-diagnostics 等 6 类无关文件）；`bun run build` 绿（1m18s）；文档站 types 由 mdx 内容改动不触代码路径。
+- 备注：AC7 复核——本次 diff 仅 3 个 docs 文件，无 globals.css、无新增依赖；AC1–AC5/AC5b 开发侧证据齐（headless + 真机渠道出图），AC6 的「用户真机验收」项与 6.4 一并由 pending-test.mdx 承接。
 
 ## Review Gate
 
