@@ -237,6 +237,42 @@
 - [x] T3 回答「其它项目也只是靠简单的提示词，其它都没有了吗」：扩图链提交的不止提示词——pad 白底合成图（构图=框）+ 透明区 mask（maskSupported 模型）+ 显式 config.size（档位精确像素）+ 模型能力路由 + 质量域钳制 + 积分计价。出图内容质量依赖上游模型对 mask/白边的遵循度（impl/F-06.md 风险 1，二期做样本集验收）；尺寸则受中转/上游策略影响（本轮明示兜底）。
 - 验证：几何 25 pass（paddingPx 语义用例更新）；全量 1830 pass / 18 fail = 存量基线；tsc/eslint/build 三绿；headless 全链（激活 → 2:3 重排 0.6667 → 提交 size=1024x1536 → 占位 0.667 → 失败态 405 为渠道无路由，与修复无关）；vite 重启新代码进产物（单一域 2 hit、双 k 3 hit、角标 4 hit）。环境记录：WSL 重启后 go run 需用缓存 toolchain（~/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.8/bin/go + GOTOOLCHAIN=local），GOSUMDB=off 阻止 toolchain 自动下载。
 
+## 外部扩图实现调研（2026-09-20，用户问「其它项目如何保障效果」）
+
+### 本地项目代码实读（一手）
+
+| 项目 | 扩图实现 | 保障手段 | 缺口 |
+| --- | --- | --- | --- |
+| **Infinite-Canvas**（smart-canvas.js 18964 行） | 节点编辑器内 cropState 拖框（clampOutpaint 框≥原图）→ applyImageOutpaint 白底 canvas 合成（fillStyle #ffffff）→ 上传替换节点图 → outpaintSize 记录 → 提交时 customSize="WxH" | ① 框 clamp ≥ 原图；② 白底 pad 图锁定构图；③ 显式 customSize；④ 固定英文指令 "Remove white area and fill the scene" | 无 mask 通道、无多变体、无结果校验、无重试保障——与我们第十八轮前的 v1 同构 |
+| **Tapnow-Studio-PP**（App.jsx 39978 行） | 无自研扩图——「拓展图片」= Midjourney 官方 Zoom Out（mj-zoom：imagine 提交 → 轮询 → /zoomout 按钮） | 依赖 MJ 官方扩散式重绘能力，比例固定、幅度档位固定（2x 等） | 全托管，无本地几何控制 |
+| Node_Canvas / TapCanvas / og-canvas-flora-study | 无 outpaint 实现（TapCanvas 仅 MJ 反代 service） | — | — |
+
+### 线上商业产品（UI 实证 + 官方页）
+
+- **tapnow / libtv**（侦察报告 DOM 实证）：与 B 线同构的「原位外扩框 + 参数条」，提交参数未挖到；从 tapnow 系模型选择（gpt-image/nano banana 类）推断走 pad+指令/mask 路线。
+- **flora**：「工具节点」范式（Outpainting 节点消费后消失，结果回填 emptyImageBlock）——架构不同，保障逻辑等价。
+- **Adobe Generative Expand**（官方页 fetch 一手）：「extend beyond original edges, automatically generating new matching content, change aspect ratios」；Photoshop 内依托 Firefly + 裁剪框扩展。业界公认细节（二手，未逐字核实）：生成结果落**独立生成图层**（非破坏性）+ **每次三个变体**供选择 + 可改提示词重roll + 传统蒙版工具修边——「变体可选 + 非破坏可撤销 + 可修边」是它的翻车兜底。
+- **Photoroom AI Expand**（F-06.md 一手核实定价页）：电商场景预设化（Resize/Expand 内含于订阅），主打「预设尺寸直达」而非自由拖框。
+
+### 开源工程生态（stable-diffusion-art.com 一手 fetch；A1111 wiki JS 渲染抓不到正文）
+
+A1111 outpainting 脚本的保障参数化，是最系统的工程参考：
+1. **Pixels to expand 默认 128px**——单次外扩小步走，大画幅 = 多轮迭代（poor man's outpainting 脚本即分块多轮）；一次扩太多必然崩。
+2. **Masked content = fill**——扩区先用图像平均色填充再生成（与我们白底 pad 同思路，平均色比纯白更不易被模型当背景）。
+3. **Denoising strength 可调**——低强度保原图、高强度多生成；原像素区按 inpaint 语义保持。
+4. **Mask blur（羽化）**——mask 边缘高斯过渡，接缝不硬。
+5. 两条脚本（mk2 / poor man's）本质都是「pad→inpaint→（可循环）」。
+
+### 对照 F-06 现状与二期方向
+
+已具备：pad 合成图（构图锁定）、透明 mask 通道（gpt-image 系）、显式 size、和守恒比例重排、画幅偏差明示角标（十八轮）、白底程序化补边已覆盖（padImageToDataUrl fill 参数即程序化通道）。
+可吸收的加固（二期候选，未排期）：
+1. **多变体默认**（张数 x2/x3 起步）——Adobe/Canva 公认兜底，我们张数控件已支持，仅默认值问题；
+2. **mask 羽化边缘**（padImageToDataUrl mask 模式加 2-4px 线性渐变带）——低成本降接缝风险；
+3. **单次外扩幅度提示**（框外扩 >2x 原图面积时参数条提示分次扩图）——SD 生态共识「小步多次」；
+4. **扩区平均色填充选项**（fill 参数从 #FFFFFF 扩展到 "average"）——比纯白更少被模型当背景；
+5. **结果并排预览 + 一键重roll**（现状是结果节点上的重新生成按钮，已具备雏形）。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
