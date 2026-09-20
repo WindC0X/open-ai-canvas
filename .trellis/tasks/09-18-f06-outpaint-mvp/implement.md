@@ -312,6 +312,11 @@
 - [ ] D3 许可标记：模型/渠道配置加 license 字段，非商用权重（FLUX.1-Fill-dev/klein-9B）在路由层挡住生产部署。
 - [ ] D4 价格锚对标：积分定价对照市场出清价（0.01-0.05 元/张；蓝马零售 ¥0.04 用户截图一手；veImageX 成本地板毛利 96%+ 支撑「扩图=积分低价品」定位）。
 
+## 用户真机验收反馈修复（2026-09-20 第十九轮，收口后）
+
+- [x] U1 拖图连线不跟随（真机验收发现）：第十四轮自实现拖图绕过了节点拖拽管线，只直改 DOM（left/top），连线层（leafer graphics）靠订阅 `CANVAS_NODE_DRAG_PREVIEW_EVENT` 把端点临时平移——预览事件从未派发，连线只在松手 commit 后跟随。修 = 拖图 pointermove 派发同款预览事件（世界域位移 tx/scale、nodeIds=[node.id]），graphics 层 applyConnectionDragPreview 直接 sync 受影响连线；**不走 applyCanvasNodeDragPreview**（它写 wrapper 的 style.translate，与 left/top 通道叠加双重位移，且 contain:layout 节点上 translate 渲染不生效——十五轮教训）；pointerup 在 onNodeMove 同步 flush 后派发 detail:null 清预览（无回跳帧）；pointercancel/卸载清理同样派发 null 防连线残留偏移。挂件层订阅同事件只对 previewIds 内节点生效，扩图激活时目标节点挂件已被抑制，无副作用。
+- 验证：tsc/eslint 绿；全量 1848 tests / 1830 pass / 18 fail = 存量基线；headless 三态像素 diff 实证（锚点窗 ±40px：before vs mid 1983 差异点 ≈ 4.4× 流光动画基线 454 = 拖图中锚点真实移动；mid vs after 454 ≈ 基线 = 松手零跳变；before vs after 2207 对照组）；目视复核松手后 4 条连线全部精确收敛端口无残留。教训：拖满 padding 余量的贴边截图无法区分「连线锚在框上」还是「跟随图片」（两者重合）——验证必须用小于余量的位移。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。

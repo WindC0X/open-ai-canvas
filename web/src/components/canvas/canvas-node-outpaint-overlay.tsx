@@ -15,7 +15,7 @@ import {
     type ImageResolutionTier,
 } from "@/lib/image-resolution-tiers";
 import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveDragAxis, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type FrameAxis, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
-import { subscribeCanvasViewportPreview } from "@/lib/canvas/canvas-live-viewport";
+import { CANVAS_NODE_DRAG_PREVIEW_EVENT, subscribeCanvasViewportPreview, type CanvasNodeDragPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { quoteLogicalModel } from "@/services/api/logical-models";
@@ -607,6 +607,15 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             drag.ty = ty;
             paddingRef.current = relocateOutpaintPadding(start, tx / scale, ty / scale, ratioRef.current !== null);
             updateImageDragVisual(drag, tx, ty);
+            // 连线跟随：拖图绕过了节点拖拽管线，连线层（leafer graphics）靠订阅预览事件把端点临时平移。
+            // 直接派发同款事件（世界域位移，同 O1 教训）但不走 applyCanvasNodeDragPreview——
+            // 它会写 wrapper 的 style.translate：与这里的 left/top 通道叠加双重位移，且 contain:layout 节点上 translate 渲染不生效。
+            const container = containerRef.current;
+            if (container) {
+                container.dispatchEvent(new CustomEvent<CanvasNodeDragPreview | null>(CANVAS_NODE_DRAG_PREVIEW_EVENT, {
+                    detail: { x: tx / scale, y: ty / scale, nodeIds: new Set([node.id]) },
+                }));
+            }
         };
         const onPointerUp = (event: PointerEvent) => {
             const drag = imageDragRef.current;
@@ -631,6 +640,12 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 onNodeMove(node.id, { x: node.position.x + dxWorld, y: node.position.y + dyWorld });
             }
             applyPadding(paddingRef.current);
+            // 清预览：discrete pointerup 的 setState 同步 flush，onNodeMove 返回时连线层已拿到新 position，
+            // 此刻清预览端点直接用新位置计算，无回跳帧。
+            const container = containerRef.current;
+            if (container) {
+                container.dispatchEvent(new CustomEvent<CanvasNodeDragPreview | null>(CANVAS_NODE_DRAG_PREVIEW_EVENT, { detail: null }));
+            }
         };
         container.addEventListener("pointerdown", onPointerDown, true);
         container.addEventListener("mousedown", onMouseDownBlock, true);
@@ -653,9 +668,14 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                 imageDragRef.current.wrapperEl.style.left = "";
                 imageDragRef.current.wrapperEl.style.top = "";
                 imageDragRef.current = null;
+                // 预览事件残留会让连线永远偏移：卸载也派发清除。
+                const container = containerRef.current;
+                if (container) {
+                    container.dispatchEvent(new CustomEvent<CanvasNodeDragPreview | null>(CANVAS_NODE_DRAG_PREVIEW_EVENT, { detail: null }));
+                }
             }
         };
-    }, []);
+    }, [containerRef]);
 
     const handleExecute = useCallback(() => {
         if (!node || !canExecute) return;
