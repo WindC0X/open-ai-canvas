@@ -743,7 +743,10 @@ export function useCanvasMediaTools({
                     const image = result.images?.find((item) => item?.dataUrl);
                     if (!image?.dataUrl) throw new Error("后端任务没有返回图片");
                     const uploaded = await uploadImage(image.dataUrl);
-                    const size = fitNodeSize(uploaded.width, uploaded.height, node.width, node.height);
+                    // 占位框 = 几何合同（2026-09-20 实测修复）：这里的 node 是【源图节点】而非占位，
+                    // 用它的框当 bounds 会把结果錧进源图框。成功后保持占位框。
+                    const placeholder = nodesRef.current.find((item) => item.id === targetId);
+                    const size = placeholder && placeholder.width > 0 ? { width: placeholder.width, height: placeholder.height } : fitNodeSize(uploaded.width, uploaded.height);
                     const currentNode = nodesRef.current.find((item) => item.id === targetId);
                     if (!currentNode) throw new Error("局部编辑节点已被删除");
                     const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: { ...currentNode.metadata, ...imageMetadata(uploaded), prompt: effectivePrompt, ...generationMetadata } };
@@ -928,7 +931,11 @@ export function useCanvasMediaTools({
                     const image = result.images?.find((item) => item?.dataUrl);
                     if (!image?.dataUrl) throw new Error("后端任务没有返回图片");
                     const uploaded = await uploadImage(image.dataUrl);
-                    const size = fitNodeSize(uploaded.width, uploaded.height, node.width, node.height);
+                    // 占位框 = 几何合同（2026-09-20 实测修复）：这里的 node 是【源图节点】而非占位，
+                    // 用它的框当 bounds 会把横版扩图结果錧进竖版源图宽度（720×404 占位 → 成功后缩到源图宽）。
+                    // 成功后保持占位框；错幅由下方 outpaintSizeMismatch 角标明示，不静默改框。
+                    const placeholder = nodesRef.current.find((item) => item.id === targetId);
+                    const size = placeholder && placeholder.width > 0 ? { width: placeholder.width, height: placeholder.height } : fitNodeSize(uploaded.width, uploaded.height);
                     const currentNode = nodesRef.current.find((item) => item.id === targetId);
                     if (!currentNode) throw new Error("扩图节点已被删除");
                     // 结果尺寸校验明示（第十八轮）：上游中转不保证按提交 size 出图（实测
