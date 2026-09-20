@@ -133,3 +133,55 @@ func (s *Service) UndoCloudAgentCanvas(userID, runID, stepID, expectedSnapshotHa
 	}
 	return result, nil
 }
+
+
+// UndoCanvasPreview 描述最近一次 Agent 画布 mutation 的可撤销状态。面板用它决定
+// 撤销按钮的可用性与禁用原因, 并取 afterSnapshotHash 作为 undo 的 expectedSnapshotHash。
+func (s *Service) UndoCanvasPreview(userID, runID string) map[string]any {
+	preview := map[string]any{"found": false, "canUndo": false, "blockReason": ""}
+	setBlock := func(reason string) { preview["canUndo"] = false; preview["blockReason"] = reason }
+	// 只读预检: 不走 MutateCloudAgent 写事务(避免递增 revision); 与 undo 的竞态由
+	// undo 主流程的 expectedSnapshotHash 校验兜底(preview 结果仅作 UI 状态, 不作授权)。
+	s.storageMu.Lock()
+	defer s.storageMu.Unlock()
+	if _, err := s.repo.CloudAgent(userID, runID); err != nil {
+		setBlock("Agent 运行不存在或无权访问")
+		return preview
+	}
+	mutation, err := s.repo.LatestCloudAgentCanvasMutation(userID, runID)
+	if err != nil {
+		setBlock("当前 Agent 运行没有可撤销的画布变更")
+		return preview
+	}
+	canvas, err := s.repo.CanvasProjectForUser(userID, mutation.CanvasID)
+	if err != nil {
+		setBlock("画布不存在或无权访问")
+		return preview
+	}
+	currentDoc, err := creationDocument(canvas.PayloadJSON)
+	if err != nil {
+		setBlock("画布内容读取失败")
+		return preview
+	}
+	currentHash := cloudAgentCanvasHash(currentDoc)
+	preview["found"] = true
+	preview["stepId"] = mutation.StepID
+	preview["status"] = mutation.Status
+	preview["afterSnapshotHash"] = currentHash
+	preview["hasSubmittedTask"] = mutation.HasSubmittedTask
+	switch {
+	case mutation.Status == "undone":
+		setBlock("该变更已撤销")
+	case mutation.Status == "not_undoable":
+		setBlock("该变更未保留完整快照，无法撤销")
+	case mutation.Status != "applied":
+		setBlock("该变更当前不可撤销")
+	case mutation.HasSubmittedTask:
+		setBlock("已提交的生成任务不能撤销")
+	case mutation.AfterSnapshotHash != currentHash:
+		setBlock("画布已发生后续变化，不可撤销")
+	default:
+		preview["canUndo"] = true
+	}
+	return preview
+}

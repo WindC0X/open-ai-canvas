@@ -104,12 +104,22 @@ export function ModelPicker({
     const [flyoutPos, setFlyoutPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const flyoutRef = useRef<HTMLDivElement>(null);
     const flyoutCloseTimer = useRef<number | null>(null);
+    // 锚点元素留存: antd 菜单 zoom 入场动画期间行的 rect 是中间态(整体向触发器压缩),
+    // mouseenter 此时读到的坐标会让 flyout 沉底(2026-09-19 用户实测"子菜单悬浮输入框上")。
+    // 动画结束后按锚点终态位置重测校正。
+    const flyoutAnchorRef = useRef<HTMLElement | null>(null);
     const openFlyout = (groupKey: string, anchor: HTMLElement) => {
         if (flyoutCloseTimer.current) window.clearTimeout(flyoutCloseTimer.current);
-        const rect = anchor.getBoundingClientRect();
+        // 横向锚定用 L1 菜单容器(而非行): Provider 行在部分变体下不满宽, 行右缘落在 L1 的
+        // 空白列里, L2 会直接叠进 L1(2026-09-19 用户实测)。容器右缘才是 L1 的真实边界。
+        const menuRect = menuRef.current?.getBoundingClientRect() || anchor.getBoundingClientRect();
         const flyoutWidth = 384;
-        const x = rect.right + 8 + flyoutWidth > window.innerWidth - 12 ? rect.left - flyoutWidth - 8 : rect.right + 8;
-        setFlyoutPos({ x: Math.max(12, x), y: Math.min(Math.max(12, rect.top - 8), window.innerHeight - 120) });
+        // 缝隙 2px(2026-09-19 用户拍板): flora 二级菜单视觉上贴住 L1, 8px 分离缝被读成两个断开面板。
+        const x = menuRect.right + 2 + flyoutWidth > window.innerWidth - 12 ? menuRect.left - flyoutWidth - 2 : menuRect.right + 2;
+        // y 初值=顶边贴 anchor; 首开时 ref 尚未挂载读不到真实高度(读恒为 0, 永远判"放得下"),
+        // 底部溢出的向上翻转改由挂载后的 useLayoutEffect 实测校正(2026-09-19 Agent 面板实测)。
+        flyoutAnchorRef.current = anchor;
+        setFlyoutPos({ x: Math.max(12, x), y: Math.max(12, menuRect.top - 8) });
         setFlyoutGroup(groupKey);
     };
     const scheduleFlyoutClose = () => {
@@ -128,6 +138,38 @@ export function ModelPicker({
             setFlyoutGroup(null);
         }
     }, [open]);
+    // flyout 真实高度挂载后才可知: 底部溢出(面板 composer 场景)时向上翻, 底边贴 anchor 顶。
+    // 依赖不含 y: 校正写入的 y 不再触发本 effect, 无回环。
+    useLayoutEffect(() => {
+        if (!flyoutGroup) return;
+        const el = flyoutRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const overflow = rect.bottom - (window.innerHeight - 12);
+        if (overflow > 0) setFlyoutPos((pos) => ({ ...pos, y: Math.max(12, pos.y - overflow - 4) }));
+        // 菜单入场动画(~200ms)期间锚点 rect 在漂移: 逐帧按锚点终态重贴, 连续两帧稳定即停。
+        let stable = 0;
+        let raf = 0;
+        const tick = () => {
+            const anchor = flyoutAnchorRef.current;
+            if (!anchor || !anchor.isConnected) return;
+            const ar = anchor.getBoundingClientRect();
+            setFlyoutPos((pos) => {
+                const mr = menuRef.current?.getBoundingClientRect() || ar;
+                const x = Math.max(12, mr.right + 2 + 384 > window.innerWidth - 12 ? mr.left - 384 - 2 : mr.right + 2);
+                // 重算贴底溢出(2026-09-19 review P2-3): 否则逐帧校验会把首帧的向上翻转量覆盖还原。
+                const fr = flyoutRef.current?.getBoundingClientRect();
+                const overflow = fr ? fr.bottom - (window.innerHeight - 12) : 0;
+                const y = Math.max(12, ar.top - 8 - (overflow > 0 ? overflow + 4 : 0));
+                if (Math.abs(pos.x - x) < 1 && Math.abs(pos.y - y) < 1) { stable += 1; return pos; }
+                stable = 0;
+                return { x, y };
+            });
+            if (stable < 2) raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [flyoutGroup, flyoutPos.x]);
     // flora Providers 二级语法: L1=渠道/产商行钻取, L2=该组模型列表; 单组直接 L2, 搜索态展开全部
     const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -589,12 +631,7 @@ export function ModelPicker({
                     />
                 </div>
             ) : null}
-            {creationVariant && !searchable ? (
-                <div className="creation-model-picker-heading">
-                    <span>选择模型</span>
-                    {current ? <strong>{pickerModelDisplayName(config, current, showConfiguredModelName)}</strong> : null}
-                </div>
-            ) : null}
+            {/* 选择模型标题已删(2026-09-19 用户拍板): 触发按钮本身已显示当前模型, 双重展示冗余。 */}
             {/* MenuBody 以函数调用内联: 若写成 <MenuBody />, 组件标识每 render 新建,
                 整棵菜单子树随之重挂载(任意 state 变化丢滚动位置/重置 hover)。 */}
             {MenuBody()}
@@ -811,9 +848,10 @@ function modelMediaTypes(config: AiConfig, model: string, capability?: ModelCapa
             return kind === "image" ? refs?.maxImages ?? 0 : kind === "video" ? refs?.maxVideos ?? 0 : kind === "audio" ? refs?.maxAudios ?? 0 : 0;
         }
         if (capability === "text") {
-            // 文本模型的图片/视频理解徽章维持旧行为(不显示)——能力摘要副标题由 S08 面板重设计统一处理,
-            // 本轮修复严格限定在用户报告的 image/video 请求域。
-            return 0;
+            // 文本模型的图片/视频理解徽章按渠道 capabilityConfig 正常显示
+            // (2026-09-19 用户实测: 后台配置最大参考图片数 16, 列表却不显示"可输入图像")。
+            const refs = configured?.text?.references;
+            return kind === "image" ? refs?.maxImages ?? 0 : kind === "video" ? refs?.maxVideos ?? 0 : kind === "audio" ? 0 : 0;
         }
         return 0;
     };

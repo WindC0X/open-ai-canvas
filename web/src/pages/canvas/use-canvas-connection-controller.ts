@@ -92,7 +92,9 @@ export function useCanvasConnectionController({
     const [connectingParams, setConnectingParams] = useState<ConnectionHandle | null>(null);
     const [connectionTargetNodeId, setConnectionTargetNodeId] = useState<string | null>(null);
     const [connectionApproach, setConnectionApproach] = useState<CanvasConnectionApproach>(null);
-    const [connectionTargetAnchorRatio, setConnectionTargetAnchorRatio] = useState<number | undefined>();
+    // 预览线的目标 handleId(2026-09-18): activeConnectionPath 终点 y 需要它才能落到分镜行,
+    // 只传 nodeId+anchorRatio 时 connectionHandleY(undefined) 恒走节点中点(用户实测: 拖线先吸中点)。
+    const [connectionTargetHandleId, setConnectionTargetHandleId] = useState<string | undefined>();
     const [connectionReplaceHover, setConnectionReplaceHover] = useState<ConnectionReplaceHover | null>(null);
     const [pendingConnectionCreate, setPendingConnectionCreate] = useState<PendingConnectionCreate | null>(null);
     const [batchConnectionPreview, setBatchConnectionPreview] = useState<CanvasBatchConnectionPreview | null>(null);
@@ -155,7 +157,7 @@ export function useCanvasConnectionController({
             connectingPointerIdRef.current = null;
             connectingPointerStartRef.current = null;
             setConnectionTargetNodeId(null);
-            setConnectionTargetAnchorRatio(undefined);
+            setConnectionTargetHandleId(undefined);
         }
     }, [updateConnectionReplaceHover]);
 
@@ -429,10 +431,12 @@ export function useCanvasConnectionController({
                 const scrollTop = scriptScrollTopById[node.id] || 0;
                 const targetHandleId = node.type === CanvasNodeType.Script ? storyboardHandleAtY(node, world.y, scrollTop) : node.type === CanvasNodeType.BatchTable ? batchReferenceHandleAtY(node, world.y, handleRadius) : undefined;
                 if ((node.type === CanvasNodeType.Script || node.type === CanvasNodeType.BatchTable) && !targetHandleId) return;
+                const anchor = getConnectionTargetAnchor(node, current, targetHandleId, scrollTop);
                 // Ordinary nodes expose one centered input/output port. Only
                 // storyboard rows have a meaningful vertical target position.
-                const targetAnchorRatio = undefined;
-                const anchor = getConnectionTargetAnchor(node, current, targetHandleId, scrollTop);
+                // 命中行 handle 时把行 y 换算成 anchorRatio 回传预览(2026-09-18 用户反馈:
+                // 预览线吸到节点中点、松手才落到行上——预览渲染只吃 anchorRatio, 不知 handleId)。
+                const targetAnchorRatio = targetHandleId ? (anchor.y - node.position.y) / Math.max(node.height, 1) : undefined;
                 const dx = world.x - anchor.x;
                 const dy = world.y - anchor.y;
                 // Do not treat the node body or a rectangular padding band as a
@@ -476,8 +480,8 @@ export function useCanvasConnectionController({
                 const scrollTop = scriptScrollTopById[node.id] || 0;
                 const targetHandleId = node.type === CanvasNodeType.Script ? storyboardHandleAtY(node, world.y, scrollTop) : node.type === CanvasNodeType.BatchTable ? batchReferenceHandleAtY(node, world.y, handleRadius) : undefined;
                 if ((node.type === CanvasNodeType.Script || node.type === CanvasNodeType.BatchTable) && !targetHandleId) return;
-                const targetAnchorRatio = undefined;
                 const anchor = getConnectionTargetAnchor(node, current, targetHandleId, scrollTop);
+                const targetAnchorRatio = undefined;
                 const dx = world.x - anchor.x;
                 const dy = world.y - anchor.y;
                 const hitsSnapZone = dx * dx + dy * dy <= handleRadius * handleRadius;
@@ -668,7 +672,7 @@ export function useCanvasConnectionController({
         setMouseWorld(screenToCanvas(event.clientX, event.clientY));
         setConnecting({ nodeId, handleType, handleId, anchorRatio });
         setConnectionTargetNodeId(null);
-        setConnectionTargetAnchorRatio(undefined);
+        setConnectionTargetHandleId(undefined);
         setSelectedConnectionId(null);
     }, [clearBatchConnection, closeConnectionCreateMenu, commitBatchConnection, connectNodes, screenToCanvas, setConnecting, setSelectedConnectionId]);
 
@@ -734,7 +738,7 @@ export function useCanvasConnectionController({
             const point = screenToCanvas(event.clientX, event.clientY);
             setConnectionApproach((previous) => latchCanvasConnectionApproach(previous, dropTarget.nodeId, point));
             setConnectionTargetNodeId(dropTarget.nodeId);
-            setConnectionTargetAnchorRatio(dropTarget.anchorRatio);
+            setConnectionTargetHandleId(dropTarget.handleId);
             setMouseWorld(point);
         };
         const handlePointerMove = (event: PointerEvent) => {
@@ -817,7 +821,7 @@ export function useCanvasConnectionController({
         closeConnectionCreateMenu,
         connectionTargetNodeId,
         connectionApproach,
-        connectionTargetAnchorRatio,
+        connectionTargetHandleId,
         connectionReplaceHover,
         connectingParams,
         createConnectedNode,

@@ -52,7 +52,7 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	if err := db.Model(&model.CanvasProject{}).Where("id = ?", "agent-canvas").Update("payload_json", string(raw)).Error; err != nil {
 		t.Fatal(err)
 	}
-	latest := cloudAgentCanvasHash(doc)
+	latest := cloudAgentContentHash(doc)
 	if latest == base {
 		t.Fatal("测试前提不成立：画布哈希没变")
 	}
@@ -108,7 +108,7 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	if err := db.Model(&model.CanvasProject{}).Where("id = ?", "agent-canvas").Update("payload_json", string(rawBound)).Error; err != nil {
 		t.Fatal(err)
 	}
-	afterBind := cloudAgentCanvasHash(doc)
+	afterBind := cloudAgentContentHash(doc)
 	if afterBind == latest {
 		t.Fatal("测试前提不成立：提交第一条后画布哈希没变")
 	}
@@ -147,5 +147,39 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	}
 	if filledArgs.SnapshotHash != cloudAgentMediaContentHash(currentDoc) {
 		t.Fatalf("漏传 snapshotHash 应补当前媒体快照：got %s", truncateRunes(filledArgs.SnapshotHash, 12))
+	}
+
+	// ⑥ 基线不匹配但恰好是当前内容哈希的 63 位前缀(模型抄断末字符)→ 补全(P2-1 修复: 同轮第 2+ 次
+	//    写调用原先不进修复分支, 会继续 409)。截断前缀与当前内容无关时不修复, 如实报冲突。
+	truncated := state.Calls[1]
+	var truncArgs map[string]any
+	if err := json.Unmarshal([]byte(truncated.Function.Arguments), &truncArgs); err != nil {
+		t.Fatal(err)
+	}
+	truncArgs["snapshotHash"] = afterBind[:len(afterBind)-1]
+	rawTrunc, _ := json.Marshal(truncArgs)
+	truncated.Function.Arguments = string(rawTrunc)
+	repaired := s.cloudAgentRefreshStepSnapshotHash(run, &state, truncated)
+	var repairedArgs struct {
+		SnapshotHash string `json:"snapshotHash"`
+	}
+	if err := json.Unmarshal([]byte(repaired.Function.Arguments), &repairedArgs); err != nil {
+		t.Fatal(err)
+	}
+	if repairedArgs.SnapshotHash != afterBind {
+		t.Fatalf("同轮后续调用的截断哈希应补全：got %s want %s", truncateRunes(repairedArgs.SnapshotHash, 12), truncateRunes(afterBind, 12))
+	}
+
+	foreignTrunc := truncated
+	var foreignArgs map[string]any
+	if err := json.Unmarshal([]byte(foreignTrunc.Function.Arguments), &foreignArgs); err != nil {
+		t.Fatal(err)
+	}
+	foreignArgs["snapshotHash"] = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd" // 63位但非当前哈希前缀
+	rawForeign, _ := json.Marshal(foreignArgs)
+	foreignTrunc.Function.Arguments = string(rawForeign)
+	untouched := s.cloudAgentRefreshStepSnapshotHash(run, &state, foreignTrunc)
+	if untouched.Function.Arguments != foreignTrunc.Function.Arguments {
+		t.Fatal("非当前哈希前缀的陌生哈希不应被改写")
 	}
 }

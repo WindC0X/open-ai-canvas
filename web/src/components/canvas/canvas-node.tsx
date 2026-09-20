@@ -306,7 +306,11 @@ export const CanvasNode = React.memo(function CanvasNode({
     // 信息态优先显示 composerContent（用户追加/编辑语义），prompt 是提交链合成文本（含扩图固定模板），
     // 不应直接暴露在节点 UI（用户 2026-09-19 裁定：扩图提示词封装，不暴露模板）。
     const hoverPrompt = data.metadata?.composerContent ?? data.metadata?.prompt;
-    const hoverComposerVisible = hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
+    // 信息态 composer 仅限媒体生成节点(2026-09-18 用户反馈): 绘图/分镜/转换/批量/导演台/音频/工作流等
+    // 节点有自己的输入面或无提示词语义, 连接参考节点后 metadata.prompt/composerContent 被上游链填充,
+    // hover 信息态会把无关注入文本当成提示词展示——flora 该语法只服务媒体生成节点。
+    const hoverComposerNodeType = data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video;
+    const hoverComposerVisible = hoverComposerNodeType && hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
 
     return (
         <div

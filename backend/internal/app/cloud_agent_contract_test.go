@@ -41,7 +41,7 @@ func TestCloudAgentMixedCanvasReadsUnsupportedNodesWithoutGrantingCapabilities(t
 		}
 		result := view.(map[string]any)
 		encoded, _ := json.Marshal(result)
-		if strings.Contains(string(encoded), "PRIVATE_SENTINEL") || result["snapshotHash"] != cloudAgentCanvasHash(doc) || len(result["connections"].([]any)) != 1 {
+		if strings.Contains(string(encoded), "PRIVATE_SENTINEL") || result["snapshotHash"] != cloudAgentContentHash(doc) || len(result["connections"].([]any)) != 1 {
 			t.Fatal("unsafe projection or lost snapshot/connection")
 		}
 		want := len(nodes)

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"infinite-canvas/backend/internal/canvas/capability"
@@ -28,14 +29,73 @@ var cloudAgentStructuredProjectors = map[string]cloudAgentStructuredProjector{
 }
 
 // Viewport autosaves must not invalidate approved content; node edits still do.
+// 对话/外观类字段(chatSessions/activeChatId/背景等)同样不参与 hash(2026-09-19 真机实测):
+// 撤销成功后面板会追加"已撤销"系统条目 → 画布 chatSessions 变化 → 全文档 hash 变化 →
+// 链式撤销永远命中"画布已发生后续变化"自毁。hash 只覆盖画布图内容语义。
+// 节点/连线内的 createdAt/updatedAt 也归一剔除(2026-09-19 真机实测第二例): Agent 写入的
+// 节点不带时间戳, 本地同步 PUT 会补时间戳 → 仅时间戳之差就改变 hash, 同样自毁链式撤销。
 func cloudAgentCanvasHash(doc map[string]any) string {
 	content := make(map[string]any, len(doc))
 	for key, value := range doc {
-		if key != "viewport" && key != "updatedAt" {
-			content[key] = value
+		if key == "viewport" || key == "updatedAt" || key == "chatSessions" || key == "activeChatId" || key == "backgroundMode" || key == "showImageInfo" {
+			continue
 		}
+		content[key] = cloudAgentHashNormalizable(value)
 	}
 	return creationHash(content)
+}
+
+// 用反射而非 type switch: 服务端执行链会把 nodes 归一成 []map[string]any(JSON 解析后是 []any),
+// type switch 对具体 Go 类型失配会导致整棵子树跳过归一化, hash 口径在两条链路间分叉(2026-09-19 实测)。
+func cloudAgentHashNormalizable(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(typed))
+		for key, item := range typed {
+			if key == "createdAt" || key == "updatedAt" {
+				continue
+			}
+			out[key] = cloudAgentHashNormalizable(item)
+		}
+		return out
+	default:
+		rv := reflect.ValueOf(value)
+		if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
+			return value
+		}
+		out := make([]any, rv.Len())
+		for i := 0; i < rv.Len(); i++ {
+			out[i] = cloudAgentHashNormalizable(rv.Index(i).Interface())
+		}
+		return out
+	}
+}
+
+// cloudAgentContentHash 是模型可见的画布快照口径: 在 cloudAgentCanvasHash 之上再剔除节点 position。
+// 位置拖动是排版决策, 不改变 Agent 写入的内容语义; 用户在 Agent 执行期间拖动画布不应使 Agent
+// 基于旧内容快照的写入失效(2026-09-20 用户实测: 执行期间拖动任意节点 → canvas_apply_ops 被
+// "画布已变化"拒绝, Agent 需重读重审批)。所有面向模型的 snapshotHash(canvas_get_state 返回、
+// 工具结果、同轮刷新)都用本口径; mutation 账本与 undo 校验仍用完整口径, 保住 A5"用户手动变更
+// 阻断撤销"的语义(撤销不得静默回滚用户拖动)。
+func cloudAgentContentHash(doc map[string]any) string {
+	projected := make(map[string]any, len(doc))
+	for key, value := range doc {
+		projected[key] = value
+	}
+	nodes := creationMaps(doc["nodes"])
+	stripped := make([]map[string]any, 0, len(nodes))
+	for _, node := range nodes {
+		item := make(map[string]any, len(node))
+		for key, value := range node {
+			if key == "position" {
+				continue
+			}
+			item[key] = value
+		}
+		stripped = append(stripped, item)
+	}
+	projected["nodes"] = stripped
+	return cloudAgentCanvasHash(projected)
 }
 
 // Generation does not depend on node positions. Keep the full canvas hash for
@@ -174,7 +234,7 @@ func cloudAgentCanvasState(repo *repository.Repository, userID string, doc map[s
 			edges = append(edges, map[string]any{"id": edge["id"], "fromNodeId": edge["fromNodeId"], "toNodeId": edge["toNodeId"]})
 		}
 	}
-	return map[string]any{"snapshotHash": cloudAgentCanvasHash(doc), "mediaSnapshotHash": cloudAgentMediaContentHash(doc), "nodes": nodes, "connections": edges, "totalNodes": len(all), "nextOffset": next, "hasMore": next > 0}, nil
+	return map[string]any{"snapshotHash": cloudAgentContentHash(doc), "mediaSnapshotHash": cloudAgentMediaContentHash(doc), "nodes": nodes, "connections": edges, "totalNodes": len(all), "nextOffset": next, "hasMore": next > 0}, nil
 }
 
 func cloudAgentSafeNumber(value any) (any, bool) {

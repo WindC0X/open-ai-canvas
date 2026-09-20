@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"os"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -18,7 +19,15 @@ import (
 	"gorm.io/gorm"
 )
 
-const SessionCookieName = "open_ai_canvas_session"
+// SessionCookieName 默认同名; 开发机多实例(不同数据目录/工作树)共用 localhost 域与端口无关的
+// cookie, 任何杂散实例的登录/登出都会顶掉主环境的会话(2026-09-19 用户四轮被登出的结构性根因)。
+// 主环境启动时用 CANVAS_SESSION_COOKIE_NAME 隔离即可免疫。
+var SessionCookieName = func() string {
+    if name := strings.TrimSpace(os.Getenv("CANVAS_SESSION_COOKIE_NAME")); name != "" {
+        return name
+    }
+    return "open_ai_canvas_session"
+}()
 
 const sessionMaxAge = 30 * 24 * time.Hour
 

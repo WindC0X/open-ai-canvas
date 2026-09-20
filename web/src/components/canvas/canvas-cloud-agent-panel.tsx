@@ -14,7 +14,7 @@ import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { agentErrorPresentation, agentSubmissionErrorTitle } from "@/lib/canvas/agent-error-presentation";
-import { cancelAgentRun, getAgentCapabilities, getAgentProfile, getAgentRun, createAgentRun, decideAgentApproval, sendAgentInterjection, sendAgentMessage, subscribeAgentEvents, updateAgentProfile, type AgentEvent, type AgentPermissionMode, type AgentProfileScope, type AgentProfileView, type AgentReasoningMode, type AgentRun } from "@/services/api/agent";
+import { cancelAgentRun, getAgentCapabilities, getAgentProfile, getAgentRun, createAgentRun, decideAgentApproval, previewAgentUndo, sendAgentInterjection, sendAgentMessage, subscribeAgentEvents, undoAgentCanvasRun, updateAgentProfile, type AgentEvent, type AgentPermissionMode, type AgentProfileScope, type AgentProfileView, type AgentReasoningMode, type AgentRun, type AgentUndoPreview } from "@/services/api/agent";
 import { agentApprovalPresentation } from "@/lib/canvas/agent-approval-presentation";
 import { agentApprovalMatchesSettings, agentImageApproval } from "@/lib/canvas/agent-media-approval";
 import type { AgentMediaSettings } from "@/services/api/agent";
@@ -23,10 +23,10 @@ import { addSkill, listAddedSkills, listSkills, type Skill, type SkillCategory }
 import { clearCloudAgentPendingSubmission, cloudAgentConversationTitle, loadCloudAgentConversations, loadCloudAgentPendingSubmission, saveCloudAgentConversations, saveCloudAgentPendingSubmission, type CloudAgentConversation, type CloudAgentPendingSubmission } from "@/services/cloud-agent-conversations";
 import { logicalModelIDForConfig, modelOptionName, resolveModelRequestConfig, selectableModelsByCapability, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
-import { applyAgentCanvasPatches, refreshCanvasAfterAgent, saveRemoteUserDataNow } from "@/services/user-data-sync";
+import { adoptRemoteCanvasAfterUndo, applyAgentCanvasPatches, refreshCanvasAfterAgent, saveRemoteUserDataNow } from "@/services/user-data-sync";
 import { createAgentCanvasSync } from "@/services/agent-canvas-sync";
 import { buildSkillMentionReferences, resolveSkillMentions } from "@/services/skill-runtime";
-import { AgentChatComposer, AgentChatMessage, AgentPlanBar, AgentQuestionBar, AgentWorkingMessage, type CloudAgentChatMessage, type CloudAgentPlanItem } from "./canvas-cloud-agent-chat-ui";
+import { AgentChatComposer, AgentChatMessage, AgentPlanBar, AgentQuestionBar, AgentUndoBar, AgentWorkingMessage, type CloudAgentChatMessage, type CloudAgentPlanItem } from "./canvas-cloud-agent-chat-ui";
 import { CanvasAgentSkillLibraryModal } from "./canvas-agent-skill-library-modal";
 import { CanvasCloudAgentSettings, agentPermissionLabel, agentPermissionMenuItems, agentPermissionVisual, type AgentContextKey } from "./canvas-cloud-agent-settings";
 import { useAgentPanelLayout } from "./use-agent-panel-layout";
@@ -92,6 +92,11 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
     const [historyHydrated, setHistoryHydrated] = useState(false);
     const [pendingHydrated, setPendingHydrated] = useState(false);
     const [planMinimized, setPlanMinimized] = useState(false);
+    // 画布撤销(2026-09-18): run 结束后预检最近一次画布变更; undefined=不显示(运行中/无画布变更)。
+    const [undoPreview, setUndoPreview] = useState<AgentUndoPreview | null | undefined>(undefined);
+    const [undoBusy, setUndoBusy] = useState(false);
+    // 撤销条"不撤销"本地收起: 服务端撤销能力不变, 预检变化(新 run/会话切换/重预检)时自动重现。
+    const [undoDismissed, setUndoDismissed] = useState(false);
     const planItems = useMemo(() => latestAgentPlanItems(messages), [messages]);
     const planVisible = agentPlanVisible(planItems);
     const pendingQuestion = useMemo(() => pendingAgentQuestion(messages), [messages]);
@@ -327,6 +332,10 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
     useEffect(() => {
         if (!run?.id) return;
         lastSeqRef.current = 0;
+        // 终态 run 的订阅是纯历史回放(会话切换/刷新后 after=0): 回放里的 canvas_updated 会把
+        // 用户已删除的节点重新 patch 回画布(2026-09-19 用户实测"会话切换复原已删节点")。
+        // 终态运行没有新的画布事件, 画布以 store/云端为准 — 只回放 UI 消息, 不喂同步通道。
+        const replayOnly = ["completed", "failed", "cancelled", "rejected"].includes(run.status);
         return subscribeAgentEvents(
             run.id,
             (event) => {
@@ -334,12 +343,12 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                 // Snapshot-derived UI events intentionally use seq=0.
                 if (event.seq > 0) {
                     if (event.seq <= lastSeqRef.current) return;
-                    if (event.seq > lastSeqRef.current + 1) canvasSyncRef.current?.reconcile();
+                    if (event.seq > lastSeqRef.current + 1 && !replayOnly) canvasSyncRef.current?.reconcile();
                     lastSeqRef.current = event.seq;
                 }
                 setMessages((current) => current.filter((item) => item.id !== `stream-error-${run.id}`));
                 applyAgentEvent(event, setMessages, setRun, setApproval, setPrompt);
-                canvasSyncRef.current?.receive(event);
+                if (!replayOnly) canvasSyncRef.current?.receive(event);
             },
             {
                 after: 0,
@@ -469,6 +478,75 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
         } finally {
             submissionRequestRef.current = false;
             if (currentScope.current === scope) setBusy(false);
+        }
+    };
+
+    // 撤销预检时机: run 进入终态(completed/failed/cancelled/rejected)后拉一次;
+    // canvas_undone 事件会触发画布刷新, 这里再本地把 preview 失效为"已撤销"提示态。
+    useEffect(() => {
+        const runId = run?.id;
+        if (!runId || running) {
+            setUndoPreview(undefined);
+            return;
+        }
+        let cancelled = false;
+        setUndoPreview(null);
+        previewAgentUndo(runId)
+            .then((preview) => { if (!cancelled && currentScope.current === conversationScope) setUndoPreview(preview.found ? preview : undefined); })
+            .catch(() => { if (!cancelled && currentScope.current === conversationScope) setUndoPreview(null); });
+        return () => { cancelled = true; };
+    }, [run?.id, running, conversationScope]);
+
+    useEffect(() => { setUndoDismissed(false); }, [run?.id, undoPreview?.stepId]);
+
+    const undoLastCanvasChange = async (reason: string) => {
+        const activeRun = run;
+        if (!activeRun?.id || undoBusy) return;
+        const preview = undoPreview;
+        if (!preview?.canUndo || !preview.stepId || !preview.afterSnapshotHash) return;
+        setUndoBusy(true);
+try {
+            // P2-1(2026-09-19 review): 先把未同步本地编辑推上云再撤销。若用户在预检后改过画布,
+            // 上云后服务端哈希变化会让 undo 被正确拒绝("画布已发生后续变化"), 而不是撤销成功后
+            // adoptRemoteCanvasAfterUndo 把未同步编辑静默覆盖掉。flush 失败时 fail-closed 不撤销。
+            await saveRemoteUserDataNow();
+            await undoAgentCanvasRun(activeRun.id, { stepId: preview.stepId, expectedSnapshotHash: preview.afterSnapshotHash, reason: reason || undefined });
+            if (currentScope.current === conversationScope) {
+                setUndoPreview({ ...preview, canUndo: false, status: "undone", blockReason: "该变更已撤销" });
+                setMessages((current) => appendUniqueMessage(current, {
+                    id: `canvas-undone-${activeRun.id}-${preview.stepId}`,
+                    role: "system",
+                    text: "已撤销 Agent 最近一次画布修改",
+                }));
+                // 撤销改的是云端画布; 本地内容/基线/水位必须强制对齐云端(回滚态), 否则残留快照会被
+                // S08"仅本地领先"路径推回云端(实测: 撤销 95 秒后被自动同步反噬)。
+                // 用 adoptRemoteCanvasAfterUndo 而非 discard+refresh: 后者 previous=undefined 投影会让
+                // 全部节点被误判为 Agent 新建 → 全选 + 视角飞行(用户实测); adopt 保留 viewport、
+                // 对齐基线与水位, delta 语义与上游 Agent 画布更新一致。
+            }
+            // 画布级采纳不受会话 scope 制约(2026-09-19 review P2-2): 云端已回滚, 若用户在 POST
+            // 返回前切了会话而跳过 adopt, 本地基线/水位将永久分叉。仅 UI 提示受 scope 管控。
+            adoptRemoteCanvasAfterUndo(canvasId)
+                .then(() => saveRemoteUserDataNow())
+                .then(() => {
+                    // 链式撤销: 成功后重新预检, 让撤销条直接呈现"上一步"(canUndo=true)而非终态。
+                    if (currentScope.current === conversationScope) {
+                        previewAgentUndo(activeRun.id).then((fresh) => { if (currentScope.current === conversationScope) setUndoPreview(fresh.found ? fresh : undefined); }).catch(() => undefined);
+                    }
+                })
+                .catch((cause) => {
+                    if (currentScope.current === conversationScope) {
+                        setMessages((current) => appendAgentError(current, `undo-adopt-${activeRun.id}-${preview.stepId}`, cause, "画布已撤销，但本地画布刷新失败"));
+                    }
+                });
+        } catch (cause) {
+            if (currentScope.current === conversationScope) {
+                setMessages((current) => appendAgentError(current, `undo-${activeRun.id}-${preview.stepId}`, cause, "撤销未执行"));
+                // 撤销失败后重新预检(常见: 画布已变化):
+                previewAgentUndo(activeRun.id).then((fresh) => { if (currentScope.current === conversationScope) setUndoPreview(fresh); }).catch(() => undefined);
+            }
+        } finally {
+            setUndoBusy(false);
         }
     };
 
@@ -733,6 +811,15 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                                         onReject={() => void submitApproval("reject")}
                                     />
                                     {planVisible ? <AgentPlanBar items={planItems} theme={theme} minimized={planMinimized} onToggle={() => setPlanMinimized((value) => !value)} /> : null}
+                                    {!running && !undoDismissed && undoPreview !== undefined && undoPreview !== null && (undoPreview.found || undoPreview.blockReason) ? (
+                                        <AgentUndoBar
+                                            theme={theme}
+                                            blockReason={undoPreview.canUndo ? undefined : undoPreview.blockReason}
+                                            busy={undoBusy}
+                                            onUndo={(reason) => void undoLastCanvasChange(reason)}
+                                            onDismiss={() => setUndoDismissed(true)}
+                                        />
+                                    ) : null}
                                     {pendingQuestion ? (
                                         <AgentQuestionBar
                                             question={pendingQuestion}

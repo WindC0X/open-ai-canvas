@@ -216,7 +216,7 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	unchanged := args.SnapshotHash != "" && (cloudAgentCanvasHash(doc) == args.SnapshotHash || cloudAgentMediaContentHash(doc) == args.SnapshotHash)
+	unchanged := args.SnapshotHash != "" && (cloudAgentCanvasHash(doc) == args.SnapshotHash || cloudAgentMediaContentHash(doc) == args.SnapshotHash || cloudAgentContentHash(doc) == args.SnapshotHash)
 	if !unchanged {
 		return nil, nil, nil, creationConflict("画布已变化，请重新读取画布并重新审批；未提交生成任务")
 	}
@@ -366,9 +366,9 @@ func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime
 			return BadAuthRequest("视频生成必须明确 durationSeconds")
 		}
 	case "image", "audio":
-		// LLM 存在冗余携带默认值（durationSeconds:0 / videoGenerateAudio:false）的训练惯性；
-		// 图片/音频模式直接忽略视频专属字段，只拦真正的语义冲突（非视频却要生成音频）。
-		if mode == "audio" && a.Duration != 0 {
+		// 防御层: prepareCloudAgentMedia 已在非视频模式清零这两个错位参数(2026-09-20), 此处正常不可达;
+		// 保留以防未来调用方绕过 prepare 直达本函数。
+		if a.Duration != 0 {
 			return BadAuthRequest("只有视频生成允许设置 durationSeconds")
 		}
 		if a.VideoGenerateAudio != nil && *a.VideoGenerateAudio {
@@ -484,6 +484,15 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	}
 	a.Mode = strings.ToLower(strings.TrimSpace(a.Mode))
 	a.DraftRunID = run.ID
+	// 模型常把视频专属参数带进图片/音频请求(2026-09-20 真机实测: 图片生成被"videoGenerateAudio 仅适用于
+	// 视频生成"反复拒绝, 模型坚信该参数必填, 重试循环无法自愈)。这类错位参数没有安全语义, 静默忽略;
+	// 真正的约束(时长必填/参考数量/画幅)仍严格校验。
+	if a.Mode != "video" {
+		if a.Duration != 0 {
+			a.Duration = 0
+		}
+		a.VideoGenerateAudio = nil
+	}
 	if err := s.fillCloudAgentMediaSnapshotHash(run.UserID, state.Request.CanvasID, &a); err != nil {
 		return CreateTaskRequest{}, nil, err
 	}

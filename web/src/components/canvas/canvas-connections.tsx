@@ -152,16 +152,18 @@ export function canvasConnectionPath(connection: CanvasConnection, from: CanvasN
     return { pathD: `M ${startX} ${startY} C ${startX + curvature} ${startY}, ${endX - curvature} ${endY}, ${endX} ${endY}`, startX, startY, endX, endY };
 }
 
-export function activeConnectionPath(node: CanvasNodeData | undefined, handle: ConnectionHandle, mouseWorld: Position, target?: CanvasNodeData, nodeScrollTop = 0) {
+export function activeConnectionPath(node: CanvasNodeData | undefined, handle: ConnectionHandle, mouseWorld: Position, target?: CanvasNodeData, nodeScrollTop = 0, targetHandleId?: string, targetScrollTop = 0) {
     if (!node) return "";
     const startX = handle.handleType === "source" ? node.position.x + node.width : mouseWorld.x;
     const startY = handle.handleType === "source" ? connectionHandleY(node, handle.handleId, nodeScrollTop) : mouseWorld.y;
     const endX = handle.handleType === "source" ? mouseWorld.x : node.position.x;
     const endY = handle.handleType === "source" ? mouseWorld.y : connectionHandleY(node, handle.handleId, nodeScrollTop);
+    // 目标侧吸附: 吸附命中行 handle 时按 handleId 取行 y(含目标侧滚动偏移), 缺省才退回边缘中点——
+    // 之前预览恒取中点、松手才落到行上(2026-09-18 用户两轮反馈)。
     const snappedStartX = handle.handleType === "target" && target ? target.position.x + target.width : startX;
-    const snappedStartY = handle.handleType === "target" && target ? connectionHandleY(target) : startY;
+    const snappedStartY = handle.handleType === "target" && target ? connectionHandleY(target, targetHandleId, targetScrollTop) : startY;
     const snappedEndX = handle.handleType === "source" && target ? target.position.x : endX;
-    const snappedEndY = handle.handleType === "source" && target ? connectionHandleY(target) : endY;
+    const snappedEndY = handle.handleType === "source" && target ? connectionHandleY(target, targetHandleId, targetScrollTop) : endY;
     const distance = Math.abs(snappedEndX - snappedStartX);
     return `M ${snappedStartX} ${snappedStartY} C ${snappedStartX + distance * 0.5} ${snappedStartY}, ${snappedEndX - distance * 0.5} ${snappedEndY}, ${snappedEndX} ${snappedEndY}`;
 }

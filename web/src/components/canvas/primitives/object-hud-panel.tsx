@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Maximize2 } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { modelDisplayName, type AiConfig } from "@/stores/use-config-store";
 import { formatCredits } from "@/constant/credits";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
@@ -26,8 +26,6 @@ export type ObjectHudPanelProps = {
     /** 生效配置(解析模型显示名:区分后端渠道/前台模型两种情况) */
     config?: AiConfig | null;
     /** 该节点关联生成任务的计费文案(冻结/已结算);无关联任务时不显示 */
-    /** Agent 等右侧停靠面打开时的让位 CSS right 值;缺省 16px */
-    rightInset?: string;
     /** 顶部让位 CSS 值;缺省 88px。生成任务面板出现时宿主传入其下方位置,避免同锚重叠 */
     topInset?: string | number;
     actions?: ObjectHudAction[];
@@ -47,8 +45,10 @@ function hasContent(node: CanvasNodeData): boolean {
     return (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) && Boolean(node.metadata?.content);
 }
 
-export function ObjectHudPanel({ node, config, rightInset, topInset = 88, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+export function ObjectHudPanel({ node, config, topInset = 88, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
+    // 画布外观通道统一走 useActiveTheme(W1-C 迁移漏项): HUD 是画布浮层, 亮色画布下必须亮色——
+    // 直连工作台 useThemeStore 会拿错主题(用户截图: 亮色画布 HUD 恒黑)。
+    const theme = canvasThemes[useActiveTheme()];
     const mountedRef = useRef(false);
     const [revealed, setRevealed] = useState(false);
 
@@ -95,7 +95,10 @@ export function ObjectHudPanel({ node, config, rightInset, topInset = 88, action
 
     const shellStyle: CSSProperties = {
         position: "fixed",
-        right: rightInset ?? 16,
+        // HUD 固定右上角家(2026-09-20 用户拍板): 不按 Agent 面板几何漂移, 也不淡出/隐藏 ——
+        // z 层压在面板之下(var(--z-panel-floating) 80 < 面板基线 110), 面板路过时自然盖住,
+        // 移开即重新露出, 与普通窗口层叠一致。
+        right: 16,
         top: topInset,
         width: 288,
         maxHeight: "calc(100vh - 176px)",
@@ -103,7 +106,7 @@ export function ObjectHudPanel({ node, config, rightInset, topInset = 88, action
         background: theme.toolbar.panel,
         border: `1px solid ${theme.toolbar.border}`,
         borderRadius: 14,
-        zIndex: "var(--z-modal-overlay)" as unknown as number,
+        zIndex: "var(--z-panel-floating)" as unknown as number,
         opacity: revealed ? 1 : 0,
         transform: revealed ? "translateX(0)" : "translateX(12px)",
         transition: revealed

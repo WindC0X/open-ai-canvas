@@ -67,9 +67,11 @@ func prepareCloudAgentCanvasMutation(repo *repository.Repository, userID, canvas
 	if err != nil {
 		return nil, err
 	}
+	// 账本口径(完整含 position)与模型可见口径(内容, 剔 position)分离: 用户拖动节点不改内容语义,
+	// 不应使 Agent 写入失效; 撤销链(A5)仍用完整口径, 用户拖动会阻断撤销保护其改动。
 	beforeHash := cloudAgentCanvasHash(doc)
-	if beforeHash != args.SnapshotHash {
-		return nil, creationConflict("画布已变化，本次未写入；请重新读取并重新申请审批")
+	if cloudAgentContentHash(doc) != args.SnapshotHash {
+		return nil, creationConflict("画布内容已变化，本次未写入；请重新读取并重新申请审批")
 	}
 	items, err := applyCloudAgentCanvasPlan(doc, args.Ops)
 	if err != nil {
@@ -88,6 +90,20 @@ func prepareCloudAgentCanvasMutation(repo *repository.Repository, userID, canvas
 func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloudAgentApprovalPreviewItem, error) {
 	nodes := creationMaps(doc["nodes"])
 	edges := creationMaps(doc["connections"])
+	// Agent 新增节点由服务端统一落位(2026-09-19 用户实测: 模型自报 x/y 落在画布原点角落且不带尺寸语义)。
+	// 位置是排版决策不是内容决策: 与其让模型猜坐标, 不如按现有画布包围盒放到右侧空列, 逐个向下排。
+	// 只改写 ops 的 X/Y, preview 与执行共用 creationAddedNode, 两处天然一致; 模型显式 position 语义不再保留。
+	bounds := cloudAgentNodesBounds(nodes)
+	nextX, nextY := bounds.maxX+120.0, bounds.minY
+	for i := range ops {
+		if ops[i].Type != "add_node" {
+			continue
+		}
+		ops[i].X, ops[i].Y = nextX, nextY
+		// 步长=该类型默认高度+100 间距(2026-09-19 review P1): 文本节点默认高度已 384,
+		// 固定 340 步长会让多节点纵向压叠 44px。未知类型回退 384。
+		nextY += cloudAgentNodeDefaultHeight(string(ops[i].NodeType)) + 100.0
+	}
 	items := make([]cloudAgentApprovalPreviewItem, 0, len(ops))
 	for _, op := range ops {
 		title, content := "", ""
@@ -303,4 +319,46 @@ func cloudAgentApprovalCallHash(call cloudAgentCall) string {
 	raw, _ := json.Marshal(call)
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
+}
+
+
+// cloudAgentNodesBounds 计算节点集合的包围盒; 空画布回退到原点附近的第一落位。
+type cloudAgentBounds struct{ minX, minY, maxX float64 }
+
+func cloudAgentNodesBounds(nodes []map[string]any) cloudAgentBounds {
+	result := cloudAgentBounds{minX: 0, minY: 0, maxX: 0}
+	first := true
+	for _, node := range nodes {
+		pos, _ := node["position"].(map[string]any)
+		x, _ := pos["x"].(float64)
+		y, _ := pos["y"].(float64)
+		width, _ := node["width"].(float64)
+		if width <= 0 {
+			width = 384
+		}
+		if first {
+			result.minX, result.minY, result.maxX = x, y, x+width
+			first = false
+			continue
+		}
+		if x < result.minX {
+			result.minX = x
+		}
+		if y < result.minY {
+			result.minY = y
+		}
+		if x+width > result.maxX {
+			result.maxX = x + width
+		}
+	}
+	return result
+}
+
+
+// cloudAgentNodeDefaultHeight 返回节点类型的默认高度(落位步长用), 未知/未注册类型回退 384。
+func cloudAgentNodeDefaultHeight(nodeType string) float64 {
+	if d, ok := capability.BuiltinRegistry().Resolve(nodeType); ok && d.DefaultHeight > 0 {
+		return d.DefaultHeight
+	}
+	return 384.0
 }

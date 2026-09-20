@@ -946,6 +946,13 @@ func (s *Service) advanceCloudAgentTool(run *model.CloudAgentExecution, state *c
 					}
 					var appErr *AppError
 					if errors.As(mutationErr, &appErr) && appErr != nil {
+						// 画布并发冲突(409)不是 admission 失败: 画布在模型读取后被外部改变(用户编辑/另一轮写入)。
+						// 终止 run 会把可自恢复的竞态变成"Agent 执行失败"(2026-09-20 用户实测: 执行期间拖动节点后
+						// 第二次写入直接 failed)。把它作为工具结果返回, 模型重读画布后自动重试/重报审批。
+						if appErr.Status == 409 {
+							cloudAgentToolResult(run.ID, state, call, nil, mutationErr)
+							return cloudAgentSave(current, state)
+						}
 						return failCloudAgentAdmission(current, state, run.ID, mutationErr)
 					}
 					return mutationErr

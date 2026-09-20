@@ -19,7 +19,7 @@
 ## 2. 开始工作前
 
 1. 先读取任务涉及的入口、调用方、配置、锁文件和相邻测试；先理解现状，再决定是否抽象或重构。
-2. 使用 `rg` / `rg --files` 搜索，优先并行读取相关文件。不要为了“统一风格”改动无关模块、依赖、格式或用户已有修改。
+2. 结构化检索优先于 grep：影响面/caller/callee/“谁在消费 X”类问题用 `codegraph callers|callees|impact|query <kw> -p .`（本仓已建索引：主 checkout 与 oac-wt-f06 各一份，2026-09-20），不得 grep 全仓；不知符号名的意图型问题（“X 在哪处理/怎么实现”）先 `ace-ctx --search "<自然语言>"`，命中后 read 再动手；精确符号名才 `rg`，优先并行读取相关文件。会话内首次触碰代码前跑 `codegraph status -p .`（/mnt 不 live-watch：索引由 git 钩子在 commit/pull/checkout 后自动刷新；未提交的大量手改后用 `codegraph sync -p .`）。已知盲区：`useCallback` 包裹的 hook 内函数约半数不被符号抽取（或仅以 onXxx 属性名收录），`codegraph node` not found ≠ 符号不存在——用 `rg` 复核后再下结论；Go 后端与普通函数/文件级模糊检索（query）实测可靠。不要为了“统一风格”改动无关模块、依赖、格式或用户已有修改。
 3. 先形成目标边界：页面负责什么、service 负责什么、handler/service/repository 如何分层、数据和错误如何流动。新增 helper 必须消除真实重复或隔离明确协议，不能只透传参数。
 4. 检查 `git status --short`。不覆盖、不回滚、不清理非本次产生的变更；不使用 `git reset --hard`、`git checkout --` 或宽范围删除。
 5. 手工编辑使用 `apply_patch`；默认使用 ASCII，业务中文或已有 Unicode 文件除外。注释只解释非直观算法、核心入口、安全边界和降级原因。

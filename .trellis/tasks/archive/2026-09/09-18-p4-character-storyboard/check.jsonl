@@ -1,0 +1,2 @@
+{"type": "spec", "path": ".trellis/spec/frontend/quality-guidelines.md", "reason": "质量门: tsc/build/测试基线"}
+{"type": "spec", "path": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证声明纪律"}

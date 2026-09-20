@@ -208,3 +208,42 @@
 **冲突裁决记录**：flora-evidence-kit 分支设计（flora/quiet+flora/grammar）从未启用、实际 main 直做——与 canvas MASTER-PLAN「main checkout」实质一致，旧文未改（仅口径统一，分支设计注记于此存档）。
 
 **下一步**：族 3（角色引用/分镜）开工——上游侦察 → Trellis 立任务。同步 SOP 新增的「自动并入段审计」（tsc+死 CSS 扫描+DOM 抽审）自下次同步生效。
+
+## Session 2026-09-20：Agent 撤销面板收尾 + 执行容错/HUD 归宿批次
+
+**任务**：09-18-agent-undo-panel 归档（archive/2026-09/）。撤销链 A1-A4 真机全通，A5/A6 撤销阻断语义经真机与截图确认，缺陷全部登记后逐项修复。
+
+**修复批次**（全量提交，pending-test.mdx 均有登记）：
+1. **撤销链双根修**：hash 剔除对话外观字段（chatSessions/activeChatId）与节点级时间戳（反射归一，type-switch 在 []map 执行链失配导致口径分叉 4.7KB）——链式撤销自毁根除，A3 双连撤真机全通。
+2. **内容口径 hash**：模型可见 snapshotHash 剔除节点 position（拖动不再使写入失败），账本/undo 保持完整口径保住 A5；409 冲突转工具结果让模型重读重试；63 位抄断 hash 自动补全（真机 5 连败实锤）；Agent 创建节点补 createdAt/updatedAt（HUD 创建行不再回退画布级误导时间）。
+3. **媒体参数错位静默忽略**：图片/音频模式携带 videoGenerateAudio/durationSeconds 不再拒绝（模型坚信音频开关必填、重试循环无法自愈，真机 2 轮实锤）；validate 同分支标注防御层语义。
+4. **review P2-1**：同轮第 2+ 次写调用的截断哈希补全（复用已加载文档零额外 DB 读），新增用例⑥。
+5. **HUD 归宿三轮演进**（用户逐轮拍板）：几何让位 → 相交淡出（否决）→ **纯层叠**：HUD 固定右上角家 right:16 零漂移，z 降 panel-floating(80) 低于面板基线 110，面板路过自然盖住移开即露；hudRightInset 几何让位/min() 钳制整段删除。真机验证含正常/超宽双分支（2016px 精确命中）与层叠三态。
+
+**环境教训**：Chrome 原生窗口遮挡检测使后台标签 visibilityState=hidden、CDP 输入静默丢弃——桥 tabs switch 只聚焦窗口不解除遮挡，需 PowerShell SetForegroundWindow + 确认 vis=visible 后再真实输入；同画布双开标签会被误当操作目标。
+
+**挂账**：Agent 生成媒体成功态 HUD「大小/格式」行复核（前端补全链路代码级确认等价，钱咖渠道已关停，待渠道可用）；上游 v1.3.x 积压 19 提交待下轮同步仪式。
+
+**Status**：[OK] Completed（任务归档，撤销面板与执行容错批次交付）
+
+## Session 2026-09-20（晚）：控制线批次〇/一/二执行中
+
+**批次〇 上游侦察**（docs/upstream-sync-recon-v1.5.1-v1.5.6.md）：fetch 实测 80 提交（merge-base 8d60a516，882 files +53k/−42k）。五高危亲读：cfcc53a9（chat-ui/panel class 化重构撞撤销条质感现场, 高）、8d94bde1（多规格调价新体系+入口球可拖动, 中）、0ea9f7d9（模型选择严格校验 vs 我方 799e5503 静默忽略——语义正交可共存, 拍板项）、33908ed1+cb68476e（连线/字号/F-02 域, 中）、易支付链（新文件为主, 低-中）。**控制线未点名的实为最大冲突：adf3a5be**（61 文件 +3510, Agent 执行链重写：上下文预算/prepared_media/终态恢复/resource lease——canvas_state ±113 上游仍全口径 hash、step_hash +36 mutation-chain 走链中继、runtime ±354 撞我方 409 容错分支；我方三修复须重放, 建议单独人审会话 0.5-1 天）。025b5e84+f3875357 vs S08：上游 revision CAS+schema v23 历史快照+草稿保留, 我方跨会话水位门——结构取上游、水位语义重放, 高危手术区。5eab8126 样式拆分（globals.css −1031 行→shared/model-picker.css 843 等）改写 W3 加载序假设（整个 styles import 链末端）+ P51-030 flora 值随迁。58 提交 bulk 分类由 4 并行子代理完成, 结果回传后回填笔记 §五。
+**批次一①**：flora 暗色"重置"代码级定性完成——use-canvas-project-lifecycle.ts:123 加载画布时 setTheme(文档外观) 是"每个画布自带外观"的产品语义（文档态/可撤销/分享跟随）；缺陷成分=无"未自定义"判据导致派生默认值被钉死+无过渡提示；当场修需 schema 加 custom 标记（非小修）→ 结论报用户拍板（A 维持+门3补采走画布外观路径 / B 立跟随开关卡）。
+**批次一②**：卫生清单已报用户（4 分析文档 / ComfyBridge×3 共 18MB 零引用 / .workbuddy-ai/ / 新发现 agent-panel-overlay-zorder.test.ts 未跟踪但 5/5 绿建议提交）。
+**批次二**：09-20-flora-w3-tokens 卡已立（prd.md+design.md 落盘, 覆盖表/加载序/取舍/风险段含基线时效缺口; 任务保持 planning, 代码等同步落地）。
+
+**批次〇收尾（bulk 回填）**：4 子代理（347K tok/$0.0081/708s）以 merge-file 三方模拟实测各提交冲突 hunk。关键增量：①adf3a5be 上游把 mediaSnapshotHash 也重写为内容口径（fail-closed 白名单，剔 position/width/height/时间戳）——与我方 cloudAgentContentHash 平行演进但字段集不同，模型可见 snapshotHash 上游仍全口径（canvas_state:247 vs 我方 :237 交叉验证）；②agent-canvas-patch.ts 删除语义双实现撞车（我方 211e4495 撤销守卫 vs 上游通用删除 patch）；③237f2e2a 端到端删 frontend 模型目录来源，我方后端仍实现且前端仍消费（语义破坏型）；④canvas_undone 无条件刷新 vs 我方终态回放不喂同步；⑤17ffdda0/8e3692ea/9148ceab/af5b5b20/506f463d/b99ad798 project.tsx 全中；⑥零碰撞先遣队 19 提交可先放行；⑦4 组原版/合并版同内容对按合并版取一次；⑧image_layer_split 写工具必须纳入我方撤销/step_hash 白名单。拍板清单 8 项已入笔记 §六。合并人审预估 2-3 天。
+
+## Session 2026-09-20（夜）：控制线新一轮——拍板执行 + adf3a5be 专项 + 合并日材料
+
+**拍板执行①（用户已拍板，勿再议）**：
+1. flora 暗色 = A 维持现状。定性收敛：use-canvas-project-lifecycle.ts:123 加载画布时 setTheme(文档外观) 是"每个画布自带外观"的产品语义（文档态/可撤销/分享页跟随），测试线探针 result.md 互证"设计使然"；缺陷成分仅是无"未自定义"判据（需 schema 加标记，非小修）。B 选项（画布外观跟随工作台开关）登记 backlog 候选（不立卡）。
+2. 卫生四项已执行：①4 份分析文档（117K）mv 至 F:/CODE/Project/canvas/analysis-2026-09-20-control-batches/（untracked 文件无法 git mv，用 mv）；②ComfyBridge×3（18.8MB）mv 至 F:/CODE/Project/canvas/comfybridge-bin/（移出 web/public 防静态资源下发）；③.workbuddy-ai/ 写入 .git/info/exclude（本地生效，合并日后上游 .gitignore 未盖再升级）；④agent-panel-overlay-zorder.test.ts 提交收编（5/5 绿）。工作区 0 untracked。
+**undo 接线自报**：已闭环（归档+真机自验证据 pending-test.mdx A3 链式双连撤+根修代码在盘），批次三前无需补课。
+
+**批次三（bulk定稿）**：抽查两处高危亲证——①hash口径（canvas_state 上游:247 fullHash vs 我方:237 contentHash）②删除语义双实现（上游 agent-canvas-patch:52 通用删除 vs 我方:48-50 撤销权威守卫）。笔记 §五 定稿。
+**批次四（adf3a5be 专项三卡）**：docs/merge-ruling-cards/01-03 落盘。卡1 hash口径=三口径分工（模型可见取我方 contentHash、账本不动、mediaHash 采上游字段集）; 卡2 step_hash=融合（上游链式证明+我方截断修复, 二者正交）; 卡3 runtime=取上游全量+409分支4行嫁接（上游:1104 无特例, 我方唯一hunk恰落其媒体重排区, 嫁接点同构明确）。
+**批次五（拍板清单裁决卡）**：04-09 落盘——04 模型校验正交共存; 05 删除语义融合（上游patch语言+我方来源约束）; 06 S08结构取上游+水位门重放（跨会话硬门不可被"保留编辑分支"吞掉）; 07 canvas_undone取我方门语义（回放复活已实证）; 08 frontend目录删除=建议取上游收窄, 4消费文件清单+运维前置（系统渠道须已配置）; 09 globals直改逐条对账（新选择器收, .ant-*全局!important不搬, outline策略采纳）。
+**白名单机械项**：cloudAgentWrite（tools.go:279）预置 image_layer_split（合并前不可达, 合并后进 step_hash 接力/审批门）; 撤销账本经 recorder 内容式记账（media.go:557+runtime:894/1102）无需改; go build+相关测试绿; commit ac485844。
+**批次六**：先遣队19提交三方复验顺延（时间富余项, 子代理已做过 merge-file 模拟, 复验归入合并日执行）。

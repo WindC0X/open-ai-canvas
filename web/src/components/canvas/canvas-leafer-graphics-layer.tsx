@@ -23,7 +23,7 @@ type CanvasLeaferGraphicsLayerProps = {
     batchConnectionPreview: CanvasBatchConnectionPreview | null;
     mouseWorld: Position;
     connectionTargetNodeId: string | null;
-    connectionTargetAnchorRatio?: number;
+    connectionTargetHandleId?: string;
     nodeById: Map<string, CanvasNodeData>;
     selectionBox: SelectionBox | null;
     selectedNodeBounds: NodeBounds;
@@ -148,7 +148,7 @@ export function CanvasLeaferGraphicsLayer(props: CanvasLeaferGraphicsLayerProps)
         const overlay = overlayRef.current;
         if (!overlay) return;
         syncOverlayContent(overlay, props, viewportRef.current.k);
-    }, [props.batchConnectionPreview, props.connectingParams, props.connectionTargetAnchorRatio, props.connectionTargetNodeId, props.mouseWorld, props.nodeById, props.scriptScrollTopById, props.selectedNodeBounds, props.selectionBox, props.theme]);
+    }, [props.batchConnectionPreview, props.connectingParams, props.connectionTargetHandleId, props.connectionTargetNodeId, props.mouseWorld, props.nodeById, props.scriptScrollTopById, props.selectedNodeBounds, props.selectionBox, props.theme]);
 
     useLayoutEffect(() => {
         const underlay = underlayRef.current;
@@ -341,6 +341,9 @@ function syncOverlayContent(scene: OverlayScene, props: CanvasLeaferGraphicsLaye
                 props.mouseWorld,
                 props.connectionTargetNodeId ? props.nodeById.get(props.connectionTargetNodeId) : undefined,
                 props.scriptScrollTopById[connecting.nodeId] || 0,
+                // 目标 handleId: 缺省时 connectionHandleY(undefined) 恒取节点中点(拖线预览吸不到分镜行的根因)。
+                props.connectionTargetNodeId ? props.connectionTargetHandleId : undefined,
+                props.connectionTargetNodeId ? props.scriptScrollTopById[props.connectionTargetNodeId] || 0 : 0,
             ),
             stroke: props.theme.accent.primary,
             strokeCap: "round",
@@ -359,7 +362,16 @@ function syncOverlayContent(scene: OverlayScene, props: CanvasLeaferGraphicsLaye
         if (!source) return;
         const handle: ConnectionHandle = { nodeId: source.id, handleType: "source" };
         scene.batchDrafts.add(new Path({
-            path: activeConnectionPath(source, handle, batch.mouseWorld, target, props.scriptScrollTopById[source.id] || 0),
+            path: activeConnectionPath(
+                source,
+                handle,
+                batch.mouseWorld,
+                target,
+                props.scriptScrollTopById[source.id] || 0,
+                // batch 多选拖到分镜/批量表行时, 目标端预览同样按 handleId 吸附(与单线预览同口径)。
+                batch.targetHandleId,
+                batch.targetNodeId ? props.scriptScrollTopById[batch.targetNodeId] || 0 : 0,
+            ),
             stroke,
             strokeWidth: 1.4,
             strokeScaleFixed: true,

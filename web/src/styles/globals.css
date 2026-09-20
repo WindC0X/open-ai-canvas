@@ -3568,32 +3568,7 @@
         font-size: 12px;
     }
 
-    .creation-model-picker-heading {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 10px 7px;
-        color: #8e949d;
-        font-size: 12px;
-    }
-
-    .creation-model-picker-heading strong {
-        min-width: 0;
-        overflow: hidden;
-        color: #e6e8eb;
-        font-weight: 500;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .dark .creation-model-picker-heading {
-        color: #69717c;
-    }
-
-    .dark .creation-model-picker-heading strong {
-        color: #f2f4f6;
-    }
+    /* creation-model-picker-heading 已删(2026-09-19): 触发按钮已显示当前模型, 标题冗余。 */
 
     .creation-model-picker-menu .canvas-model-picker-option {
         min-height: 53px;
@@ -7803,6 +7778,14 @@ html:not(.dark) .creation-studio-control:hover,
         width: min(384px, calc(100vw - 24px)) !important;
     }
 
+    /* 外壳钉 384 后内层菜单必须同宽: 菜单默认 w-[var(--panel-width-compact)](320),
+      比外壳窄出 ~49px 玻璃空白列, flyout(锚定菜单右缘+8) 左缘落进空白列, 同色玻璃
+      视觉融合成 "L1 空白列压住 L2"(2026-09-19 用户实测截图)。菜单填满外壳后
+      menuRef 右缘 == 外壳右缘, flyout 锚点自动对齐。 */
+    .canvas-model-picker-popover .canvas-model-picker-menu {
+        width: min(384px, calc(100vw - 24px)) !important;
+    }
+
     /* 节点悬浮工具栏: 同一玻璃材质族(2026-09-12 微供给任务)。
        与模型菜单/参数面板同源值, radius 14(h-11 密度下 16 过圆), 无阴影。 */
     .canvas-node-toolbar .canvas-node-toolbar-surface {
@@ -8350,7 +8333,10 @@ html:not(.dark) .creation-studio-control:hover,
     .canvas-model-picker-flyout {
         position: fixed;
         z-index: 1200;
-        width: 384px;
+        /* 宽度跟随内容(单模型组不再渲染成 384px 孤立长条, 2026-09-19 用户实测), 上限仍 384。 */
+        width: max-content;
+        min-width: 224px;
+        max-width: 384px;
         max-height: min(420px, calc(100vh - 32px));
         overflow-y: auto;
         /* L1/L2 一致: padding 同唯一源 .creation-model-picker-menu 8px; 玻璃与 canvas L1

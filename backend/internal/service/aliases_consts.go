@@ -77,7 +77,9 @@ const (
 	ReasonTimeout                      = app.ReasonTimeout
 	ReasonUnauthorized                 = app.ReasonUnauthorized
 	ReasonUnavailable                  = app.ReasonUnavailable
-	SessionCookieName                  = app.SessionCookieName
 	SkillPackageUploadMaxBytes         = app.SkillPackageUploadMaxBytes
 	WorkflowPluginRunningHub           = app.WorkflowPluginRunningHub
 )
+
+// SessionCookieName 转发 auth 包的可配置 cookie 名(见 auth.SessionCookieName 的多实例隔离说明)。
+func SessionCookieName() string { return app.SessionCookieName() }

@@ -11,6 +11,7 @@ import { CanvasResourceMentionTextarea } from "@/components/canvas/canvas-resour
 import { StoryboardAssetsCell } from "@/components/canvas/storyboard-assets-cell";
 import { ModelPicker } from "@/components/model-picker";
 import { buildGenerationConfig } from "@/lib/canvas/canvas-project-generation";
+import { storyboardRowAssetBindingPatch } from "@/lib/canvas/canvas-storyboard-assets";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { pipelineStatusLabel, type CanvasStoryboardPipelineProgress, type StoryboardPipelineStage } from "@/lib/canvas/canvas-storyboard-progress";
 import { generationErrorMessage, isContentModerationError } from "@/lib/generation-error";
@@ -140,6 +141,14 @@ export function CanvasScriptNodeContent({
     const generationConfig = buildGenerationConfig(effectiveConfig, node, "text");
     const simpleMode = workspaceMode === "simple";
     const rows = node.metadata?.storyboard?.rows || [];
+    const nodeById = useMemo(() => new Map(nodes.map((item) => [item.id, item])), [nodes]);
+    // 资产 chip 增删的唯一数据口: 纯函数算 patch, 经 onUpdateRow 落 setNodes(持久化链在 use-canvas-storyboard)。
+    const applyRowAssetBinding = useCallback((rowId: string, nodeId: string, mode: "add" | "remove") => {
+        const row = rows.find((item) => item.id === rowId);
+        if (!row) return;
+        const patch = storyboardRowAssetBindingPatch(row, nodeId, mode, nodeById);
+        if (patch) onUpdateRow(rowId, patch);
+    }, [nodeById, onUpdateRow, rows]);
     const [prompt, setPrompt] = useState(node.metadata?.composerContent || "");
     const [scrollTop, setScrollTop] = useState(0);
     const composerHeightChangeRef = useRef(onComposerHeightChange);
@@ -346,7 +355,12 @@ export function CanvasScriptNodeContent({
                             <CompactInput value={row.videoMotionPrompt} placeholder="描述视频运动、镜头和动作" onChange={(value) => onUpdateRow(row.id, { videoMotionPrompt: value })} borderColor={theme.node.stroke} />
                             <CompactInput value={row.dialogue} placeholder="台词或旁白" onChange={(value) => onUpdateRow(row.id, { dialogue: value })} borderColor={theme.node.stroke} />
                             <div className="flex h-full min-w-0 items-center px-3">
-                                <StoryboardAssetsCell bindings={row.assetBindings || []} nodes={nodes} />
+                                <StoryboardAssetsCell
+                                    bindings={row.assetBindings || []}
+                                    nodes={nodes}
+                                    onAddAsset={(nodeId) => applyRowAssetBinding(row.id, nodeId, "add")}
+                                    onRemoveAsset={(nodeId) => applyRowAssetBinding(row.id, nodeId, "remove")}
+                                />
                             </div>
                         </div>
                     ))
@@ -474,7 +488,7 @@ export function CanvasScriptNodeContent({
                 if (top < STORYBOARD_HEADER_HEIGHT + 4 || top > STORYBOARD_HEADER_HEIGHT + tableHeight - 4) return null;
                 return (
                     <div key={`ports-${row.id}`}>
-                        <RowHandle side="left" top={top} scale={scale} tone={batchItemTone(batchItemByRowId.get(row.id)) || row.status} theme={theme} onPointerDown={(event) => onConnectStart(event, row.id, "target")} />
+                        <RowHandle side="left" top={top} scale={scale} tone={batchItemTone(batchItemByRowId.get(row.id)) || row.status} theme={theme} title={`镜头 ${row.shotNumber} · 连接角色或资产节点作为本镜参考`} onPointerDown={(event) => onConnectStart(event, row.id, "target")} />
                         <RowHandle side="right" top={top} scale={scale} tone={batchItemTone(batchItemByRowId.get(row.id)) || row.status} theme={theme} onPointerDown={(event) => onConnectStart(event, row.id, "source")} />
                     </div>
                 );
@@ -645,6 +659,11 @@ export function CanvasScriptEditor({
         });
     }, [rows]);
     const updateRow = (rowId: string, patch: Partial<StoryboardRow>) => onUpdateRows(rows.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
+    // 编辑器侧资产 chip 增删: 与 Content 同一纯函数, 经 onUpdateRows 落盘。
+    const applyEditorAssetBinding = (row: StoryboardRow, nodeId: string, mode: "add" | "remove") => {
+        const patch = storyboardRowAssetBindingPatch(row, nodeId, mode, nodeById);
+        if (patch) updateRow(row.id, patch);
+    };
     const moveRow = (rowId: string, direction: -1 | 1) => {
         const index = rows.findIndex((row) => row.id === rowId);
         const nextIndex = index + direction;
@@ -675,7 +694,12 @@ export function CanvasScriptEditor({
                 ) : option.value === "durationSeconds" ? (
                     <InputNumber min={1} max={60} value={row.durationSeconds} addonAfter="s" onChange={(value) => updateRow(row.id, { durationSeconds: Number(value) || 1 })} />
                 ) : option.value === "assets" ? (
-                    <StoryboardAssetsCell bindings={row.assetBindings || []} nodes={nodes} />
+                    <StoryboardAssetsCell
+                        bindings={row.assetBindings || []}
+                        nodes={nodes}
+                        onAddAsset={(nodeId) => applyEditorAssetBinding(row, nodeId, "add")}
+                        onRemoveAsset={(nodeId) => applyEditorAssetBinding(row, nodeId, "remove")}
+                    />
                 ) : option.value === "shotSize" ? (
                     <Select
                         className="w-full"

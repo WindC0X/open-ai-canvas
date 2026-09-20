@@ -396,26 +396,12 @@ function InfiniteCanvasPage() {
     const [titleDraft, setTitleDraft] = useState("");
     const [shortcutRequestNonce, setShortcutRequestNonce] = useState(0);
     const { assistantOpen, closeAgent, openAgent } = useCanvasAssistantVisibility();
-    // Agent 面板是自由浮窗(上游 v1.3 改造: 可拖拽/调宽/localStorage 持久化), 布局状态提升到本层,
-    // 使 HUD 让位等外部消费方按面板真实几何计算, 而不是按旧"右缘停靠+固定宽度"假设估算。
+    // Agent 面板是自由浮窗(上游 v1.3 改造: 可拖拽/调宽/localStorage 持久化), 布局状态提升到本层供面板组件消费。
+    // HUD 归宿(2026-09-20 用户拍板): HUD 固定右上角家, z 层压在面板之下(80 < 面板基线 110) ——
+    // 面板在上层, 路过时自然盖住 HUD, 移开即露出; 不淡出、不隐藏、不随面板几何漂移。
     const agentPanelLayout = useAgentPanelLayout();
-    const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
-    useEffect(() => {
-        const onResize = () => setViewportWidth(window.innerWidth);
-        window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
-    }, []);
-    const { layout: agentPanelGeometry, compact: agentPanelCompact } = agentPanelLayout;
-    const hudRightInset = useMemo(() => {
-        if (!assistantOpen || agentPanelCompact) return undefined;
-        // HUD 卡片顶缘约在 topbar 下方 88px、卡片体高约 300px; 面板整体在这条垂直带之下时不构成遮挡。
-        if (agentPanelGeometry.top >= 420) return undefined;
-        const rightGap = viewportWidth - (agentPanelGeometry.left + agentPanelGeometry.width);
-        // 面板右缘距视口右缘超过 48px 视为"未停靠右侧"(用户拖到了画布中部), HUD 不让位。
-        if (rightGap > 48) return undefined;
-        return `calc(var(--canvas-inset-x) + ${agentPanelGeometry.width + rightGap}px + var(--space-3))`;
-        // 依赖按值拆解(layout/compact), 不依赖 controller 对象身份 —— hook 返回对象已 useMemo, 但值依赖更精确。
-    }, [assistantOpen, agentPanelGeometry, agentPanelCompact, viewportWidth]);
+    const { layout: agentPanelGeometry } = agentPanelLayout;
+    void agentPanelGeometry;
     const agentMentionReferences = useMemo(() => buildCanvasAgentMentionReferences(nodes), [nodes]);
 
     const sendSelectionToAgent = useCallback((nodeId?: string) => {
@@ -1128,7 +1114,7 @@ function InfiniteCanvasPage() {
     const {
         cancelPendingConnectionCreate,
         closeConnectionCreateMenu,
-        connectionTargetAnchorRatio,
+        connectionTargetHandleId,
         connectionTargetNodeId,
         connectionApproach,
         connectionReplaceHover,
@@ -2652,7 +2638,7 @@ function InfiniteCanvasPage() {
                                         batchConnectionPreview={batchConnectionPreview}
                                         mouseWorld={mouseWorld}
                                         connectionTargetNodeId={connectionTargetNodeId}
-                                        connectionTargetAnchorRatio={connectionTargetAnchorRatio}
+                                        connectionTargetHandleId={connectionTargetHandleId}
                                         nodeById={nodeById}
                                         selectionBox={selectionBox}
                                         selectedNodeBounds={selectedNodeBounds}
@@ -2873,11 +2859,7 @@ function InfiniteCanvasPage() {
                     <ObjectHudPanel
                         node={toolbarNode}
                         config={effectiveConfig}
-                        // 让位仅在 Agent 面板真实展开时生效; 上游简版 visibility 的 assistantMounted 恒为 true,
-                        // 若用它做条件会让 HUD 在面板收起时也永久偏移(实测 styleRight=548px, 用户截图红框问题)。
-                        // 浮窗时代让位按面板真实几何: 仅面板贴右缘且顶到 HUD 垂直区间时让出实际占位,
-                        // 面板被拖到画布中央等非右侧区域时不偏移(否则 HUD 白让一块不存在的停靠位)。
-                        rightInset={hudRightInset}
+                        // HUD 固定右上角, z 层在 Agent 面板之下: 面板盖住即盖住, 不淡出不漂移(2026-09-20 用户拍板)。
                         topInset={activeTaskPanelHeight > 0 && !focusMode ? `calc(var(--canvas-topbar-offset) + ${Math.round(activeTaskPanelHeight)}px + var(--space-3))` : 88}
                         onViewImage={(node) => setPreviewNodeId(node.id)}
                         actions={toolbarNode?.type === "image" ? ([

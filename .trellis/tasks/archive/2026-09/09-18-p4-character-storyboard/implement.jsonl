@@ -1,0 +1,6 @@
+{"type": "spec", "path": ".trellis/spec/frontend/component-guidelines.md", "reason": "令牌纪律(PATCH-MAP 立规)+组件规范"}
+{"type": "spec", "path": ".trellis/spec/frontend/state-management.md", "reason": "chip/绑定数据流写入 use-canvas-store 的模式"}
+{"type": "spec", "path": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证纪律: 同盘基线/真机声明/后台禁令"}
+{"type": "file", "path": "web/src/lib/canvas/canvas-batch-table.ts", "reason": "typed handle/planBatchConnections 角色扩展基座"}
+{"type": "file", "path": "web/src/components/canvas/canvas-batch-table-node.tsx", "reason": "S1 chip 行挂载点 + S2 端口 handle 挂载点"}
+{"type": "file", "path": "web/src/types/canvas.ts", "reason": "StoryboardCharacterReference/StoryboardAssetBinding 数据层"}
