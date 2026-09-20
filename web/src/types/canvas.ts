@@ -228,6 +228,8 @@ export type CanvasNodeMetadata = {
     resourceReloadAvailable?: boolean;
     // 扩图结果画幅偏差（上游未按提交 size 出图时写入，第十八轮）：{ submitted, actual }。
     outpaintSizeMismatch?: { submitted: string; actual: string };
+    /** 图片编辑操作类型（执行链写入任务源节点 metadata：outpaint/mask 等，前端门控消费）。 */
+    edit?: "outpaint" | "mask";
     failedPromptFingerprint?: string;
     lastGenerationRequestFingerprint?: string;
     fontSize?: number;

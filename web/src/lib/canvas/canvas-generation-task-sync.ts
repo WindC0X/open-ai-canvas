@@ -143,7 +143,9 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
                 : await uploadImage(resultDataUrl);
         const imageConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
         const requestedImageSize = nodeSizeFromRatio(node.metadata?.size || "auto", imageConfig.width, imageConfig.height);
-        const imageSizeBounds = requestedImageSize || { width: node.width || imageConfig.width, height: node.height || imageConfig.height };
+        // 显式比例: 结果框按用户比例 fit; auto: 比例不可预知, 结果按上游输出 fit 全局标准,
+        // 不钳进占位框(占位框是旧比例, 会把 1:1 输出钳成小一号, 用户实测 2026-09-21)。
+        const imageSizeBounds = requestedImageSize || imageConfig;
         const hasReportedImageSize = Boolean(image.width && image.width > 0 && image.height && image.height > 0);
         const resultWidth = image.storageKey && !hasReportedImageSize && requestedImageSize ? requestedImageSize.width : uploaded.width;
         const resultHeight = image.storageKey && !hasReportedImageSize && requestedImageSize ? requestedImageSize.height : uploaded.height;
