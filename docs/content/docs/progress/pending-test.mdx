@@ -3235,3 +3235,24 @@ d (docs(progress): 登记视频族S6裁剪批与持久化自愈修复)
 3. **snapshotHash 抄断自动修复**：模型抄 hash 丢末字符（真机 5 连败全是 63 位前缀实锤）自动补全，前缀匹配才救，不放宽并发保护。
 4. **Agent 节点时间戳**：creationAddedNode 补 createdAt/updatedAt，HUD 创建时间不再回退画布级时间（误导）；手动创建守卫比对剔除时间戳。
 5. **HUD 让位钳制**：right inset 取 min(让位量, 屏内边界)，面板再宽 HUD 完整可见。
+
+## Agent 节点 HUD 一致性核查（2026-09-20，用户追问）
+
+### 结论（数据层逐字段对比 + 真机样本）
+
+| HUD 行 | Agent 创建 | 手动创建 | 一致性 |
+| --- | --- | --- | --- |
+| 创建 | 修复后服务端补 createdAt ✓ | 前端 now ✓ | 一致 |
+| 模型 | createCloudAgentMediaNode 写 model/channelModelKey ✓ | 提交时写 model ✓ | 一致（Agent 存 channelModelKey 无 CHANNEL_ 前缀，modelDisplayName 均可解析） |
+| 分辨率 | 服务端结果写回 naturalWidth/Height ✓（媒体成功时） | 前端 imageMetadata ✓ | 一致 |
+| 大小/格式 | 服务端写回**缺 bytes/mimeType**，由前端任务轮询 imageMetadata 补齐（Agent 任务带 input.metadata.nodeId，前端 sync 节点匹配同链） ✓ | 前端 imageMetadata ✓ | 依赖前端任务轮询兜底，字段等价 |
+| 消耗 | taskBilling 由前端 completedTaskMetadata 写（两链同源） | 同左 | 一致 |
+| 文本节点 | 全部行按类型过滤，文本节点本就只有创建行 | 同左 | 一致 |
+
+### 本轮新修（顺带发现）
+
+图片生成请求被「videoGenerateAudio 仅适用于视频生成」反复拒绝：模型坚信音频开关是必填参数，重试循环无法自愈（真机 2 轮复现实锤）。修复：非视频模式的 videoGenerateAudio/durationSeconds 错位参数静默忽略；时长必填、画幅、参考上限等真正约束仍严格校验。
+
+### 待真机复核
+
+Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行（本轮验证用渠道鉴权失败，任务未产出成品；前端 sync 补全链路代码级确认，成功态留渠道可用时人眼复核）。
