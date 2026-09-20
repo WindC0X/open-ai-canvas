@@ -885,6 +885,8 @@ export function useCanvasMediaTools({
                 // 扩图提交框 = 几何合同：占位尺寸即最终尺寸，回写/hydrate/fitToImage 全链不再改写
                 // （上游不按提交像素出图是常态，偏差由 outpaintSizeMismatch 角标示警，不静默改框——
                 // 否则占位与成功后尺寸跳变，用户实测 2026-09-20）。
+                // edit 标记跟随占位进入结果节点：前端据此隐藏扩图结果的内部 composer（2026-09-21）。
+                edit: "outpaint",
                 manualSize: true,
             },
         };
