@@ -879,6 +879,10 @@ export function useCanvasMediaTools({
                 imageBatchExpanded: requestedCount > 1 ? true : undefined,
                 ...generationMetadata,
                 ...styleMetadata,
+                // 扩图提交框 = 几何合同：占位尺寸即最终尺寸，回写/hydrate/fitToImage 全链不再改写
+                // （上游不按提交像素出图是常态，偏差由 outpaintSizeMismatch 角标示警，不静默改框——
+                // 否则占位与成功后尺寸跳变，用户实测 2026-09-20）。
+                manualSize: true,
             },
         };
         const childNodes: CanvasNodeData[] = childIds.map((id, index) => ({

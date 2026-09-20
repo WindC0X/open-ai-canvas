@@ -149,7 +149,11 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
         const resultHeight = image.storageKey && !hasReportedImageSize && requestedImageSize ? requestedImageSize.height : uploaded.height;
         const normalizedImage = resultWidth === uploaded.width && resultHeight === uploaded.height ? uploaded : { ...uploaded, width: resultWidth, height: resultHeight };
         const imageSize =
-            node.metadata?.generationType === "edit" && !requestedImageSize ? { width: node.width || imageConfig.width, height: node.height || imageConfig.height } : fitNodeSize(resultWidth, resultHeight, imageSizeBounds.width, imageSizeBounds.height);
+            // 扩图占位框 = 几何合同（manualSize）：上游实际输出不按提交像素出图是常态，
+            // 回写不改框，偏差由 outpaintSizeMismatch 角标示警（用户实测占位/成功后尺寸跳变 2026-09-20）。
+            node.metadata?.generationType === "edit" && (node.metadata?.manualSize || !requestedImageSize)
+                ? { width: node.width || imageConfig.width, height: node.height || imageConfig.height }
+                : fitNodeSize(resultWidth, resultHeight, imageSizeBounds.width, imageSizeBounds.height);
         return {
             ...node,
             type: CanvasNodeType.Image,

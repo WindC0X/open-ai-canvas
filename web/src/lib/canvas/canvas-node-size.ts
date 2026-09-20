@@ -86,8 +86,9 @@ export function ensureMediaNodeMinimumSize(node: CanvasNodeData) {
         : null;
     const naturalRatio = naturalWidth / Math.max(1, naturalHeight);
     const nodeRatio = node.width / Math.max(1, node.height);
-    // 修复旧版图生图无条件继承参考节点尺寸造成的比例错误，不覆盖自由拉伸或锁定布局。
-    if (requestedSize && naturalWidth > 0 && naturalHeight > 0 && !node.metadata?.freeResize && !node.metadata?.locked && Math.abs(naturalRatio - nodeRatio) > 0.01) {
+    // 修复旧版图生图无条件继承参考节点尺寸造成的比例错误，不覆盖自由拉伸或锁定布局；
+    // manualSize（扩图提交框合同）同样不覆盖 —— 占位即最终尺寸。
+    if (requestedSize && naturalWidth > 0 && naturalHeight > 0 && !node.metadata?.freeResize && !node.metadata?.locked && !node.metadata?.manualSize && Math.abs(naturalRatio - nodeRatio) > 0.01) {
         const alignedSize = fitNodeSize(naturalWidth, naturalHeight, requestedSize.width, requestedSize.height);
         width = alignedSize.width;
         height = alignedSize.height;
