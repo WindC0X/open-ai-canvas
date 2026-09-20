@@ -249,3 +249,10 @@
 **批次六**：先遣队19提交三方复验顺延（时间富余项, 子代理已做过 merge-file 模拟, 复验归入合并日执行）。
 
 **插入项：F-06 合入（门2绿信号）**：防御自查空（feat/ecom-f06-outpaint..main 无独有提交，分支头 d9fa9d0f 已含 a0cf2155）→ merge --no-ff 零冲突 efa1c4f9（含 outpaint 后端域 media_outpaint+前端 overlay/geometry+geometry 测试）→ 推送：origin(ddcat-ai) 403 按历来权限形态映射为推 fork（eab151bd..efa1c4f9 fast-forward）→ 栈重启（旧 vite/后端为合入前代码）：后端 GOSUMDB+GOTOOLCHAIN=auto+buildvcs=false 组合（go1.26.0 toolchain 下载成功），数据目录 .local/project-workbench-debug；vite 清 .vite 缓存 + VITE_API_PROXY_TARGET=8081。健康：3000/8080 双 200，/api/health ready=true go1.26.0。待用户真机复验扩图框开合。
+
+**F-06 真机复验缺陷定性（用户 4 截图，2026-09-20 21:26）**：
+①"所选模型不支持当前请求: 参数 生成质量超出支持范围"（Gpt Image 2+16:9+2K）——**根因实锤**：overlay 的 submitQuality（域内 "auto"）在 outpaintImageNode（use-canvas-media-tools.ts:814）被 normalizeMaskEditQuality(:52) 改写——该函数对 auto+像素 size 猜测 tier（"2752x1536"=4.2Mpx→"2k"），gpt-image-2 quality 域 [auto,low,medium,high] 不含 "2k" → MatchCapability 拒绝（model_router.go:298）。该函数为 mask-edit 写的猜测逻辑误伤扩图链。
+②价格 pill 溢出/截断/0.00——quote 失败（catch→null）回落 configuredCredits??0 显示 "0.00"；grok 场景空槽=quote 未命中且无占位宽度保护；cost span（canvas-node-composer-submit-cost）无 min-width。
+③maxImages=0 模型入扩图列表——DB 实证 grok-imagine-image-2.0 maxImages=0；overlay canExecute 有 >=1 门但模型候选列表未过滤（ModelPicker 全量 image 模型）。
+④单独节点 hover 未到工具栏已全显——截图显示 hover info-state（底部 frosted 面板）活跃+toolbar full；需真机 DOM 探针查归属状态机 stuck 或 supply pin（疑似扩图源节点特有态），登记待真机查。
+**检索纪律违纪自查**：本轮缺陷调查用连续 grep 硬凿代码链（违反 09-18 检索纪律升级），用户点名后纠偏——codegraph 3 步完成此前 10+ 次 grep 的链路（MatchCapability 14 callers/capabilityOptionsFromConfig 唯一 caller/ModelRequestIntentFromTaskInput 节点）。教训：混合调查（DB/git show/系统取证）不构成对代码链也用 grep 的理由，layer 判定应在每次探查前做。
