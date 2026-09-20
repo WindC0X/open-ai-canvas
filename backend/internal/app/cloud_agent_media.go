@@ -471,6 +471,15 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	}
 	a.Mode = strings.ToLower(strings.TrimSpace(a.Mode))
 	a.DraftRunID = run.ID
+	// 模型常把视频专属参数带进图片/音频请求(2026-09-20 真机实测: 图片生成被"videoGenerateAudio 仅适用于
+	// 视频生成"反复拒绝, 模型坚信该参数必填, 重试循环无法自愈)。这类错位参数没有安全语义, 静默忽略;
+	// 真正的约束(时长必填/参考数量/画幅)仍严格校验。
+	if a.Mode != "video" {
+		if a.Duration != 0 {
+			a.Duration = 0
+		}
+		a.VideoGenerateAudio = nil
+	}
 	if err := s.fillCloudAgentMediaSnapshotHash(run.UserID, state.Request.CanvasID, &a); err != nil {
 		return CreateTaskRequest{}, nil, err
 	}
