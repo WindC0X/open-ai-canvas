@@ -68,9 +68,10 @@ export async function executeImageGeneration({
     // 生成中占位框按设置比例显示，避免 16:9 任务显示成默认 340x240。
     const requestedImageSize = nodeSizeFromRatio(generationConfig.size || "auto", imageDefaults.width, imageDefaults.height);
     const imageConfig = requestedImageSize || imageDefaults;
-    // auto 图生图沿用来源节点尺寸；用户明确选择比例时必须以目标比例创建节点。
+    // auto 图生图沿用来源节点尺寸；空节点原地生成沿用当前占位框（用户看到的 3:4 不该被 auto 重置成默认 16:9，
+    // 否则点生成后占位跳 16:9、结束又跳回，实测 2026-09-21）；用户明确选择比例时必须以目标比例创建节点。
     const referenceNode = referenceImages.length === 1 ? canvasNodes.find((node) => node.id === referenceImages[0].id && node.type === CanvasNodeType.Image) : undefined;
-    const imageSizeSource = requestedImageSize ? undefined : isImageNode && sourceNode?.metadata?.content ? sourceNode : referenceNode;
+    const imageSizeSource = requestedImageSize ? undefined : isImageNode && sourceNode?.metadata?.content ? sourceNode : reuseSourceNode && sourceNode ? sourceNode : referenceNode;
     const outputNodeSize = imageSizeSource ? { width: imageSizeSource.width, height: imageSizeSource.height } : imageConfig;
     const parentPosition = sourceNode?.position || { x: 0, y: 0 };
     const parentWidth = sourceNode?.width || parentConfig.width;
