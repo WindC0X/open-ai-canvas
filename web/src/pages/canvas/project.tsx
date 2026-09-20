@@ -393,29 +393,17 @@ function InfiniteCanvasPage() {
     const [titleDraft, setTitleDraft] = useState("");
     const [shortcutRequestNonce, setShortcutRequestNonce] = useState(0);
     const { assistantOpen, closeAgent, openAgent } = useCanvasAssistantVisibility();
-    // Agent 面板是自由浮窗(上游 v1.3 改造: 可拖拽/调宽/localStorage 持久化), 布局状态提升到本层,
-    // 使 HUD 让位等外部消费方按面板真实几何计算, 而不是按旧"右缘停靠+固定宽度"假设估算。
+    // Agent 面板是自由浮窗(上游 v1.3 改造: 可拖拽/调宽/localStorage 持久化), 布局状态提升到本层。
+    // HUD 归宿模型(2026-09-20 用户拍板): HUD 固定右上角家不再漂移; 面板与其相交时 HUD 原位淡出、
+    // 面板移开/关闭淡回 —— 与拖拽中面板盖过 HUD 的既有体感一致, 消灭"松手瞬间跳到面板左缘"。
+    // 底部 dock 未来迁移到左侧中部也不影响该模型。面板 compact 态铺满视口必相交。
     const agentPanelLayout = useAgentPanelLayout();
-    const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
-    useEffect(() => {
-        const onResize = () => setViewportWidth(window.innerWidth);
-        window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
-    }, []);
-    const { layout: agentPanelGeometry, compact: agentPanelCompact, gesturing: agentPanelGesturing } = agentPanelLayout;
-    const hudRightInset = useMemo(() => {
-        if (!assistantOpen || agentPanelCompact) return undefined;
-        // 拖拽/缩放面板过程中不让位(2026-09-18 用户反馈"拖动 agent 面板会把 hud 挤开错位"):
-        // 拖动中 layout 每帧变, HUD 逐帧被推着跑产生视觉噪声; 松手后一次性到位。
-        if (agentPanelGesturing) return undefined;
-        // HUD 卡片顶缘约在 topbar 下方 88px、卡片体高约 300px; 面板整体在这条垂直带之下时不构成遮挡。
-        if (agentPanelGeometry.top >= 420) return undefined;
-        const rightGap = viewportWidth - (agentPanelGeometry.left + agentPanelGeometry.width);
-        // 面板右缘距视口右缘超过 48px 视为"未停靠右侧"(用户拖到了画布中部), HUD 不让位。
-        if (rightGap > 48) return undefined;
-        return `calc(var(--canvas-inset-x) + ${agentPanelGeometry.width + rightGap}px + var(--space-3))`;
-        // 依赖按值拆解(layout/compact), 不依赖 controller 对象身份 —— hook 返回对象已 useMemo, 但值依赖更精确。
-    }, [assistantOpen, agentPanelGeometry, agentPanelCompact, agentPanelGesturing, viewportWidth]);
+    const { layout: agentPanelGeometry, compact: agentPanelCompact } = agentPanelLayout;
+    const hudOccluder = !assistantOpen
+        ? null
+        : agentPanelCompact
+            ? { left: 0, top: 0, width: 1e6, height: 1e6 }
+            : agentPanelGeometry;
     const agentMentionReferences = useMemo(() => buildCanvasAgentMentionReferences(nodes), [nodes]);
 
     const sendSelectionToAgent = useCallback((nodeId?: string) => {
@@ -2864,11 +2852,8 @@ function InfiniteCanvasPage() {
                     <ObjectHudPanel
                         node={toolbarNode}
                         config={effectiveConfig}
-                        // 让位仅在 Agent 面板真实展开时生效; 上游简版 visibility 的 assistantMounted 恒为 true,
-                        // 若用它做条件会让 HUD 在面板收起时也永久偏移(实测 styleRight=548px, 用户截图红框问题)。
-                        // 浮窗时代让位按面板真实几何: 仅面板贴右缘且顶到 HUD 垂直区间时让出实际占位,
-                        // 面板被拖到画布中央等非右侧区域时不偏移(否则 HUD 白让一块不存在的停靠位)。
-                        rightInset={hudRightInset}
+                        // HUD 固定右上角, 与 Agent 浮窗相交时原位淡出(遮挡模型取代几何让位, 2026-09-20 用户拍板)。
+                        occluder={hudOccluder}
                         topInset={activeTaskPanelHeight > 0 && !focusMode ? `calc(var(--canvas-topbar-offset) + ${Math.round(activeTaskPanelHeight)}px + var(--space-3))` : 88}
                         onViewImage={(node) => setPreviewNodeId(node.id)}
                         actions={toolbarNode?.type === "image" ? ([

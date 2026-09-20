@@ -26,10 +26,11 @@ export type ObjectHudPanelProps = {
     /** 生效配置(解析模型显示名:区分后端渠道/前台模型两种情况) */
     config?: AiConfig | null;
     /** 该节点关联生成任务的计费文案(冻结/已结算);无关联任务时不显示 */
-    /** Agent 等右侧停靠面打开时的让位 CSS right 值;缺省 16px */
-    rightInset?: string;
     /** 顶部让位 CSS 值;缺省 88px。生成任务面板出现时宿主传入其下方位置,避免同锚重叠 */
     topInset?: string | number;
+    /** 遮挡源矩形(视口坐标,如 Agent 浮窗);与之相交时 HUD 在原位淡出,面板移开/关闭淡回(2026-09-20 用户拍板:
+     *  HUD 固定右上角家不再按面板几何漂移,消灭"松手瞬间跳到面板左缘") */
+    occluder?: { left: number; top: number; width: number; height: number } | null;
     actions?: ObjectHudAction[];
     onViewImage?: (node: CanvasNodeData) => void;
     onClose?: () => void;
@@ -47,12 +48,32 @@ function hasContent(node: CanvasNodeData): boolean {
     return (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) && Boolean(node.metadata?.content);
 }
 
-export function ObjectHudPanel({ node, config, rightInset, topInset = 88, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
+export function ObjectHudPanel({ node, config, occluder, topInset = 88, actions = [], onViewImage, onClose, className }: ObjectHudPanelProps) {
     // 画布外观通道统一走 useActiveTheme(W1-C 迁移漏项): HUD 是画布浮层, 亮色画布下必须亮色——
     // 直连工作台 useThemeStore 会拿错主题(用户截图: 亮色画布 HUD 恒黑)。
     const theme = canvasThemes[useActiveTheme()];
     const mountedRef = useRef(false);
     const [revealed, setRevealed] = useState(false);
+    const shellRef = useRef<HTMLElement | null>(null);
+    const [occluded, setOccluded] = useState(false);
+
+    // 遮挡判定在组件内自测自身矩形: topInset 可能是 CSS calc(JS 不易取值), 自测最准确。
+    // 面板拖拽中几何逐帧变, effect 逐帧重测; setOccluded 同值 bail, 无额外渲染开销。
+    useEffect(() => {
+        if (!occluder) {
+            setOccluded(false);
+            return;
+        }
+        const measure = () => {
+            const el = shellRef.current;
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            setOccluded(r.left < occluder.left + occluder.width && r.right > occluder.left && r.top < occluder.top + occluder.height && r.bottom > occluder.top);
+        };
+        measure();
+        window.addEventListener("resize", measure);
+        return () => window.removeEventListener("resize", measure);
+    }, [occluder, topInset, node?.id]);
 
     useEffect(() => {
         if (!node) {
@@ -97,9 +118,8 @@ export function ObjectHudPanel({ node, config, rightInset, topInset = 88, action
 
     const shellStyle: CSSProperties = {
         position: "fixed",
-        // 让位量钳制在屏内(2026-09-20 用户实测: Agent 浮窗被拉到超宽时, 让位 inset 大于视口,
-        // HUD 几乎整体滑出左缘只剩残边)。min 取两者较小 → 面板再宽 HUD 也完整可见(贴左缘)。
-        right: rightInset ? `min(${rightInset}, calc(100vw - 288px - var(--canvas-inset-x, 16px)))` : 16,
+        // HUD 固定右上角家(2026-09-20 用户拍板): 不再按 Agent 面板几何漂移, 被面板遮挡时在原位淡出。
+        right: 16,
         top: topInset,
         width: 288,
         maxHeight: "calc(100vh - 176px)",
@@ -108,22 +128,22 @@ export function ObjectHudPanel({ node, config, rightInset, topInset = 88, action
         border: `1px solid ${theme.toolbar.border}`,
         borderRadius: 14,
         zIndex: "var(--z-modal-overlay)" as unknown as number,
-        opacity: revealed ? 1 : 0,
+        opacity: revealed && !occluded ? 1 : 0,
         transform: revealed ? "translateX(0)" : "translateX(12px)",
         transition: revealed
             ? "opacity var(--motion-dur-base) var(--motion-ease-out), transform var(--motion-dur-base) var(--motion-ease-out)"
             : "opacity var(--motion-dur-fast) var(--motion-ease-in), transform var(--motion-dur-fast) var(--motion-ease-in)",
-        pointerEvents: revealed ? "auto" : "none",
+        pointerEvents: revealed && !occluded ? "auto" : "none",
     };
 
     const rowStyle = (index: number): CSSProperties => ({
-        opacity: revealed ? 1 : 0,
+        opacity: revealed && !occluded ? 1 : 0,
         transform: revealed ? "translateY(0)" : "translateY(4px)",
         transition: `opacity var(--motion-dur-fast) var(--motion-ease-out) ${index * 30}ms, transform var(--motion-dur-fast) var(--motion-ease-out) ${index * 30}ms`,
     });
 
     return (
-        <aside className={className} style={shellStyle} data-object-hud-panel="" aria-label="对象信息面板" onKeyDown={(event) => { if (event.key === "Escape") onClose?.(); }}>
+        <aside ref={shellRef} className={className} style={shellStyle} data-object-hud-panel="" aria-label="对象信息面板" aria-hidden={occluded || undefined} onKeyDown={(event) => { if (event.key === "Escape") onClose?.(); }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 14px 10px" }}>
                 <span style={{ color: theme.node.text, fontSize: 14, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{node.title}</span>
                 {hasContent(node) && node.type === CanvasNodeType.Image && onViewImage ? (
