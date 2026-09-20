@@ -325,6 +325,23 @@
 - 环境记录：setsid/nohup+复合命令方式启动 vite 均不稳（进程随 bash 工具调用结束被回收）；实证可用 = **独立调用执行 `cd web && VITE_API_PROXY_TARGET=http://127.0.0.1:8181 nohup node node_modules/vite/bin/vite.js --port 3001 --strictPort > log 2>&1 & disown`**，再单独调用验证探活。
 - 流程失误记录：本轮中段对同一 eslint 命令在错误 cwd 下连续重复 20+ 次未换路径（bash 工具每次调用 cwd 重置到仓库根，`cd web` 不持久）——违反「同类失败三次停止盲试」纪律。教训：**bash 工具的 cwd 不跨调用持久，凡涉及 web/ 子目录的命令必须单条内显式 cd**。
 
+## Merge 整备轮（2026-09-20，控制线指令：F-06 合入前整备，不开工二期）
+
+- [x] 状态自报：分支头 4c7903a8；merge-base 718672be；main 领先 58 提交、本枝独有 57 提交。
+- [x] merge main：68 文件自动合并 + **2 冲突**，全部按用户裁决处理（合并提交 9acf4687）：
+  - `backend/internal/app/cloud_agent_media.go`（裁决：采纳 main）：双方修同一问题（A2 轮 LLM 冗余视频字段被 image 模式拒绝）。本枝 = validate 层容错（image 忽略 Duration≠0）；main = prepareCloudAgentMedia 非视频模式清零 Duration/VideoGenerateAudio（治本）+ validate 保持严格（防线）。main 覆盖本枝修复意图且职责分层干净，本枝 hunk 丢弃。
+  - `web/src/components/canvas/canvas-node.tsx`（裁决：合取）：本枝 L2 取值顺序 `composerContent ?? prompt`（扩图模板不暴露，2026-09-19 裁定红线）+ main 节点类型门控（信息态 composer 仅 Image/Video 节点，2026-09-18 用户反馈）。合取后：媒体节点 hover 优先显示追加说明、无则回落 prompt；非媒体节点信息态不出现。
+  - **预警点未命中**：outpaintImageNode 提交链（use-canvas-media-tools.ts / outpaint 几何 / overlay / canvas-image-data）main 侧零触碰，outpaintImageNode 与 resolveOutpaintSubmitTarget 完好。
+  - 补 merge（收 A 线 a538d21c/ac485844/a0cf2155）：第一次 merge 已含全部 58 提交，第二轮 "Already up to date"，零新冲突。
+- [x] 自证（merge 后全量重跑）：
+  - `bunx tsc --noEmit` 绿；
+  - F-06 自有单测：canvas-outpaint-geometry 25 例全绿（110 expect）、creative-agent contract+state 13 例全绿；
+  - `bun test` 全量 1874 tests / 1856 pass / **18 fail = 存量基线集合完全一致**（canvas-mention/storyboard/toolbar-switch/creative-controller×3/director-diagnostics×11/task-cancellation，6 类文件与本枝改动零关联，merge 零新增失败）。
+- [x] 冒烟（headless 真实鼠标链路 /tmp/f06-merge-smoke.py，**仅验 merge 未断接线，非真机终验**）：登录 f06test → canvas 9-cQO9Fo0MmVYsRkOl7eH → 点选图片节点 → 工具条 hover→click 图片工具 → 点扩图 → **外扩框出现 ✓ / 手柄 8 枚 ✓ / 参数条出现 ✓ / 参数条停靠框下（bar.y 691 vs frameBottom 675）✓ / 关闭后框与参数条全清理 ✓** —— 6/6 通过。截图 /tmp/f06-merge-smoke-final.png。
+- [x] push：分支已推到 fork（github.com/WindC0X/open-ai-canvas，feat/ecom-f06-outpaint，origin 无权限属预期）。
+
+**整备结论：整备完成，可进门 2**（合入动作由用户在 main checkout 执行；真机快速复验建议进门后进行）。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
