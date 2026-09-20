@@ -1,0 +1,8 @@
+{"path": ".trellis/tasks/09-18-agent-undo-panel/prd.md", "note": "PRD: 契约+缺口+设计+真机验收A1-A8"}
+{"path": "backend/internal/app/cloud_agent_undo.go", "note": "undo主流程: 预检逻辑抽公共函数的来源; expectedSnapshotHash校验/链式撤销/hasSubmittedTask"}
+{"path": "backend/internal/handler/agent.go", "note": "undo端点:202-232; 新增undo-preview端点参照此风格(currentUser+failService+ok)"}
+{"path": "web/src/services/api/agent.ts", "note": "undoAgentCanvasRun:177已有; 新增previewAgentUndo"}
+{"path": "web/src/components/canvas/canvas-cloud-agent-panel.tsx", "note": "面板:100-130 canvasSyncRef区; status/run状态:126; 撤销按钮挂run完成态"}
+{"path": "web/src/services/agent-canvas-sync.ts", "note": "receive():56 needsRefresh类型表补canvas_undone"}
+{"path": "web/src/services/user-data-sync.ts", "note": "refreshCanvasAfterAgent:156 复用为撤销后刷新; S08冲突语义不改"}
+{"path": "backend/internal/app/cloud_agent_canvas_events.go", "note": "canvas_updated事件:138 payload结构(无hash的证据); canvas_undone在undo.go:119"}
