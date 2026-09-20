@@ -363,6 +363,8 @@ func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime
 			return BadAuthRequest("视频生成必须明确 durationSeconds")
 		}
 	case "image", "audio":
+		// 防御层: prepareCloudAgentMedia 已在非视频模式清零这两个错位参数(2026-09-20), 此处正常不可达;
+		// 保留以防未来调用方绕过 prepare 直达本函数。
 		if a.Duration != 0 {
 			return BadAuthRequest("只有视频生成允许设置 durationSeconds")
 		}
