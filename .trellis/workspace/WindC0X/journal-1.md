@@ -256,3 +256,5 @@
 ③maxImages=0 模型入扩图列表——DB 实证 grok-imagine-image-2.0 maxImages=0；overlay canExecute 有 >=1 门但模型候选列表未过滤（ModelPicker 全量 image 模型）。
 ④单独节点 hover 未到工具栏已全显——截图显示 hover info-state（底部 frosted 面板）活跃+toolbar full；需真机 DOM 探针查归属状态机 stuck 或 supply pin（疑似扩图源节点特有态），登记待真机查。
 **检索纪律违纪自查**：本轮缺陷调查用连续 grep 硬凿代码链（违反 09-18 检索纪律升级），用户点名后纠偏——codegraph 3 步完成此前 10+ 次 grep 的链路（MatchCapability 14 callers/capabilityOptionsFromConfig 唯一 caller/ModelRequestIntentFromTaskInput 节点）。教训：混合调查（DB/git show/系统取证）不构成对代码链也用 grep 的理由，layer 判定应在每次探查前做。
+
+**扩图四修（用户拍板"开始吧"+新增画质槽需求，2026-09-20 晚）**：①quality 透传——outpaintImageNode 对 overlay 显式提供的 quality 直传（:659 mask-edit 路径不动），normalizeMaskEditQuality 的 auto→像素档猜测不再误伤扩图链；②价格精度——formatOutpaintCredits 最多 6 位去尾零（0.001 不再显示 0.00）；③ModelPicker 新增 hideIncompatible prop（默认 false 零影响）+ overlay 传 requirements.imageCount=1 → maxImages=0 模型不进扩图列表；④size 制+quality 域并存模型（gpt-image-2）新增画质槽（AUTO/LOW/MEDIUM/HIGH），与分辨率档槽并存；quality 制模型（grok）不重复展示。tsc 0 / 26 tests / build 53.85s，commit 3 files +52/-5，vite 重启新代码已服务（POST-transform 探针命中）。待用户真机复验：扩图不再报越域错、价格显示 0.001、列表无 grok-imagine-image-2.0、gpt-image-2 出现画质槽。④号缺陷（hover 全显）仍登记待真机探针。
