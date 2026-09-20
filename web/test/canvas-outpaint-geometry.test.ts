@@ -302,10 +302,9 @@ describe("snapOutpaintTargetSize", () => {
             paddingPx: { left: 190, top: 47, right: 452, bottom: 366 },
             presets: presets43,
         });
-        // 最近量级 = 2K（2048×1536）；paddingPx 同比例缩放到 preset 域（原图可缩放，扩空间非像素）。
+        // 最近量级 = 2K（2048×1536）；paddingPx 恒源图像素域（第十八轮）：不再缩放。
         expect(snapped?.width).toBe(2048);
         expect(snapped?.height).toBe(1536);
-        // paddingPx 经 roundPadding 整数化：190×(2048/2045)=190.28 → 190。
         expect(snapped?.paddingPx.left).toBe(190);
         expect(snapped?.paddingPx.top).toBe(47);
     });
@@ -320,7 +319,8 @@ describe("snapOutpaintTargetSize", () => {
         });
         expect(snapped?.width).toBe(1024);
         expect(snapped?.height).toBe(768);
-        expect(snapped?.paddingPx.left).toBeCloseTo(100 * (1024 / 1024), 2);
+        // 源图像素域：padding 不随 snap 改变。
+        expect(snapped?.paddingPx.left).toBe(100);
         const exceeded = snapOutpaintTargetSize({
             targetWidth: 8000,
             targetHeight: 6000,
@@ -348,8 +348,9 @@ describe("snapOutpaintTargetSize", () => {
         // 比例距离占优：3:2 框 snap 到 1536×1024（同比例），面积距离次之。
         expect(snapped?.width).toBe(1536);
         expect(snapped?.height).toBe(1024);
-        const k = 1536 / 3283;
-        expect(snapped?.paddingPx.left).toBe(Math.round(100 * k));
+        // paddingPx 恒保持源图像素域（第十八轮单一域语义）：snap 不再缩放 padding，
+        // 占比缩放由 padImageToDataUrl target 模式的 k 完成。
+        expect(snapped?.paddingPx.left).toBe(100);
     });
 });
 

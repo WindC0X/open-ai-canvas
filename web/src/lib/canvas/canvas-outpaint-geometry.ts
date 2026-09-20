@@ -227,22 +227,21 @@ export function snapOutpaintTargetSize(input: {
         if (!best || delta < best.delta) best = { width, height, delta };
     }
     if (!best) return null;
-    const scaleX = best.width / targetWidth;
-    const scaleY = best.height / targetHeight;
-    const source = sanitizePadding(input.paddingPx);
+    // paddingPx 恒保持「源图像素域」单一语义（第十八轮实锤修复）：此前按 scaleX/scaleY 混合
+    // 缩放把 padding 变成两轴系数不同的中间域值，下游 targetPixelSize（+在源图上）与
+    // padImageToDataUrl target 模式（+在源图上后整体 k 缩放）双双失真——占位节点比例错、
+    // pad 构图与框不符。pad 合成的占比缩放由 target 模式自身的 k（target/框像素）完成，
+    // 这里不改写 padding。preset 比例与目标比例的微小差由 k 两轴一致性在合成层吸收。
     return {
         width: best.width,
         height: best.height,
-        paddingPx: roundPadding({
-            left: source.left * scaleX,
-            top: source.top * scaleY,
-            right: source.right * scaleX,
-            bottom: source.bottom * scaleY,
-        }),
+        paddingPx: sanitizePadding(input.paddingPx),
     };
 }
 
 // 比例选择（含参数条下拉即时切换）反解四边 padding：联立解保证框比精确等于目标比例。
+// （paddingPx 全链单一域约定，2026-09-20 第十八轮：padImageToDataUrl 的 padding 参数恒为
+// 「源图像素域」——target 模式 k = target/(源图+padding) 两轴分别解出，吸收 preset 比例差。）
 // anchor = 既有外扩强度（basePadding 最大边和的一半），作为「少加的那条轴」的保底量；
 // 另一轴按 (基准 + 2*anchor) 联立补差。补差为负时放弃 anchor，回落最小外扩纯解（比例优先）。
 // 比例字符串解析："16:9" 直接除；已知别名（"21:9" 等）走映射表；无法解析返回 null（自由拖拽语义）。

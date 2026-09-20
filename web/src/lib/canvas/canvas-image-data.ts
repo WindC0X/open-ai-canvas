@@ -64,7 +64,10 @@ export async function padImageToDataUrl(dataUrl: string, padding: ImagePadRect, 
     // k 由宽度轴解出；框比=preset 比（比例锁定保证）时 k 两轴一致，取整差吸收进画布右/下。
     if (options?.target && options.target.width > 0 && options.target.height > 0) {
         const target = options.target;
-        const k = target.width / fullWidth;
+        // padding 恒为源图像素域（第十八轮单一域约定）：两轴 k 分别解出，吸收 preset 比例与
+        // 框比例的微小差（如 3:4 preset 1024×1360 实比 0.7529）；取整差吸收进画布右/下。
+        const kx = target.width / fullWidth;
+        const ky = target.height / fullHeight;
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(target.width));
         canvas.height = Math.max(1, Math.round(target.height));
@@ -74,7 +77,7 @@ export async function padImageToDataUrl(dataUrl: string, padding: ImagePadRect, 
             context.fillStyle = fill;
             context.fillRect(0, 0, canvas.width, canvas.height);
         }
-        context.drawImage(image, Math.round(left * k), Math.round(top * k), Math.max(1, Math.round(image.width * k)), Math.max(1, Math.round(image.height * k)));
+        context.drawImage(image, Math.round(left * kx), Math.round(top * ky), Math.max(1, Math.round(image.width * kx)), Math.max(1, Math.round(image.height * ky)));
         return canvas.toDataURL(options?.mimeType ?? "image/png", options?.quality ?? 0.92);
     }
     // 长边 clamp：整体等比缩（padding 一同缩放，保持白边与内容的构图比例）

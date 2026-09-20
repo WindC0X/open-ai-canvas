@@ -849,8 +849,13 @@ export function useCanvasMediaTools({
         const targetIds = requestedCount > 1 ? childIds : [rootId];
         const naturalWidth = Number(node.metadata?.naturalWidth) || node.width;
         const naturalHeight = Number(node.metadata?.naturalHeight) || node.height;
-        const targetPixelSize = { width: naturalWidth + payload.paddingPx.left + payload.paddingPx.right, height: naturalHeight + payload.paddingPx.top + payload.paddingPx.bottom };
-        const resultSize = fitNodeSize(targetPixelSize.width, targetPixelSize.height, node.width, node.height);
+        // 占位节点比例 = 最终提交画幅比例（第十八轮实锤修复）：锁定档位时用 submitTarget
+        // 精确像素（源节点盒 clamp 会把竖版目标压成方形，用户实测占位 1:1）；自由/未锁档用
+        // 源图 + 源域 paddingPx（比例 = 框比例）。fitNodeSize 全局上限等比缩，不 clamp 源盒。
+        const targetPixelSize = payload.submitTarget
+            ? { width: payload.submitTarget.width, height: payload.submitTarget.height }
+            : { width: naturalWidth + payload.paddingPx.left + payload.paddingPx.right, height: naturalHeight + payload.paddingPx.top + payload.paddingPx.bottom };
+        const resultSize = fitNodeSize(targetPixelSize.width, targetPixelSize.height);
         const preferredPosition = { x: node.position.x + node.width + 96, y: node.position.y };
         const rootPosition = findAvailableGenerationGroupPosition(nodesRef.current, preferredPosition, imageGenerationGroupSize(resultSize, resultSize, childIds.length));
         const rootNode: CanvasNodeData = {
@@ -917,7 +922,13 @@ export function useCanvasMediaTools({
                     const size = fitNodeSize(uploaded.width, uploaded.height, node.width, node.height);
                     const currentNode = nodesRef.current.find((item) => item.id === targetId);
                     if (!currentNode) throw new Error("扩图节点已被删除");
-                    const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: { ...currentNode.metadata, ...imageMetadata(uploaded), prompt: effectivePrompt, ...generationMetadata } };
+                    // 结果尺寸校验明示（第十八轮）：上游中转不保证按提交 size 出图（实测
+                    // 请求 1024×1360 返回 1024×1536/1088×1445），比例偏差超阈值时把目标与
+                    // 实际写入 metadata，不静默把错幅图当好图。阈值 2%：取整/拉伸级波动不报警。
+                    const submittedSize = payload.submitTarget ?? { width: targetPixelSize.width, height: targetPixelSize.height };
+                    const ratioDrift = Math.abs(Math.log((uploaded.width / uploaded.height) / (submittedSize.width / submittedSize.height)));
+                    const sizeMismatch = ratioDrift > 0.02 ? { submitted: `${submittedSize.width}x${submittedSize.height}`, actual: `${uploaded.width}x${uploaded.height}` } : undefined;
+                    const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: { ...currentNode.metadata, ...imageMetadata(uploaded), prompt: effectivePrompt, ...generationMetadata, ...(sizeMismatch ? { outpaintSizeMismatch: sizeMismatch } : { outpaintSizeMismatch: undefined }) } };
                     setNodes((current) => current.map((item) => {
                         if (item.id === targetId) return finalizedNode;
                         if (item.id !== rootId || requestedCount <= 1 || item.metadata?.primaryImageId) return item;
