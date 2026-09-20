@@ -277,50 +277,39 @@
 | **Tapnow-Studio-PP**（App.jsx 4 万行） | 无自研扩图，「拓展图片」= Midjourney Zoom Out（imagine→轮询→/zoomout） | 全托管 MJ 官方能力 | 无本地几何控制 |
 | Node_Canvas / TapCanvas / og-canvas-flora-study | 无 outpaint 实现 | — | — |
 
-### 对照 F-06 二期加固清单（修正版，按成本/收益排序）
+### F-06 二期 backlog（2026-09-20 汇总裁定采纳，待排期）
 
-1. **原图硬贴回保真**（收益最大、纯前端 canvas 后处理）：结果落图前把原内容像素按 padding 几何硬贴回结果图，消除主体漂移与原图区劣化——对 maskSupported=false 的指令式模型是必备步。
-2. **渐进外推提示**：外扩面积 >2x 原图（或单边 >40% 短边比）时参数条提示分次扩图（官方文档一手背书的阈值）。
-3. **mask 羽化**：padImageToDataUrl mask 模式加羽化过渡带（ComfyUI 默认 40px 为经验锚点，按目标分辨率折算）。
-4. **pad 底色升级**：fill 参数支持 "0.5 灰"/"平均色"/镜像，替换默认纯白（官方节点填灰 + A1111 平均色实践）。
-5. **多变体默认**（张数默认 2-3，PS 三变体兜底，控件现成）。
-6. **主体保真验收**：二期样本集评测维度加入「主体身份一致性」（Subject-Clarity 方向）。
-7. 采购锚点（若走国产 API 路线）：veImageX 0.00138 元/次算法档（稳定）+ 百炼 0.18 元/张质量档（免费 500 张）双供应商组合。
+> 分层组织：A 前端管线（纯前端零依赖）→ B 模型白名单（配置模型小扩展）→ C 渠道层（渠道管理模型扩展）→ D 系统配置面。
+> 三层合起来 = 完整扩图质量保证体系：模型认证（选什么模型）+ 渠道档案（走什么渠道）+ 前端硬贴回（模型不听话时兜底）。
 
+**A. 前端管线（纯前端，无后端/配置依赖）**
 
-### 本地项目代码实读（一手）
+- [ ] **A1 原图硬贴回保真**（收益最大，二期第一项）：结果落图前把原内容像素按 padding 几何硬贴回结果图（diffusers padding_mask_crop/apply_overlay 语义）。扩图保真从"求模型配合"升级为"模型只是扩区内容提供者"；对 maskSupported=false 指令式模型必备；天然免疫渠道改幅（原图区像素我方贴回）。纯 canvas 后处理。
+- [ ] A2 渐进外推提示：单边 >40% 短边比或面积 >2x 时参数条提示分次扩图（火山官方文档阈值背书）。
+- [ ] A3 mask 羽化过渡带（padImageToDataUrl mask 模式，ComfyUI feathering 默认 40 为经验锚点，按目标分辨率折算）。
+- [ ] A4 pad 底色升级：0.5 灰/平均色/镜像选项替换默认纯白（依赖 D1 配置化；官方节点填灰 + A1111 平均色实践）。
+- [ ] A5 多变体默认：张数默认 2-3（PS 三变体兜底，控件现成）。
+- [ ] A6 主体保真验收：样本集评测加入「主体身份一致性」维度（Subject-Clarity 方向）。
 
-| 项目 | 扩图实现 | 保障手段 | 缺口 |
-| --- | --- | --- | --- |
-| **Infinite-Canvas**（smart-canvas.js 18964 行） | 节点编辑器内 cropState 拖框（clampOutpaint 框≥原图）→ applyImageOutpaint 白底 canvas 合成（fillStyle #ffffff）→ 上传替换节点图 → outpaintSize 记录 → 提交时 customSize="WxH" | ① 框 clamp ≥ 原图；② 白底 pad 图锁定构图；③ 显式 customSize；④ 固定英文指令 "Remove white area and fill the scene" | 无 mask 通道、无多变体、无结果校验、无重试保障——与我们第十八轮前的 v1 同构 |
-| **Tapnow-Studio-PP**（App.jsx 39978 行） | 无自研扩图——「拓展图片」= Midjourney 官方 Zoom Out（mj-zoom：imagine 提交 → 轮询 → /zoomout 按钮） | 依赖 MJ 官方扩散式重绘能力，比例固定、幅度档位固定（2x 等） | 全托管，无本地几何控制 |
-| Node_Canvas / TapCanvas / og-canvas-flora-study | 无 outpaint 实现（TapCanvas 仅 MJ 反代 service） | — | — |
+**B. 模型三档白名单（2026-09-20 用户裁定采纳）**
 
-### 线上商业产品（UI 实证 + 官方页）
+- [ ] B1 能力配置加 `outpaintTier: "recommended" | "capable" | "unsupported"`（短期代码配置人工登记，长期样本集验收流程产出）。
+- [ ] B2 扩图模型槽三档渲染：推荐档（按效果/性价比排序，默认选中第一个）/ 可用档（带「未验证扩图效果」标记）/ maxImages=0 不进列表（硬能力=过滤，软质量=排序标记，两层不混）。
+- [ ] B3 AC4 红线改写：maxImages=0 从「禁用明示」改为不进列表；新红线 = **扩图列表为空时**参数条明示「当前没有支持扩图的模型」。
+- [ ] B4 待细化：未认证模型去向 = 降级展示 + 标记（保留可发现性，避免用户配新渠道模型后困惑）；ModelPicker 分组渲染支持。
 
-- **tapnow / libtv**（侦察报告 DOM 实证）：与 B 线同构的「原位外扩框 + 参数条」，提交参数未挖到；从 tapnow 系模型选择（gpt-image/nano banana 类）推断走 pad+指令/mask 路线。
-- **flora**：「工具节点」范式（Outpainting 节点消费后消失，结果回填 emptyImageBlock）——架构不同，保障逻辑等价。
-- **Adobe Generative Expand**（官方页 fetch 一手）：「extend beyond original edges, automatically generating new matching content, change aspect ratios」；Photoshop 内依托 Firefly + 裁剪框扩展。业界公认细节（二手，未逐字核实）：生成结果落**独立生成图层**（非破坏性）+ **每次三个变体**供选择 + 可改提示词重roll + 传统蒙版工具修边——「变体可选 + 非破坏可撤销 + 可修边」是它的翻车兜底。
-- **Photoroom AI Expand**（F-06.md 一手核实定价页）：电商场景预设化（Resize/Expand 内含于订阅），主打「预设尺寸直达」而非自由拖框。
+**C. 渠道层（渠道管理模型扩展，超出 F-06 边界的部分归渠道任务线）**
 
-### 开源工程生态（stable-diffusion-art.com 一手 fetch；A1111 wiki JS 渲染抓不到正文）
+- [ ] C1 渠道可靠性档案：尺寸忠实度/冷却率/扩图成功率从 api_call_logs 回流到渠道配置——渠道改幅、429 这类「配置表达不了的坑」不再靠用户重踩。
+- [ ] C2 双档路由回归：算法稳定档（veImageX 类，不幻觉、¥0.00138/次）+ 大模型质量档（百炼 ¥0.18/张），扩图按场景路由（白底补边→算法档，场景延展→质量档）——F-06.md 原始「场景路由」设计回归。
+- [ ] C3 采购锚点：veImageX 算法档（官方计费页一手复验）+ 百炼质量档（免费 500 张）双供应商组合。
 
-A1111 outpainting 脚本的保障参数化，是最系统的工程参考：
-1. **Pixels to expand 默认 128px**——单次外扩小步走，大画幅 = 多轮迭代（poor man's outpainting 脚本即分块多轮）；一次扩太多必然崩。
-2. **Masked content = fill**——扩区先用图像平均色填充再生成（与我们白底 pad 同思路，平均色比纯白更不易被模型当背景）。
-3. **Denoising strength 可调**——低强度保原图、高强度多生成；原像素区按 inpaint 语义保持。
-4. **Mask blur（羽化）**——mask 边缘高斯过渡，接缝不硬。
-5. 两条脚本（mk2 / poor man's）本质都是「pad→inpaint→（可循环）」。
+**D. 系统配置面**
 
-### 对照 F-06 现状与二期方向
-
-已具备：pad 合成图（构图锁定）、透明 mask 通道（gpt-image 系）、显式 size、和守恒比例重排、画幅偏差明示角标（十八轮）、白底程序化补边已覆盖（padImageToDataUrl fill 参数即程序化通道）。
-可吸收的加固（二期候选，未排期）：
-1. **多变体默认**（张数 x2/x3 起步）——Adobe/Canva 公认兜底，我们张数控件已支持，仅默认值问题；
-2. **mask 羽化边缘**（padImageToDataUrl mask 模式加 2-4px 线性渐变带）——低成本降接缝风险；
-3. **单次外扩幅度提示**（框外扩 >2x 原图面积时参数条提示分次扩图）——SD 生态共识「小步多次」；
-4. **扩区平均色填充选项**（fill 参数从 #FFFFFF 扩展到 "average"）——比纯白更少被模型当背景；
-5. **结果并排预览 + 一键重roll**（现状是结果节点上的重新生成按钮，已具备雏形）。
+- [ ] D1 扩图工程参数配置化：pad 底色、maxLongEdge 压缩值（现为 ddcat 断连应激值 1536）、渐进阈值、羽化宽度——从硬编码进配置，不同部署/场景可调。
+- [ ] D2 合规开关：AI 生成标识（国内云 API 合规默认值）。
+- [ ] D3 许可标记：模型/渠道配置加 license 字段，非商用权重（FLUX.1-Fill-dev/klein-9B）在路由层挡住生产部署。
+- [ ] D4 价格锚对标：积分定价对照市场出清价（0.01-0.05 元/张；蓝马零售 ¥0.04 用户截图一手；veImageX 成本地板毛利 96%+ 支撑「扩图=积分低价品」定位）。
 
 ## 已知坑与停机条件
 
