@@ -142,15 +142,20 @@ export function ModelPicker({
             setFlyoutGroup(null);
         }
     }, [open]);
-    // flyout 真实高度挂载后才可知: 底部溢出(面板 composer 场景)时向上翻, 底边贴 anchor 顶。
-    // 依赖不含 y: 校正写入的 y 不再触发本 effect, 无回环。
+    // flyout 真实高度挂载后才可知: 底部溢出(面板 composer 场景)时向上翻, 底边贴视口底。
+    // 钳制公式与渲染位置无关(布局高度), 一帧收敛 —— 旧减法项(overflow>0 ? overflow+4 : 0)
+    // 以上一帧渲染位测溢出, 在溢出边界两值间跳变 → 双稳态无限振荡(2026-09-20 用户实测
+    // "靠近底部 L2 不停上下抽动", 通用缺陷不限扩图)。
+    const flyoutClampedY = (anchorTop: number) => {
+        const flyoutHeight = flyoutRef.current?.offsetHeight ?? 0;
+        return Math.max(12, Math.min(anchorTop - 8, window.innerHeight - 12 - flyoutHeight));
+    };
     useLayoutEffect(() => {
         if (!flyoutGroup) return;
         const el = flyoutRef.current;
         if (!el) return;
-        const rect = el.getBoundingClientRect();
-        const overflow = rect.bottom - (window.innerHeight - 12);
-        if (overflow > 0) setFlyoutPos((pos) => ({ ...pos, y: Math.max(12, pos.y - overflow - 4) }));
+        const anchor = flyoutAnchorRef.current;
+        if (anchor) setFlyoutPos((pos) => ({ ...pos, y: flyoutClampedY(anchor.getBoundingClientRect().top) }));
         // 菜单入场动画(~200ms)期间锚点 rect 在漂移: 逐帧按锚点终态重贴, 连续两帧稳定即停。
         let stable = 0;
         let raf = 0;
@@ -161,10 +166,7 @@ export function ModelPicker({
             setFlyoutPos((pos) => {
                 const mr = menuRef.current?.getBoundingClientRect() || ar;
                 const x = Math.max(12, mr.right + 2 + 384 > window.innerWidth - 12 ? mr.left - 384 - 2 : mr.right + 2);
-                // 重算贴底溢出(2026-09-19 review P2-3): 否则逐帧校验会把首帧的向上翻转量覆盖还原。
-                const fr = flyoutRef.current?.getBoundingClientRect();
-                const overflow = fr ? fr.bottom - (window.innerHeight - 12) : 0;
-                const y = Math.max(12, ar.top - 8 - (overflow > 0 ? overflow + 4 : 0));
+                const y = flyoutClampedY(ar.top);
                 if (Math.abs(pos.x - x) < 1 && Math.abs(pos.y - y) < 1) { stable += 1; return pos; }
                 stable = 0;
                 return { x, y };
@@ -173,6 +175,7 @@ export function ModelPicker({
         };
         raf = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- flyoutClampedY 读 ref, 非响应式; y 写入不入依赖防回环
     }, [flyoutGroup, flyoutPos.x]);
     // flora Providers 二级语法: L1=渠道/产商行钻取, L2=该组模型列表; 单组直接 L2, 搜索态展开全部
     const [triggerWidth, setTriggerWidth] = useState<number | null>(null);

@@ -289,6 +289,12 @@ func providerPayloadErrorCategory(raw string) (string, bool) {
 		return "", false
 	}
 	switch {
+	// 上游网关读大请求体（如扩图 pad 底图 multipart）超时：错误体常带 INVALID_* 字样
+	// （实测 "INVALID_IMAGE_EDIT / decode JSON request: read tcp ... 网络读写超时"），
+	// 若不先判会误落 invalid 类目的"拒绝了请求，请检查参数"——网络中断不是参数问题。
+	// 排在 invalid 类目之前（2026-09-20 扩图真机实测）。
+	case strings.Contains(normalized, "read tcp"), strings.Contains(normalized, "i/o timeout"), strings.Contains(normalized, "connection reset"), strings.Contains(normalized, "network timeout"):
+		return "模型服务连接中断（上游读取请求超时），请稍后重试或减小参考图尺寸", true
 	// 真人肖像类目只匹配供应商错误码里的稳定标识，不扫描自然语言。
 	// 正文常常回显用户提示词，"likeness"、"肖像"这类词单独出现并不能证明
 	// 上游是因为真人形象拒绝，按词判断会把普通参数错误误报成肖像问题。

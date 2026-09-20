@@ -846,7 +846,15 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                                     setRatioKey(key);
                                     if (key === FREE_RATIO_KEY || !node) return;
                                     const nextRatio = parseRatioValue(key);
-                                    if (!nextRatio) return;
+                                    // 原图比例 = 回到打开时的基准外扩（源图比例），不进档位重排：
+                                    // 不重置则 padding 停留在上一个比例的重排值，框比例不变（2026-09-20 实测缺陷）。
+                                    if (!nextRatio) {
+                                        if (key === ORIGINAL_RATIO_KEY) {
+                                            startExpandAnimation();
+                                            applyPadding(DEFAULT_PADDING);
+                                        }
+                                        return;
+                                    }
                                     const layoutWidth = nodeElementRef.current?.offsetWidth || layoutSize.width;
                                     const layoutHeight = nodeElementRef.current?.offsetHeight || layoutSize.height;
                                     if (!layoutWidth || !layoutHeight) return;
