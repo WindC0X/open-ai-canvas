@@ -276,7 +276,9 @@ func cloudAgentToolAllowed(req CloudAgentRequest, name string) bool {
 	return false
 }
 func cloudAgentWrite(name string) bool {
-	return name == "canvas_apply_ops" || name == "generate_media" || name == "canvas_create_storyboard" || name == "canvas_edit_storyboard" || name == "canvas_edit_batch_table"
+	// image_layer_split 是上游 adf3a5be/PoloX 链的画布写工具(未合并前不可达, 合并后进 step_hash 接力与审批门,
+	// 否则成为不可撤销写路径)。撤销账本本身内容驱动, 不依赖本枚举。
+	return name == "canvas_apply_ops" || name == "generate_media" || name == "canvas_create_storyboard" || name == "canvas_edit_storyboard" || name == "canvas_edit_batch_table" || name == "image_layer_split"
 }
 
 func cloudAgentReadTool(repo *repository.Repository, userID string, state *cloudAgentRuntime, call cloudAgentCall, services ...*Service) (any, error) {
