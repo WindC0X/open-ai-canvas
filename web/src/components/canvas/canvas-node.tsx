@@ -309,8 +309,11 @@ export const CanvasNode = React.memo(function CanvasNode({
     // 信息态 composer 仅限媒体生成节点(2026-09-18 用户反馈): 绘图/分镜/转换/批量/导演台/音频/工作流等
     // 节点有自己的输入面或无提示词语义, 连接参考节点后 metadata.prompt/composerContent 被上游链填充,
     // hover 信息态会把无关注入文本当成提示词展示——flora 该语法只服务媒体生成节点。
-    // 扩图结果节点(edit:"outpaint")不显示内部 composer: 扩图是画幅延展产物, 内部提示词覆层无再编辑意义(用户 2026-09-21)。
-    const hoverComposerNodeType = (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video) && data.metadata?.edit !== "outpaint";
+    // 扩图结果节点不显示内部 composer: 扩图是画幅延展产物, 内部提示词覆层无再编辑意义(用户 2026-09-21)。
+    // 判据两条: 新节点带 edit:"outpaint" 占位标记; 历史节点无该标记, 用 generationType:edit+manualSize
+    // 指纹回退(该组合仅扩图占位写入——图生图/局部重绘占位均无 manualSize, 宫格子节点无 generationType)。
+    const isOutpaintResult = data.metadata?.edit === "outpaint" || (data.metadata?.generationType === "edit" && data.metadata?.manualSize === true);
+    const hoverComposerNodeType = (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video) && !isOutpaintResult;
     const hoverComposerVisible = hoverComposerNodeType && hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
 
     return (
