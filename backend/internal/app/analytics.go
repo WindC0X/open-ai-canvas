@@ -535,7 +535,10 @@ func normalizeAnalyticsFilter(query AnalyticsQuery) repository.AnalyticsFilter {
 	if to.Sub(from) > 366*24*time.Hour {
 		from = to.AddDate(-1, 0, 0)
 	}
-	return repository.AnalyticsFilter{From: from, To: to, UserID: strings.TrimSpace(query.UserID), Model: strings.TrimSpace(query.Model), ChannelID: strings.TrimSpace(query.ChannelID), Capability: normalizeCapability(query.Capability)}
+	// SQLite 列以驱动本地时区字符串落盘（mattn 默认 "+08:00" 后缀），time.Time 直绑会输出
+	// UTC 后缀字符串，字典序错位把本地当天 00:00 之后的记录整批排除（明细/概览都停在旧边界）。
+	// 比较前统一转本地时区，让参数与列值同格式同序。
+	return repository.AnalyticsFilter{From: from.Local(), To: to.Local(), UserID: strings.TrimSpace(query.UserID), Model: strings.TrimSpace(query.Model), ChannelID: strings.TrimSpace(query.ChannelID), Capability: normalizeCapability(query.Capability)}
 }
 
 func parseAnalyticsTime(value string) (time.Time, bool) {
