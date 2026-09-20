@@ -20,6 +20,8 @@ type CanvasProjectMediaDialogsProps = {
     onCloseMaskEdit: () => void;
     onCloseOutpaint: () => void;
     onOutpaintNodeMove: (nodeId: string, position: { x: number; y: number }) => void;
+    // 扩图拖图会话活跃态（svg 强调连线层拖动中隐藏防残影，对齐正常拖拽 isNodeDragging 机制）。
+    onOutpaintImageDragChange: (active: boolean) => void;
     onCloseUpscale: () => void;
     onCrop: (node: CanvasNodeData, crop: CanvasImageCropRect) => void;
     onAnnotate: (node: CanvasNodeData, dataUrl: string) => void;
@@ -41,6 +43,7 @@ export function CanvasProjectMediaDialogs({
     onCloseMaskEdit,
     onCloseOutpaint,
     onOutpaintNodeMove,
+    onOutpaintImageDragChange,
     onCloseUpscale,
     onCrop,
     onAnnotate,
@@ -54,7 +57,7 @@ export function CanvasProjectMediaDialogs({
             {cropNode?.metadata?.content ? <CanvasNodeCropDialog dataUrl={cropNode.metadata.content} open onClose={onCloseCrop} onConfirm={(crop) => onCrop(cropNode, crop)} /> : null}
             {annotationNode?.metadata?.content ? <CanvasNodeAnnotationDialog image={{ url: annotationNode.metadata.content, storageKey: annotationNode.metadata.storageKey }} open onClose={onCloseAnnotation} onConfirm={(dataUrl) => onAnnotate(annotationNode, dataUrl)} /> : null}
             {maskEditNode?.metadata?.content ? <CanvasNodeMaskEditDialog dataUrl={maskEditNode.metadata.content} config={{ ...config, model: maskEditNode.metadata.model || config.model, imageModel: maskEditNode.metadata.model || config.imageModel, size: maskEditNode.metadata.size || config.size, quality: maskEditNode.metadata.quality || config.quality, count: String(maskEditNode.metadata.count || config.count) }} open onClose={onCloseMaskEdit} onConfirm={(payload) => onMaskEdit(maskEditNode, payload)} /> : null}
-            {outpaintNode && canvasContainerRef.current ? <CanvasNodeOutpaintOverlay key={outpaintNode.id} node={outpaintNode.metadata?.content ? outpaintNode : null} containerRef={canvasContainerRef} config={config} onClose={onCloseOutpaint} onExecute={onOutpaint} onNodeMove={onOutpaintNodeMove} /> : null}
+            {outpaintNode && canvasContainerRef.current ? <CanvasNodeOutpaintOverlay key={outpaintNode.id} node={outpaintNode.metadata?.content ? outpaintNode : null} containerRef={canvasContainerRef} config={config} onClose={onCloseOutpaint} onExecute={onOutpaint} onNodeMove={onOutpaintNodeMove} onImageDragActiveChange={onOutpaintImageDragChange} /> : null}
             {upscaleNode?.metadata?.content ? <CanvasNodeUpscaleDialog dataUrl={upscaleNode.metadata.content} open onClose={onCloseUpscale} onConfirm={(params) => onUpscale(upscaleNode, params)} /> : null}
         </>
     );

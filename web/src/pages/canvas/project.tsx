@@ -315,6 +315,9 @@ function InfiniteCanvasPage() {
     const [projectLoaded, setProjectLoaded] = useState(false);
     const workspaceMode: CanvasWorkspaceMode = "professional";
     const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+    // 扩图拖图会话活跃态（overlay 首帧有效位移置真/松手置假）：组合进喂给 world-layers 的 isNodeDragging，
+    // 让 SVG 强调连线层（光晕/流光）拖动中隐藏——扩图自实现拖拽不经过节点拖拽管线，不组合会滞留旧锚点。
+    const [outpaintImageDragging, setOutpaintImageDragging] = useState(false);
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [tapNowImportOpen, setTapNowImportOpen] = useState(false);
     const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
@@ -2705,7 +2708,7 @@ function InfiniteCanvasPage() {
                                     selectedNodeBounds={selectedNodeBounds}
                                     batchSourceNodeIds={batchSourceNodeIds}
                                     batchConnectionPreview={batchConnectionPreview}
-                                    isNodeDragging={isNodeDragging}
+                                    isNodeDragging={isNodeDragging || outpaintImageDragging}
                                     mediaCancelSignal={mediaCancelSignal}
                                     selectionBoundsElementRef={selectionBoundsElementRef}
                                     renderCanvasNodeContent={renderCanvasNodeContent}
@@ -3415,6 +3418,8 @@ function InfiniteCanvasPage() {
                             onCloseAnnotation={() => setAnnotationNodeId(null)}
                             onCloseMaskEdit={() => setMaskEditNodeId(null)}
                             onCloseOutpaint={() => setOutpaintNodeId(null)}
+                            // 扩图拖图会话活跃态：世界层 SVG 强调连线拖动中隐藏防旧锚点残影。
+                            onOutpaintImageDragChange={setOutpaintImageDragging}
                             // 扩图拖图松手提交：图片在框内重定位 = 节点 position 移动 + padding 重分布（frame 不动）。
                             onOutpaintNodeMove={(nodeId, position) => {
                                 setNodes((current) => current.map((item) => (item.id === nodeId ? { ...item, position } : item)));

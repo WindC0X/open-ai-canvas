@@ -39,6 +39,10 @@ type CanvasNodeOutpaintOverlayProps = {
     // 拖图松手提交：节点位移写入节点 position（扩图模式内图片在框内重定位的本质 = 移动节点 +
     // padding 重分布，frame 数学位置不变）。与 setPadding 同批 React 提交，无闪帧。
     onNodeMove: (nodeId: string, position: { x: number; y: number }) => void;
+    // 拖图会话活跃态上传（首帧有效位移置真 / 松手·取消·卸载置假）：project 层据此把 SVG 强调连线层
+    // （光晕/流光，canvas-project-world-layers 的 hideVisual）在拖动中隐藏——该层 pathD 只随 React
+    // commit 更新，不隐藏会滞留旧锚点直到拖动结束（对齐正常节点拖拽 isNodeDragging 的防残影机制）。
+    onImageDragActiveChange?: (active: boolean) => void;
 };
 
 const FREE_RATIO_KEY = "free";
@@ -96,7 +100,7 @@ function sizeValueToRatioLabel(value: string): string | null {
 
 const RATIO_VALUE_MAP: Record<string, number> = { "1:1": 1, "4:3": 4 / 3, "3:4": 3 / 4, "16:9": 16 / 9, "9:16": 9 / 16, "2:3": 2 / 3, "3:2": 3 / 2, "21:9": 21 / 9 };
 
-export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose, onExecute, onNodeMove }: CanvasNodeOutpaintOverlayProps) {
+export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose, onExecute, onNodeMove, onImageDragActiveChange }: CanvasNodeOutpaintOverlayProps) {
     const frameRef = useRef<HTMLDivElement>(null);
     const labelRef = useRef<HTMLDivElement>(null);
     // 扩展区纹理层：单一全铺 pattern + clip-path 挖出图片视觉矩形（洞跟随拖图 transform 逐帧直写）。
@@ -125,7 +129,12 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         // 拖图开始时冻结的洞基准（图片盒相对 frame 的偏移与尺寸）：拖图中洞 = 冻结基准 + transform，
         // 不重读 rect——外部（viewport/transition/虚拟化）的 rect 漂移不参与洞计算，洞与图片严格同步。
         holeBase: { x: number; y: number; w: number; h: number };
+        // 活跃态是否已上报（首帧有效位移置真，只在上报翻转时回调，避免每 move 帧 setState）。
+        activeNotified?: boolean;
     } | null>(null);
+    // 回调 ref 镜像：容器级原生监听的 effect 不因回调身份变化重建。
+    const imageDragActiveChangeRef = useRef(onImageDragActiveChange);
+    imageDragActiveChangeRef.current = onImageDragActiveChange;
     // 框位置/尺寸的 transition 只在比例切换展开动画时开启（用户裁定交互）；恒开会让
     // viewport 跟随 / 拖图松手后的末帧位置修正都被 360ms 动画放大 = 框游动与回弹。
     const [expanding, setExpanding] = useState(false);
@@ -605,6 +614,11 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             const ty = Math.min(start.bottom * scale, Math.max(-start.top * scale, event.clientY - drag.startY));
             drag.tx = tx;
             drag.ty = ty;
+            // 首帧有效位移上报拖图活跃态（SVG 强调连线层拖动中隐藏，防旧锚点残影）。
+            if (!drag.activeNotified && (tx !== 0 || ty !== 0)) {
+                drag.activeNotified = true;
+                imageDragActiveChangeRef.current?.(true);
+            }
             paddingRef.current = relocateOutpaintPadding(start, tx / scale, ty / scale, ratioRef.current !== null);
             updateImageDragVisual(drag, tx, ty);
             // 连线跟随：拖图绕过了节点拖拽管线，连线层（leafer graphics）靠订阅预览事件把端点临时平移。
@@ -624,6 +638,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             const scale = scaleRef.current || 1;
             const dxWorld = drag.tx / scale;
             const dyWorld = drag.ty / scale;
+            if (drag.activeNotified) imageDragActiveChangeRef.current?.(false);
             imageDragRef.current = null;
             drag.wrapperEl.style.left = "";
             drag.wrapperEl.style.top = "";
@@ -665,6 +680,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     useEffect(() => {
         return () => {
             if (imageDragRef.current) {
+                if (imageDragRef.current.activeNotified) imageDragActiveChangeRef.current?.(false);
                 imageDragRef.current.wrapperEl.style.left = "";
                 imageDragRef.current.wrapperEl.style.top = "";
                 imageDragRef.current = null;
