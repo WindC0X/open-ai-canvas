@@ -318,6 +318,13 @@
 - 验证：tsc/eslint 绿；全量 1848 tests / 1830 pass / 18 fail = 存量基线；目视复核松手后 4 条连线全部精确收敛端口无残留。
 - 验证修正（用户质询「你验证了吗」后复查）：首轮像素 diff 的锚点窗（x 从 1040 起）左缘覆盖图片本体（右边缘 1080），19px 图片移动污染 diff 贡献——1983/454/2207 结论方向碰巧正确但论据不干净，作废。**严格重验 = 纯画布窗口（1085-1260，全在图片右缘外）白色连线像素图做互相关平移搜索**：before→mid 最优平移 (16,-15)px 残差 161（图片实际拖 +19.2,-15.8，高度吻合 = 拖图中连线整体跟随）；mid→after 最优平移 (0,0) 残差 15（松手逐像素零跳变）。质心度量被 4 条发散连线的对端锚定段稀释（质心仅动 1.5px），互相关对整体几何敏感才是正确度量。教训追加：①验证窗口必须排除被移动物体本体；②质心对「局部平移+远端锚定」的几何不敏感，用互相关找最优平移。
 
+## 用户真机验收反馈修复（2026-09-20 第二十轮，提交 157c0ba2）
+
+- [x] V1 连线「动效描绘滞留」（真机截图实锤：拖图中连线本体已跟随，但强调态光晕/流光粒子滞留旧锚点、拖动结束才更新）：画布连线是**双层渲染**——leafer graphics 层画本体线（U1 已接预览事件、逐帧跟随 ✓）+ SVG 层 `ConnectionPath`（canvas-project-world-layers）画强调态装饰（光晕 blur/流光 dash/彗星，只渲染在选中/相关连线上）。SVG 层 pathD 来自 React props（React.memo 依赖 from/to），只在松手 commit 后更新。既有防残影机制 = 正常节点拖拽时 `isNodeDragging` 置真 → world-layers 传 `hideVisual` 拖动中隐藏整层视觉；**扩图自实现拖拽不经过节点拖拽管线 → isNodeDragging 恒 false → 强调层不隐藏、滞留旧位**（与用户截图完全吻合：滞留的正是带光晕流光的强调连线）。修 = 对齐既有机制：overlay 新增 `onImageDragActiveChange`（拖图首帧有效位移置真、pointerup/cancel/卸载置假，activeNotified 标记避免逐帧 setState；ref 镜像避免 listener 重建）→ media-dialogs 透传 → project.tsx `outpaintImageDragging` state → 组合进喂给 world-layers 的 `isNodeDragging={isNodeDragging || outpaintImageDragging}`。拖动中强调装饰隐藏（leafer 本体线持续跟随），松手后 React commit 重现于新位置——与正常节点拖拽行为完全一致。
+- 验证：tsc/eslint 绿；全量 1830 pass / 18 fail = 存量基线；vite 重启后三模块新代码进产物（onImageDragActiveChange×3 / onOutpaintImageDragChange×2 / outpaintImageDragging×2）+ 代理 200。
+- 环境记录：setsid/nohup+复合命令方式启动 vite 均不稳（进程随 bash 工具调用结束被回收）；实证可用 = **独立调用执行 `cd web && VITE_API_PROXY_TARGET=http://127.0.0.1:8181 nohup node node_modules/vite/bin/vite.js --port 3001 --strictPort > log 2>&1 & disown`**，再单独调用验证探活。
+- 流程失误记录：本轮中段对同一 eslint 命令在错误 cwd 下连续重复 20+ 次未换路径（bash 工具每次调用 cwd 重置到仓库根，`cd web` 不持久）——违反「同类失败三次停止盲试」纪律。教训：**bash 工具的 cwd 不跨调用持久，凡涉及 web/ 子目录的命令必须单条内显式 cd**。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
