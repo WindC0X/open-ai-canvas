@@ -393,17 +393,12 @@ function InfiniteCanvasPage() {
     const [titleDraft, setTitleDraft] = useState("");
     const [shortcutRequestNonce, setShortcutRequestNonce] = useState(0);
     const { assistantOpen, closeAgent, openAgent } = useCanvasAssistantVisibility();
-    // Agent 面板是自由浮窗(上游 v1.3 改造: 可拖拽/调宽/localStorage 持久化), 布局状态提升到本层。
-    // HUD 归宿模型(2026-09-20 用户拍板): HUD 固定右上角家不再漂移; 面板与其相交时 HUD 原位淡出、
-    // 面板移开/关闭淡回 —— 与拖拽中面板盖过 HUD 的既有体感一致, 消灭"松手瞬间跳到面板左缘"。
-    // 底部 dock 未来迁移到左侧中部也不影响该模型。面板 compact 态铺满视口必相交。
+    // Agent 面板是自由浮窗(上游 v1.3 改造: 可拖拽/调宽/localStorage 持久化), 布局状态提升到本层供面板组件消费。
+    // HUD 归宿(2026-09-20 用户拍板): HUD 固定右上角家, z 层压在面板之下(80 < 面板基线 110) ——
+    // 面板在上层, 路过时自然盖住 HUD, 移开即露出; 不淡出、不隐藏、不随面板几何漂移。
     const agentPanelLayout = useAgentPanelLayout();
-    const { layout: agentPanelGeometry, compact: agentPanelCompact } = agentPanelLayout;
-    const hudOccluder = !assistantOpen
-        ? null
-        : agentPanelCompact
-            ? { left: 0, top: 0, width: 1e6, height: 1e6 }
-            : agentPanelGeometry;
+    const { layout: agentPanelGeometry } = agentPanelLayout;
+    void agentPanelGeometry;
     const agentMentionReferences = useMemo(() => buildCanvasAgentMentionReferences(nodes), [nodes]);
 
     const sendSelectionToAgent = useCallback((nodeId?: string) => {
@@ -2852,8 +2847,7 @@ function InfiniteCanvasPage() {
                     <ObjectHudPanel
                         node={toolbarNode}
                         config={effectiveConfig}
-                        // HUD 固定右上角, 与 Agent 浮窗相交时原位淡出(遮挡模型取代几何让位, 2026-09-20 用户拍板)。
-                        occluder={hudOccluder}
+                        // HUD 固定右上角, z 层在 Agent 面板之下: 面板盖住即盖住, 不淡出不漂移(2026-09-20 用户拍板)。
                         topInset={activeTaskPanelHeight > 0 && !focusMode ? `calc(var(--canvas-topbar-offset) + ${Math.round(activeTaskPanelHeight)}px + var(--space-3))` : 88}
                         onViewImage={(node) => setPreviewNodeId(node.id)}
                         actions={toolbarNode?.type === "image" ? ([
