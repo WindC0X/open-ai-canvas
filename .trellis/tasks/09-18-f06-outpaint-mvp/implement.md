@@ -239,6 +239,55 @@
 
 ## 外部扩图实现调研（2026-09-20，用户问「其它项目如何保障效果」）
 
+> **主依据 = 本地调研库** `F:/CODE/Project/canvas/analysis-2026-09-12/ecom-design/outpaint/`（12 份报告：v1 范式/产品/国产API/开源 ×4 + v2 发现 ×3 + v3 分类学/前沿/供给 ×3 + 盲区扫描 + 终版合并裁决稿，全部带证据分级与官方一手复核）。首日临时网络调研仅补 Tapnow-Studio-PP 等 canvas 库未覆盖的本地项目，质量低于库内报告。
+
+### 「效果保障」机制图谱（按证据等级）
+
+**产品层**（终版裁决稿 + v1-products 官方一手）：
+- PS Generative Expand：独立生成图层（非破坏可撤销）+ 每次三变体 + 可改提示词重roll + 模型选择器（Firefly Fill & Expand / Image 3 / Image 1）+ 传统蒙版修边兜底。
+- 参数形态已行业收敛为三类：目标宽高比 / 方向比例 / 四边像素数（阿里云百炼四模式：宽高比、横纵比例、四边像素 offset、**先旋转再扩图**；fal 四边各 0-700px + zoom out）。
+- Photoroom/Claid 电商预设化；SaaS 侧扩图是免费引流标配不单独收费；中国云 API 默认加「AI 生成」标识（合规默认值）。
+
+**工程层**（终版裁决稿工程要点 C，全部官方一手/源码一手）：
+1. **迭代渐进外推**（头号纪律）：火山 AI MediaKit 官方文档背书「单方向 ≤40% 短边比，大画幅需多次渐进式扩图」；ProOut (ICCV 2025) 学术线同结论。一次扩太多必然崩。
+2. **原图硬贴回保真**（对主体漂移最有效）：diffusers `padding_mask_crop` / `apply_overlay` 官方先例——生成后把未掩码区原图像素硬贴回结果。直击蓝马「地毯变形」类失败；无 mask 通道的指令式模型（gpt-image 系）更必备。
+3. **mask 羽化**：ComfyUI 内置 ImagePadForOutpaint `feathering` 默认 40（nodes.py 源码一手）——mask 边缘过渡带消灭硬接缝。
+4. **pad 底色选择**：官方节点填充 **0.5 灰**（非纯白）；「白/灰/镜像」均影响生成；A1111 实践 masked content=fill 用图像平均色。纯白最易被模型当「背景」处理。
+5. **tiling 分块**：MultiDiffusion 潜空间分块融合 + Tiled VAE 显存优化（两者是管线不同环节）+ CropAndStitch（1.2k★）/UltimateSDUpscale——超大画布一致性。
+6. **多候选**：GAN In&Out 多候选、PS 三变体——让用户挑而不是赌单发。
+7. **参数硬约束**：阿里云官方建议输出长宽比接近 1:1 效果最自然；veImageX 长边建议 ≤2048px。
+
+**供给侧结构性事实**（终版 + 盲区扫描）：
+- 价格梯度 145 倍：veImageX 0.00138 元/次（「相似内容补充」算法档，不幻觉、稳定）≪ AI MediaKit ≈0.037 ≪ 百炼 0.18 ≈ Seedream 0.20（大模型档，质量高但可幻觉）——**便宜档反而不翻车，因为它是算法不是生成**。
+- 国产 API 免费额度：百炼 500 张、即梦 API 200 次。
+- 开源事实底座 FLUX.1-Fill-dev 非商用（输出可商用）；Apache 路线 = Qwen-Image-Edit + InstantX ControlNet-Inpainting / 绿幕 LoRA、FLUX.2-klein-4B outpaint LoRA。
+- 2025-2026 无大厂新出「纯扩图」开源基座；趋势 = 统一编辑模型收编 + LoRA/ControlNet 补丁。
+
+**学术评测重心转移**（v3-frontier 一手 arXiv）：
+- 主体保真成新评测维度（Subject-Clarity 2026-09 多尺度小波监督，subject identity consistency）——直连电商「扩图不伤主体」。
+- FCO 前景条件背景生成（CCE-Diffusion 2026，电商专属范式：商品前景→生成更大背景，修正背景伪影）。
+- 两段式蓝图外推（arXiv 2607.06162：全局蓝图→并行渲染高清块，消误差累积）。
+- 无公认扩图专用公开基准（负结论）。
+
+### 本地项目实现盘点（canvas 库之外补充，代码一手）
+
+| 项目 | 扩图实现 | 保障手段 | 缺口 |
+| --- | --- | --- | --- |
+| **Infinite-Canvas**（smart-canvas.js） | cropState 拖框（clampOutpaint 框≥原图）→ 白底 canvas 合成 → 上传替换 → outpaintSize → 提交 customSize="WxH" | 框 clamp、白底 pad 锁构图、显式尺寸、固定英文指令 | 无 mask、无渐进、无贴回、无校验——F-06 v1 前身同构 |
+| **Tapnow-Studio-PP**（App.jsx 4 万行） | 无自研扩图，「拓展图片」= Midjourney Zoom Out（imagine→轮询→/zoomout） | 全托管 MJ 官方能力 | 无本地几何控制 |
+| Node_Canvas / TapCanvas / og-canvas-flora-study | 无 outpaint 实现 | — | — |
+
+### 对照 F-06 二期加固清单（修正版，按成本/收益排序）
+
+1. **原图硬贴回保真**（收益最大、纯前端 canvas 后处理）：结果落图前把原内容像素按 padding 几何硬贴回结果图，消除主体漂移与原图区劣化——对 maskSupported=false 的指令式模型是必备步。
+2. **渐进外推提示**：外扩面积 >2x 原图（或单边 >40% 短边比）时参数条提示分次扩图（官方文档一手背书的阈值）。
+3. **mask 羽化**：padImageToDataUrl mask 模式加羽化过渡带（ComfyUI 默认 40px 为经验锚点，按目标分辨率折算）。
+4. **pad 底色升级**：fill 参数支持 "0.5 灰"/"平均色"/镜像，替换默认纯白（官方节点填灰 + A1111 平均色实践）。
+5. **多变体默认**（张数默认 2-3，PS 三变体兜底，控件现成）。
+6. **主体保真验收**：二期样本集评测维度加入「主体身份一致性」（Subject-Clarity 方向）。
+7. 采购锚点（若走国产 API 路线）：veImageX 0.00138 元/次算法档（稳定）+ 百炼 0.18 元/张质量档（免费 500 张）双供应商组合。
+
+
 ### 本地项目代码实读（一手）
 
 | 项目 | 扩图实现 | 保障手段 | 缺口 |
