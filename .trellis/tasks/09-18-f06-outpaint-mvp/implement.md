@@ -227,6 +227,16 @@
 - [x] T5 参数条重心偏左（实测 frame 中心 352 vs bar 内容中心 160）：bar 盒宽恒 640 且盒中心已精确居中，但内容行左对齐挤在左侧 250px → 视觉重心偏左。修 = w-max 自适应内容宽 + 内容行 flex-wrap + barRef ResizeObserver（选模型/档位改变行宽时重定位）。
 - 验证：tsc/lint/build 三绿；全量 1847 tests / 1829 pass / 18 fail = 存量基线；几何 24 例全绿（新增翻转/并列/AUTO snap 4 例）；模拟人工验证（真实鼠标 + 逐帧采样 + 截图目视）：拖图域换算精确、角拖零跳变、AUTO 标注域内、+纹理 L 形区域完整铺满（放大目视复核，先前"锯齿缺口"疑点为 frame 外画布点阵区误判）。
 
+## 用户终验反馈修复（2026-09-20 第十八轮，提交 39ce2c0c）
+
+- [x] T1 「选 3:4 生成出 1:1」拆解为两个真 bug + 一个上游事实（全部实证）：
+  - **真 bug A（占位节点比例错）**：snapOutpaintTargetSize 把 paddingPx 按 scaleX/scaleY 两轴混合缩放（preset 1024×1360 实比 0.7529≠精确 3:4 → 两轴系数不同），hook 把混合域 paddingPx 加在源图 1536×1024 上 → targetPixelSize 比例 0.90 → 占位节点近方形。修 = snap 不再改写 paddingPx（恒源图像素域），锁定档位时占位节点直接用 submitTarget 比例（fitNodeSize 全局 clamp，不再 clamp 源节点盒）。headless 实测占位 328×491 = 0.667（与 2:3 目标一致）。
+  - **真 bug B（pad 构图与框不符）**：同一混合域 paddingPx 传入 padImageToDataUrl target 模式（该模式期望源像素域），k 单轴解出 → 图片被画在错误位置（用户框内图片贴底/顶部大扩区，提交的 pad 图图片悬中）。修 = target 模式两轴 k（kx/ky 分别解），吸收 preset 比例差；paddingPx 全链单一「源图像素域」语义。
+  - **上游事实（非本链 bug）**：api_call_logs 实锤中转站正确收到 requested_size=1024x1360，但 flow=「upstream original size → original source」（QQ 机器人池直接回上游原始输出）——第一次 1024×1536（比例被改+黑块）、第二次 1088×1445（保比例）。前端/后端提交链均正确，尺寸不由我方决定。
+- [x] T2 结果画幅偏差明示（AC 保障）：结果节点落图时比对「提交画幅 vs 实际出图」比例（log 距离 >2% 阈值），超差写 metadata.outpaintSizeMismatch 并在节点右上角显示红色角标「画幅偏差 · 提交 WxH / 实际 WxH」——上游改幅不再静默。resources 表 + result_json 双源验证：成功出图 1088×1445 与 1024×1360 比例偏差 0.00%（不误报）。
+- [x] T3 回答「其它项目也只是靠简单的提示词，其它都没有了吗」：扩图链提交的不止提示词——pad 白底合成图（构图=框）+ 透明区 mask（maskSupported 模型）+ 显式 config.size（档位精确像素）+ 模型能力路由 + 质量域钳制 + 积分计价。出图内容质量依赖上游模型对 mask/白边的遵循度（impl/F-06.md 风险 1，二期做样本集验收）；尺寸则受中转/上游策略影响（本轮明示兜底）。
+- 验证：几何 25 pass（paddingPx 语义用例更新）；全量 1830 pass / 18 fail = 存量基线；tsc/eslint/build 三绿；headless 全链（激活 → 2:3 重排 0.6667 → 提交 size=1024x1536 → 占位 0.667 → 失败态 405 为渠道无路由，与修复无关）；vite 重启新代码进产物（单一域 2 hit、双 k 3 hit、角标 4 hit）。环境记录：WSL 重启后 go run 需用缓存 toolchain（~/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.8/bin/go + GOTOOLCHAIN=local），GOSUMDB=off 阻止 toolchain 自动下载。
+
 ## 已知坑与停机条件
 
 - 画布事件抢占若有 window 级捕获监听绕过 stopPropagation → 记任务卡停机问用户（design §10.1）。
