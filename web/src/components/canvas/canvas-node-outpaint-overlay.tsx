@@ -69,6 +69,12 @@ const EDGE_HANDLES: Array<{ edge: OutpaintDragEdge; className: string }> = [
 const PLUS_PATTERN_ID = "canvas-outpaint-plus-pattern";
 
 const DEFAULT_PADDING: OutpaintPadding = { left: 48, top: 48, right: 48, bottom: 48 };
+
+// 报价可到 micro 级（用户配置 0.001）：固定两位会把 0.001 截断成 0.00（2026-09-20 实测）。
+// 最多 6 位去尾零，整数不带小数点。
+function formatOutpaintCredits(value: number) {
+    return String(Number(value.toFixed(6)));
+}
 const ZERO_PADDING: OutpaintPadding = { left: 0, top: 0, right: 0, bottom: 0 };
 const FRAME_EXPAND_TRANSITION = "left 360ms cubic-bezier(0.22, 1, 0.36, 1), top 360ms cubic-bezier(0.22, 1, 0.36, 1), width 360ms cubic-bezier(0.22, 1, 0.36, 1), height 360ms cubic-bezier(0.22, 1, 0.36, 1)";
 
@@ -812,6 +818,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         config={config}
                         value={model}
                         capability="image"
+                        // 扩图合同：模型必须能接收底图参考（maxImages>=1），maxImages=0 的纯文生图
+                        // 模型（如 grok-imagine-image-2.0）直接不进列表，而非灰显（2026-09-20 用户反馈）。
+                        requirements={{ capability: "image", input: { textCount: 1, imageCount: 1, videoCount: 0, audioCount: 0, characterCount: 0 } }}
+                        hideIncompatible
                         placement="topRight"
                         variant="creation"
                         searchable
@@ -876,6 +886,25 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                                 />
                             </>
                         ) : null}
+                        {/* size 制模型（如 gpt-image-2）画质域与分辨率档独立并存：分辨率槽选像素档，
+                            画质槽选模型 quality 域（auto/low/medium/high）；quality 制模型（如 grok）
+                            的画质已由上方槽承担，不重复展示（用户需求 2026-09-20）。 */}
+                        {resolutionMode === "size" && qualityOptions.length > 1 ? (
+                            <>
+                                <span className="h-6 w-px shrink-0 bg-border" />
+                                <Select
+                                    size="small"
+                                    variant="borderless"
+                                    value={qualityOptions.includes(qualityValue) ? qualityValue : imageProfile?.quality?.default || qualityOptions[0]}
+                                    onChange={(value) => setQualityValue(String(value))}
+                                    options={qualityOptions.map((value) => ({ value, label: String(value) === "auto" ? "AUTO" : String(value).toUpperCase() }))}
+                                    popupMatchSelectWidth={false}
+                                    placement="topLeft"
+                                    aria-label="输出画质"
+                                    className="w-[86px] shrink-0"
+                                />
+                            </>
+                        ) : null}
                         {countOptions.length > 1 ? (
                             <>
                                 <span className="h-6 w-px shrink-0 bg-border" />
@@ -905,7 +934,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     {canExecute && creditsEnabled ? (
                         <span className="canvas-node-composer-submit-cost">
                             <CreditSymbol />
-                            <span>{credits % 1 === 0 ? credits : credits.toFixed(2)}</span>
+                            {/* 报价可到 micro 级(用户配置 0.001)：固定两位会把 0.001 截断成 0.00（2026-09-20 实测）；
+                                最多 6 位去尾零，整数不带小数点。 */}
+                            <span>{formatOutpaintCredits(credits)}</span>
                         </span>
                     ) : null}
                     <span className="canvas-node-composer-submit-action" aria-hidden>

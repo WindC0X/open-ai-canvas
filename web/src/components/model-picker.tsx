@@ -51,6 +51,9 @@ type ModelPickerProps = {
     searchable?: boolean;
     /** 分组语法: family=按模型家族(前台创作页), channel=按渠道(画布, 默认)。 */
     grouping?: "channel" | "family";
+    /** 特化生成场景(如扩图)的候选集合同: 不满足 requirements 的模型直接不进列表, 而非灰显
+     *  (扩图里选了也无法执行, 灰显徒增误选成本)。默认 false 保持灰显语义。 */
+    hideIncompatible?: boolean;
 };
 
 export function ModelPicker({
@@ -71,6 +74,7 @@ export function ModelPicker({
     showConfiguredModelName = false,
     searchable = false,
     grouping = "channel",
+    hideIncompatible = false,
 }: ModelPickerProps) {
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const pickerId = useId();
@@ -174,7 +178,16 @@ export function ModelPicker({
     const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
-    const options = useMemo(() => Array.from(new Set(selectableModelsByCapability(config, capability).filter(Boolean))), [capability, config]);
+    // 参数档位会在选中模型后由调用方归一到其能力配置，不能因为旧模型留下的参数而禁止切换。
+    const selectionRequirements = useMemo(
+        () => (requirements ? { ...requirements, videoSeconds: undefined, imageSize: undefined, options: undefined } : undefined),
+        [requirements],
+    );
+    const options = useMemo(() => {
+        const base = Array.from(new Set(selectableModelsByCapability(config, capability).filter(Boolean)));
+        if (!hideIncompatible || !selectionRequirements) return base;
+        return base.filter((model) => Boolean(compatibleModelInGroup(config, [model], selectionRequirements)));
+    }, [capability, config, hideIncompatible, selectionRequirements]);
     const optionGroups = useMemo(() => {
         // 分组语法: 前台(创作页)按模型家族聚(产商族, flora Providers 结构的数据诚实版);
         // 画布系统模型按渠道分组。options 已由当前有效渠道重建, 无法解析渠道的旧值直接丢弃。
@@ -244,8 +257,6 @@ export function ModelPicker({
         return [...managedProviderGroups, ...channelGroups, ...tail];
     }, [config, grouping, options]);
     const storedCurrent = value?.trim() || "";
-    // 参数档位会在选中模型后由调用方归一到其能力配置，不能因为旧模型留下的参数而禁止切换。
-    const selectionRequirements = requirements ? { ...requirements, videoSeconds: undefined, imageSize: undefined, options: undefined } : undefined;
     const resolvedCurrent = resolveCompatibleModel(config, storedCurrent, selectionRequirements) || storedCurrent;
     // 旧画布可能保存过已下架或前端历史内置模型；它们不能重新进入当前可选目录。
     const current = options.includes(resolvedCurrent) ? resolvedCurrent : "";

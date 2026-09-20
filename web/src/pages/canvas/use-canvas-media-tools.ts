@@ -817,7 +817,12 @@ export function useCanvasMediaTools({
             ...payload.generationConfig,
             model: selectedModel,
             imageModel: payload.generationConfig?.imageModel || payload.generationConfig?.model || effectiveConfig.imageModel,
-            quality: normalizeMaskEditQuality(payload.generationConfig?.quality || node.metadata?.quality || baseGenerationConfig.quality || modelDefaults.quality, payload.generationConfig?.size || node.metadata?.size || baseGenerationConfig.size || modelDefaults.size),
+            // 扩图链：overlay 已按所选模型能力域算好 quality（域内值或 auto），直接透传；
+            // normalizeMaskEditQuality 的 auto→像素档猜测是局部重绘语义，会把 gpt-image 系
+            // 的 auto 改写成 "2k" 等域外值被后端拒（2026-09-20 真机实测"生成质量超出支持范围"）。
+            quality: payload.generationConfig?.quality !== undefined
+                ? payload.generationConfig.quality
+                : normalizeMaskEditQuality(node.metadata?.quality || baseGenerationConfig.quality || modelDefaults.quality, payload.generationConfig?.size || node.metadata?.size || baseGenerationConfig.size || modelDefaults.size),
             count: String(payload.generationConfig?.count || 1),
             // 目标画幅由 pad 后底图体现；非高级设置时用模型默认尺寸兜底，不把节点显示尺寸误发给上游。
             size: payload.generationConfig?.size || node.metadata?.size || modelDefaults.size,
