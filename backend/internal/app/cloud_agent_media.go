@@ -99,6 +99,9 @@ type cloudAgentMediaArgs struct {
 	Title              string   `json:"title"`
 	SourceNodeID       string   `json:"sourceNodeId"`
 	ReferenceNodeIDs   []string `json:"referenceNodeIds"`
+	// OutpaintRatio 非空时本次图片生成按扩图语义执行：恰好 1 张图片参考被
+	// 服务端 pad 成目标画幅并合成 mask，走 image_outpaint 操作计价与执行。
+	OutpaintRatio string `json:"outpaintRatio,omitempty"`
 }
 
 type cloudAgentMediaPlan struct {
@@ -351,7 +354,7 @@ func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime
 	if utf8.RuneCountInString(a.Prompt) > 16000 {
 		return BadAuthRequest(fmt.Sprintf("提示词共%d字符，超过16000字符上限；请先告知用户，不要擅自删改关键内容", utf8.RuneCountInString(a.Prompt)))
 	}
-	if (mode == "image" || mode == "video") && strings.TrimSpace(a.Size) == "" {
+	if (mode == "image" || mode == "video") && strings.TrimSpace(a.Size) == "" && strings.TrimSpace(a.OutpaintRatio) == "" {
 		return BadAuthRequest("请填写模型支持的具体画幅；用户授权默认时沿用参考图比例或目录默认画幅，无需重复询问")
 	}
 	if a.Duration < 0 {
@@ -368,12 +371,20 @@ func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime
 		if a.Duration != 0 {
 			return BadAuthRequest("只有视频生成允许设置 durationSeconds")
 		}
-		if a.VideoGenerateAudio != nil {
-			return BadAuthRequest("videoGenerateAudio 仅适用于视频生成")
+		if a.VideoGenerateAudio != nil && *a.VideoGenerateAudio {
+			return BadAuthRequest("只有视频生成支持同步音频")
 		}
 	}
 	if len(a.ReferenceNodeIDs) > 16 {
 		return BadAuthRequest("参考节点最多 16 个")
+	}
+	if strings.TrimSpace(a.OutpaintRatio) != "" {
+		if mode != "image" {
+			return BadAuthRequest("outpaintRatio 仅适用于图片生成")
+		}
+		if ratio, _, _ := cloudAgentOutpaintRatioValue(a.OutpaintRatio); ratio <= 0 {
+			return BadAuthRequest("扩图画幅比例无效，请传如 16:9 / 3:2 / 1.5")
+		}
 	}
 	if a.SourceNodeID != "" {
 		for _, id := range a.ReferenceNodeIDs {
@@ -520,7 +531,23 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	if err := validateCloudAgentMediaReferences(a.Mode, refs); err != nil {
 		return CreateTaskRequest{}, nil, err
 	}
-	operation := cloudAgentMediaOperation(a.Mode, refs)
+	// 扩图：恰好 1 张图片参考时，服务端合成 pad 底图 + mask 并物化为资源后替换参考，
+	// 后续路由/校验/计价/执行与 image_to_image 完全同构（输入只有 resource 引用）。
+	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
+		targetW, targetH, err := s.applyCloudAgentOutpaint(run.UserID, input, a)
+		if err != nil {
+			return CreateTaskRequest{}, nil, err
+		}
+		// 扩图目标画幅 = pad 后精确像素（16 倍数对齐），显式覆盖渠道默认 size ——
+		// 上游 edits 端点要 WxH 格式，ratio 形式或渠道默认值都会被拒。
+		if cfg, ok := input["config"].(map[string]any); ok {
+			cfg["size"] = fmt.Sprintf("%dx%d", targetW, targetH)
+		}
+	}
+	operation := cloudAgentMediaOperation(a.Mode, input)
+	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
+		operation = "image_outpaint"
+	}
 	if operation == "" {
 		return CreateTaskRequest{}, nil, BadAuthRequest("生成模式尚未实现媒体任务适配器")
 	}
@@ -576,6 +603,12 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 		}
 	}
 	meta := map[string]any{"status": "idle", "agentDraftRunId": a.DraftRunID, "prompt": a.Prompt, "composerContent": a.Prompt, "referenceNodeIds": a.ReferenceNodeIDs}
+	// 扩图任务封装语义（用户反馈 2026-09-19）：LLM 生成的扩图提示词只留 prompt 供重试/审计，
+	// composerContent 置空避免结果节点 composer 直接展示内部提示词；outpaint 标记供前端识别封装态。
+	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
+		meta["composerContent"] = ""
+		meta["outpaint"] = map[string]any{"ratio": a.OutpaintRatio}
+	}
 	if a.Size != "" && (a.Mode == "image" || a.Mode == "video") {
 		meta["size"] = a.Size
 	}

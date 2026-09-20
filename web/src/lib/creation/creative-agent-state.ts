@@ -6,7 +6,7 @@ import { resourceFileUrl, resourceIdFromStorageKey } from "@/services/api/resour
 import type { ResponseInputMessage } from "@/services/api/image";
 import { dynamicCreativePlan, type CreativeDynamicPlan } from "./creative-plan";
 import { normalizeCreativeField } from "./creative-agent-contract";
-import { CREATIVE_SCENARIOS, type CreativeAnswers, type CreativeBrief, type CreativeGenerationItem, type CreativePlan, type CreativeProposal, type CreativeQuestionRequest, type CreativeScenarioId } from "./creative-agent-contract";
+import { CREATIVE_SCENARIOS, type CreativeAnswers, type CreativeBrief, type CreativeGenerationItem, type CreativeOutpaintSpec, type CreativePlan, type CreativeProposal, type CreativeQuestionRequest, type CreativeScenarioId } from "./creative-agent-contract";
 
 export type CreativeReference = { id: string; title: string; kind: "image" | "text"; assetId?: string; storageKey?: string; text?: string; mimeType?: string; width?: number; height?: number };
 export type CreativeMessage = { id: string; role: "user" | "assistant"; text: string; question?: CreativeQuestionRequest; answers?: CreativeAnswers; proposal?: CreativeProposal };
@@ -100,7 +100,27 @@ export function normalizeCreativeProposal(raw: unknown, id: string, version: num
         // A model may repeat a real canvas ID in both reference fields. Keep one verified input.
         node.referenceNodeIds = [...referenceNodeIds];
         const seconds = item.seconds === undefined ? undefined : Number(item.seconds);
-        const result = { ref, mode: node.kind, model, size: str(item.size) || undefined, seconds, quality: str(item.quality) || undefined, referenceRefs };
+        // 扩图操作：源图必须经 referenceRefs/referenceNodeIds 显式引用（只允许 1 张），参数 ratio 或 paddingPx 二选一。
+        const operation: CreativeGenerationItem["operation"] = item.operation === "outpaint" ? "outpaint" : undefined;
+        let outpaint: CreativeOutpaintSpec | undefined;
+        if (operation === "outpaint") {
+            if (node.kind !== "image") throw new Error(`节点“${node.title}”的扩图操作只支持图片节点`);
+            const sourceCount = referenceRefs.length + node.referenceNodeIds.length;
+            if (sourceCount !== 1) throw new Error(`节点“${node.title}”的扩图必须引用恰好 1 张源图，当前 ${sourceCount} 张`);
+            const spec = record(item.outpaint);
+            const ratio = str(spec.ratio);
+            const rawPadding = spec.paddingPx;
+            if (!ratio && !rawPadding) throw new Error(`节点“${node.title}”的扩图需要 outpaint.ratio（如 "16:9"）或 outpaint.paddingPx`);
+            let paddingPx: { left: number; top: number; right: number; bottom: number } | undefined;
+            if (rawPadding) {
+                const padSpec = record(rawPadding);
+                const edges = { left: Number(padSpec.left), top: Number(padSpec.top), right: Number(padSpec.right), bottom: Number(padSpec.bottom) };
+                if (Object.values(edges).some((value) => !Number.isFinite(value) || value < 0)) throw new Error(`节点“${node.title}”的 outpaint.paddingPx 必须是非负数字`);
+                paddingPx = edges;
+            }
+            outpaint = { ratio: ratio || undefined, paddingPx };
+        }
+        const result = { ref, mode: node.kind, model, size: str(item.size) || undefined, seconds, quality: str(item.quality) || undefined, referenceRefs, operation, outpaint };
         assertCreativeMediaCapability(result, config, referenceRefs.length + node.referenceNodeIds.length);
         node.referenceRefs = referenceRefs;
         return result;

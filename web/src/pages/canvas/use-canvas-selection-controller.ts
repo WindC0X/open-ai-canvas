@@ -11,6 +11,8 @@ type UseCanvasSelectionControllerOptions = {
     containerRef: RefObject<HTMLDivElement | null>;
     nodesRef: { current: CanvasNodeData[] };
     viewportRef: { current: ViewportTransform };
+    // 扩图等模式激活时禁用拖拽对齐导引线。
+    alignmentSuppressed?: boolean;
     selectedNodeIdsRef: { current: Set<string> };
     historyPausedRef: { current: boolean };
     screenToCanvas: (clientX: number, clientY: number) => Position;
@@ -60,6 +62,9 @@ export function useCanvasSelectionController({
     containerRef,
     nodesRef,
     viewportRef,
+    // 扩图等模式激活时禁用拖拽对齐导引线（用户反馈第十三轮：扩图拖图不需要画布对齐）。
+    alignmentSuppressed,
+
     selectedNodeIdsRef,
     historyPausedRef,
     screenToCanvas,
@@ -230,7 +235,7 @@ export function useCanvasSelectionController({
         const rawOffset = { x: clientX == null ? 0 : (clientX - dragRef.current.startX) / currentViewport.k, y: clientY == null ? 0 : (clientY - dragRef.current.startY) / currentViewport.k };
         const initialPositions = dragRef.current.initialSelectedNodes;
         const initialById = new Map(initialPositions.map((item) => [item.id, item]));
-        const { x: dx, y: dy } = calculateNodeAlignment(alignmentContextRef.current, rawOffset, 7 / currentViewport.k).offset;
+        const { x: dx, y: dy } = alignmentSuppressedRef.current ? rawOffset : calculateNodeAlignment(alignmentContextRef.current, rawOffset, 7 / currentViewport.k).offset;
 
         historyPausedRef.current = false;
         nodeDraggingRef.current = false;
@@ -277,7 +282,9 @@ export function useCanvasSelectionController({
         }
         if (dragFrameRef.current) return;
         dragFrameRef.current = requestAnimationFrame(() => {
-            const aligned = calculateNodeAlignment(alignmentContextRef.current, pendingNodeDragRef.current, 7 / viewportRef.current.k);
+            const aligned = alignmentSuppressedRef.current
+                ? { offset: pendingNodeDragRef.current, guides: {} }
+                : calculateNodeAlignment(alignmentContextRef.current, pendingNodeDragRef.current, 7 / viewportRef.current.k);
             const latest = aligned.offset;
             pendingAlignmentGuidesRef.current = aligned.guides;
             const now = performance.now();
@@ -359,6 +366,9 @@ export function useCanvasSelectionController({
     }, [deselectCanvas, resetSelectionBox, screenToCanvas, updateSelectionPreview]);
 
     // 重渲染只更新回调，不能拆掉进行中的手势监听并清除 iframe 保护层 / 待执行帧。
+    // 对齐抑制镜像 ref：拖拽帧路径（rAF/mousemove）读 ref，避免每帧重挂监听。
+    const alignmentSuppressedRef = useRef(false);
+    alignmentSuppressedRef.current = Boolean(alignmentSuppressed);
     const gestureHandlersRef = useRef({ finishNodeDrag, finishSelection, cancelSelectionBox, handleNodeDragMove, handlePointerMove });
     useEffect(() => {
         gestureHandlersRef.current = { finishNodeDrag, finishSelection, cancelSelectionBox, handleNodeDragMove, handlePointerMove };

@@ -32,6 +32,70 @@ export type ImageSplitPiece = {
     dataUrl: string;
 };
 
+export type ImagePadRect = {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+};
+
+// 将原图按四边 padding 合成到目标画幅：fill 提供颜色时先铺底色（白底补边），
+// fill 为 "transparent" 时新增区保持透明（扩图 mask 极性：透明区 = 要生成的区域）。失败时回落原图。
+export type PadImageOptions = {
+    // 提交上游前压缩：长边上限 + 输出格式。底图走 JPEG 体积小一个量级（中转通道对大 body
+    // edits 会断连），mask 走 PNG 保 alpha 扩图区透明。底图与 mask 必须传同一 maxLongEdge 保证对齐。
+    maxLongEdge?: number;
+    // 目标画幅模式：合成图尺寸 = target 精确像素，原图按占比缩放摆入（锁定档位时 preset 即 target）。
+    target?: { width: number; height: number };
+    mimeType?: "image/png" | "image/jpeg";
+    quality?: number;
+};
+
+export async function padImageToDataUrl(dataUrl: string, padding: ImagePadRect, fill: string | "transparent" = "#FFFFFF", options?: PadImageOptions) {
+    const image = await loadImage(dataUrl);
+    const left = Math.max(0, Math.round(padding.left));
+    const top = Math.max(0, Math.round(padding.top));
+    const right = Math.max(0, Math.round(padding.right));
+    const bottom = Math.max(0, Math.round(padding.bottom));
+    const fullWidth = image.width + left + right;
+    const fullHeight = image.height + top + bottom;
+    // 目标画幅模式（用户语义 2026-09-19 第十三轮）：扩图扩的是空间信息而非像素尺寸——
+    // 锁定档位后合成图尺寸 = preset 精确像素，原图按占比缩放摆入（原图可小于或大于目标档）。
+    // k 由宽度轴解出；框比=preset 比（比例锁定保证）时 k 两轴一致，取整差吸收进画布右/下。
+    if (options?.target && options.target.width > 0 && options.target.height > 0) {
+        const target = options.target;
+        // padding 恒为源图像素域（第十八轮单一域约定）：两轴 k 分别解出，吸收 preset 比例与
+        // 框比例的微小差（如 3:4 preset 1024×1360 实比 0.7529）；取整差吸收进画布右/下。
+        const kx = target.width / fullWidth;
+        const ky = target.height / fullHeight;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(target.width));
+        canvas.height = Math.max(1, Math.round(target.height));
+        const context = canvas.getContext("2d");
+        if (!context) return dataUrl;
+        if (fill !== "transparent") {
+            context.fillStyle = fill;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        context.drawImage(image, Math.round(left * kx), Math.round(top * ky), Math.max(1, Math.round(image.width * kx)), Math.max(1, Math.round(image.height * ky)));
+        return canvas.toDataURL(options?.mimeType ?? "image/png", options?.quality ?? 0.92);
+    }
+    // 长边 clamp：整体等比缩（padding 一同缩放，保持白边与内容的构图比例）
+    const scale = options?.maxLongEdge && options.maxLongEdge > 0 ? Math.min(1, options.maxLongEdge / Math.max(fullWidth, fullHeight)) : 1;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(fullWidth * scale));
+    canvas.height = Math.max(1, Math.round(fullHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) return dataUrl;
+    context.scale(scale, scale);
+    if (fill !== "transparent") {
+        context.fillStyle = fill;
+        context.fillRect(0, 0, fullWidth, fullHeight);
+    }
+    context.drawImage(image, left, top);
+    return canvas.toDataURL(options?.mimeType ?? "image/png", options?.quality ?? 0.92);
+}
+
 export async function cropDataUrl(dataUrl: string, crop?: ImageCropRect) {
     const image = await loadImage(dataUrl);
     if (crop) {
@@ -164,4 +228,28 @@ function loadImage(dataUrl: string) {
         image.onload = () => resolve(image);
         image.src = dataUrl;
     });
+}
+
+// 扩图提交底图/mask 的压缩上限：超过该长边的 edits 请求体在部分中转会被断连（unexpected EOF 实录）。
+export const OUTPAINT_SUBMIT_LONG_EDGE = 1536;
+
+// 一次性合成扩图提交对：底图（JPEG 压缩、白边不透明）+ mask（PNG、扩图区透明）。
+// 两者同一 maxLongEdge 保证像素对齐；maskSupported=false 时 mask 为 undefined（指令通道）。
+export async function buildOutpaintSubmitVariants(
+    contentDataUrl: string,
+    paddingPx: ImagePadRect,
+    maskSupported: boolean,
+    options?: { target?: { width: number; height: number } },
+): Promise<{ source: string; mask?: string }> {
+    // 锁定档位（target）时合成图尺寸 = preset 精确像素、原图占比缩放；档位像素本身是合法提交尺寸，
+    // 不再叠 maxLongEdge 缩放（避免把 2K/4K 档压回 1536）。自由模式维持 maxLongEdge 压缩。
+    const submitOptions = options?.target
+        ? { target: options.target, mimeType: "image/jpeg" as const, quality: 0.92 }
+        : { maxLongEdge: OUTPAINT_SUBMIT_LONG_EDGE, mimeType: "image/jpeg" as const, quality: 0.92 };
+    const maskOptions = options?.target
+        ? { target: options.target, mimeType: "image/png" as const }
+        : { maxLongEdge: OUTPAINT_SUBMIT_LONG_EDGE, mimeType: "image/png" as const };
+    const source = await padImageToDataUrl(contentDataUrl, paddingPx, "#FFFFFF", submitOptions);
+    const mask = maskSupported ? await padImageToDataUrl(contentDataUrl, paddingPx, "transparent", maskOptions) : undefined;
+    return { source, mask };
 }

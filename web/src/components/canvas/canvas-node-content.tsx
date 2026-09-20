@@ -634,8 +634,19 @@ function ImageContent({ node, theme, isBatchRoot, batchCount, batchPreviewNodes,
 
     return (
         <BatchFrame batchPreviewNodes={batchPreviewNodes} batchCount={isBatchRoot ? batchCount : 0} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} theme={theme} onToggleBatch={onToggleBatch}>
-            <div ref={imageContainerRef} className="h-full w-full overflow-hidden rounded-[var(--node-radius)]">
+            <div ref={imageContainerRef} data-canvas-image-content className="h-full w-full overflow-hidden rounded-[var(--node-radius)]">
                 {url ? <img src={url} alt={node.title} loading="lazy" decoding="async" draggable={false} onDragStart={(event) => event.preventDefault()} onLoad={(event) => fitToImage(event.currentTarget)} className={`pointer-events-none block h-full w-full select-none ${node.metadata?.freeResize ? "object-fill" : "object-contain"}`} /> : <div className="grid size-full place-items-center" style={{ color: theme.node.muted }}>{loading ? <LoaderCircle className="size-5 animate-spin" /> : <ImageIcon className="size-5 opacity-45" />}</div>}
+                {/* 扩图结果尺寸偏差明示（第十八轮）：上游不保证按提交 size 出图（实测改幅），
+                    偏差超阈值时角标示警，不静默把错幅图当好图。 */}
+                {node.metadata?.outpaintSizeMismatch ? (
+                    <div
+                        className="absolute right-2 top-2 z-[2] max-w-[calc(100%-16px)] truncate rounded-full px-2 py-0.5 text-[var(--fs-tiny)] font-medium"
+                        style={{ background: theme.accent.danger, color: "#fff" }}
+                        title={`扩图提交画幅 ${node.metadata.outpaintSizeMismatch.submitted}，实际返回 ${node.metadata.outpaintSizeMismatch.actual}（上游未按提交尺寸出图）`}
+                    >
+                        画幅偏差 · 提交 {node.metadata.outpaintSizeMismatch.submitted} / 实际 {node.metadata.outpaintSizeMismatch.actual}
+                    </div>
+                ) : null}
             </div>
         </BatchFrame>
     );

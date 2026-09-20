@@ -4,6 +4,9 @@ import { buildCanvasContext } from "@/lib/canvas/canvas-context-discovery";
 import { applyCreativeAnswers, creativeScenarioPrompt, normalizeCreativeQuestions, CREATIVE_SCENARIOS, type CreativeAnswers, type CreativeQuote } from "@/lib/creation/creative-agent-contract";
 import { assertCreativeBriefSpecifications, creativeNodeId, creativeProposalOps, initialCreativeState, mergeCreativeBrief, normalizeCreativeProposal, readCreativeState, type CreativeAgentState, type CreativeMediaState } from "@/lib/creation/creative-agent-state";
 import { CREATIVE_AGENT_SYSTEM_PROMPT, CREATIVE_AGENT_TOOLS, parseCreativeToolArguments } from "@/lib/creation/creative-agent-tools";
+import { buildOutpaintSubmitVariants } from "@/lib/canvas/canvas-image-data";
+import { parseRatioValue, resolveOutpaintPaddingForRatio } from "@/lib/canvas/canvas-outpaint-geometry";
+import { uploadImage } from "@/services/image-storage";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { logicalModelIDForConfig, modelDisplayName, resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
@@ -436,7 +439,23 @@ export class CreativeAgentController {
                 return { id: reference.id, name: reference.title || "参考图", type: reference.metadata?.mimeType || "image/png", storageKey, dataUrl: resourceFileUrl(resourceId) };
             });
             const config = { ...this.requestConfig(item.model), count: "1", ...(item.size ? { size: item.size } : {}), ...(item.seconds !== undefined ? { videoSeconds: String(item.seconds) } : {}), ...(item.quality ? item.mode === "video" ? { vquality: item.quality } : { quality: item.quality } : {}) };
-            const request = await prepareBackendGenerationTask({ projectId: this.run!.canvasId, mode: item.mode, prompt: node.metadata?.prompt || "", config, referenceImages, signal: this.abort.signal, metadata: { source: "creative-agent", creationRunId: this.run!.id, nodeId: node.id, conversationId: this.run!.id } });
+            // 扩图项：prepare 阶段合成 pad 底图与 mask（报价确认后的提交体直接携带），走同一确认链。
+            let maskImage: { id: string; name: string; type: string; dataUrl: string } | undefined;
+            let submitReferenceImages = referenceImages;
+            if (item.operation === "outpaint") {
+                const sourceNode = referenceNodes[0];
+                if (!sourceNode?.metadata?.content) throw new Error("扩图源图缺少图片内容，无法合成补边底图");
+                const contentWidth = Number(sourceNode.metadata?.naturalWidth) || sourceNode.width;
+                const contentHeight = Number(sourceNode.metadata?.naturalHeight) || sourceNode.height;
+                const ratio = item.outpaint?.ratio ? parseRatioValue(item.outpaint.ratio) : null;
+                const paddingPx = item.outpaint?.paddingPx ?? (ratio ? resolveOutpaintPaddingForRatio({ nodeWidth: contentWidth, nodeHeight: contentHeight, ratio, basePadding: { left: 96, top: 96, right: 96, bottom: 96 } }) : { left: 96, top: 96, right: 96, bottom: 96 });
+                const maskSupported = Boolean(modelCapabilityConfigFor(config, item.model).image?.references?.maskSupported);
+                const variants = await buildOutpaintSubmitVariants(sourceNode.metadata.content, paddingPx, maskSupported);
+                const stored = await uploadImage(variants.source);
+                submitReferenceImages = [{ id: sourceNode.id, name: `outpaint-${sourceNode.id}.png`, type: "image/png", dataUrl: variants.source, storageKey: stored.storageKey }];
+                maskImage = variants.mask ? { id: `${sourceNode.id}-outpaint-mask`, name: "outpaint-mask.png", type: "image/png", dataUrl: variants.mask } : undefined;
+            }
+            const request = await prepareBackendGenerationTask({ projectId: this.run!.canvasId, mode: item.mode, prompt: node.metadata?.prompt || "", config, referenceImages: submitReferenceImages, mask: maskImage, signal: this.abort.signal, metadata: { source: "creative-agent", creationRunId: this.run!.id, nodeId: node.id, conversationId: this.run!.id } });
             request.input = { ...request.input, nodeId: node.id };
             const submission = await this.api.prepare(this.run!.id, { ...this.guard(), itemKey: `media:v${proposal.version}:${media.ref}:${media.attempt}`, proposalVersion: proposal.version, request }, this.abort.signal);
             this.upsertSubmission(submission); this.setMedia(media.ref, { submissionId: submission.id }); ids.push(submission.id);

@@ -303,7 +303,9 @@ export const CanvasNode = React.memo(function CanvasNode({
     // 若用 isSelected 信息态会在挂件出现前先坠完 → 两段动画割裂(用户 2026-09-17: "外部composer是突然出现的")。
     // 用 dialogOpen 后信息态保持显示到挂件挂载帧, 与挂件坠入同帧接力 — 同帧连续变换
     // (退场距离 = 面板自身高 + 40px, 语义化自适应, 见 hover-composer 内注释)。
-    const hoverPrompt = data.metadata?.prompt ?? data.metadata?.composerContent;
+    // 信息态优先显示 composerContent（用户追加/编辑语义），prompt 是提交链合成文本（含扩图固定模板），
+    // 不应直接暴露在节点 UI（用户 2026-09-19 裁定：扩图提示词封装，不暴露模板）。
+    const hoverPrompt = data.metadata?.composerContent ?? data.metadata?.prompt;
     // 信息态 composer 仅限媒体生成节点(2026-09-18 用户反馈): 绘图/分镜/转换/批量/导演台/音频/工作流等
     // 节点有自己的输入面或无提示词语义, 连接参考节点后 metadata.prompt/composerContent 被上游链填充,
     // hover 信息态会把无关注入文本当成提示词展示——flora 该语法只服务媒体生成节点。
@@ -541,8 +543,10 @@ export const CanvasNode = React.memo(function CanvasNode({
                 </> : null}
             </div>
 
-            {!readOnly && data.type !== CanvasNodeType.Script ? <ConnectionSideRail side="left" scale={scale} theme={theme} visible={hovered || forceInputVisible} onPointerDown={(event, anchorRatio) => onConnectStart(event, data.id, "target", undefined, anchorRatio)} /> : null}
-            {!readOnly && data.type !== CanvasNodeType.Script && data.type !== CanvasNodeType.Config && showOutputConnection ? <ConnectionSideRail side="right" scale={scale} theme={theme} visible={hovered} onPointerDown={(event, anchorRatio) => onConnectStart(event, data.id, "source", undefined, anchorRatio)} /> : null}
+            {/* 连接点：扩图激活（dialogOpen 同语义挂载）时隐藏（用户反馈 2026-09-19 第十一轮）——
+                扩图拖拽 / 框内重定位期间端口遮挡拖拽手势，且扩图模式本身不需要连线操作。 */}
+            {!readOnly && data.type !== CanvasNodeType.Script ? <ConnectionSideRail side="left" scale={scale} theme={theme} visible={(hovered || forceInputVisible) && !dialogOpen} onPointerDown={(event, anchorRatio) => onConnectStart(event, data.id, "target", undefined, anchorRatio)} /> : null}
+            {!readOnly && data.type !== CanvasNodeType.Script && data.type !== CanvasNodeType.Config && showOutputConnection ? <ConnectionSideRail side="right" scale={scale} theme={theme} visible={hovered && !dialogOpen} onPointerDown={(event, anchorRatio) => onConnectStart(event, data.id, "source", undefined, anchorRatio)} /> : null}
 
         </div>
     );

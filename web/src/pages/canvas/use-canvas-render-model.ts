@@ -31,6 +31,7 @@ type UseCanvasRenderModelOptions = {
     infoNodeId: string | null;
     cropNodeId: string | null;
     maskEditNodeId: string | null;
+    outpaintNodeId: string | null;
     annotationNodeId: string | null;
     splitNodeId: string | null;
     upscaleNodeId: string | null;
@@ -62,6 +63,7 @@ export function useCanvasRenderModel({
     infoNodeId,
     cropNodeId,
     maskEditNodeId,
+    outpaintNodeId,
     annotationNodeId,
     splitNodeId,
     upscaleNodeId,
@@ -219,10 +221,12 @@ export function useCanvasRenderModel({
 
     const selectedNodeIdForToolbar = selectedNodeIds.size === 1 ? [...selectedNodeIds][0] : null;
     const toolbarCandidate = selectedNodeIdForToolbar ? nodeById.get(selectedNodeIdForToolbar) || null : null;
-    const toolbarNode = isFrameNode(toolbarCandidate) ? null : toolbarCandidate;
+    // 扩图覆盖层激活期间隐藏节点工具栏（聚焦模式，完成/退出后恢复）。
+    const toolbarNode = outpaintNodeId || isFrameNode(toolbarCandidate) ? null : toolbarCandidate;
     const infoNode = infoNodeId ? nodeById.get(infoNodeId) || null : null;
     const cropNode = cropNodeId ? nodeById.get(cropNodeId) || null : null;
     const maskEditNode = maskEditNodeId ? nodeById.get(maskEditNodeId) || null : null;
+    const outpaintNode = outpaintNodeId ? nodeById.get(outpaintNodeId) || null : null;
     const annotationNode = annotationNodeId ? nodeById.get(annotationNodeId) || null : null;
     const splitNode = splitNodeId ? nodeById.get(splitNodeId) || null : null;
     const upscaleNode = upscaleNodeId ? nodeById.get(upscaleNodeId) || null : null;
@@ -380,6 +384,7 @@ export function useCanvasRenderModel({
         imageAssets,
         infoNode,
         maskEditNode,
+        outpaintNode,
         mentionReferencesByNodeId,
         nodeById,
         previewNode,

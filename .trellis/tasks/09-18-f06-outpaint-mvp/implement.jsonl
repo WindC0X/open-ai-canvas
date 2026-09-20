@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证环境纪律（active spec）：浏览器验证、vite watcher 陷阱、生成链路测试要点"}
+{"file": "/mnt/f/CODE/Project/canvas/analysis-2026-09-12/ecom-design/f06-outpaint-ui-recon.md", "reason": "F-06 UI 侦察报告：tapnow 活体 DOM 实证的双层坐标架构、手柄 nodrag/nopan 语义、参数条控件谱系"}
+{"file": "/mnt/f/CODE/Project/canvas/analysis-2026-09-12/ecom-design/impl/F-06.md", "reason": "F-06 技术路线：三通道路由、padImageToDataUrl 双用途、双协议提交、许可红线"}
+{"file": "PATCH-MAP.md", "reason": "globals.css 热区纪律：新增 UI 一律三层令牌，不改 globals"}

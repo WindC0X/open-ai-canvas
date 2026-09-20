@@ -315,6 +315,9 @@ function InfiniteCanvasPage() {
     const [projectLoaded, setProjectLoaded] = useState(false);
     const workspaceMode: CanvasWorkspaceMode = "professional";
     const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+    // 扩图拖图会话活跃态（overlay 首帧有效位移置真/松手置假）：组合进喂给 world-layers 的 isNodeDragging，
+    // 让 SVG 强调连线层（光晕/流光）拖动中隐藏——扩图自实现拖拽不经过节点拖拽管线，不组合会滞留旧锚点。
+    const [outpaintImageDragging, setOutpaintImageDragging] = useState(false);
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [tapNowImportOpen, setTapNowImportOpen] = useState(false);
     const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
@@ -908,6 +911,9 @@ function InfiniteCanvasPage() {
         handleSegmentConfirm,
         maskEditImageNode,
         maskEditNodeId,
+        outpaintImageNode,
+        outpaintNodeId,
+        setOutpaintNodeId,
         mergeSelectedVideos,
         mergeVideosByIds,
         mergeVideoProgress,
@@ -1228,6 +1234,8 @@ function InfiniteCanvasPage() {
         containerRef,
         nodesRef,
         viewportRef,
+        // 扩图激活时禁用拖拽对齐导引线（用户反馈第十三轮：扩图拖图/框内重定位不需要画布对齐）。
+        alignmentSuppressed: Boolean(outpaintNodeId),
         selectedNodeIdsRef,
         historyPausedRef,
         screenToCanvas,
@@ -1410,6 +1418,7 @@ function InfiniteCanvasPage() {
         imageAssets,
         infoNode,
         maskEditNode,
+        outpaintNode,
         mentionReferencesByNodeId,
         nodeById,
         previewNode,
@@ -1440,6 +1449,7 @@ function InfiniteCanvasPage() {
         infoNodeId,
         cropNodeId,
         maskEditNodeId,
+        outpaintNodeId,
         annotationNodeId,
         splitNodeId: null,
         upscaleNodeId,
@@ -2357,12 +2367,13 @@ function InfiniteCanvasPage() {
     // selected 实例(dialog 驱动, 常驻)。isPanelCarrier 排除 BatchTable(与上游语义一致):
     // BatchTable 编辑全内联在节点 body(CanvasBatchTableNodeContent 的 onPatchTable 直改), 无独立面板;
     // P0 双挂载根修删除的旧裸挂载点同样排除它 —— 注释曾误写为"并入", 2026-09-17 review 更正。
-    const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
+    // 扩图激活时隐藏目标节点的 composer（用户反馈 2026-09-19：扩图模式不应同时弹出图片生成面板）；✕ 退出后恢复。
+    const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && dialogNode.id !== outpaintNodeId && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
     // hover 实例已退役(S2): hover 微态由节点内信息态 composer 承担; hoverSupplyTarget 仍供工具栏双槽位使用
     const hoverSupplyTarget = hoveredNode ?? exitingNode;
     // toolbarNode?.id 排除即双槽位去重(与 composer 转换帧 duplicate-key 防御同语义, 在派生层完成;
     // JSX 渲染处无需再做 filter)。
-    const hoverToolbarNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && hoverSupplyTarget.id !== toolbarNode?.id && !isFrameNode(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving ? hoverSupplyTarget : null;
+    const hoverToolbarNode = hoverSupplyTarget && hoverSupplyTarget.id !== dialogNodeId && hoverSupplyTarget.id !== toolbarNode?.id && hoverSupplyTarget.id !== outpaintNodeId && !isFrameNode(hoverSupplyTarget) && !selectionBox && !isCanvasNodeMoving && !outpaintNodeId ? hoverSupplyTarget : null;
     // settingsOpen 不再作工具栏 guard: 参数面板从 composer 底栏弹出(320px 宽, 与节点上方工具栏
     // 无几何重叠), 打开参数面板隐藏工具栏反而打断"选参数→换模型/引用"的操作动线。
     const toolbarGuards = { nodeDragging: isNodeDragging, selectionBoxActive: Boolean(selectionBox) };
@@ -2683,7 +2694,7 @@ function InfiniteCanvasPage() {
                                     selectedNodeBounds={selectedNodeBounds}
                                     batchSourceNodeIds={batchSourceNodeIds}
                                     batchConnectionPreview={batchConnectionPreview}
-                                    isNodeDragging={isNodeDragging}
+                                    isNodeDragging={isNodeDragging || outpaintImageDragging}
                                     mediaCancelSignal={mediaCancelSignal}
                                     selectionBoundsElementRef={selectionBoundsElementRef}
                                     renderCanvasNodeContent={renderCanvasNodeContent}
@@ -2700,7 +2711,8 @@ function InfiniteCanvasPage() {
                                     }}
                                     onNodeMouseDown={handleNodeMouseDown}
                                     hoveredNodeId={hoveredNodeId}
-                                    dialogOpenNodeId={dialogNodeId}
+                                    // 扩图激活时目标节点同语义挂载：抑制节点内 hover 信息态 composer（用户反馈：内部 composer 仍弹出）
+                                    dialogOpenNodeId={outpaintNodeId ?? dialogNodeId}
                                     onConnectStart={handleConnectStart}
                                     onNodeResize={handleNodeResize}
                                     onToggleFrame={handleFrameToggle}
@@ -2942,6 +2954,10 @@ function InfiniteCanvasPage() {
                         onSaveAsset={(node) => void saveNodeAsset(node)}
                         onAnnotate={(node) => setAnnotationNodeId(node.id)}
                         onMaskEdit={(node) => setMaskEditNodeId(node.id)}
+                        onOutpaint={(node) => {
+                            setOutpaintNodeId(node.id);
+                            focusCanvasImageNode(node.id);
+                        }}
                         onEmotion={(node) => {
                             setDialogNodeId(null);
                             setEmotionNodeId((current) => (current === node.id ? null : node.id));
@@ -3377,14 +3393,24 @@ function InfiniteCanvasPage() {
                             cropNode={cropNode}
                             annotationNode={annotationNode}
                             maskEditNode={maskEditNode}
+                            outpaintNode={outpaintNode}
+                            canvasContainerRef={containerRef}
                             upscaleNode={upscaleNode}
                             onCloseCrop={() => setCropNodeId(null)}
                             onCloseAnnotation={() => setAnnotationNodeId(null)}
                             onCloseMaskEdit={() => setMaskEditNodeId(null)}
+                            onCloseOutpaint={() => setOutpaintNodeId(null)}
+                            // 扩图拖图会话活跃态：世界层 SVG 强调连线拖动中隐藏防旧锚点残影。
+                            onOutpaintImageDragChange={setOutpaintImageDragging}
+                            // 扩图拖图松手提交：图片在框内重定位 = 节点 position 移动 + padding 重分布（frame 不动）。
+                            onOutpaintNodeMove={(nodeId, position) => {
+                                setNodes((current) => current.map((item) => (item.id === nodeId ? { ...item, position } : item)));
+                            }}
                             onCloseUpscale={() => setUpscaleNodeId(null)}
                             onCrop={(node, crop) => void cropImageNode(node, crop)}
                             onAnnotate={(node, dataUrl) => void saveAnnotatedImageNode(node, dataUrl)}
                             onMaskEdit={(node, payload) => void maskEditImageNode(node, payload)}
+                            onOutpaint={(node, payload) => void outpaintImageNode(node, payload)}
                             onUpscale={(node, params) => void upscaleImageNode(node, params)}
                             config={effectiveConfig}
                         />

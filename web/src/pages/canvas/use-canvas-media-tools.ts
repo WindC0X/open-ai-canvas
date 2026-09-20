@@ -13,7 +13,8 @@ import type { CanvasImageEmotionPayload } from "@/components/canvas/canvas-node-
 import type { PanoramaGenerateConfig } from "@/components/canvas/canvas-panorama-config-modal";
 import type { CanvasVideoFrameParams } from "@/components/canvas/canvas-video-frame-dialog";
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
-import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
+import { buildOutpaintSubmitVariants, cropDataUrl, splitDataUrl, upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
+import type { CanvasImageOutpaintPayload } from "@/components/canvas/canvas-node-outpaint-overlay";
 import { isValidGridSplit, layoutGridSplitCells } from "@/lib/canvas/canvas-grid-split";
 import { audioMetadata, imageMetadata, videoMetadata } from "@/lib/canvas/canvas-generation-task-sync";
 import { findAvailableGenerationGroupPosition, imageGenerationChildPosition, imageGenerationGroupSize } from "@/lib/canvas/canvas-generation-layout";
@@ -85,6 +86,8 @@ const NODE_STATUS_SUCCESS = "success" as const;
 const NODE_STATUS_ERROR = "error" as const;
 const NODE_STATUS_IDLE = "idle" as const;
 
+// 扩图底图/mask 提交压缩上限：超过该长边的 edits 请求体在部分中转会被断连（unexpected EOF）。
+
 export function useCanvasMediaTools({
     projectId,
     domainProjectId,
@@ -112,6 +115,7 @@ export function useCanvasMediaTools({
     const [cropNodeId, setCropNodeId] = useState<string | null>(null);
     const [annotationNodeId, setAnnotationNodeId] = useState<string | null>(null);
     const [maskEditNodeId, setMaskEditNodeId] = useState<string | null>(null);
+    const [outpaintNodeId, setOutpaintNodeId] = useState<string | null>(null);
     const [upscaleNodeId, setUpscaleNodeId] = useState<string | null>(null);
     const [angleNodeId, setAngleNodeId] = useState<string | null>(null);
     const [lightingNodeId, setLightingNodeId] = useState<string | null>(null);
@@ -798,6 +802,188 @@ export function useCanvasMediaTools({
         }
     }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, nodesRef, persistMediaNodes, projectId, resolveImageEditStyle, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
 
+    const outpaintImageNode = useCallback(async (node: CanvasNodeData, payload: CanvasImageOutpaintPayload) => {
+        if (!node.metadata?.content) return;
+        const baseGenerationConfig = buildGenerationConfig(effectiveConfig, node, "image");
+        const selectedModel = payload.generationConfig?.model || payload.generationConfig?.imageModel || baseGenerationConfig.model;
+        const modelDefaults = defaultImageParamsForModel(baseGenerationConfig, selectedModel);
+        const selectedImageProfile = modelCapabilityConfigFor(baseGenerationConfig, selectedModel).image;
+        if ((selectedImageProfile?.references.maxImages ?? 0) < 1) {
+            message.error("当前图片模型不支持扩图，请选择支持图像编辑的模型");
+            return;
+        }
+        const generationConfig = {
+            ...baseGenerationConfig,
+            ...payload.generationConfig,
+            model: selectedModel,
+            imageModel: payload.generationConfig?.imageModel || payload.generationConfig?.model || effectiveConfig.imageModel,
+            quality: normalizeMaskEditQuality(payload.generationConfig?.quality || node.metadata?.quality || baseGenerationConfig.quality || modelDefaults.quality, payload.generationConfig?.size || node.metadata?.size || baseGenerationConfig.size || modelDefaults.size),
+            count: String(payload.generationConfig?.count || 1),
+            // 目标画幅由 pad 后底图体现；非高级设置时用模型默认尺寸兜底，不把节点显示尺寸误发给上游。
+            size: payload.generationConfig?.size || node.metadata?.size || modelDefaults.size,
+        };
+        if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+            navigateToSettings({ continueCreation: true });
+            return;
+        }
+        const userPrompt = payload.prompt.trim();
+        const maskSupported = Boolean(selectedImageProfile?.references.maskSupported);
+        const prompt = maskSupported
+            ? `将画面自然向外延展，保持原图主体、构图与光照完全不变，仅生成透明新增区域的内容。${userPrompt}`
+            : `将画面自然向外延展至底图的完整画幅，保持原图主体、构图与光照完全不变，仅在四周白色空白区域生成协调的新内容，原图区域一个像素都不要改动。${userPrompt}`;
+        // 锁定档位（submitTarget）时合成图尺寸 = preset 精确像素、原图按占比缩放（扩空间信息而非像素尺寸）。
+        const { source: paddedSource, mask: maskDataUrl } = await buildOutpaintSubmitVariants(node.metadata.content, payload.paddingPx, maskSupported, { target: payload.submitTarget });
+        // pad 底图物化为 resource 后再引用：不带 storageKey 的纯 dataUrl 会被 buildImageGenerationMetadata
+        // 的 referenceUrl 丢弃（只留 storageKey/url），重试链 resolveMetadataReferences 拿不到底图 →
+        // 「参考图片已丢失」。先上传后引用不会退化回原图：storageKey 指向的就是 pad 后白边图。
+        const paddedUpload = await uploadImage(paddedSource);
+        const source = { id: node.id, name: `outpaint-${node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: paddedSource, storageKey: paddedUpload.storageKey };
+        const styleExecution = resolveImageEditStyle(node, prompt, generationConfig);
+        if (!styleExecution) return;
+        const { prompt: effectivePrompt, metadata: styleMetadata } = styleExecution;
+        const requestedCount = Math.max(1, Number(generationConfig.count) || 1);
+        const generationMetadata = buildImageGenerationMetadata("edit", generationConfig, requestedCount, [source]);
+        setOutpaintNodeId(null);
+        const rootId = nanoid();
+        const childIds = requestedCount > 1 ? Array.from({ length: requestedCount }, () => nanoid()) : [];
+        const targetIds = requestedCount > 1 ? childIds : [rootId];
+        const naturalWidth = Number(node.metadata?.naturalWidth) || node.width;
+        const naturalHeight = Number(node.metadata?.naturalHeight) || node.height;
+        // 占位节点比例 = 最终提交画幅比例（第十八轮实锤修复）：锁定档位时用 submitTarget
+        // 精确像素（源节点盒 clamp 会把竖版目标压成方形，用户实测占位 1:1）；自由/未锁档用
+        // 源图 + 源域 paddingPx（比例 = 框比例）。fitNodeSize 全局上限等比缩，不 clamp 源盒。
+        const targetPixelSize = payload.submitTarget
+            ? { width: payload.submitTarget.width, height: payload.submitTarget.height }
+            : { width: naturalWidth + payload.paddingPx.left + payload.paddingPx.right, height: naturalHeight + payload.paddingPx.top + payload.paddingPx.bottom };
+        const resultSize = fitNodeSize(targetPixelSize.width, targetPixelSize.height);
+        const preferredPosition = { x: node.position.x + node.width + 96, y: node.position.y };
+        const rootPosition = findAvailableGenerationGroupPosition(nodesRef.current, preferredPosition, imageGenerationGroupSize(resultSize, resultSize, childIds.length));
+        const rootNode: CanvasNodeData = {
+            id: rootId,
+            type: CanvasNodeType.Image,
+            title: userPrompt.slice(0, 32) || "扩图结果",
+            position: rootPosition,
+            width: resultSize.width,
+            height: resultSize.height,
+            metadata: {
+                ...canvasGenerationPromptMetadata(userPrompt, effectivePrompt),
+                status: NODE_STATUS_LOADING,
+                isBatchRoot: requestedCount > 1,
+                batchChildIds: requestedCount > 1 ? childIds : undefined,
+                batchFailedCount: requestedCount > 1 ? 0 : undefined,
+                imageBatchExpanded: requestedCount > 1 ? true : undefined,
+                ...generationMetadata,
+                ...styleMetadata,
+            },
+        };
+        const childNodes: CanvasNodeData[] = childIds.map((id, index) => ({
+            id,
+            type: CanvasNodeType.Image,
+            title: `${userPrompt.slice(0, 28) || "扩图结果"} · ${index + 1}`,
+            position: imageGenerationChildPosition(rootNode.position, rootNode.width, resultSize, index),
+            width: resultSize.width,
+            height: resultSize.height,
+            metadata: {
+                ...canvasGenerationPromptMetadata(userPrompt, effectivePrompt),
+                status: NODE_STATUS_LOADING,
+                batchRootId: rootId,
+                ...generationMetadata,
+                ...styleMetadata,
+            },
+        }));
+        setRunningNodeId(rootId);
+        setNodes((current) => [...current, rootNode, ...childNodes]);
+        setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: rootId }, ...childIds.map((childId) => ({ id: nanoid(), fromNodeId: rootId, toNodeId: childId }))]);
+        setSelectedNodeIds(new Set([rootId, ...childIds]));
+        setSelectedConnectionId(null);
+        const controller = startGenerationRequest(rootId, node.id, rootId);
+        targetIds.forEach((targetId) => startGenerationRequest(targetId, node.id, rootId, controller));
+        let hasSuccess = false;
+        let failureCount = 0;
+        let representativeError: string | undefined;
+        try {
+            await Promise.all(targetIds.map(async (targetId) => {
+                try {
+                    const result = await runBackendCanvasGenerationTask({
+                        projectId,
+                        nodeId: targetId,
+                        mode: "image",
+                        prompt: effectivePrompt,
+                        config: { ...generationConfig, count: "1" },
+                        referenceImages: [source],
+                        ...(maskDataUrl ? { mask: { id: `${node.id}-outpaint-mask`, name: "outpaint-mask.png", type: "image/png", dataUrl: maskDataUrl } } : {}),
+                        signal: controller.signal,
+                        metadata: { sourceNodeId: node.id, edit: "outpaint", ...styleMetadata },
+                        onTaskCreated: (task) => bindGenerationTask(targetId, task),
+                    });
+                    const image = result.images?.find((item) => item?.dataUrl);
+                    if (!image?.dataUrl) throw new Error("后端任务没有返回图片");
+                    const uploaded = await uploadImage(image.dataUrl);
+                    const size = fitNodeSize(uploaded.width, uploaded.height, node.width, node.height);
+                    const currentNode = nodesRef.current.find((item) => item.id === targetId);
+                    if (!currentNode) throw new Error("扩图节点已被删除");
+                    // 结果尺寸校验明示（第十八轮）：上游中转不保证按提交 size 出图（实测
+                    // 请求 1024×1360 返回 1024×1536/1088×1445），比例偏差超阈值时把目标与
+                    // 实际写入 metadata，不静默把错幅图当好图。阈值 2%：取整/拉伸级波动不报警。
+                    const submittedSize = payload.submitTarget ?? { width: targetPixelSize.width, height: targetPixelSize.height };
+                    const ratioDrift = Math.abs(Math.log((uploaded.width / uploaded.height) / (submittedSize.width / submittedSize.height)));
+                    const sizeMismatch = ratioDrift > 0.02 ? { submitted: `${submittedSize.width}x${submittedSize.height}`, actual: `${uploaded.width}x${uploaded.height}` } : undefined;
+                    const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: { ...currentNode.metadata, ...imageMetadata(uploaded), prompt: effectivePrompt, ...generationMetadata, ...(sizeMismatch ? { outpaintSizeMismatch: sizeMismatch } : { outpaintSizeMismatch: undefined }) } };
+                    setNodes((current) => current.map((item) => {
+                        if (item.id === targetId) return finalizedNode;
+                        if (item.id !== rootId || requestedCount <= 1 || item.metadata?.primaryImageId) return item;
+                        return { ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), primaryImageId: targetId, status: NODE_STATUS_SUCCESS } };
+                    }));
+                    await persistMediaNodes([finalizedNode]);
+                    hasSuccess = true;
+                } catch (error) {
+                    if (isGenerationCanceled(error)) return;
+                    failureCount += 1;
+                    const details = generationErrorMessage(error);
+                    representativeError = details;
+                    setNodes((current) => current.map((item) => (item.id === targetId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: details } } : item)));
+                } finally {
+                    finishGenerationRequest(targetId, controller);
+                }
+            }));
+            if (controller.signal.aborted) {
+                setNodes((current) => {
+                    const cancelled = cancelIncompleteImageBatch(rootId, childIds, current, []);
+                    if (cancelled.removedIds.length) {
+                        const removed = new Set(cancelled.removedIds);
+                        setConnections((connections) => connections.filter((connection) => !removed.has(connection.fromNodeId) && !removed.has(connection.toNodeId)));
+                    }
+                    return cancelled.nodes.map((item) => {
+                        if (item.id !== rootId) return item;
+                        if (item.metadata?.content) return item;
+                        return { ...item, metadata: { ...item.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } };
+                    });
+                });
+                return;
+            }
+            if (failureCount > 0) {
+                message.error(hasSuccess ? "部分扩图失败" : representativeError || "扩图失败");
+            }
+            setNodes((current) => current.map((item) => {
+                if (item.id !== rootId) return item;
+                return {
+                    ...item,
+                    metadata: {
+                        ...item.metadata,
+                        status: hasSuccess ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR,
+                        batchFailedCount: requestedCount > 1 ? failureCount : undefined,
+                        ...(hasSuccess
+                            ? { errorDetails: undefined }
+                            : { errorDetails: representativeError || "扩图失败" }),
+                    },
+                };
+            }));
+        } finally {
+            if (requestedCount > 1) finishGenerationRequest(rootId, controller);
+            setRunningNodeId(null);
+        }
+    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, nodesRef, persistMediaNodes, projectId, resolveImageEditStyle, setConnections, setNodes, setRunningNodeId, setOutpaintNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
+
     const upscaleImageNode = useCallback(async (node: CanvasNodeData, params: CanvasImageUpscaleParams) => {
         if (!node.metadata?.content) return;
         setUpscaleNodeId(null);
@@ -976,6 +1162,9 @@ export function useCanvasMediaTools({
         setPanoramaConfigNodeId,
         maskEditImageNode,
         maskEditNodeId,
+        outpaintImageNode,
+        outpaintNodeId,
+        setOutpaintNodeId,
         mergeSelectedVideos,
         mergeVideosByIds,
         mergeVideoProgress,
