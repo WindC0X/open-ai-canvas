@@ -796,7 +796,7 @@ func (s *Service) cloudAgentOutpaintModelCapability(a cloudAgentMediaArgs) (Capa
 				if unmarshalErr := json.Unmarshal(raw, &normalized); unmarshalErr != nil {
 					return CapabilitySpec{}, fmt.Errorf("解析渠道模型能力配置失败：%w", unmarshalErr)
 				}
-				return CapabilitySpecFromModelCapabilityConfig(&normalized, string(m.Protocol))
+				return CapabilitySpecFromModelCapabilityConfig(&normalized, normalizeCapability(m.Capability))
 			}
 		}
 	}

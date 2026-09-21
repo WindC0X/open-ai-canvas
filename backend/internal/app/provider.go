@@ -1045,8 +1045,8 @@ func providerNetworkSignature(normalized string) bool {
 	return false
 }
 
-// containsOutsideQuotes 在 raw 中查找 phrase 的全部出现位置，任一出现点的前置引号数为偶数
-// （即不在双引号字符串内）则返回 true。
+// containsOutsideQuotes 在 raw 中查找 phrase 的全部出现位置，任一出现点不在 JSON 双引号
+// 字符串内则返回 true。逐字符扫描维护「是否在字符串内」状态，反斜杠转义不切换状态。
 func containsOutsideQuotes(raw, phrase string) bool {
 	for offset := 0; offset <= len(raw); {
 		index := strings.Index(raw[offset:], phrase)
@@ -1054,10 +1054,35 @@ func containsOutsideQuotes(raw, phrase string) bool {
 			return false
 		}
 		position := offset + index
-		if strings.Count(raw[:position], "\"")%2 == 0 {
+		if !insideQuotedSegment(raw, position) {
 			return true
 		}
 		offset = position + len(phrase)
 	}
 	return false
+}
+
+// insideQuotedSegment 判定 position 是否落在 JSON 双引号字符串内。
+// 之前按前置引号奇偶计数：转义引号 \\" 也被计入，parity 提前翻转，提示词回显里带引号的
+// 网络特征词会命中网络类目（排在 invalid 之前，遮蔽正确归类 — review 2026-09-21 P2）。
+func insideQuotedSegment(raw string, position int) bool {
+	quoted := false
+	escaped := false
+	limit := position
+	if limit > len(raw) {
+		limit = len(raw)
+	}
+	for i := 0; i < limit; i++ {
+		if escaped {
+			escaped = false
+			continue
+		}
+		switch raw[i] {
+		case '\\':
+			escaped = true
+		case '"':
+			quoted = !quoted
+		}
+	}
+	return quoted
 }

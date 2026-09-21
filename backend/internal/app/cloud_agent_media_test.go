@@ -1,8 +1,10 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -820,5 +822,33 @@ func TestCloudAgentCanvasUpdatesExistingVideoDraftThroughCapabilityContract(t *t
 	}
 	if metadata["prompt"] != "原始已提交提示词" || metadata["status"] != "error" || metadata["referenceIssue"] != "参考资产尚未准备完成" {
 		t.Fatalf("video task state or submission snapshot was overwritten: %#v", metadata)
+	}
+}
+
+// 回归（review 2026-09-21 P1，已由复核人真实运行证实）：prepare 阶段反解渠道模型能力时
+// 必须传 capability（"image"/"video"/…），不能传 protocol（"openai-image"/"grok-image"/…）。
+// 传协议串会落到 CapabilitySpecFromModelCapabilityConfig 的 default 分支返回
+// "未知模型能力类型"，而渠道模型是前台逻辑模型关闭时扩图的唯一来源 —— 扩图 100% 失败。
+func TestCloudAgentOutpaintCapabilityRejectsProtocolString(t *testing.T) {
+	imageConfig := ModelCapabilityConfig{Image: &ImageCapabilityConfig{}}
+	if _, err := CapabilitySpecFromModelCapabilityConfig(&imageConfig, normalizeCapability("image")); err != nil {
+		t.Fatalf("capability 反解不应失败：%v", err)
+	}
+	for _, protocol := range []string{"openai-image", "grok-image", "gemini-image"} {
+		if _, err := CapabilitySpecFromModelCapabilityConfig(&imageConfig, protocol); err == nil {
+			t.Fatalf("协议串 %q 被当作 capability 接受（这正是回归形态）", protocol)
+		}
+	}
+
+	// 调用点契约：必须传 normalizeCapability(m.Capability)。
+	source, err := os.ReadFile("cloud_agent_media.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(source, []byte("CapabilitySpecFromModelCapabilityConfig(&normalized, string(m.Protocol))")) {
+		t.Fatal("渠道模型能力反解又传了 m.Protocol：渠道模型扩图 prepare 会全量失败")
+	}
+	if !bytes.Contains(source, []byte("CapabilitySpecFromModelCapabilityConfig(&normalized, normalizeCapability(m.Capability))")) {
+		t.Fatal("渠道模型能力反解未传 capability")
 	}
 }

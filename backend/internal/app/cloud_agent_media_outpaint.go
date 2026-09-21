@@ -273,8 +273,23 @@ func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerM
 // 幂等命中已就绪资源时同样不重复计配额。
 func (s *Service) storeResourceFromBytes(userID, kind, fileName, mimeType string, data []byte, width, height int, uploadIdentity string) (*model.Resource, error) {
 	size := int64(len(data))
-	if existing, err := s.resourceForUploadKey(userID, normalizedResourceUploadKey([]string{uploadIdentity})); err == nil && existing != nil && existing.Status == model.ResourceStatusReady {
-		return existing, nil
+	existing, err := s.resourceForUploadKey(userID, normalizedResourceUploadKey([]string{uploadIdentity}))
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		switch existing.Status {
+		case model.ResourceStatusReady:
+			return existing, nil
+		case model.ResourceStatusPending:
+			return nil, resourceUploadInProgress()
+		default:
+			// Failed：与 UploadResourceFile 对齐走重传。此前直接落到 storeResource，而它对
+			// 非 Ready 现有记录统一返回 409「正在上传」——首次写盘失败后同一 uploadIdentity
+			// （同一源图 + 同一目标尺寸，含 Agent 重试）永久卡死，报错文案还误导
+			// （review 2026-09-21 P2）。重传内自管配额。
+			return s.retryStoredResource(userID, existing, kind, mimeType, size, bytes.NewReader(data))
+		}
 	}
 	day, err := s.reserveUserUploadQuota(userID, size)
 	if err != nil {
