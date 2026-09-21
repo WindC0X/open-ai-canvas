@@ -378,6 +378,20 @@ func (s *Service) storeResourceFromBytes(userID, kind, fileName, mimeType string
 // applyCloudAgentOutpaint 把扩图请求的参考字段就地替换为合成产物：
 // 恰好 1 张图片参考 → pad 底图 + mask（都已是账号资源）；mode/prompt/config 等其余键原样保留。
 // 返回 pad 后目标画幅（像素），调用方用它显式提交 config.size。
+// cloudAgentOutpaintRequestedRatio 决定扩图画幅比例：审批卡选定比例档时以卡片为准（用户选择优先），
+// 否则用 Agent 请求的 outpaintRatio。
+// 背景（真机实测 2026-09-21）：比例制模型（如 gpt-image-2）的卡片画幅控件给的是比例档
+// （1:1/3:2/16:9…）+ 自定义 W×H，改动只写进 args.Size；而扩图支路此前只读 outpaintRatio，
+// 用户点了比例档却不会生效。
+func cloudAgentOutpaintRequestedRatio(a cloudAgentMediaArgs) string {
+	if card := strings.TrimSpace(a.Size); card != "" {
+		if ratio, _, _ := cloudAgentOutpaintRatioValue(card); ratio > 0 {
+			return card
+		}
+	}
+	return a.OutpaintRatio
+}
+
 func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a cloudAgentMediaArgs) (int, int, error) {
 	images, _ := refs["referenceImages"].([]any)
 	if len(images) != 1 {
@@ -402,7 +416,7 @@ func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a 
 			return 0, 0, err
 		}
 	} else {
-		ratio, _, _ := cloudAgentOutpaintRatioValue(a.OutpaintRatio)
+		ratio, _, _ := cloudAgentOutpaintRatioValue(cloudAgentOutpaintRequestedRatio(a))
 		if ratio <= 0 {
 			return 0, 0, BadAuthRequest("扩图画幅比例无效，请传如 16:9 / 3:2 / 1.5")
 		}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"math"
 	"testing"
 )
 
@@ -198,5 +199,32 @@ func TestCloudAgentOutpaintPixelTarget(t *testing.T) {
 	// ⑤ 非法/越界比例：拒绝。
 	if _, _, err := cloudAgentOutpaintPlanForTarget(1376, 784, 0, 0); err == nil {
 		t.Fatal("零尺寸必须拒绝")
+	}
+}
+
+// 审批卡画幅控件（比例档）必须生效：卡片改档位只写 args.Size，扩图支路此前只读 outpaintRatio，
+// 用户点比例档会被忽略（真机实测 2026-09-21）。规则：卡片里合法的比例档优先于 Agent 请求的 ratio；
+// 像素档（1024x1024）不参与比例解析，走像素目标路径。
+func TestCloudAgentOutpaintRequestedRatioHonorsCardChoice(t *testing.T) {
+	for _, tc := range []struct{ size, ratio, want string }{
+		{"3:2", "1:1", "3:2"},
+		{"1.5", "16:9", "1.5"},
+		{"", "16:9", "16:9"},
+		{"1024x1024", "16:9", "16:9"},
+		{"auto", "16:9", "16:9"},
+	} {
+		got := cloudAgentOutpaintRequestedRatio(cloudAgentMediaArgs{Size: tc.size, OutpaintRatio: tc.ratio})
+		if got != tc.want {
+			t.Fatalf("Size=%q OutpaintRatio=%q → %q, want %q", tc.size, tc.ratio, got, tc.want)
+		}
+	}
+	// 卡片比例档生效后，画幅按它推导（3:2 源图 3:2 → 等比外扩，框比为 3:2）。
+	padding, err := cloudAgentOutpaintPlan(1536, 1024, 1.5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frameW, frameH := 1536+padding["left"]+padding["right"], 1024+padding["top"]+padding["bottom"]
+	if math.Abs(float64(frameW)/float64(frameH)-1.5) > 0.02 {
+		t.Fatalf("3:2 档位的目标画幅未保持比例：%dx%d", frameW, frameH)
 	}
 }
