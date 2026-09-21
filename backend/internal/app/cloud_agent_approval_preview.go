@@ -94,7 +94,11 @@ func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloud
 	// 位置是排版决策不是内容决策: 与其让模型猜坐标, 不如按现有画布包围盒放到右侧空列, 逐个向下排。
 	// 只改写 ops 的 X/Y, preview 与执行共用 creationAddedNode, 两处天然一致; 模型显式 position 语义不再保留。
 	bounds := cloudAgentNodesBounds(nodes)
-	nextX, nextY := bounds.maxX+120.0, bounds.minY
+	nextX := bounds.maxX + 120.0
+	// 起始 y 取目标列（新列 x 范围内）已有节点的 max(bottom)，而不是全局 minY（review 2026-09-21 P3：
+	// 目标列附近已有更早放置的节点时，从全局 minY 起会与新节点列横向重叠）。
+	// 无同列节点时回退全局 minY（与原行为一致）。
+	nextY := cloudAgentColumnStartY(nodes, nextX)
 	for i := range ops {
 		if ops[i].Type != "add_node" {
 			continue
@@ -250,7 +254,9 @@ func cloudAgentMediaApprovalPreview(plan *cloudAgentMediaPlan, modelName string)
 	if args.Duration > 0 {
 		details = append(details, fmt.Sprintf("时长：%d 秒", args.Duration))
 	}
-	if args.Size != "" {
+	// 扩图时 size 会被服务端按 ratio 计算的 pad 像素覆盖（执行链 cfg["size"] = 目标画幅），
+	// 预览不能再展示一个不会生效的 args.Size（review 2026-09-21 P3）。
+	if args.Size != "" && strings.TrimSpace(args.OutpaintRatio) == "" {
 		details = append(details, "画幅："+truncateRunes(args.Size, 40))
 	}
 	if args.Quality != "" {
@@ -359,4 +365,44 @@ func cloudAgentNodeDefaultHeight(nodeType string) float64 {
 		return d.DefaultHeight
 	}
 	return 384.0
+}
+
+// cloudAgentColumnStartY 计算新列（x = nextX）放置节点的起始 y：取与目标列水平重叠
+// （或 120px 内邻列）的存量节点的 max(y+height)，避免 Agent 新节点列压住目标列已有节点
+// （review 2026-09-21 P3）；无同列节点时回退全局最小 y（与原行为一致）。
+func cloudAgentColumnStartY(nodes []map[string]any, nextX float64) float64 {
+	columnStart, columnFound := 0.0, false
+	globalMinY, anyFound := 0.0, false
+	for _, node := range nodes {
+		pos, _ := node["position"].(map[string]any)
+		x, _ := pos["x"].(float64)
+		y, _ := pos["y"].(float64)
+		width, _ := node["width"].(float64)
+		height, _ := node["height"].(float64)
+		if width <= 0 {
+			width = 384
+		}
+		if height <= 0 {
+			height = 384
+		}
+		if !anyFound || y < globalMinY {
+			globalMinY = y
+		}
+		anyFound = true
+		// 与目标列无水平重叠（含 120px 邻列缓冲区）→ 不参与列内底部计算。
+		if x+width+120 <= nextX || x >= nextX+384+120 {
+			continue
+		}
+		if bottom := y + height; !columnFound || bottom > columnStart {
+			columnStart = bottom
+			columnFound = true
+		}
+	}
+	if columnFound {
+		return columnStart
+	}
+	if anyFound {
+		return globalMinY
+	}
+	return 0
 }

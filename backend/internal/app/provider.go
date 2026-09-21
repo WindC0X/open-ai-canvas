@@ -293,7 +293,9 @@ func providerPayloadErrorCategory(raw string) (string, bool) {
 	// （实测 "INVALID_IMAGE_EDIT / decode JSON request: read tcp ... 网络读写超时"），
 	// 若不先判会误落 invalid 类目的"拒绝了请求，请检查参数"——网络中断不是参数问题。
 	// 排在 invalid 类目之前（2026-09-20 扩图真机实测）。
-	case strings.Contains(normalized, "read tcp"), strings.Contains(normalized, "i/o timeout"), strings.Contains(normalized, "connection reset"), strings.Contains(normalized, "network timeout"):
+	// 只在未被引号包裹的正文区段匹配（review 2026-09-21 P3）：错误正文常回显用户提示词
+	// （JSON 字符串），提示词里出现同类字样不能证明网络中断。
+	case providerNetworkSignature(normalized):
 		return "模型服务连接中断（上游读取请求超时），请稍后重试或减小参考图尺寸", true
 	// 真人肖像类目只匹配供应商错误码里的稳定标识，不扫描自然语言。
 	// 正文常常回显用户提示词，"likeness"、"肖像"这类词单独出现并不能证明
@@ -1029,4 +1031,33 @@ func withSystemPrompt(config providerConfig, prompt string) string {
 
 func metadataString(metadata map[string]interface{}, key string) string {
 	return strings.TrimSpace(stringField(metadata, key))
+}
+
+// providerNetworkSignature 判断正文是否含"非引号包裹"的网络中断特征。
+// 上游真实诊断出现在结构段（如 "decode JSON request: read tcp ..."）；JSON 字符串内
+// 的命中视为提示词回显，不参与归类（review 2026-09-21 P3）。
+func providerNetworkSignature(normalized string) bool {
+	for _, phrase := range []string{"read tcp", "i/o timeout", "connection reset", "network timeout"} {
+		if containsOutsideQuotes(normalized, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+// containsOutsideQuotes 在 raw 中查找 phrase 的全部出现位置，任一出现点的前置引号数为偶数
+// （即不在双引号字符串内）则返回 true。
+func containsOutsideQuotes(raw, phrase string) bool {
+	for offset := 0; offset <= len(raw); {
+		index := strings.Index(raw[offset:], phrase)
+		if index < 0 {
+			return false
+		}
+		position := offset + index
+		if strings.Count(raw[:position], "\"")%2 == 0 {
+			return true
+		}
+		offset = position + len(phrase)
+	}
+	return false
 }

@@ -27,6 +27,15 @@ const cloudAgentOutpaintMaxLongEdge = 1536
 // cloudAgentOutpaintMinPadding 目标画幅大于参考图时的最小外扩基准，保证非等比方向仍有可见扩展带。
 const cloudAgentOutpaintMinPadding = 48
 
+// cloudAgentOutpaintMaxPixels 源图解码像素上限：防 PNG 解压炸弹把服务端内存打爆。
+const cloudAgentOutpaintMaxPixels = 40_000_000
+
+// cloudAgentOutpaintRatioBounds 目标画幅比值的合理区间：超出即拒绝。极端比例（如 1e9:1）
+// 会退化成"纯白底图+全透明 mask"，上游实际执行与源图无关的全新生成，用户按扩图语义付费
+// 却得不到扩图（review 2026-09-21 P2）。
+const cloudAgentOutpaintMinRatio = 0.2
+const cloudAgentOutpaintMaxRatio = 5.0
+
 // cloudAgentOutpaintRatioValue 解析 "16:9"/"3:2"/"1.5" 形式目标画幅；非法值返回 0。
 func cloudAgentOutpaintRatioValue(raw string) (float64, int, int) {
 	text := strings.TrimSpace(raw)
@@ -123,10 +132,13 @@ func cloudAgentOutpaintPlan(srcWidth, srcHeight int, ratio float64) (map[string]
 }
 
 // cloudAgentOutpaintScale 让 pad 图与 mask 共用同一长边上限（扩展量按内容等比缩放，保持两者对齐）。
-func cloudAgentOutpaintScale(width, height, padding int) float64 {
-	longEdge := width + padding
-	if height+padding > longEdge {
-		longEdge = height + padding
+// paddingByAxis 把四边 padding 按调用方给的轴归属拆分（horizontal=左+右，vertical=上+下）。
+func cloudAgentOutpaintScale(width, height, horizontal, vertical int) float64 {
+	// 真实长边 = max(宽+左右pad, 高+上下pad)。旧实现对单轴加四边总和，系统性高估长边、
+	// 过度收缩输出分辨率（2000² 源图 + 四边 200 实测损失约 15%，review 2026-09-21 P3）。
+	longEdge := width + horizontal
+	if height+vertical > longEdge {
+		longEdge = height + vertical
 	}
 	if longEdge <= cloudAgentOutpaintMaxLongEdge {
 		return 1
@@ -155,8 +167,18 @@ func cloudAgentOutpaintPaint(src image.Image, padding map[string]int, scale floa
 	targetW := snap16(int(math.Round(float64(srcW)*scale)) + padLeft + padRight)
 	targetH := snap16(int(math.Round(float64(srcH)*scale)) + padTop + padBottom)
 	// 取整差全部吸收进右/下 padding，左/上 padding 保持不变（锚定语义）。
+	// 极大源图（scale ≲0.15）时 snap16 下移吸收可让右/下差为负：负 padding 会让 image.Rect
+	// 坐标翻转、mask 边缘留不透明发丝线（review 2026-09-21 P3）。负值钳 0、差额改收 target。
 	padRight = targetW - int(math.Round(float64(srcW)*scale)) - padLeft
 	padBottom = targetH - int(math.Round(float64(srcH)*scale)) - padTop
+	if padRight < 0 {
+		targetW -= padRight
+		padRight = 0
+	}
+	if padBottom < 0 {
+		targetH -= padBottom
+		padBottom = 0
+	}
 	canvas := image.NewNRGBA(image.Rect(0, 0, targetW, targetH))
 	if !mask {
 		// 底图：白底填满，避免 JPEG 有透明语义歧义。
@@ -206,12 +228,19 @@ func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerM
 	if _, err := raw.ReadFrom(body); err != nil {
 		return padded, nil, fmt.Errorf("读取扩图源图失败：%w", err)
 	}
+	// 像素预检：image/png 无内建解压炸弹防护，一张合法 16384² PNG 解码即产生 ~1GiB NRGBA
+	// 缓冲（review 2026-09-21 P1）。先 DecodeConfig 读声明尺寸，超 40MP 拒绝，不做全量解码。
+	if config, _, configErr := image.DecodeConfig(bytes.NewReader(raw.Bytes())); configErr == nil {
+		if int64(config.Width)*int64(config.Height) > cloudAgentOutpaintMaxPixels {
+			return padded, nil, fmt.Errorf("扩图源图尺寸过大（%dx%d），上限 %d 百万像素", config.Width, config.Height, cloudAgentOutpaintMaxPixels/1_000_000)
+		}
+	}
 	src, _, err := image.Decode(bytes.NewReader(raw.Bytes()))
 	if err != nil {
 		return padded, nil, fmt.Errorf("扩图源图解码失败：%w", err)
 	}
 	srcW, srcH := src.Bounds().Dx(), src.Bounds().Dy()
-	scale := cloudAgentOutpaintScale(srcW, srcH, padding["left"]+padding["right"]+padding["top"]+padding["bottom"])
+	scale := cloudAgentOutpaintScale(srcW, srcH, padding["left"]+padding["right"], padding["top"]+padding["bottom"])
 
 	baseBytes, targetW, targetH, err := cloudAgentOutpaintPaint(src, padding, scale, false)
 	if err != nil {
@@ -238,14 +267,30 @@ func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerM
 	return padded, mask, nil
 }
 
-// storeResourceFromBytes 把内存字节存为账号资源（Agent 合成产物专用，等价 uploadResource 语义：
-// 幂等 uploadIdentity、配额、状态流转），但跳过 multipart 头解析。
+// storeResourceFromBytes 把内存字节存为账号资源（Agent 合成产物专用）：幂等 uploadIdentity
+// 与状态流转同 storeResource，并走与 UploadResourceFile 相同的配额预留/提交/释放三段式
+// （此前直调 storeResource 绕过配额，Agent 产物无配额约束累积 — review 2026-09-21 P2）。
+// 幂等命中已就绪资源时同样不重复计配额。
 func (s *Service) storeResourceFromBytes(userID, kind, fileName, mimeType string, data []byte, width, height int, uploadIdentity string) (*model.Resource, error) {
-	resource, stored, err := s.storeResource(userID, kind, fileName, mimeType, int64(len(data)), width, height, 0, bytes.NewReader(data), normalizedResourceUploadKey([]string{uploadIdentity}), true)
+	size := int64(len(data))
+	if existing, err := s.resourceForUploadKey(userID, normalizedResourceUploadKey([]string{uploadIdentity})); err == nil && existing != nil && existing.Status == model.ResourceStatusReady {
+		return existing, nil
+	}
+	day, err := s.reserveUserUploadQuota(userID, size)
 	if err != nil {
 		return nil, err
 	}
-	_ = stored
+	resource, stored, err := s.storeResource(userID, kind, fileName, mimeType, size, width, height, 0, bytes.NewReader(data), normalizedResourceUploadKey([]string{uploadIdentity}), true)
+	if err != nil {
+		s.releaseUserUploadQuota(userID, day, size)
+	} else if stored {
+		s.commitUserUploadQuota(userID, size)
+	} else {
+		s.releaseUserUploadQuota(userID, day, size)
+	}
+	if err != nil {
+		return nil, err
+	}
 	return resource, nil
 }
 
@@ -268,6 +313,9 @@ func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a 
 	ratio, _, _ := cloudAgentOutpaintRatioValue(a.OutpaintRatio)
 	if ratio <= 0 {
 		return 0, 0, BadAuthRequest("扩图画幅比例无效，请传如 16:9 / 3:2 / 1.5")
+	}
+	if ratio < cloudAgentOutpaintMinRatio || ratio > cloudAgentOutpaintMaxRatio {
+		return 0, 0, BadAuthRequest("扩图画幅比例超出合理范围（0.2 ~ 5.0），请调整后重试")
 	}
 	padding, err := cloudAgentOutpaintPlan(source.Width, source.Height, ratio)
 	if err != nil {
@@ -298,4 +346,22 @@ func cloudAgentMediaInt(value any) int {
 		return n
 	}
 	return 0
+}
+
+// cloudAgentOutpaintCapabilityCheck 在 prepare（审批前）校验所选模型是否满足扩图隐含能力：
+// mask 输入（合成 mask 无条件写入 refs）与自定义 size（pad 后精确像素 WxH 下发）。
+// 此前缺失该预检时，LLM 选中固定档/非 mask 模型会在审批计费后才于 admission 爆破
+// （review 2026-09-21 P2）。
+func cloudAgentOutpaintCapabilityCheck(spec CapabilitySpec) error {
+	if spec.Inputs["mask"].Max < 1 {
+		return BadAuthRequest("当前模型不支持蒙版输入，不能执行扩图；请选择支持蒙版编辑的图片模型")
+	}
+	if spec.ImageSize == nil {
+		return BadAuthRequest("当前模型未声明画幅能力，不能执行扩图；请选择支持自定义尺寸的图片模型")
+	}
+	if !spec.ImageSize.AllowCustom && spec.ImageSize.Parameter != "size" {
+		// aspect_ratio 制模型可按枚举比值提交，size 制固定档无法容纳 pad 后任意像素 → 拒。
+		return BadAuthRequest("当前模型仅支持固定画幅档位，不能按扩图目标画幅提交；请选择支持自定义尺寸的图片模型")
+	}
+	return nil
 }

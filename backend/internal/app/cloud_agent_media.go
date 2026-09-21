@@ -534,6 +534,15 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	// 扩图：恰好 1 张图片参考时，服务端合成 pad 底图 + mask 并物化为资源后替换参考，
 	// 后续路由/校验/计价/执行与 image_to_image 完全同构（输入只有 resource 引用）。
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
+		// 能力预检前置到 prepare（审批计费前）：mask 输入 + 自定义 size 是扩图隐含硬要求，
+		// 不满足时让 LLM 立即换模型，而不是审批后 admission 爆破（review 2026-09-21 P2）。
+		spec, capErr := s.cloudAgentOutpaintModelCapability(a)
+		if capErr != nil {
+			return CreateTaskRequest{}, nil, capErr
+		}
+		if capErr := cloudAgentOutpaintCapabilityCheck(spec); capErr != nil {
+			return CreateTaskRequest{}, nil, capErr
+		}
 		targetW, targetH, err := s.applyCloudAgentOutpaint(run.UserID, input, a)
 		if err != nil {
 			return CreateTaskRequest{}, nil, err
@@ -604,10 +613,12 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 	}
 	meta := map[string]any{"status": "idle", "agentDraftRunId": a.DraftRunID, "prompt": a.Prompt, "composerContent": a.Prompt, "referenceNodeIds": a.ReferenceNodeIDs}
 	// 扩图任务封装语义（用户反馈 2026-09-19）：LLM 生成的扩图提示词只留 prompt 供重试/审计，
-	// composerContent 置空避免结果节点 composer 直接展示内部提示词；outpaint 标记供前端识别封装态。
+	// composerContent 置空避免结果节点 composer 直接展示内部提示词。
+	// edit:"outpaint" 与手动扩图占位同契约，前端 hover composer 门控据此隐藏（此前写的
+	// meta["outpaint"] 无任何前端消费方，门控从未命中 — review 2026-09-21 P2）。
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
 		meta["composerContent"] = ""
-		meta["outpaint"] = map[string]any{"ratio": a.OutpaintRatio}
+		meta["edit"] = "outpaint"
 	}
 	if a.Size != "" && (a.Mode == "image" || a.Mode == "video") {
 		meta["size"] = a.Size
@@ -754,4 +765,40 @@ func completeCloudAgentMediaNode(repo *repository.Repository, userID, canvasID s
 		return stringValue(node["id"]), saveCloudAgentDocument(repo, canvas, doc, policy)
 	}
 	return "", creationConflict("生成节点已删除或已绑定其他任务；结果仍保留在任务中心，未重建节点")
+}
+
+// cloudAgentOutpaintModelCapability 返回扩图请求所选模型的能力 spec，供 prepare 阶段预检。
+// 模型定位逻辑与 cloudAgentMediaModelName 一致；logical 路径直接带 spec，渠道路径从
+// 脱敏 capabilityConfig map 反解。
+func (s *Service) cloudAgentOutpaintModelCapability(a cloudAgentMediaArgs) (CapabilitySpec, error) {
+	catalog, err := s.ModelCatalog(nil)
+	if err != nil {
+		return CapabilitySpec{}, err
+	}
+	for _, m := range catalog.Models {
+		if a.LogicalModelID != "" && m.ID == a.LogicalModelID && m.Available && normalizeCapability(m.Capability) == normalizeCapability(a.Mode) {
+			return m.CapabilitySpec, nil
+		}
+	}
+	for _, channel := range catalog.Channels {
+		if channel.ID != a.ChannelID {
+			continue
+		}
+		for _, m := range channel.Models {
+			if m.ModelKey == a.ChannelModelKey && m.Available && normalizeCapability(m.Capability) == normalizeCapability(a.Mode) {
+				// 脱敏 map → 结构化配置 → spec：catalog 的 CapabilityConfig 是 normalized
+				// 配置经 modelCapabilityConfigToMap 的产物，Marshal/Unmarshal 往返无损。
+				raw, marshalErr := json.Marshal(m.CapabilityConfig)
+				if marshalErr != nil {
+					return CapabilitySpec{}, fmt.Errorf("解析渠道模型能力配置失败：%w", marshalErr)
+				}
+				var normalized ModelCapabilityConfig
+				if unmarshalErr := json.Unmarshal(raw, &normalized); unmarshalErr != nil {
+					return CapabilitySpec{}, fmt.Errorf("解析渠道模型能力配置失败：%w", unmarshalErr)
+				}
+				return CapabilitySpecFromModelCapabilityConfig(&normalized, string(m.Protocol))
+			}
+		}
+	}
+	return CapabilitySpec{}, BadAuthRequest("模型目录已变化，请重新读取目录并询问用户选择模型")
 }
