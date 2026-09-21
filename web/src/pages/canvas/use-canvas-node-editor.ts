@@ -56,7 +56,9 @@ export function useCanvasNodeEditor({
                 changed = true;
                 // 打上「用户手动定过尺寸」标记：图片按真实比例自动适配时要避让它，
                 // 否则每次图片重新加载都会把用户拉过的尺寸改回去。
-                const resized = { ...node, width, height, position: nextPosition, metadata: { ...node.metadata, manualSize: true } };
+                // userResized 成对写入：manualSize 单独存在还是扩图占位合同（manualSize 合同链），
+                // composer 门控靠 userResized 区分两者（canvas-node.tsx 指纹回退）。
+                const resized = { ...node, width, height, position: nextPosition, metadata: { ...node.metadata, manualSize: true, userResized: true } };
                 if (!isFrameNode(node) || node.metadata?.frame?.collapsed) return resized;
                 return { ...resized, metadata: { ...resized.metadata, frame: { collapsed: false, expandedWidth: width, expandedHeight: height } } };
             });

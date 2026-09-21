@@ -385,6 +385,8 @@ export type CanvasNodeMetadata = {
     mediaConversion?: MediaConversionNodeState;
     /** 用户手动拉伸过尺寸；图片按真实比例自动适配时避让它。 */
     manualSize?: boolean;
+    /** 手动 resize 伴随标记（handleNodeResize 写入）：与 manualSize 成对出现，用于与扩图 manualSize 合同区分。 */
+    userResized?: boolean;
     storyboard?: StoryboardData;
     storyboardShotDuration?: StoryboardShotDuration;
     storyboardShotCount?: StoryboardShotCount;

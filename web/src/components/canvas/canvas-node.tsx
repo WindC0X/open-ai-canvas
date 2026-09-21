@@ -310,9 +310,13 @@ export const CanvasNode = React.memo(function CanvasNode({
     // 节点有自己的输入面或无提示词语义, 连接参考节点后 metadata.prompt/composerContent 被上游链填充,
     // hover 信息态会把无关注入文本当成提示词展示——flora 该语法只服务媒体生成节点。
     // 扩图结果节点不显示内部 composer: 扩图是画幅延展产物, 内部提示词覆层无再编辑意义(用户 2026-09-21)。
-    // 判据两条: 新节点带 edit:"outpaint" 占位标记; 历史节点无该标记, 用 generationType:edit+manualSize
-    // 指纹回退(该组合仅扩图占位写入——图生图/局部重绘占位均无 manualSize, 宫格子节点无 generationType)。
-    const isOutpaintResult = data.metadata?.edit === "outpaint" || (data.metadata?.generationType === "edit" && data.metadata?.manualSize === true);
+    // 判据两条: 新节点带 edit:"outpaint" 占位标记(精确); 历史扩图节点无该标记, 用 generationType:edit+manualSize
+    // 指纹回退。manualSize 同时被手动 resize 写入(use-canvas-node-editor), 那条路径同步写 userResized:true,
+    // 指纹据此排除 —— 否则"图生图结果(带 generationType:edit)+用户拉框"会误丢 composer(review 2026-09-21)。
+    // 已知残留: 本修复之前已手动拉过的图生图结果节点无 userResized 标记, 仍会误丢(pending-test 已登记)。
+    const isOutpaintResult =
+        data.metadata?.edit === "outpaint" ||
+        (data.metadata?.generationType === "edit" && data.metadata?.manualSize === true && data.metadata?.userResized !== true);
     const hoverComposerNodeType = (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video) && !isOutpaintResult;
     const hoverComposerVisible = hoverComposerNodeType && hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
 
