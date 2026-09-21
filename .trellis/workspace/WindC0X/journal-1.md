@@ -268,3 +268,15 @@
 **请求明细"少账"根因（2026-09-21 01:0x）**：用户报明细停在 23:56:07 强刷无效——实为后端 bug 非前端/缓存：api_call_logs 列以 mattn 驱动本地时区字符串落盘（"+08:00"后缀），normalizeAnalyticsFilter 的 From/To 是 UTC time.Time，mattn 绑定输出 "+00:00" 后缀字符串，SQLite 字典序比较下 to="2026-09-21 00:00:00+00:00" 恰好卡在本地 9/21 00:00-00:11 之间，把本地 9/21 00:00 后记录整批排除（实测 API total=475 vs 表内 484 非 download，差 9 条=9/21 00:11-00:34 全部）。修复=filter 转 .Local() 同格式比较（commit 待查号）。教训：①多实例环境（A线3000/8081、B线3001/8181、F-06 172.24.183.185:8080）先分清数据源再下结论——本轮把 B 线/主线/本地栈混为一谈绕了三大圈；②cookie 同名互踢（3000/3001 同 host 不分端口共享 open_ai_canvas_session）是用户"一天登 800 回"的根因，修法=给 B 线配 CANVAS_SESSION_COOKIE_NAME（auth.go:25 原生支持），待用户拍板接线；③8081 重启后才生效，留给用户操作。
 
 **图片生成/扩图四连反馈（2026-09-21 09:3x）**：①auto 参数 1:1 结果节点比同图小一号——task-sync:146 回写 bounds 在 auto 时取占位框（旧比例），把 1:1 输出钳小；修=auto 时 bounds 改全局标准 imageConfig，结果按输出 fit（显式比例行为不变）。②扩图结果外圈黑圈+半透明——定性=上游 gpt-image-2 对 edits 端点输出自带透明 alpha 通道（PNG），feathered mask 是上游生成特性非前端渲染缺陷；canvas-node-content 的 img object-contain 不加底色，透明区域透出深色画布底即"黑圈"观感；不修（上游语义，且"叠在原图上查看重合"恰好可用）；若要白底/棋盘格占位是独立 UI 决策。③扩图结果节点内部 composer 去除——hoverComposerNodeType 门控补 metadata.edit !== "outpaint"，types/canvas.ts 补 edit?: "outpaint"|"mask" 正式声明。④用户顺带确认 auto 占位合同修复生效（占位保持生成前比例 ✓）。commit e46780ce。tsc 0/相关测试绿/build 47.6s/vite 探针 1。
+
+## 2026-09-21 扩图结果内部 composer 消除（两轮）
+
+用户指出扩图结果节点 hover 仍有内部 composer。第一轮修复（e46780ce）写错链路：`edit: "outpaint"` 写进任务提交 metadata（落 task.inputJson），但门控 `canvas-node.tsx:313` 读节点 metadata——任务回写链 `completedTaskMetadata()`（canvas-generation-task-sync.ts:304）只透传簿记字段不透传 inputJson.metadata，门控从未命中。tsc 通过掩盖了数据流断裂，验证止步编译未走运行时链。
+
+第二轮修正（ab0a627f + 43b26edc）：
+1. 占位链真写：`use-canvas-media-tools.ts:889` 扩图占位节点 metadata 写入 `edit: "outpaint"`，随占位进结果节点（回写靠 `...node.metadata` 保留字段）。
+2. 历史节点指纹回退：存量扩图节点无 edit 标记，用 `generationType === "edit" && manualSize === true` 组合判别——该组合仅扩图占位写入（图生图/局部重绘占位无 manualSize，宫格子节点无 generationType），不迁移旧数据即覆盖。
+
+教训沉淀：改"标记驱动"的门控前必须画清三条链（写入链→存储→读取链）确认合流点；类型补声明会让 tsc 通过一个运行时永远为空的字段。
+
+另：透明扩图（alpha 渐隐）定性为上游 gpt-image-2 模型行为，B 线 gpt-image-2.5 同链路内容实——建议用户换渠道模型验证，未改代码。
