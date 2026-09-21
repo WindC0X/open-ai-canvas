@@ -15,7 +15,12 @@ import { CanvasNodeType, type CanvasGenerationMode, type CanvasNodeData, type Ca
 export function generationTaskInput(task: GenerationTask) {
     if (!task.inputJson) return null;
     try {
-        return JSON.parse(task.inputJson) as { mode?: CanvasGenerationMode; metadata?: { nodeId?: string; sourceNodeId?: string; domainProjectId?: string }; prompt?: string };
+        return JSON.parse(task.inputJson) as {
+            mode?: CanvasGenerationMode;
+            metadata?: { nodeId?: string; sourceNodeId?: string; domainProjectId?: string };
+            prompt?: string;
+            config?: { size?: string };
+        };
     } catch {
         return null;
     }
@@ -156,13 +161,25 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
             node.metadata?.generationType === "edit" && (node.metadata?.manualSize || !requestedImageSize)
                 ? { width: node.width || imageConfig.width, height: node.height || imageConfig.height }
                 : fitNodeSize(resultWidth, resultHeight, imageSizeBounds.width, imageSizeBounds.height);
+        // 扩图合同（manualSize）回写链也重算画幅偏差角标：此前只在直连成功路径计算，
+        // hydrate/任务中心重试回写后角标静默丢失（review 2026-09-21 P3）。提交尺寸取任务
+        // input.config.size（WxH 串）；解析失败或非扩图节点不写角标。
+        const submittedSize = (() => {
+            if (!(node.metadata?.generationType === "edit" && node.metadata?.manualSize)) return undefined;
+            const raw = generationTaskInput(task)?.config?.size;
+            if (!raw) return undefined;
+            const [w, h] = raw.split("x").map(Number);
+            return w > 0 && h > 0 ? { width: w, height: h } : undefined;
+        })();
+        const ratioDrift = submittedSize ? Math.abs(Math.log((uploaded.width / uploaded.height) / (submittedSize.width / submittedSize.height))) : 0;
+        const sizeMismatch = submittedSize && ratioDrift > 0.02 ? { submitted: `${submittedSize.width}x${submittedSize.height}`, actual: `${uploaded.width}x${uploaded.height}` } : undefined;
         return {
             ...node,
             type: CanvasNodeType.Image,
             width: imageSize.width,
             height: imageSize.height,
             position: { x: node.position.x + node.width / 2 - imageSize.width / 2, y: node.position.y + node.height / 2 - imageSize.height / 2 },
-            metadata: applyGeneratedMediaResultMetadata(node, imageMetadata(normalizedImage), { prompt, ...completedTaskMetadata(task) }),
+            metadata: applyGeneratedMediaResultMetadata(node, imageMetadata(normalizedImage), { prompt, ...completedTaskMetadata(task), ...(sizeMismatch ? { outpaintSizeMismatch: sizeMismatch } : { outpaintSizeMismatch: undefined }) }),
         };
     }
 

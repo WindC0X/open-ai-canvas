@@ -145,6 +145,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     // viewport 跟随 / 拖图松手后的末帧位置修正都被 360ms 动画放大 = 框游动与回弹。
     const [expanding, setExpanding] = useState(false);
     const expandingTimerRef = useRef<number | null>(null);
+    // 卸载清理（review 2026-09-21 P3）：节点删除/✕ 关闭后 420ms 定时器不再触发。
+    useEffect(() => () => {
+        if (expandingTimerRef.current) window.clearTimeout(expandingTimerRef.current);
+    }, []);
     const startExpandAnimation = useCallback(() => {
         setExpanding(true);
         if (expandingTimerRef.current) window.clearTimeout(expandingTimerRef.current);
@@ -716,9 +720,16 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             prompt: prompt.trim(),
             // 提交 size = snap 后 preset 精确像素，合成按占比缩放原图（padImageToDataUrl target 模式）。
             submitTarget: snapped ? { width: snapped.width, height: snapped.height } : undefined,
-            generationConfig: { model, size: `${widthPx}x${heightPx}`, quality: submitQuality, count: String(count) },
+            generationConfig: {
+                model,
+                // aspect_ratio 制模型只认枚举比值串，WxH 像素串必被 admission 拒（review 2026-09-21 P2：
+                // submitSize 之前算而不用）；size 制模型维持精确像素 WxH。
+                size: sizeParameter === "aspect_ratio" ? submitSize : `${widthPx}x${heightPx}`,
+                quality: submitQuality,
+                count: String(count),
+            },
         });
-    }, [canExecute, contentHeight, contentWidth, count, layoutSize.height, layoutSize.width, model, node, onExecute, padding, resolveOutpaintSubmitTarget, prompt, submitQuality]);
+    }, [canExecute, contentHeight, contentWidth, count, layoutSize.height, layoutSize.width, model, node, onExecute, padding, resolveOutpaintSubmitTarget, prompt, submitQuality, sizeParameter, submitSize]);
 
     if (!node) return null;
 

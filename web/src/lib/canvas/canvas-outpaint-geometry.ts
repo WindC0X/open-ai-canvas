@@ -250,7 +250,11 @@ const RATIO_VALUE_MAP: Record<string, number> = { "1:1": 1, "4:3": 4 / 3, "3:4":
 export function parseRatioValue(value: string): number | null {
     const parts = value.split(":").map((item) => Number(item));
     if (parts.length === 2 && parts.every((item) => Number.isFinite(item) && item > 0)) return parts[0] / parts[1];
-    return RATIO_VALUE_MAP[value] ?? null;
+    if (RATIO_VALUE_MAP[value] !== undefined) return RATIO_VALUE_MAP[value];
+    // 小数比值（"1.5"）：后端 cloudAgentOutpaintRatioValue 已接受该形式，
+    // 两条 agent 链同一输入需同语义（review 2026-09-21 P3：此前前端返回 null 静默回落 96px）。
+    const decimal = Number(value);
+    return Number.isFinite(decimal) && decimal > 0 ? decimal : null;
 }
 
 // 拖动图片 = 扩图框内重定位（用户裁定 2026-09-19）：框不跟拖，仅四边 padding 相互转移。

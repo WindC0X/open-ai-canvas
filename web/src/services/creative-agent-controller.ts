@@ -447,6 +447,11 @@ export class CreativeAgentController {
                 if (!sourceNode?.metadata?.content) throw new Error("扩图源图缺少图片内容，无法合成补边底图");
                 const contentWidth = Number(sourceNode.metadata?.naturalWidth) || sourceNode.width;
                 const contentHeight = Number(sourceNode.metadata?.naturalHeight) || sourceNode.height;
+                // ratio 声明了却解析失败 → 拒绝而非静默回落 96px：模型承诺的目标画幅与实际产出无关且无提示
+                // 是越界值应拒绝语义（review 2026-09-21 P2）。小数比值 "1.5" 已由 parseRatioValue 兼容。
+                if (item.outpaint?.ratio && !parseRatioValue(item.outpaint.ratio)) {
+                    throw new Error(`扩图比例无法解析：${item.outpaint.ratio}（支持 "宽:高" 或小数比值）`);
+                }
                 const ratio = item.outpaint?.ratio ? parseRatioValue(item.outpaint.ratio) : null;
                 const paddingPx = item.outpaint?.paddingPx ?? (ratio ? resolveOutpaintPaddingForRatio({ nodeWidth: contentWidth, nodeHeight: contentHeight, ratio, basePadding: { left: 96, top: 96, right: 96, bottom: 96 } }) : { left: 96, top: 96, right: 96, bottom: 96 });
                 const maskSupported = Boolean(modelCapabilityConfigFor(config, item.model).image?.references?.maskSupported);

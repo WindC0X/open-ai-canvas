@@ -112,6 +112,7 @@ export function useCanvasMediaTools({
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
     const extractingVideoFramesNodeIdRef = useRef<string | null>(null);
     const mergeVideoRunningRef = useRef(false);
+    const outpaintInFlightRef = useRef(false);
     const [cropNodeId, setCropNodeId] = useState<string | null>(null);
     const [annotationNodeId, setAnnotationNodeId] = useState<string | null>(null);
     const [maskEditNodeId, setMaskEditNodeId] = useState<string | null>(null);
@@ -805,7 +806,7 @@ export function useCanvasMediaTools({
         }
     }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, nodesRef, persistMediaNodes, projectId, resolveImageEditStyle, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
 
-    const outpaintImageNode = useCallback(async (node: CanvasNodeData, payload: CanvasImageOutpaintPayload) => {
+    const executeOutpaintImageNode = useCallback(async (node: CanvasNodeData, payload: CanvasImageOutpaintPayload) => {
         if (!node.metadata?.content) return;
         const baseGenerationConfig = buildGenerationConfig(effectiveConfig, node, "image");
         const selectedModel = payload.generationConfig?.model || payload.generationConfig?.imageModel || baseGenerationConfig.model;
@@ -840,11 +841,39 @@ export function useCanvasMediaTools({
             ? `将画面自然向外延展，保持原图主体、构图与光照完全不变，仅生成透明新增区域的内容。${userPrompt}`
             : `将画面自然向外延展至底图的完整画幅，保持原图主体、构图与光照完全不变，仅在四周白色空白区域生成协调的新内容，原图区域一个像素都不要改动。${userPrompt}`;
         // 锁定档位（submitTarget）时合成图尺寸 = preset 精确像素、原图按占比缩放（扩空间信息而非像素尺寸）。
-        const { source: paddedSource, mask: maskDataUrl } = await buildOutpaintSubmitVariants(node.metadata.content, payload.paddingPx, maskSupported, { target: payload.submitTarget });
+        // 前置 await 包 try 上抛：此前在 try 块之外，解码失败/上传失败被调用方 void 吞成 unhandled
+        // rejection —— 无提示、扩图聚焦态卡死（review 2026-09-21 P2）。
+        let paddedSource: string;
+        let maskDataUrl: string | undefined;
+        try {
+            const variants = await buildOutpaintSubmitVariants(node.metadata.content, payload.paddingPx, maskSupported, { target: payload.submitTarget });
+            paddedSource = variants.source;
+            maskDataUrl = variants.mask;
+        } catch (cause) {
+            setOutpaintNodeId(null);
+            message.error(cause instanceof Error ? cause.message : "扩图底图合成失败");
+            return;
+        }
         // pad 底图物化为 resource 后再引用：不带 storageKey 的纯 dataUrl 会被 buildImageGenerationMetadata
         // 的 referenceUrl 丢弃（只留 storageKey/url），重试链 resolveMetadataReferences 拿不到底图 →
         // 「参考图片已丢失」。先上传后引用不会退化回原图：storageKey 指向的就是 pad 后白边图。
-        const paddedUpload = await uploadImage(paddedSource);
+        let paddedUpload: Awaited<ReturnType<typeof uploadImage>>;
+        try {
+            paddedUpload = await uploadImage(paddedSource);
+        } catch (cause) {
+            setOutpaintNodeId(null);
+            message.error("扩图底图上传失败，请重试");
+            console.warn("[outpaint] pad upload failed", cause);
+            return;
+        }
+        // mask 同步物化为 resource：重试链从 metadata 恢复 mask（此前 mask 只活在提交闭包，
+        // 任务中心重试降级成无蒙版整图编辑，语义静默丢失 — review 2026-09-21 P2）。
+        let maskUpload: Awaited<ReturnType<typeof uploadImage>> | null = null;
+        try {
+            maskUpload = maskDataUrl ? await uploadImage(maskDataUrl) : null;
+        } catch (cause) {
+            console.warn("[outpaint] mask upload failed; retry will degrade", cause);
+        }
         const source = { id: node.id, name: `outpaint-${node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: paddedSource, storageKey: paddedUpload.storageKey };
         const styleExecution = resolveImageEditStyle(node, prompt, generationConfig);
         if (!styleExecution) return;
@@ -888,6 +917,8 @@ export function useCanvasMediaTools({
                 // edit 标记跟随占位进入结果节点：前端据此隐藏扩图结果的内部 composer（2026-09-21）。
                 edit: "outpaint",
                 manualSize: true,
+                // mask 物化引用：重试链从 metadata 恢复蒙版，语义不降级（review 2026-09-21）。
+                outpaintMaskStorageKey: maskUpload?.storageKey,
             },
         };
         const childNodes: CanvasNodeData[] = childIds.map((id, index) => ({
@@ -903,6 +934,11 @@ export function useCanvasMediaTools({
                 batchRootId: rootId,
                 ...generationMetadata,
                 ...styleMetadata,
+                // 与 root 同源的扩图合同：子节点也占位框不变+composer 门控（review 2026-09-21：
+                // 缺失时 hydrate/任务中心重试路径子节点框跳变、composer 在子节点照常弹出）。
+                edit: "outpaint",
+                manualSize: true,
+                outpaintMaskStorageKey: maskUpload?.storageKey,
             },
         }));
         setRunningNodeId(rootId);
@@ -1154,6 +1190,18 @@ export function useCanvasMediaTools({
             setNodes((current) => current.map((item) => item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: details } } : item));
         } finally { finishGenerationRequest(childId, controller); setRunningNodeId(null); }
     }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, nodesRef, persistMediaNodes, projectId, resolveImageEditStyle, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
+
+    const outpaintImageNode = useCallback(async (node: CanvasNodeData, payload: CanvasImageOutpaintPayload) => {
+        if (!node.metadata?.content) return;
+        // 重入守卫：合成+上传窗口内双击/回车会建两套占位+两笔计费（review 2026-09-21 P2）。
+        if (outpaintInFlightRef.current) return;
+        outpaintInFlightRef.current = true;
+        try {
+            await executeOutpaintImageNode(node, payload);
+        } finally {
+            outpaintInFlightRef.current = false;
+        }
+    }, [executeOutpaintImageNode]);
 
     return {
         angleNodeId,

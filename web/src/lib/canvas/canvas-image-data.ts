@@ -223,9 +223,12 @@ function drawResizeCanvas(source: CanvasImageSource, sourceWidth: number, source
 }
 
 function loadImage(dataUrl: string) {
-    return new Promise<HTMLImageElement>((resolve) => {
+    return new Promise<HTMLImageElement>((resolve, reject) => {
         const image = new Image();
+        // onerror 必须拒绝：原先只挂 onload，畸形 dataURL / 解码失败会让 promise 永久挂起，
+        // 扩图提交链卡死在无提示的 await 上（review 2026-09-21 P2）。
         image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error("图片解码失败，无法合成扩图底图"));
         image.src = dataUrl;
     });
 }
