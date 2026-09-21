@@ -534,8 +534,9 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	// 扩图：恰好 1 张图片参考时，服务端合成 pad 底图 + mask 并物化为资源后替换参考，
 	// 后续路由/校验/计价/执行与 image_to_image 完全同构（输入只有 resource 引用）。
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
-		// 能力预检前置到 prepare（审批计费前）：mask 输入 + 自定义 size 是扩图隐含硬要求，
-		// 不满足时让 LLM 立即换模型，而不是审批后 admission 爆破（review 2026-09-21 P2）。
+		// 能力预检前置到 prepare（合成/上传之前）：mask 输入 + 自定义 size 是扩图隐含硬要求。
+		// 真实增量是省掉不可用模型的 pad/mask 合成与上传白耗，并把错误直接还给 LLM 便于换模型；
+		// admission 在审批前已会拦（不是「审批后爆」——review 2026-09-21 P3 纠正了此前的表述）。
 		spec, capErr := s.cloudAgentOutpaintModelCapability(a)
 		if capErr != nil {
 			return CreateTaskRequest{}, nil, capErr
