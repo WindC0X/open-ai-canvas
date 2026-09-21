@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { agentApprovalMatchesSettings, agentApprovalModel, agentApprovalModelSelection, agentImageApproval } from "../src/lib/canvas/agent-media-approval";
+import { agentApprovalMatchesSettings, agentApprovalModel, agentApprovalModelSelection, agentApprovalSpecLabel, agentImageApproval } from "../src/lib/canvas/agent-media-approval";
 import { createModelChannel, defaultConfig, encodeChannelModel } from "../src/stores/use-config-store";
 
 describe("image generation approval settings", () => {
@@ -20,6 +20,14 @@ describe("image generation approval settings", () => {
         expect(agentApprovalMatchesSettings(args, args)).toBe(true);
         expect(agentApprovalMatchesSettings(args, { ...args, quality: "low" })).toBe(false);
         expect(agentApprovalMatchesSettings(args, { logicalModelId: "other", size: args.size, quality: args.quality })).toBe(false);
+    });
+    it("shows the outpaint ratio as the spec when the frame is resolved from a ratio", () => {
+        const ratioArgs = { ...args, size: "", outpaintRatio: "16:9" };
+        const approval = agentImageApproval({ toolName: "generate_media", arguments: ratioArgs });
+        expect(approval?.outpaintRatio).toBe("16:9");
+        expect(agentApprovalSpecLabel(ratioArgs, approval!)).toBe("16:9");
+        expect(agentApprovalSpecLabel({ ...ratioArgs, size: "1536x864" }, approval!)).toBe("1536x864");
+        expect(agentApprovalSpecLabel({ ...ratioArgs, size: "" }, { ...approval!, outpaintRatio: "" })).toBe("默认");
     });
     it("switches between logical and channel models without retaining the previous selector", () => {
         const cost = { model: "gpt-image-2", capability: "image" as const, billingMode: "fixed_request" as const, unitPriceMicrocredits: 1, priceConfigured: true };

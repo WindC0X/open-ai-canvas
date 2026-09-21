@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { ImageSettingsPanel } from "@/components/image-settings-panel";
 import { ModelPicker } from "@/components/model-picker";
 import type { CanvasTheme } from "@/lib/canvas-theme";
-import { agentApprovalModel, agentApprovalModelSelection, type AgentImageApproval } from "@/lib/canvas/agent-media-approval";
+import { agentApprovalModel, agentApprovalModelSelection, agentApprovalSpecLabel, type AgentImageApproval } from "@/lib/canvas/agent-media-approval";
 import { modelCapabilityConfigFor, normalizeImageValue } from "@/lib/model-capabilities";
 import { resolveCompatibleModel, type ModelRequirements } from "@/lib/model-selection";
 import type { AgentMediaSettings } from "@/services/api/agent";
@@ -45,7 +45,7 @@ export function CanvasAgentImageApprovalSettings({ initial, value, onChange, the
             <ModelPicker config={config} capability="image" value={model} onChange={changeModel} requirements={requirements} variant="creation" fullWidth showOptionPrices placeholder="选择生成模型" popoverClassName="agent-model-picker-popover" />
         </div>
         {model ? <ImageSettingsPanel config={{ ...config, model, imageModel: model, size: settings.size, quality: settings.quality, count: "1" }} onConfigChange={changeOption} theme={theme} showTitle={false} showCount={false} showTransparent={false} className="min-w-0 space-y-3" /> : <p className="text-xs" style={{ color: theme.node.muted }}>当前模型不在可选目录中，可重新选择；提交时将重新校验模型与规格。</p>}
-        <p className="text-xs" style={{ color: theme.node.text }}>本次规格：{settings.size}{settings.quality ? ` · ${settings.quality}` : ""}</p>
+        <p className="text-xs" style={{ color: theme.node.text }}>本次规格：{agentApprovalSpecLabel(settings, initial)}{settings.quality ? ` · ${settings.quality}` : ""}</p>
         <p className="text-xs" style={{ color: theme.node.muted }}>修改仅用于本次生成，费用按最终模型和规格计算。</p>
     </fieldset>;
 }

@@ -1,7 +1,7 @@
 import type { AgentMediaSettings } from "@/services/api/agent";
 import { logicalModelIDForConfig, modelOptionName, resolveModelChannel, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 
-export type AgentImageApproval = AgentMediaSettings & { prompt: string; referenceNodeIds: string[] };
+export type AgentImageApproval = AgentMediaSettings & { prompt: string; referenceNodeIds: string[]; outpaintRatio: string };
 
 export function agentImageApproval(detail: Record<string, unknown>): AgentImageApproval | null {
     const call = detail.call as { function?: { name?: string; arguments?: unknown } } | undefined;
@@ -18,10 +18,17 @@ export function agentImageApproval(detail: Record<string, unknown>): AgentImageA
             quality: typeof args.quality === "string" ? args.quality : "",
             prompt: args.prompt,
             referenceNodeIds: Array.isArray(args.referenceNodeIds) ? args.referenceNodeIds.filter((id: unknown): id is string => typeof id === "string") : [],
+            outpaintRatio: typeof args.outpaintRatio === "string" ? args.outpaintRatio : "",
         };
     } catch {
         return null;
     }
+}
+
+// 规格行回退：扩图走比例档时 size 为空（提交时由服务端按比例解出画幅），
+// 卡片此前显示为空的「本次规格：· auto」。有比例就显示比例，两者都空才回退「默认」（取模型默认规格）。
+export function agentApprovalSpecLabel(settings: AgentMediaSettings, approval: AgentImageApproval): string {
+    return settings.size || approval.outpaintRatio || "默认";
 }
 
 export function agentApprovalModel(config: AiConfig, settings: AgentMediaSettings): string {
