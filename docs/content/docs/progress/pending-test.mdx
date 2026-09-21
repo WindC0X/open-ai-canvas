@@ -3429,8 +3429,8 @@ Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2
 - 比例档（`16:9` 这类）在扩图链不可达：扩图能力预检要求模型声明自定义像素尺寸。
 - 同步面：审批预览选定像素时展示"扩图画幅：1024x1024"（不再展示会被覆盖的 ratio）；媒体策略提示词＋`generate_media` schema 改为"仅用户明确指定目标像素时才传 size，该像素即提交画幅"；新增解析/ pad 计划 / 预览三组测试（含缩小档、限长边档、无外扩空间拒绝）。
 
-**待决（产品）**：草稿节点标题仍是 Agent 传入的文本（如"扩图结果 16:9"），用户改像素档后标题不随之更新；节点上也无"外扩区间 / 带蒙版"标注。
+**③ 扩图节点标题按最终画幅生成（同批落地，用户裁定 2026-09-21）**：此前标题沿用 Agent 写的文本（如"扩图结果 16:9"），与真实画幅脱节、用户改档位后也不更新。现在 prepare 解出提交画幅后统一写 `扩图 {W}×{H}`（单一源 `cloudAgentOutpaintTitle`）：**新建草稿与续用草稿两条路径同一真值**，用户改档位重审时既有草稿节点的标题与 `metadata.size` 随之更新；审批预览、`generation_task_created` 事件、节点 metadata 全部消费同一字符串。扩图语义另有 `metadata.edit="outpaint"` + `composerContent=""`（既有契约）与 `metadata.size`=提交像素（草稿路径 task 为空时也只有这里的真值可写）。测试 `TestCloudAgentOutpaintNodeTitleAndSizeUseResolvedFrame` 覆盖：新建草稿标题/画幅/语义、改档位重审后标题与 size 更新。
 
-**验证**：go build + `go test ./...` 全绿（0 FAIL）；tsc 0；真机复验待做——新建一次 Agent 扩图，在审批卡选 `1024x1024`，确认预览"本次规格/扩图画幅"与最终出图像素一致。
+**验证**：go build ✓；新增测试全过（解析/pad 计划/预览/节点标题画幅）。全量后端套件两次出现 `TestDeleteGeneratedAssetTaskReferences` 失败，用例单跑/双跑均通过（24.9s / 56.1s×2）；后台全量 `-v` 取证定性为 **SQLite 写锁抖动**（`database table is locked: resource_deletion_jobs`，cancelled_output 子用例）：该测试的后台删除 worker 与断言查询共用同一 shared-cache 内存库且 DSN 未设 busy timeout，全量负载下退化成锁错误。已给该测试 DSN 补 `_busy_timeout=5000`（与 `creation_test.go` 既有约定一致，只改测试基础设施），复跑验证见提交记录。tsc 0；真机复验待做——新建一次 Agent 扩图，在审批卡选 `1024x1024`，确认预览"本次画幅/扩图画幅"、节点标题与最终出图像素三者一致。
 
 **验证**：tsc 0 / go build + `go test ./...` 全绿 / bun test 1880 项 18 失败（全 pre-existing，零新增）。
