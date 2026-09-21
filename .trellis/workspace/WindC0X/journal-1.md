@@ -280,3 +280,19 @@
 教训沉淀：改"标记驱动"的门控前必须画清三条链（写入链→存储→读取链）确认合流点；类型补声明会让 tsc 通过一个运行时永远为空的字段。
 
 另：透明扩图（alpha 渐隐）定性为上游 gpt-image-2 模型行为，B 线 gpt-image-2.5 同链路内容实——建议用户换渠道模型验证，未改代码。
+
+## 2026-09-21 双域 review 修复批（扩图+撤销，全部修正）
+
+Review 报告（工作流 4 代理 + 人工复核，OCR 通道失败放弃）后执行"全部修正"，5 批提交（dca4b909 / 3d?→62c3bd67 链）：
+
+1. **扩图前端**（dca4b909）：批量子节点 edit/manualSize 合同、提交 try/重入/onerror、aspect_ratio submitSize、ratio 小数+拒绝、mask 物化重试恢复、mismatch 下沉回写链。
+2. **扩图后端**：40MP 解码上限、配额补三段式、ratio 0.2-5、prepare 能力预检、scale 按轴、snap16 钳 0、预览 size 一致、meta.outpaint→edit、网络分类限引号外。
+3. **撤销后端**：恢复粒度对齐 hash 口径（排除字段移植）、运行中任务节点拒绝删除、非终态禁 undo、appearance 排除、preview 5xx、currentSnapshotHash 改名、账本 200 条有界、死分支注释、mediaContentHash 去重。
+4. **撤销前端**：flush→POST→adopt 同临界区、adopt 失败 discard 哨兵、canvas_undone 无条件刷新+穿透 replayOnly、预检归一、busy 生命周期、removals 活体 basis。
+5. docs/env 登记。
+
+**误报澄清（重要）**：review P1"replayOnly 固化"经核查为误报 —— 后端每轮消息创建新 run ID（handler 注释 "Each additional message starts a new immutable turn and returns its ID"），panel setRun 换 id → 订阅 effect 重跑 → 门控按新 run 状态重算。未实施改动。
+
+**验证**：tsc 0 / build 44s / go vet+build+test ./... 全绿 / bun test 1874 项 19 失败全部 stash 对照实锤 pre-existing（断言漂移×3 + 并行抖动 + 诊断缓冲区基线）。零新增失败。
+
+**教训**：判定"回归"前必须验证协议事实（run ID 生命周期），不能凭代码片段推断。
