@@ -852,3 +852,74 @@ func TestCloudAgentOutpaintCapabilityRejectsProtocolString(t *testing.T) {
 		t.Fatal("渠道模型能力反解未传 capability")
 	}
 }
+
+// 扩图节点标题与 metadata.size 写服务端解出的提交画幅真值（用户裁定 2026-09-21）：
+// 用户在审批卡改档位 → prepare 重新求值 → 草稿节点标题随之更新；草稿路径 task==nil 时
+// config 里还没有 size，只有 plan 的画幅真值可写。
+func TestCloudAgentOutpaintNodeTitleAndSizeUseResolvedFrame(t *testing.T) {
+	s, db, _, _ := creationTestService(t)
+	doc := map[string]any{"nodes": []map[string]any{
+		{"id": "src", "type": "image", "title": "源图", "position": map[string]any{"x": 0.0, "y": 0.0}, "width": 640.0, "metadata": map[string]any{"status": "success", "storageKey": "resource:ref"}},
+	}, "connections": []any{}}
+	raw, _ := json.Marshal(doc)
+	if err := db.Create(&model.CanvasProject{ID: "agent-canvas", UserID: "user", PayloadJSON: string(raw)}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.Resource{ID: "ref", UserID: "user", Kind: "image", Status: "ready", MimeType: "image/png", Width: 640, Height: 480, Size: 50}).Error; err != nil {
+		t.Fatal(err)
+	}
+	policy, err := s.RuntimePolicy()
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := &cloudAgentMediaPlan{
+		Args:           cloudAgentMediaArgs{Mode: "image", Prompt: "向外延展", Title: cloudAgentOutpaintTitle(1024, 1024), SnapshotHash: cloudAgentContentHash(doc), NodeID: "out-1", ReferenceNodeIDs: []string{"src"}, OutpaintRatio: "1:1", DraftRunID: "run-1"},
+		OutpaintFrameW: 1024, OutpaintFrameH: 1024,
+	}
+	if err := createCloudAgentMediaNode(s.repo, "user", "agent-canvas", plan, nil, policy); err != nil {
+		t.Fatal(err)
+	}
+	readNode := func() (string, map[string]any) {
+		canvas, err := s.repo.CanvasProjectForUser("user", "agent-canvas")
+		if err != nil {
+			t.Fatal(err)
+		}
+		updated, err := creationDocument(canvas.PayloadJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nodes, err := creationObjects(updated["nodes"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		node := nodes["out-1"]
+		meta, _ := node["metadata"].(map[string]any)
+		return stringValue(node["title"]), meta
+	}
+	title, meta := readNode()
+	if title != "扩图 1024×1024" {
+		t.Fatalf("扩图节点标题应写最终画幅，got %q", title)
+	}
+	if stringValue(meta["size"]) != "1024x1024" || stringValue(meta["edit"]) != "outpaint" || stringValue(meta["composerContent"]) != "" {
+		t.Fatalf("扩图节点 metadata 应写画幅真值与扩图语义：%+v", meta)
+	}
+
+	// 用户改档位重审：同一草稿节点标题与画幅随新的提交画幅更新。
+	canvas, err := s.repo.CanvasProjectForUser("user", "agent-canvas")
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := creationDocument(canvas.PayloadJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan.Args.Title, plan.Args.SnapshotHash = cloudAgentOutpaintTitle(1536, 1024), cloudAgentContentHash(updated)
+	plan.OutpaintFrameW, plan.OutpaintFrameH = 1536, 1024
+	if err := createCloudAgentMediaNode(s.repo, "user", "agent-canvas", plan, nil, policy); err != nil {
+		t.Fatal(err)
+	}
+	title, meta = readNode()
+	if title != "扩图 1536×1024" || stringValue(meta["size"]) != "1536x1024" {
+		t.Fatalf("改档位后标题/画幅应随之更新：title=%q size=%v", title, meta["size"])
+	}
+}

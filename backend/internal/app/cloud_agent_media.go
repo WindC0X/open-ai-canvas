@@ -107,6 +107,10 @@ type cloudAgentMediaArgs struct {
 type cloudAgentMediaPlan struct {
 	Args   cloudAgentMediaArgs
 	CallID string
+	// 扩图提交画幅（pad 合成后的精确像素，prepare 阶段解出）。扩图节点标题与 metadata.size
+	// 必须写这个真值：Agent 传的 ratio、用户在审批卡选的原始档位都可能在服务端被对齐/收缩。
+	OutpaintFrameW int
+	OutpaintFrameH int
 }
 
 // A resumed draft's incoming edges must describe the new approved inputs,
@@ -477,6 +481,12 @@ func (s *Service) fillCloudAgentMediaSnapshotHash(userID, canvasID string, a *cl
 	return nil
 }
 
+// cloudAgentOutpaintTitle 扩图节点标题：按最终提交画幅生成（用户裁定 2026-09-21）。
+// 单一源——prepare 写 args.Title，节点创建/审批预览都消费同一个字符串。
+func cloudAgentOutpaintTitle(width, height int) string {
+	return fmt.Sprintf("扩图 %d×%d", width, height)
+}
+
 func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *cloudAgentRuntime, call cloudAgentCall) (CreateTaskRequest, *cloudAgentMediaPlan, error) {
 	var a cloudAgentMediaArgs
 	if err := decodeCloudAgentJSONObject(call.Function.Arguments, &a); err != nil {
@@ -531,6 +541,8 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	if err := validateCloudAgentMediaReferences(a.Mode, refs); err != nil {
 		return CreateTaskRequest{}, nil, err
 	}
+	// 扩图提交画幅（prepare 解出后写进 plan，节点标题/metadata 用真值）。
+	outpaintFrameW, outpaintFrameH := 0, 0
 	// 扩图：恰好 1 张图片参考时，服务端合成 pad 底图 + mask 并物化为资源后替换参考，
 	// 后续路由/校验/计价/执行与 image_to_image 完全同构（输入只有 resource 引用）。
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
@@ -553,6 +565,10 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 		if cfg, ok := input["config"].(map[string]any); ok {
 			cfg["size"] = fmt.Sprintf("%dx%d", targetW, targetH)
 		}
+		outpaintFrameW, outpaintFrameH = targetW, targetH
+		// 标题按最终画幅生成（用户裁定 2026-09-21）：扩图节点一眼可辨画幅，用户在审批卡改档位
+		// 后标题随 prepare 重新求值而更新；此前沿用 Agent 写的 "扩图结果 16:9"，与真实画幅脱节。
+		a.Title = cloudAgentOutpaintTitle(targetW, targetH)
 	}
 	operation := cloudAgentMediaOperation(a.Mode, input)
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
@@ -566,7 +582,7 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 		metadata["videoEditOperation"] = operation
 	}
 	input["metadata"] = metadata
-	return CreateTaskRequest{ProjectID: state.Request.CanvasID, Type: "canvas_" + a.Mode, Operation: operation, Prompt: a.Prompt, LogicalModelID: a.LogicalModelID, Model: a.ChannelModelKey, Input: input}, &cloudAgentMediaPlan{Args: a, CallID: call.ID}, nil
+	return CreateTaskRequest{ProjectID: state.Request.CanvasID, Type: "canvas_" + a.Mode, Operation: operation, Prompt: a.Prompt, LogicalModelID: a.LogicalModelID, Model: a.ChannelModelKey, Input: input}, &cloudAgentMediaPlan{Args: a, CallID: call.ID, OutpaintFrameW: outpaintFrameW, OutpaintFrameH: outpaintFrameH}, nil
 }
 
 func saveCloudAgentDocument(repo *repository.Repository, canvas *model.CanvasProject, doc map[string]any, policy RuntimePolicySetting) error {
@@ -620,8 +636,12 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
 		meta["composerContent"] = ""
 		meta["edit"] = "outpaint"
+		// 画幅写服务端解出的提交像素（草稿路径 task==nil 时 config 还没有 size，只有这里能写对）。
+		if plan.OutpaintFrameW > 0 && plan.OutpaintFrameH > 0 {
+			meta["size"] = fmt.Sprintf("%dx%d", plan.OutpaintFrameW, plan.OutpaintFrameH)
+		}
 	}
-	if a.Size != "" && (a.Mode == "image" || a.Mode == "video") {
+	if a.Size != "" && (a.Mode == "image" || a.Mode == "video") && meta["size"] == nil {
 		meta["size"] = a.Size
 	}
 	if a.Mode == "video" {
