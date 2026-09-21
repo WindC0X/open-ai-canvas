@@ -3358,3 +3358,20 @@ Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2
 **误报澄清**：review 的"replayOnly 固化丢弃续聊轮画布增量"经代码核查为误报——后端每轮消息创建**新 run ID**（`Each additional message starts a new immutable turn and returns its ID`），panel `setRun` 换 id 触发订阅 effect 重跑，门控按新 run 状态重算；未为此实施改动。
 
 **待真机**：① 既有扩图结果节点打开画布无跳框、无内部 composer；② 续聊一轮 Agent 画布写入落画布；③ 撤销后切标签页/多端打开时画布对齐回滚态；④ 撤销期间编辑不丢失（临界区内）；⑤ 极端比例（如 1e9:1）被拒文案。
+
+## 媒体节点尺寸标准统一：同比例同一尺寸（2026-09-21，待真机复验）
+
+**用户实测现象**：auto 参数生成的 1:1 图（1254×1254）在画布上比扩图占位 1:1 小——真机 DOM 反解 zoom≈1.1595 后实锤：生成结果 420×420、扩图占位 520×520（两个未拉动节点均 487 px=420 单位，占位 603 px=520 单位）。
+
+**根因**：全仓媒体尺寸规则共有六条链，其中五条用 **fitNodeSize 全局边界（720×520 上限 + 420×236 地板）**——上传、宫格拆分、图片 hydrate 自然尺寸、视频完成、扩图占位；唯独「比例→尺寸」基准 (`nodeSizeFromRatio` 的 base) 在图片链用 `NODE_DEFAULT_SIZE.Image = 720×405`（16:9 默认盒）。1:1 比例被 405 高钳住后落到 420 最小宽度地板 → 420×420，与占位 520×520 差 24% 线性尺寸。`e46780ce`（同日早间）把 auto 回写从「占位框」改为「默认盒」后仍是 405 高边界，故残留。
+
+**修复**（单一标准盒 `MEDIA_NODE_MAX_SIZE = {720,520}`，`VIDEO_NODE_MAX_SIZE` 改为同源别名）：
+- 比例基准改媒体标准盒：`canvas-image-generation-executor`（生成占位框）、`canvas-generation-task-sync`（回写目标框）、`canvas-project-domain.applyNodeConfigPatch`（空节点选比例）、`canvas-project-generation.mediaNodeInitialSize`（渠道默认比例建框）。
+- 完成回写 `buildGenerationTaskNodeResult`：非人工尺寸节点改用**全局标准 fit**（原先传默认盒边界）；人工尺寸合同链扩展为 `manualSize || freeResize || userResized || (edit && auto)` 一律保持现框——用户拉过的框不再被回写重置（与 hydrate 定尺寸守卫同源）。
+- 契约测试 `canvas-media-standard-size.test.ts`：1:1 → 520×520（1254 与 1568 目标像素同尺寸）、16:9 → 720×405 不变、9:16 地板不变；`canvas-media-node-initial-size.test.ts` 的 420 锚点更新为 520。
+
+**影响面**：1:1 及 4:3/5:4 等「比 16:9 窄、非竖版」比例的新生成/新选择节点会变大（16:9 与竖版不变）；已有节点尺寸不回改。视频链因基准同源一并统一。
+
+**验证**：tsc 0 / build 64s / bun test 1879 项 18 失败（全部为已实锤 pre-existing：诊断缓冲区基线 + 3 项 stash 对照断言漂移 + 并行抖动，零新增）。
+
+**待真机**：① 新生成 auto 1:1 结果节点 = 520×520，与扩图占位同尺寸；② 生成中占位框 → 结果落位无跳变（显式 1:1 路径）；③ 用户手动拉过尺寸的节点再生成时框保持不变；④ 16:9 节点尺寸无变化。
