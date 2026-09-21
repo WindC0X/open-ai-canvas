@@ -615,18 +615,52 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 	}
 	beforeJSON := canvas.PayloadJSON
 	beforeHash := cloudAgentCanvasHash(doc)
+	descriptor, supported := cloudAgentNodeCapabilityForGenerationMode(a.Mode)
+	if !supported || !cloudAgentGenerationModeSupported(a.Mode) {
+		return BadAuthRequest("生成模式当前不受 Agent 支持")
+	}
 	nodes := creationMaps(doc["nodes"])
-	x, y := 80.0, 80.0
-	for _, node := range nodes {
-		position, _ := node["position"].(map[string]any)
-		nx, _ := position["x"].(float64)
-		width, _ := node["width"].(float64)
-		if nx+width+80 > x {
-			x = nx + width + 80
+	// 媒体节点必须贴住引用源节点（真机 2026-09-21 用户实测「隔了八百里」）：媒体调用按语义把源节点
+	// 放在 referenceNodeIds、sourceNodeId 留空，旧逻辑只认 SourceNodeID 取 y → 锚点永不命中，草稿落到
+	// 默认 (80,80)；源节点在世界坐标 (-7740,15644) 时参考连线跨 1.5 万 px，画布被迫缩到 5%。
+	// 这里与审批预览的落位同口径（锚点右侧 +96、与锚点顶部对齐、目标位被占时向下让位），
+	// 保证「预览一处、落位一处」；只有完全没有引用对端时才回退包围盒右侧新列。
+	peers := append(append([]string{}, a.ReferenceNodeIDs...), a.SourceNodeID)
+	x, y := 0.0, 0.0
+	if anchor, ok := cloudAgentPlacementAnchor(peers, cloudAgentPlacementNodes(nodes), nil); ok {
+		x = anchor.x + anchor.width + 96.0
+		y = anchor.y
+		// 目标位已被其它节点占用时才向下让位（与审批预览同语义；源节点在锚点左侧、不会自判碰撞）。
+		width, height := cloudAgentNodeDefaultWidth(descriptor.Type), cloudAgentNodeDefaultHeight(descriptor.Type)
+		for pass := 0; pass <= len(nodes); pass++ {
+			bottom := 0.0
+			for _, node := range nodes {
+				position, _ := node["position"].(map[string]any)
+				nx, _ := position["x"].(float64)
+				ny, _ := position["y"].(float64)
+				nw, _ := node["width"].(float64)
+				nh, _ := node["height"].(float64)
+				if nw <= 0 {
+					nw = 384.0
+				}
+				if nh <= 0 {
+					nh = 384.0
+				}
+				if nx+nw <= x || nx >= x+width || ny+nh <= y || ny >= y+height {
+					continue
+				}
+				if next := ny + nh + 100.0; next > bottom {
+					bottom = next
+				}
+			}
+			if bottom == 0 {
+				break
+			}
+			y = bottom
 		}
-		if stringValue(node["id"]) == a.SourceNodeID {
-			y, _ = position["y"].(float64)
-		}
+	} else {
+		x = cloudAgentNodesBounds(nodes).maxX + 120.0
+		y = cloudAgentColumnStartY(nodes, x)
 	}
 	meta := map[string]any{"status": "idle", "agentDraftRunId": a.DraftRunID, "prompt": a.Prompt, "composerContent": a.Prompt, "referenceNodeIds": a.ReferenceNodeIDs}
 	// 扩图任务封装语义（用户反馈 2026-09-19）：LLM 生成的扩图提示词只留 prompt 供重试/审计，
@@ -681,10 +715,6 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 		meta["logicalModelId"] = a.LogicalModelID
 	} else {
 		meta["channelId"], meta["channelModelKey"], meta["model"] = a.ChannelID, a.ChannelModelKey, a.ChannelModelKey
-	}
-	descriptor, supported := cloudAgentNodeCapabilityForGenerationMode(a.Mode)
-	if !supported || !cloudAgentGenerationModeSupported(a.Mode) {
-		return BadAuthRequest("生成模式当前不受 Agent 支持")
 	}
 	node := creationAddedNode(CreationCanvasOp{Type: "add_node", ID: a.NodeID, NodeType: descriptor.Type, Title: a.Title, X: &x, Y: &y, Metadata: meta})
 	if a.Size == "9:16" {

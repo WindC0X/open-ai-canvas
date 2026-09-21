@@ -923,3 +923,72 @@ func TestCloudAgentOutpaintNodeTitleAndSizeUseResolvedFrame(t *testing.T) {
 		t.Fatalf("改档位后标题/画幅应随之更新：title=%q size=%v", title, meta["size"])
 	}
 }
+
+// 媒体节点落位必须锚定引用源节点（用户真机 2026-09-21「隔了八百里」）：
+// 源节点在世界坐标 (-7740,15644) 时，旧的「只认 SourceNodeID」逻辑锚点永不命中（媒体调用把源节点
+// 放在 referenceNodeIds），草稿落到默认 (80,80)，参考连线跨 1.5 万 px，画布被迫缩到 5%。
+func TestCloudAgentMediaNodeAnchorsToReferenceSource(t *testing.T) {
+	s, db, _, _ := creationTestService(t)
+	doc := map[string]any{"nodes": []map[string]any{
+		{"id": "src", "type": "image", "title": "源图", "position": map[string]any{"x": -7740.0, "y": 15644.0}, "width": 420.0, "height": 560.0, "metadata": map[string]any{"status": "success", "storageKey": "resource:ref"}},
+	}, "connections": []any{}}
+	raw, _ := json.Marshal(doc)
+	if err := db.Create(&model.CanvasProject{ID: "agent-canvas", UserID: "user", PayloadJSON: string(raw)}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.Resource{ID: "ref", UserID: "user", Kind: "image", Status: "ready", MimeType: "image/png", Width: 640, Height: 480, Size: 50}).Error; err != nil {
+		t.Fatal(err)
+	}
+	policy, err := s.RuntimePolicy()
+	if err != nil {
+		t.Fatal(err)
+	}
+	readNode := func(id string) (float64, float64, float64) {
+		canvas, err := s.repo.CanvasProjectForUser("user", "agent-canvas")
+		if err != nil {
+			t.Fatal(err)
+		}
+		updated, err := creationDocument(canvas.PayloadJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nodes, err := creationObjects(updated["nodes"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		position, _ := nodes[id]["position"].(map[string]any)
+		x, _ := position["x"].(float64)
+		y, _ := position["y"].(float64)
+		height, _ := nodes[id]["height"].(float64)
+		return x, y, height
+	}
+	create := func(nodeID string) {
+		canvas, err := s.repo.CanvasProjectForUser("user", "agent-canvas")
+		if err != nil {
+			t.Fatal(err)
+		}
+		updated, err := creationDocument(canvas.PayloadJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan := &cloudAgentMediaPlan{
+			Args:           cloudAgentMediaArgs{Mode: "image", Prompt: "向外延展", Title: cloudAgentOutpaintTitle(1024, 1024), SnapshotHash: cloudAgentContentHash(updated), NodeID: nodeID, ReferenceNodeIDs: []string{"src"}, OutpaintRatio: "1:1", DraftRunID: "run-1"},
+			OutpaintFrameW: 1024, OutpaintFrameH: 1024,
+		}
+		if err := createCloudAgentMediaNode(s.repo, "user", "agent-canvas", plan, nil, policy); err != nil {
+			t.Fatal(err)
+		}
+	}
+	create("out-1")
+	x, y, height := readNode("out-1")
+	// 源节点右侧 (-7740+420+96 = -7224)、与源节点顶部对齐
+	if x != -7224 || y != 15644 {
+		t.Fatalf("媒体节点应贴住引用源节点右侧并对齐顶部，got x=%v y=%v", x, y)
+	}
+	// 同一锚点的第二个节点：目标位被占 → 让到第一个节点下方（高度+100 间距）
+	create("out-2")
+	x, y, _ = readNode("out-2")
+	if x != -7224 || y != 15644+height+100 {
+		t.Fatalf("锚点位被占时应下让到前一节点下方，got x=%v y=%v（前节点高 %v）", x, y, height)
+	}
+}
