@@ -3309,3 +3309,19 @@ Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2
 **已验证**：tsc 0 / build 41s / vite 探针确认新代码下发 / 两 commit 已推 fork（ab0a627f、43b26edc）。
 
 **待用户真机**：刷新后 hover 既有扩图结果节点（历史+新生成各一）确认内部 composer 消失；普通图生图结果节点 composer 不受影响。
+
+## 双域对抗 review 结论（2026-09-21，工作流4代理+人工复核，OCR 通道失败放弃）
+
+扩图域与撤销域各两视角（正确性/安全）。子代理发现经人工复核后的结论：
+
+**已当场修复**：
+1. composer 指纹误伤（P1，人工自查发现）：`manualSize` 也被手动 resize 写入，图生图结果（带 generationType:edit）+ 用户拉框 → 误丢 composer。修复：`handleNodeResize` 成对写 `userResized:true`，门控回退判据排除它（3954dabb）。已知残留：修复前已拉过的历史图生图节点无 userResized 标记，仍会误丢（需真机确认量级）。
+
+**P1（待修，建议下批）**：
+2. 批量(count>1)扩图子节点缺 `edit:"outpaint"/manualSize` 合同（use-canvas-media-tools.ts:900）：hydrate/任务中心重试路径子节点框跳变 + composer 在子节点照常弹出。修复：childNodes metadata 与 root 同源补两字段。
+3. undo 整文档回滚 vs hash 剔除口径矛盾（cloud_agent_undo.go:106）：BeforeJSON 整份恢复会把 chatSessions/背景偏好等被 hash 刻意排除的字段回滚，多标签页/刷新场景用户对话记录永久丢失。修复：恢复时把 current doc 的 hash 排除字段移植进 BeforeJSON。
+4. replayOnly 固化（canvas-cloud-agent-panel.tsx:341，211e4495 引入回归）：续聊复用同一 run ID，effect 不重跑，replayOnly 保持终态 true → 同 run 续聊第二轮所有 canvas_updated 不落画布。修复：回放/实时分界改由订阅层的回放结束信号驱动。
+
+**P2（登记待排期）**：扩图提交前置 await 无 try/catch 无重入防护（慢网双击重复扣费）；aspect_ratio 制模型提交 WxH 像素 size 必被 admission 拒绝（submitSize 是死代码）；后端源图全量解码无像素上限（解压炸弹 ~1GiB/次）+ storeResourceFromBytes 绕过上传配额；ratio 无上限退化为纯白底图仍计费；前端 outpaint.ratio 解析失败静默回落 96px；appearance 漏出 hash 排除集合（切主题误阻断撤销/写入 409）；canvas_undone 刷新兜底在 supportsPatches/replayOnly 两种订阅形态下都失效（多标签页撤销反噬）；adopt 失败后基线分叉无防反噬；undo 可删除已绑运行中任务的节点（付费产出静默丢弃）；undo 未校验 run 终态；preview 吞非 NotFound 错误。
+
+**流程记录**：ocr CLI 双跑均因 glm 通道超时/空输出失败（185 请求 10 败、25/30 组全组超时），放弃该通道；工作流 v2 用 agentRetries:6 打穿（4/4 完成，30M tokens）。
