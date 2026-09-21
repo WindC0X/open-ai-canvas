@@ -509,10 +509,11 @@ func TestDetachedFailedResourceWithoutObjectKeyNeedsNoDeletionJob(t *testing.T) 
 
 func newResourceDeletionTestService(t *testing.T) (*Service, *gorm.DB, string) {
 	t.Helper()
-	// _busy_timeout：删除作业由后台 worker 异步消费，与测试查询共用同一份 shared-cache 内存库；
-	// 不加超时会在全量套件的负载抖动下退化成 "database table is locked: resource_deletion_jobs"
-	// （2026-09-21 全量 -v 取证：cancelled_output 子用例 3.22s 处抖红，单跑/双跑均通过）。
-	db, err := gorm.Open(sqlite.Open("file:"+newID()+"?mode=memory&cache=shared&_busy_timeout=5000"), &gorm.Config{})
+	// 删除作业由后台 worker 异步消费，与测试断言查询并发读写同一张表：shared-cache 内存库在这种
+	// 并发下会抛 SQLITE_LOCKED（"database table is locked: resource_deletion_jobs"，busy_timeout
+	// 对它无效），全量套件负载抖动时稳定复现（2026-09-21 后台全量 -v 取证：cancelled_output 子用例
+	// 3.22s 处抖红，单跑/双跑均通过）。改用临时文件库 + WAL + busy_timeout（与 creation_test.go 同约定）。
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "resource-delete.db")+"?_journal_mode=WAL&_busy_timeout=5000"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
