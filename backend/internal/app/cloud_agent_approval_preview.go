@@ -93,20 +93,40 @@ func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloud
 	// Agent 新增节点由服务端统一落位(2026-09-19 用户实测: 模型自报 x/y 落在画布原点角落且不带尺寸语义)。
 	// 位置是排版决策不是内容决策: 与其让模型猜坐标, 不如按现有画布包围盒放到右侧空列, 逐个向下排。
 	// 只改写 ops 的 X/Y, preview 与执行共用 creationAddedNode, 两处天然一致; 模型显式 position 语义不再保留。
+	// 落位（2026-09-21 用户实测「偏到娆娆家」）：**优先贴住本批连线的对端节点**（画布约定：
+	// 源节点右侧 +96、与源节点顶部对齐，同锚点的多个新节点逐个下移）；只有当整个批次里
+	// 找不到可依赖的对端时，才回退「全局包围盒右侧空列」——64 节点、13k×33k 的画布里，
+	// 包围盒右上角距用户视野可达数万像素，连线还横跨全图。
 	bounds := cloudAgentNodesBounds(nodes)
-	nextX := bounds.maxX + 120.0
+	fallbackX := bounds.maxX + 120.0
 	// 起始 y 取目标列（新列 x 范围内）已有节点的 max(bottom)，而不是全局 minY（review 2026-09-21 P3：
 	// 目标列附近已有更早放置的节点时，从全局 minY 起会与新节点列横向重叠）。
 	// 无同列节点时回退全局 minY（与原行为一致）。
-	nextY := cloudAgentColumnStartY(nodes, nextX)
+	fallbackY := cloudAgentColumnStartY(nodes, fallbackX)
+	existing := cloudAgentPlacementNodes(nodes)
+	peers := cloudAgentPlacementPeers(ops)
+	placed := make(map[string]cloudAgentPlacementNode, len(ops))
+	anchorNextY := make(map[string]float64, len(ops))
 	for i := range ops {
 		if ops[i].Type != "add_node" {
 			continue
 		}
-		ops[i].X, ops[i].Y = nextX, nextY
-		// 步长=该类型默认高度+100 间距(2026-09-19 review P1): 文本节点默认高度已 384,
-		// 固定 340 步长会让多节点纵向压叠 44px。未知类型回退 384。
-		nextY += cloudAgentNodeDefaultHeight(string(ops[i].NodeType)) + 100.0
+		height := cloudAgentNodeDefaultHeight(string(ops[i].NodeType))
+		if anchor, ok := cloudAgentPlacementAnchor(peers[ops[i].ID], existing, placed); ok {
+			x := anchor.x + anchor.width + 96.0
+			y, seen := anchorNextY[anchor.id]
+			if !seen {
+				y = anchor.y
+			}
+			ops[i].X, ops[i].Y = x, y
+			// 步长=该类型默认高度+100 间距(2026-09-19 review P1): 文本节点默认高度已 384,
+			// 固定 340 步长会让多节点纵向压叠 44px。未知类型回退 384。
+			anchorNextY[anchor.id] = y + height + 100.0
+		} else {
+			ops[i].X, ops[i].Y = fallbackX, fallbackY
+			fallbackY += height + 100.0
+		}
+		placed[ops[i].ID] = cloudAgentPlacementNode{id: ops[i].ID, x: ops[i].X, y: ops[i].Y, width: cloudAgentNodeDefaultWidth(string(ops[i].NodeType))}
 	}
 	items := make([]cloudAgentApprovalPreviewItem, 0, len(ops))
 	for _, op := range ops {
@@ -365,6 +385,82 @@ func cloudAgentNodeDefaultHeight(nodeType string) float64 {
 		return d.DefaultHeight
 	}
 	return 384.0
+}
+
+// cloudAgentNodeDefaultWidth 返回节点类型的默认宽度(链式落位时当锚点几何用), 未知类型回退 384。
+func cloudAgentNodeDefaultWidth(nodeType string) float64 {
+	if d, ok := capability.BuiltinRegistry().Resolve(nodeType); ok && d.DefaultWidth > 0 {
+		return d.DefaultWidth
+	}
+	return 384.0
+}
+
+// cloudAgentPlacementNode 是落位锚点所需的节点几何。
+type cloudAgentPlacementNode struct {
+	id    string
+	x     float64
+	y     float64
+	width float64
+}
+
+// cloudAgentPlacementNodes 抽取现有节点的锚点几何（缺宽回退 384，与包围盒口径一致）。
+func cloudAgentPlacementNodes(nodes []map[string]any) map[string]cloudAgentPlacementNode {
+	result := make(map[string]cloudAgentPlacementNode, len(nodes))
+	for _, node := range nodes {
+		id := stringValue(node["id"])
+		if id == "" {
+			continue
+		}
+		pos, _ := node["position"].(map[string]any)
+		x, _ := pos["x"].(float64)
+		y, _ := pos["y"].(float64)
+		width, _ := node["width"].(float64)
+		if width <= 0 {
+			width = 384
+		}
+		result[id] = cloudAgentPlacementNode{id: id, x: x, y: y, width: width}
+	}
+	return result
+}
+
+// cloudAgentPlacementPeers 收集每个节点的连线对端（双向、去重、按出现顺序）：
+// add_node 的落位锚点从这里找。
+func cloudAgentPlacementPeers(ops []agentCanvasOp) map[string][]string {
+	peers := make(map[string][]string, len(ops))
+	seen := make(map[string]bool, len(ops))
+	add := func(from, to string) {
+		if from == "" || to == "" {
+			return
+		}
+		key := from + "\x00" + to
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		peers[from] = append(peers[from], to)
+	}
+	for _, op := range ops {
+		if op.Type != "connect_nodes" {
+			continue
+		}
+		add(op.FromNodeID, op.ToNodeID)
+		add(op.ToNodeID, op.FromNodeID)
+	}
+	return peers
+}
+
+// cloudAgentPlacementAnchor 按对端顺序取第一个可用的锚点：先看存量节点，再看本批已落位的
+// 新节点（支持同一批里的链式新增）。
+func cloudAgentPlacementAnchor(peerIDs []string, existing, placed map[string]cloudAgentPlacementNode) (cloudAgentPlacementNode, bool) {
+	for _, peerID := range peerIDs {
+		if anchor, ok := existing[peerID]; ok {
+			return anchor, true
+		}
+		if anchor, ok := placed[peerID]; ok {
+			return anchor, true
+		}
+	}
+	return cloudAgentPlacementNode{}, false
 }
 
 // cloudAgentColumnStartY 计算新列（x = nextX）放置节点的起始 y：取与目标列水平重叠

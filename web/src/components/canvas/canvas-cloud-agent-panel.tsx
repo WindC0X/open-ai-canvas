@@ -826,7 +826,9 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                                         onReject={() => void submitApproval("reject")}
                                     />
                                     {planVisible ? <AgentPlanBar items={planItems} theme={theme} minimized={planMinimized} onToggle={() => setPlanMinimized((value) => !value)} /> : null}
-                                    {!running && !undoDismissed && undoPreview !== undefined && undoPreview !== null && (undoPreview.found || undoPreview.blockReason) ? (
+                                    {/* 运行中仅在有可撤销内容时显示禁用态（后端 found 如实回报）：
+                                        此前整条消失，用户以为没有撤销功能（2026-09-21 用户实测）。 */}
+                                    {!undoDismissed && undoPreview !== undefined && undoPreview !== null && (running ? undoPreview.found : (undoPreview.found || undoPreview.blockReason)) ? (
                                         <AgentUndoBar
                                             theme={theme}
                                             blockReason={undoPreview.canUndo ? undefined : undoPreview.blockReason}

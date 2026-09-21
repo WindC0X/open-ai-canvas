@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"infinite-canvas/backend/internal/model"
@@ -195,6 +196,11 @@ func TestUndoCanvasPreviewReflectsMutationState(t *testing.T) {
 	if runningPreview["canUndo"] != false {
 		t.Fatalf("preview must not offer undo while run is running: %+v", runningPreview)
 	}
+	// 运行中必须如实回报「有可撤销内容」（2026-09-21 用户实测：运行中面板整条撤销消失，
+	// 用户以为没有撤销功能）。found 仅作 UI 提示，授权仍由 undo 主流程把守。
+	if runningPreview["found"] != true || !strings.Contains(stringValue(runningPreview["blockReason"]), "运行中") {
+		t.Fatalf("running preview should report found + block reason: %+v", runningPreview)
+	}
 	finalizeRunForUndo(t, s, run.ID)
 	preview, err := s.UndoCanvasPreview("user", run.ID)
 	if err != nil {
@@ -260,5 +266,44 @@ func assertJSONEqual(t *testing.T, expected string, actual any, message string) 
 	actualNorm, _ := json.Marshal(actual)
 	if string(expectedNorm) != string(actualNorm) {
 		t.Fatalf("%s\nexpected: %s\nactual:   %s", message, expectedNorm, actualNorm)
+	}
+}
+
+// 任务守卫（review 2026-09-21 P2 零测试补锚 / P3 fail-closed）：撤销将删除的节点若绑定
+// 运行中/排队中的生成任务必须阻断；终态任务与「任务不存在」（历史节点/已清理）放过。
+func TestUndoBlockedByRunningTaskGuard(t *testing.T) {
+	s, db, _, _ := creationTestService(t)
+	for _, task := range []model.Task{
+		{ID: "task-running", UserID: "user", Status: model.TaskStatusRunning},
+		{ID: "task-queued", UserID: "user", Status: model.TaskStatusQueued},
+		{ID: "task-done", UserID: "user", Status: model.TaskStatusSucceeded},
+	} {
+		if err := db.Create(&task).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	nodeWithTask := func(id, taskID string) map[string]any {
+		return map[string]any{"id": id, "type": "image", "metadata": map[string]any{"taskId": taskID}}
+	}
+	before := map[string]any{"nodes": []any{}}
+
+	blocked, err := s.cloudAgentUndoBlockedByRunningTask("user", before, map[string]any{"nodes": []any{nodeWithTask("n-running", "task-running")}})
+	if err != nil || blocked == "" {
+		t.Fatalf("运行中任务绑定的待删节点必须阻断撤销: blocked=%q err=%v", blocked, err)
+	}
+	blocked, err = s.cloudAgentUndoBlockedByRunningTask("user", before, map[string]any{"nodes": []any{nodeWithTask("n-queued", "task-queued")}})
+	if err != nil || blocked == "" {
+		t.Fatalf("排队中任务绑定的待删节点必须阻断撤销: blocked=%q err=%v", blocked, err)
+	}
+	if blocked, err = s.cloudAgentUndoBlockedByRunningTask("user", before, map[string]any{"nodes": []any{nodeWithTask("n-done", "task-done")}}); err != nil || blocked != "" {
+		t.Fatalf("终态任务不应阻断: blocked=%q err=%v", blocked, err)
+	}
+	if blocked, err = s.cloudAgentUndoBlockedByRunningTask("user", before, map[string]any{"nodes": []any{nodeWithTask("n-ghost", "task-missing")}}); err != nil || blocked != "" {
+		t.Fatalf("任务不存在（历史节点/已清理）应放过: blocked=%q err=%v", blocked, err)
+	}
+	// before 已有的节点不会被撤销删除，不参与守卫。
+	existing := map[string]any{"nodes": []any{nodeWithTask("n-running", "task-running")}}
+	if blocked, err = s.cloudAgentUndoBlockedByRunningTask("user", existing, existing); err != nil || blocked != "" {
+		t.Fatalf("撤销不删除的节点不应阻断: blocked=%q err=%v", blocked, err)
 	}
 }

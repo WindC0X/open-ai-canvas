@@ -379,12 +379,15 @@ export function useCanvasGenerationRetry({
                 );
                 // 扩图重试恢复蒙版：mask 物化引用已持久化到占位/结果节点 metadata（提交链
                 // use-canvas-media-tools outpaintMaskStorageKey），重试时不恢复会降级成
-                // 无蒙版整图编辑（review 2026-09-21 P2）。恢复失败不阻塞重试（降级 + 警告）。
+                // 无蒙版整图编辑（review 2026-09-21 P2）。
+                // storageKey 直通复用（prepareBackendImageReference 对 resource: 前缀零上传直返）：
+                // 此前只带 dataUrl，每次重试都会重新上传一份 mask，重复占用上传配额且留下无引用
+                // 资源（review 2026-09-21 P3）。resolve 失败仍降级为无 mask 重试 + 警告。
                 let retryMask: Parameters<typeof runBackendCanvasGenerationTask>[0]["mask"];
                 if (node.metadata?.outpaintMaskStorageKey) {
                     try {
                         const maskDataUrl = await resolveImageUrl(node.metadata.outpaintMaskStorageKey, "", { cacheMiss: true });
-                        if (maskDataUrl) retryMask = { id: `${node.id}-outpaint-mask`, name: "outpaint-mask.png", type: "image/png", dataUrl: maskDataUrl };
+                        if (maskDataUrl) retryMask = { id: `${node.id}-outpaint-mask`, name: "outpaint-mask.png", type: "image/png", dataUrl: maskDataUrl, storageKey: node.metadata.outpaintMaskStorageKey };
                     } catch (cause) {
                         console.warn("[retry] outpaint mask restore failed; retrying without mask", cause);
                     }

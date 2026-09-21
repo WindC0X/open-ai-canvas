@@ -872,7 +872,10 @@ export function useCanvasMediaTools({
         try {
             maskUpload = maskDataUrl ? await uploadImage(maskDataUrl) : null;
         } catch (cause) {
+            // 可见提示：maskSupported 路径的提示词承诺"仅生成透明新增区域"，静默降级成整图编辑
+            // 与用户预期不符，且重试链也拿不到 mask（review 2026-09-21 P3）。
             console.warn("[outpaint] mask upload failed; retry will degrade", cause);
+            message.warning("蒙版上传失败：本次按整图编辑提交，扩图重试也无法恢复蒙版");
         }
         const source = { id: node.id, name: `outpaint-${node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: paddedSource, storageKey: paddedUpload.storageKey };
         const styleExecution = resolveImageEditStyle(node, prompt, generationConfig);

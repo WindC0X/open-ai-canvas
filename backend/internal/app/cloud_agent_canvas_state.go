@@ -34,10 +34,21 @@ var cloudAgentStructuredProjectors = map[string]cloudAgentStructuredProjector{
 // 链式撤销永远命中"画布已发生后续变化"自毁。hash 只覆盖画布图内容语义。
 // 节点/连线内的 createdAt/updatedAt 也归一剔除(2026-09-19 真机实测第二例): Agent 写入的
 // 节点不带时间戳, 本地同步 PUT 会补时间戳 → 仅时间戳之差就改变 hash, 同样自毁链式撤销。
+// cloudAgentCanvasHashExcludedKeys 是画布哈希的排除集合（单一源）：恢复粒度（撤销把当前
+// 文档的这些字段移植进快照）必须与它严格一致，双字面量漂移会让用户态数据被静默回滚
+// （review 2026-09-21 P3）。
+var cloudAgentCanvasHashExcludedKeys = []string{
+	"viewport", "updatedAt", "chatSessions", "activeChatId", "backgroundMode", "showImageInfo", "appearance",
+}
+
 func cloudAgentCanvasHash(doc map[string]any) string {
+	excluded := make(map[string]bool, len(cloudAgentCanvasHashExcludedKeys))
+	for _, key := range cloudAgentCanvasHashExcludedKeys {
+		excluded[key] = true
+	}
 	content := make(map[string]any, len(doc))
 	for key, value := range doc {
-		if key == "viewport" || key == "updatedAt" || key == "chatSessions" || key == "activeChatId" || key == "backgroundMode" || key == "showImageInfo" || key == "appearance" {
+		if excluded[key] {
 			continue
 		}
 		content[key] = cloudAgentHashNormalizable(value)

@@ -2964,7 +2964,7 @@ function InfiniteCanvasPage() {
                         }}
                         onPortraitTexture={openPortraitTextureEditor}
                         onCrop={(node) => setCropNodeId(node.id)}
-                        onSplit={(node, params) => void splitImageNode(node, params)}
+                        onSplit={(node, params) => void splitImageNode(node, params).catch((error) => message.error(error instanceof Error ? error.message : "图片切分失败"))}
                         onUpscale={(node) => setUpscaleNodeId(node.id)}
                         onSuperResolve={(node) => setSuperResolveNodeId(node.id)}
                         onAngle={(node) => {
@@ -3407,11 +3407,11 @@ function InfiniteCanvasPage() {
                                 setNodes((current) => current.map((item) => (item.id === nodeId ? { ...item, position } : item)));
                             }}
                             onCloseUpscale={() => setUpscaleNodeId(null)}
-                            onCrop={(node, crop) => void cropImageNode(node, crop)}
+                            onCrop={(node, crop) => void cropImageNode(node, crop).catch((error) => message.error(error instanceof Error ? error.message : "图片裁剪失败"))}
                             onAnnotate={(node, dataUrl) => void saveAnnotatedImageNode(node, dataUrl)}
-                            onMaskEdit={(node, payload) => void maskEditImageNode(node, payload)}
+                            onMaskEdit={(node, payload) => void maskEditImageNode(node, payload).catch((error) => message.error(error instanceof Error ? error.message : "局部重绘失败"))}
                             onOutpaint={(node, payload) => void outpaintImageNode(node, payload)}
-                            onUpscale={(node, params) => void upscaleImageNode(node, params)}
+                            onUpscale={(node, params) => void upscaleImageNode(node, params).catch((error) => message.error(error instanceof Error ? error.message : "图片放大失败"))}
                             config={effectiveConfig}
                         />
 
