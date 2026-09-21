@@ -12,6 +12,7 @@ import (
 	"image"
 	"image/png"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -60,6 +61,76 @@ func cloudAgentOutpaintRatioValue(raw string) (float64, int, int) {
 // cloudAgentOutpaintPlan 计算把源图 pad 到目标画幅所需的四边扩展像素（源图坐标系）。
 // 语义与前端 resolveOutpaintPaddingForRatio 一致：锚定中心偏移、外扩总量只增不减。
 // 目标总画幅对齐到 16 的倍数（gpt-image 系自定义尺寸校验要求；对其它模型无害）。
+// cloudAgentOutpaintSnap16 就近对齐 16 的倍数（gpt-image 系自定义尺寸校验要求）；小尺寸（<16）不参与。
+func cloudAgentOutpaintSnap16(v int) int {
+	if v < 16 {
+		return v
+	}
+	if d := v % 16; d > 8 {
+		return v + 16 - d
+	} else {
+		return v - d
+	}
+}
+
+// cloudAgentOutpaintPixelSize 解析审批卡选定的像素档（"1024x1024" / "1024*1024" / "1024×1024"）。
+// 比例档（"16:9"）与空值返回 false：扩图画幅默认由 outpaintRatio 决定，只有用户明确选定像素档时
+// 才以该像素为提交目标。
+func cloudAgentOutpaintPixelSize(value string) (int, int, bool) {
+	match := cloudAgentOutpaintPixelSizePattern.FindStringSubmatch(strings.TrimSpace(value))
+	if match == nil {
+		return 0, 0, false
+	}
+	width, _ := strconv.Atoi(match[1])
+	height, _ := strconv.Atoi(match[2])
+	if width <= 0 || height <= 0 {
+		return 0, 0, false
+	}
+	return width, height, true
+}
+
+var cloudAgentOutpaintPixelSizePattern = regexp.MustCompile(`^(\d+)\s*[xX×*]\s*(\d+)$`)
+
+// cloudAgentOutpaintPlanForTarget 把「审批卡选定的提交像素」翻译成 pad 计划（padding 用源像素域，
+// 与比例路径同域）+ 缩放系数：原图等比缩放到目标内（只缩不放——目标更大时余量全部成为外扩带宽，
+// 保住原图像素），余量四周均分；右/下取整差由 cloudAgentOutpaintPaint 吸收，最终合成尺寸恰好等于
+// 对齐后的目标像素。语义与手动扩图链的 submitTarget 一致（用户裁定 2026-09-21：手动能选尺寸，
+// Agent 审批卡也必须能，且选择要生效）。
+func cloudAgentOutpaintPlanForTarget(srcWidth, srcHeight, targetWidth, targetHeight int) (map[string]int, float64, error) {
+	if srcWidth <= 0 || srcHeight <= 0 {
+		return nil, 0, errors.New("扩图参考图无效")
+	}
+	if targetWidth <= 0 || targetHeight <= 0 {
+		return nil, 0, BadAuthRequest("扩图目标尺寸无效，请选择模型目录里的画幅档位")
+	}
+	targetWidth, targetHeight = cloudAgentOutpaintSnap16(targetWidth), cloudAgentOutpaintSnap16(targetHeight)
+	// 长边上限与比例路径共用同一常量（护中转请求体）：超限时按上限同比收缩，提交 size 用收缩后的
+	// 精确像素，节点实际尺寸与提交一致，不失配也不静默虚标。
+	if longEdge := max(targetWidth, targetHeight); longEdge > cloudAgentOutpaintMaxLongEdge {
+		shrink := float64(cloudAgentOutpaintMaxLongEdge) / float64(longEdge)
+		targetWidth = cloudAgentOutpaintSnap16(int(math.Round(float64(targetWidth) * shrink)))
+		targetHeight = cloudAgentOutpaintSnap16(int(math.Round(float64(targetHeight) * shrink)))
+	}
+	if ratio := float64(targetWidth) / float64(targetHeight); ratio < cloudAgentOutpaintMinRatio || ratio > cloudAgentOutpaintMaxRatio {
+		return nil, 0, BadAuthRequest("扩图目标画幅比例超出合理范围（0.2 ~ 5.0），请调整后重试")
+	}
+	scale := math.Min(1, math.Min(float64(targetWidth)/float64(srcWidth), float64(targetHeight)/float64(srcHeight)))
+	horizontal := int(math.Round((float64(targetWidth) - float64(srcWidth)*scale) / scale))
+	vertical := int(math.Round((float64(targetHeight) - float64(srcHeight)*scale) / scale))
+	if horizontal < 0 {
+		horizontal = 0
+	}
+	if vertical < 0 {
+		vertical = 0
+	}
+	// 与源图尺寸几乎相同的档位没有外扩空间：mask 全不透明、上游按原图重绘，用户按扩图语义付费却
+	// 什么也没扩（比例路径有 MinPadding 基线兜底，像素档必须显式拦）。
+	if horizontal+vertical < cloudAgentOutpaintMinPadding*2 {
+		return nil, 0, BadAuthRequest("所选画幅与原图几乎相同，扩图没有外扩空间；请选择更大的画幅档位")
+	}
+	return map[string]int{"left": horizontal / 2, "right": horizontal - horizontal/2, "top": vertical / 2, "bottom": vertical - vertical/2}, scale, nil
+}
+
 func cloudAgentOutpaintPlan(srcWidth, srcHeight int, ratio float64) (map[string]int, error) {
 	if srcWidth <= 0 || srcHeight <= 0 || ratio <= 0 {
 		return nil, errors.New("扩图参考图无效")
@@ -149,17 +220,7 @@ func cloudAgentOutpaintScale(width, height, horizontal, vertical int) float64 {
 func cloudAgentOutpaintPaint(src image.Image, padding map[string]int, scale float64, mask bool) ([]byte, int, int, error) {
 	srcW := src.Bounds().Dx()
 	srcH := src.Bounds().Dy()
-	// snap16 就近对齐 16 的倍数（gpt-image 系自定义尺寸校验要求）；小尺寸（<16）不参与对齐。
-	snap16 := func(v int) int {
-		if v < 16 {
-			return v
-		}
-		if d := v % 16; d > 8 {
-			return v + 16 - d
-		} else {
-			return v - d
-		}
-	}
+	snap16 := cloudAgentOutpaintSnap16
 	padLeft := int(math.Round(float64(padding["left"]) * scale))
 	padTop := int(math.Round(float64(padding["top"]) * scale))
 	padRight := int(math.Round(float64(padding["right"]) * scale))
@@ -214,7 +275,9 @@ func cloudAgentOutpaintPaint(src image.Image, padding map[string]int, scale floa
 // cloudAgentOutpaintMaterialize 把源参考 + 合成结果物化为 3 个账号资源：
 // 源图重存（保持输入引用语义）、pad 底图（JPEG 压缩走独立 PNG 资源便于重试）、mask（PNG）。
 // 返回的 providerMedia 只带 StorageKey —— 与普通任务的输入形态一致。
-func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerMedia, padding map[string]int) (padded providerMedia, mask *providerMedia, err error) {
+// scaleOverride > 0 时按该系数合成（像素档：目标可能小于源图，必须缩小到目标内）；
+// 0 表示按 padding 自动计算长边上限收缩。
+func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerMedia, padding map[string]int, scaleOverride float64) (padded providerMedia, mask *providerMedia, err error) {
 	if source == nil || !strings.HasPrefix(source.StorageKey, "resource:") {
 		return padded, nil, errors.New("扩图源参考必须是已保存的画布图片资产")
 	}
@@ -240,7 +303,10 @@ func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerM
 		return padded, nil, fmt.Errorf("扩图源图解码失败：%w", err)
 	}
 	srcW, srcH := src.Bounds().Dx(), src.Bounds().Dy()
-	scale := cloudAgentOutpaintScale(srcW, srcH, padding["left"]+padding["right"], padding["top"]+padding["bottom"])
+	scale := scaleOverride
+	if scale <= 0 {
+		scale = cloudAgentOutpaintScale(srcW, srcH, padding["left"]+padding["right"], padding["top"]+padding["bottom"])
+	}
 
 	baseBytes, targetW, targetH, err := cloudAgentOutpaintPaint(src, padding, scale, false)
 	if err != nil {
@@ -325,18 +391,30 @@ func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a 
 	if source.Width <= 0 || source.Height <= 0 {
 		return 0, 0, BadAuthRequest("扩图参考图缺少真实尺寸")
 	}
-	ratio, _, _ := cloudAgentOutpaintRatioValue(a.OutpaintRatio)
-	if ratio <= 0 {
-		return 0, 0, BadAuthRequest("扩图画幅比例无效，请传如 16:9 / 3:2 / 1.5")
+	// 审批卡选定像素档时以该像素为提交画幅（用户选择生效，与手动扩图 submitTarget 同语义）；
+	// 未选定时维持既有语义：画幅由 Agent 传的 outpaintRatio 推导。
+	var padding map[string]int
+	var err error
+	scaleOverride := 0.0
+	if targetW, targetH, hasPixelTarget := cloudAgentOutpaintPixelSize(a.Size); hasPixelTarget {
+		padding, scaleOverride, err = cloudAgentOutpaintPlanForTarget(source.Width, source.Height, targetW, targetH)
+		if err != nil {
+			return 0, 0, err
+		}
+	} else {
+		ratio, _, _ := cloudAgentOutpaintRatioValue(a.OutpaintRatio)
+		if ratio <= 0 {
+			return 0, 0, BadAuthRequest("扩图画幅比例无效，请传如 16:9 / 3:2 / 1.5")
+		}
+		if ratio < cloudAgentOutpaintMinRatio || ratio > cloudAgentOutpaintMaxRatio {
+			return 0, 0, BadAuthRequest("扩图画幅比例超出合理范围（0.2 ~ 5.0），请调整后重试")
+		}
+		padding, err = cloudAgentOutpaintPlan(source.Width, source.Height, ratio)
+		if err != nil {
+			return 0, 0, err
+		}
 	}
-	if ratio < cloudAgentOutpaintMinRatio || ratio > cloudAgentOutpaintMaxRatio {
-		return 0, 0, BadAuthRequest("扩图画幅比例超出合理范围（0.2 ~ 5.0），请调整后重试")
-	}
-	padding, err := cloudAgentOutpaintPlan(source.Width, source.Height, ratio)
-	if err != nil {
-		return 0, 0, err
-	}
-	padded, mask, err := s.cloudAgentOutpaintMaterialize(userID, &source, padding)
+	padded, mask, err := s.cloudAgentOutpaintMaterialize(userID, &source, padding, scaleOverride)
 	if err != nil {
 		return 0, 0, err
 	}

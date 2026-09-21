@@ -81,3 +81,28 @@ func TestCloudAgentCanvasApprovalPreviewRejectsUnknownTargetInsteadOfFallingBack
 		t.Fatalf("unknown target was not rejected: %v", err)
 	}
 }
+
+// 扩图预览必须展示真正生效的画幅：审批卡选了像素档 → 显示该像素（服务端按它 pad 合成）；
+// 未选像素档 → 显示 outpaintRatio 推导的目标画幅（不能展示不生效的 args.Size）。
+func TestCloudAgentMediaApprovalPreviewOutpaintFrame(t *testing.T) {
+	base := cloudAgentMediaArgs{Mode: "image", Prompt: "extend", Title: "扩图结果 16:9", OutpaintRatio: "16:9"}
+	text := strings.Join(cloudAgentMediaApprovalPreview(&cloudAgentMediaPlan{Args: base}, "gpt-image-2").Items[0].Details, " | ")
+	if !strings.Contains(text, "扩图目标画幅：16:9") || strings.Contains(text, "扩图画幅：") {
+		t.Fatalf("未选像素档时应展示 ratio 推导的扩图目标画幅：%s", text)
+	}
+	pixel := base
+	pixel.Size = "1024x1024"
+	text = strings.Join(cloudAgentMediaApprovalPreview(&cloudAgentMediaPlan{Args: pixel}, "gpt-image-2").Items[0].Details, " | ")
+	if !strings.Contains(text, "扩图画幅：1024x1024") {
+		t.Fatalf("选定像素档时应展示该像素为提交画幅：%s", text)
+	}
+	if strings.Contains(text, "16:9") {
+		t.Fatalf("选定像素档后不应再展示会被覆盖的 ratio：%s", text)
+	}
+	// 非扩图仍展示 size。
+	plain := cloudAgentMediaArgs{Mode: "image", Prompt: "x", Title: "图", Size: "1024x1024"}
+	text = strings.Join(cloudAgentMediaApprovalPreview(&cloudAgentMediaPlan{Args: plain}, "gpt-image-2").Items[0].Details, " | ")
+	if !strings.Contains(text, "画幅：1024x1024") {
+		t.Fatalf("非扩图应展示画幅：%s", text)
+	}
+}

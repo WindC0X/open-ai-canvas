@@ -274,16 +274,20 @@ func cloudAgentMediaApprovalPreview(plan *cloudAgentMediaPlan, modelName string)
 	if args.Duration > 0 {
 		details = append(details, fmt.Sprintf("时长：%d 秒", args.Duration))
 	}
-	// 扩图时 size 会被服务端按 ratio 计算的 pad 像素覆盖（执行链 cfg["size"] = 目标画幅），
-	// 预览不能再展示一个不会生效的 args.Size（review 2026-09-21 P3）。
-	if args.Size != "" && strings.TrimSpace(args.OutpaintRatio) == "" {
+	// 扩图画幅：像素档（审批卡选定）就是提交画幅（服务端按该像素 pad 合成），必须如实展示；
+	// 未选定像素档时才由 outpaintRatio 推导画幅——两种情况下都不能展示不会生效的值
+	// （review 2026-09-21 P3；像素档生效语义见用户裁定 2026-09-21）。
+	if strings.TrimSpace(args.OutpaintRatio) != "" {
+		if _, _, pixelTarget := cloudAgentOutpaintPixelSize(args.Size); pixelTarget {
+			details = append(details, "扩图画幅："+truncateRunes(args.Size, 40))
+		} else {
+			details = append(details, "扩图目标画幅："+truncateRunes(args.OutpaintRatio, 40))
+		}
+	} else if args.Size != "" {
 		details = append(details, "画幅："+truncateRunes(args.Size, 40))
 	}
 	if args.Quality != "" {
 		details = append(details, "质量："+truncateRunes(args.Quality, 40))
-	}
-	if strings.TrimSpace(args.OutpaintRatio) != "" {
-		details = append(details, "扩图目标画幅："+truncateRunes(args.OutpaintRatio, 40))
 	}
 	if args.VideoGenerateAudio != nil {
 		value := "关闭"

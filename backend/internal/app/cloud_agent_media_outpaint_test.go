@@ -124,3 +124,79 @@ func TestCloudAgentOutpaintPaintMaskSemantics(t *testing.T) {
 		t.Fatalf("base corner = (%d,%d,%d,%d), want opaque white", r>>8, g>>8, b>>8, a>>8)
 	}
 }
+
+// 审批卡像素档（用户裁定 2026-09-21：手动扩图能选尺寸，Agent 审批卡的选择也必须生效）：
+// 选定像素即提交目标，合成尺寸必须恰好等于该像素；未选定则维持 ratio 推导。
+func TestCloudAgentOutpaintPixelTarget(t *testing.T) {
+	for _, value := range []string{"1024x1024", "1536*1024", "1024×768", " 768 x 1024 "} {
+		if _, _, ok := cloudAgentOutpaintPixelSize(value); !ok {
+			t.Fatalf("像素档 %q 应被识别", value)
+		}
+	}
+	for _, value := range []string{"", "16:9", "1.5", "auto", "1024", "1024x"} {
+		if _, _, ok := cloudAgentOutpaintPixelSize(value); ok {
+			t.Fatalf("非像素档 %q 不应被识别为像素目标", value)
+		}
+	}
+
+	// ① 目标大于源（纯外扩）：合成尺寸恰好等于目标，源图不放大（scale=1），四边都有外扩带。
+	padding, scale, err := cloudAgentOutpaintPlanForTarget(1376, 784, 1536, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scale != 1 {
+		t.Fatalf("目标大于源图时不应放大源图：scale=%v", scale)
+	}
+	src := image.NewRGBA(image.Rect(0, 0, 1376, 784))
+	_, width, height, err := cloudAgentOutpaintPaint(src, padding, scale, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if width != 1536 || height != 1024 {
+		t.Fatalf("像素档合成尺寸 = %dx%d, want 1536x1024", width, height)
+	}
+	if padding["left"] <= 0 && padding["right"] <= 0 || padding["top"] <= 0 && padding["bottom"] <= 0 {
+		t.Fatalf("两个方向都应有外扩带：%+v", padding)
+	}
+
+	// ② 目标小于源（缩小摆入）：等比缩小后补边，尺寸仍恰好等于目标。
+	padding, scale, err = cloudAgentOutpaintPlanForTarget(1376, 784, 1024, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scale >= 1 {
+		t.Fatalf("目标小于源图时应等比缩小：scale=%v", scale)
+	}
+	_, width, height, err = cloudAgentOutpaintPaint(src, padding, scale, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if width != 1024 || height != 1024 {
+		t.Fatalf("缩小档合成尺寸 = %dx%d, want 1024x1024", width, height)
+	}
+
+	// ③ 长边超限（>1536，护中转请求体）：仍按目标比例合成，只是同比收缩到上限内。
+	padding, scale, err = cloudAgentOutpaintPlanForTarget(1376, 784, 3072, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, width, height, err = cloudAgentOutpaintPaint(src, padding, scale, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if width > 1536 || height > 1536 {
+		t.Fatalf("长边应被上限收住：%dx%d", width, height)
+	}
+	if width*2048 != height*3072 {
+		t.Fatalf("收缩后应保持目标比例：%dx%d", width, height)
+	}
+
+	// ④ 与原图几乎同尺寸：没有外扩空间，必须拒绝（否则 mask 全不透明 = 按扩图计价的原图重绘）。
+	if _, _, err := cloudAgentOutpaintPlanForTarget(1376, 784, 1376, 800); err == nil {
+		t.Fatal("无外扩空间的档位必须拒绝")
+	}
+	// ⑤ 非法/越界比例：拒绝。
+	if _, _, err := cloudAgentOutpaintPlanForTarget(1376, 784, 0, 0); err == nil {
+		t.Fatal("零尺寸必须拒绝")
+	}
+}
