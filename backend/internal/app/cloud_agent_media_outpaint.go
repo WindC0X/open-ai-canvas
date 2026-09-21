@@ -17,8 +17,8 @@ import (
 
 	"golang.org/x/image/draw"
 
-	"infinite-canvas/backend/internal/model"
 	_ "image/jpeg"
+	"infinite-canvas/backend/internal/model"
 )
 
 // cloudAgentOutpaintMaxLongEdge 限制提交给上游的 pad 图/mask 长边，避免大图 base64 撑爆中转请求体。
@@ -112,7 +112,7 @@ func cloudAgentOutpaintPlan(srcWidth, srcHeight int, ratio float64) (map[string]
 			vertical = int(spaceHeight)
 		}
 		// 比例反解必须精确成立；竖直取基准后仍不满足时回推水平外扩量。
-		if needHorizontal := int(math.Round(ratio * float64(srcHeight+vertical))) - srcWidth; needHorizontal > horizontal {
+		if needHorizontal := int(math.Round(ratio*float64(srcHeight+vertical))) - srcWidth; needHorizontal > horizontal {
 			horizontal = needHorizontal
 		}
 		horizontal, vertical = pickAligned(srcWidth+horizontal, srcHeight+vertical)

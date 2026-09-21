@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"os"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,6 +8,7 @@ import (
 	"infinite-canvas/backend/internal/kernel"
 	"log"
 	"net/mail"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -23,10 +23,10 @@ import (
 // cookie, 任何杂散实例的登录/登出都会顶掉主环境的会话(2026-09-19 用户四轮被登出的结构性根因)。
 // 主环境启动时用 CANVAS_SESSION_COOKIE_NAME 隔离即可免疫。
 var SessionCookieName = func() string {
-    if name := strings.TrimSpace(os.Getenv("CANVAS_SESSION_COOKIE_NAME")); name != "" {
-        return name
-    }
-    return "open_ai_canvas_session"
+	if name := strings.TrimSpace(os.Getenv("CANVAS_SESSION_COOKIE_NAME")); name != "" {
+		return name
+	}
+	return "open_ai_canvas_session"
 }()
 
 const sessionMaxAge = 30 * 24 * time.Hour

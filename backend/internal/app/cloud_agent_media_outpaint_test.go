@@ -56,7 +56,10 @@ func TestCloudAgentOutpaintPlan(t *testing.T) {
 }
 
 func TestCloudAgentOutpaintPlanAlignedTo16(t *testing.T) {
-	for _, c := range []struct{ w, h int; ratio float64 }{
+	for _, c := range []struct {
+		w, h  int
+		ratio float64
+	}{
 		{1536, 1024, 16.0 / 9.0}, {1024, 1024, 1.5}, {1024, 1024, 2.0 / 3.0}, {896, 1200, 16.0 / 9.0}, {1536, 1024, 1.0},
 	} {
 		padding, err := cloudAgentOutpaintPlan(c.w, c.h, c.ratio)

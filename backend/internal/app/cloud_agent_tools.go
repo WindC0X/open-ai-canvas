@@ -210,7 +210,6 @@ func compileCloudAgentTools(req CloudAgentRequest, includeProfileTool bool) []ma
 			"patch":      cloudAgentPatchSchema(),
 			"fromNodeId": str("连线来源节点ID"),
 			"toNodeId":   str("连线目标节点ID"),
-
 		}
 		opItem := map[string]any{
 			"type":                 "object",
@@ -231,7 +230,7 @@ func compileCloudAgentTools(req CloudAgentRequest, includeProfileTool bool) []ma
 			"logicalModelId": str("selection.logicalModelId；与channelId/channelModelKey互斥"), "channelId": str("selection.channelId"), "channelModelKey": str("selection.channelModelKey"),
 			"durationSeconds": map[string]any{"type": "integer", "minimum": 0}, "size": str("模型支持的画幅，例如9:16"), "quality": str("目录支持的分辨率或质量"), "videoGenerateAudio": map[string]any{"type": "boolean", "description": "是否生成音频，仅视频可用"},
 			"outpaintRatio": str("扩图目标画幅比例（如16:9、3:2、1.5），仅mode=image且恰好1张图片参考时可用；填写后服务端自动按比例外扩并生成蒙版"),
-			"snapshotHash": str("可省略；省略时服务端使用当前画布内容快照。也可传 canvas_get_state 的 mediaSnapshotHash 或上一写操作返回的 snapshotHash"), "nodeId": str("可续用的未提交媒体草稿ID；无草稿时才使用新唯一ID"), "title": str("媒体节点名称"), "sourceNodeId": str("仅文本/镜头提示词节点ID；无文本来源则留空，绝不能填图片/视频/音频ID"), "referenceNodeIds": map[string]any{"type": "array", "maxItems": 16, "items": str("当前画布媒体参考节点ID；参考图只放此处，保持引用顺序")},
+			"snapshotHash":  str("可省略；省略时服务端使用当前画布内容快照。也可传 canvas_get_state 的 mediaSnapshotHash 或上一写操作返回的 snapshotHash"), "nodeId": str("可续用的未提交媒体草稿ID；无草稿时才使用新唯一ID"), "title": str("媒体节点名称"), "sourceNodeId": str("仅文本/镜头提示词节点ID；无文本来源则留空，绝不能填图片/视频/音频ID"), "referenceNodeIds": map[string]any{"type": "array", "maxItems": 16, "items": str("当前画布媒体参考节点ID；参考图只放此处，保持引用顺序")},
 		}, "mode", "prompt", "nodeId", "title", "referenceNodeIds")
 	}
 	return tools

@@ -134,7 +134,6 @@ func (s *Service) UndoCloudAgentCanvas(userID, runID, stepID, expectedSnapshotHa
 	return result, nil
 }
 
-
 // UndoCanvasPreview 描述最近一次 Agent 画布 mutation 的可撤销状态。面板用它决定
 // 撤销按钮的可用性与禁用原因, 并取 afterSnapshotHash 作为 undo 的 expectedSnapshotHash。
 func (s *Service) UndoCanvasPreview(userID, runID string) map[string]any {

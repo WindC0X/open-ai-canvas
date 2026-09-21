@@ -321,7 +321,6 @@ func cloudAgentApprovalCallHash(call cloudAgentCall) string {
 	return hex.EncodeToString(sum[:])
 }
 
-
 // cloudAgentNodesBounds 计算节点集合的包围盒; 空画布回退到原点附近的第一落位。
 type cloudAgentBounds struct{ minX, minY, maxX float64 }
 
@@ -353,7 +352,6 @@ func cloudAgentNodesBounds(nodes []map[string]any) cloudAgentBounds {
 	}
 	return result
 }
-
 
 // cloudAgentNodeDefaultHeight 返回节点类型的默认高度(落位步长用), 未知/未注册类型回退 384。
 func cloudAgentNodeDefaultHeight(nodeType string) float64 {

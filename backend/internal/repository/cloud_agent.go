@@ -79,7 +79,6 @@ func (r *Repository) LatestCloudAgentCanvasMutation(userID, runID string) (*mode
 	// 只取 applied: 链式撤销(PRD A3"撤一次后最新变为上一步")必须跳过已 undone 的记录,
 	// 否则撤过一次后永远命中"该变更已撤销", 无法继续撤销更早的步骤。
 	err := r.db.Where("user_id = ? AND run_id = ? AND status = ?", userID, runID, "applied").
-
 		Order("created_at DESC, id DESC").First(&mutation).Error
 	return &mutation, err
 }
