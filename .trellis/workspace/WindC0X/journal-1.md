@@ -300,3 +300,12 @@ Review 报告（工作流 4 代理 + 人工复核，OCR 通道失败放弃）后
 ### 2026-09-21 扩图"改原图内容"诊断（登记不改）
 
 用户报扩图结果改动原图内容。实据链：① 上游请求逐字核对 → pad 底图(1024² JPEG) + mask(1024² PNG，74% 全透明) + 透明区 prompt + size 均正确送达；② 修复批对扩图链的改动面最小（mask 物化/onerror 仅错误路径；后端 scale 仅 Agent 链，本次走画布直连）；③ 修复前后各两次扩图的"原图区保真度"模板匹配 MAD 16–29（像素保真应 ≈0–5）→ 全都重绘，无回归；④ 渠道 CHANNEL_000006 是 ChatGPT Web 中转（下载域 chatgpt2api、route: 算法超分/direct transfer），无 mask 输入 → mask 被丢，模型整幅重画。用户裁定"先只登记不改"，备选方案（保真合成/换渠道/档位下限）落 pending-test。
+
+### 2026-09-21 二次 review（4 路独立对抗）与 P1/P2 修复
+
+四路复核首轮修复批（39e1e037..HEAD）：36 项判定"落地且正确"，**2 个 P1 回归 + 3 个 P2 为我引入**，已全部修复（c1bfc149 链）：
+1. **P1 撤销事务结构性死锁**（复核人已真实复现）：`waitForRemoteProjectLoads` 读实时 map，会等排队在事务之后的 load → 自锁、尾随队列永久卡死。修复 = 临界区入口同步快照 pending load，只等快照。回归测试双向验证（旧代码 timeout/新代码 resolved）。
+2. **P1 渠道模型扩图 prepare 全量失败**：`CapabilitySpecFromModelCapabilityConfig(&normalized, string(m.Protocol))` 传协议串 → default 分支「未知模型能力类型」。修复 = `normalizeCapability(m.Capability)` + 契约测试。
+3. P2×3：undo POST 补 15s 超时；Agent 扩图 ratio 补 0.2–5 边界；扩图重入守卫改可见提示；`storeResourceFromBytes` 补 Pending/Failed 分支；`containsOutsideQuotes` 逐字符扫描防转义引号击穿。
+
+方法论收获：**修复即引入回归**——把长网络调用（POST）塞进串行临界区必须同时检查区内所有"等待外部状态"的调用（本次是 flush 里的 load 等待）。复核用真实运行（死锁复现脚本、能力反解实调）而非只读代码，才抓到这两个 P1。
