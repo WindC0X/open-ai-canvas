@@ -627,45 +627,20 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 	// 保证「预览一处、落位一处」；只有完全没有引用对端时才回退包围盒右侧新列。
 	peers := append(append([]string{}, a.ReferenceNodeIDs...), a.SourceNodeID)
 	x, y := 0.0, 0.0
+	width, height := cloudAgentNodeDefaultWidth(descriptor.Type), cloudAgentNodeDefaultHeight(descriptor.Type)
 	if anchor, ok := cloudAgentPlacementAnchor(peers, cloudAgentPlacementNodes(nodes), nil); ok {
 		x = anchor.x + anchor.width + 96.0
 		y = anchor.y
-		// 目标位已被其它节点占用时才向下让位（与审批预览同语义；源节点在锚点左侧、不会自判碰撞）。
-		width, height := cloudAgentNodeDefaultWidth(descriptor.Type), cloudAgentNodeDefaultHeight(descriptor.Type)
-		for pass := 0; pass <= len(nodes); pass++ {
-			bottom := 0.0
-			for _, node := range nodes {
-				// 被复用的草稿节点自身不参与占位判定，否则回写时会被自己顶下去。
-				if stringValue(node["id"]) == a.NodeID {
-					continue
-				}
-				position, _ := node["position"].(map[string]any)
-				nx, _ := position["x"].(float64)
-				ny, _ := position["y"].(float64)
-				nw, _ := node["width"].(float64)
-				nh, _ := node["height"].(float64)
-				if nw <= 0 {
-					nw = 384.0
-				}
-				if nh <= 0 {
-					nh = 384.0
-				}
-				if nx+nw <= x || nx >= x+width || ny+nh <= y || ny >= y+height {
-					continue
-				}
-				if next := ny + nh + 100.0; next > bottom {
-					bottom = next
-				}
-			}
-			if bottom == 0 {
-				break
-			}
-			y = bottom
-		}
+	} else if viewX, viewY, ok := cloudAgentViewportAnchor(doc); ok {
+		// 完全没有引用对端时落在用户当前视野内（真机 2026-09-22「Agent 的节点总在天边」），
+		// 视野未知才回退包围盒右侧新列。
+		x, y = viewX, viewY
 	} else {
 		x = cloudAgentNodesBounds(nodes).maxX + 120.0
 		y = cloudAgentColumnStartY(nodes, x)
 	}
+	// 目标位被占则向下让位（与审批预览同口径）；被复用的草稿节点自身不参与判定，防回写下移。
+	y = cloudAgentPlacementFreeSlot(nodes, a.NodeID, x, y, width, height)
 	meta := map[string]any{"status": "idle", "agentDraftRunId": a.DraftRunID, "prompt": a.Prompt, "composerContent": a.Prompt, "referenceNodeIds": a.ReferenceNodeIDs}
 	// 扩图任务封装语义（用户反馈 2026-09-19）：LLM 生成的扩图提示词只留 prompt 供重试/审计，
 	// composerContent 置空避免结果节点 composer 直接展示内部提示词。

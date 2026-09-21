@@ -99,10 +99,12 @@ func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloud
 	// 包围盒右上角距用户视野可达数万像素，连线还横跨全图。
 	bounds := cloudAgentNodesBounds(nodes)
 	fallbackX := bounds.maxX + 120.0
-	// 起始 y 取目标列（新列 x 范围内）已有节点的 max(bottom)，而不是全局 minY（review 2026-09-21 P3：
-	// 目标列附近已有更早放置的节点时，从全局 minY 起会与新节点列横向重叠）。
-	// 无同列节点时回退全局 minY（与原行为一致）。
 	fallbackY := cloudAgentColumnStartY(nodes, fallbackX)
+	// 没有引用对端时优先落在用户当前视野内（真机 2026-09-22：包围盒右上角=视野之外，用户看到
+	//「Agent 的节点总在天边」）；视野未知（旧文档无 viewport）才回退包围盒右侧新列。
+	if viewX, viewY, ok := cloudAgentViewportAnchor(doc); ok {
+		fallbackX, fallbackY = viewX, viewY
+	}
 	existing := cloudAgentPlacementNodes(nodes)
 	peers := cloudAgentPlacementPeers(ops)
 	placed := make(map[string]cloudAgentPlacementNode, len(ops))
@@ -123,6 +125,8 @@ func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloud
 			// 固定 340 步长会让多节点纵向压叠 44px。未知类型回退 384。
 			anchorNextY[anchor.id] = y + height + 100.0
 		} else {
+			width := cloudAgentNodeDefaultWidth(string(ops[i].NodeType))
+			fallbackY = cloudAgentPlacementFreeSlot(nodes, "", fallbackX, fallbackY, width, height)
 			ops[i].X, ops[i].Y = fallbackX, fallbackY
 			fallbackY += height + 100.0
 		}
@@ -465,6 +469,59 @@ func cloudAgentPlacementAnchor(peerIDs []string, existing, placed map[string]clo
 		}
 	}
 	return cloudAgentPlacementNode{}, false
+}
+
+// cloudAgentViewportAnchor 返回“用户当前视野左上角内缩 80px”的落位起点。
+// 画布 viewport 以屏幕位移表示（世界→屏幕 = world*k + (x,y)，见前端 canvas-live-viewport），
+// 所以可见世界左上角 = (-x/k, -y/k)。k 越界（前端约定 0.05~8）或缺失时返回 false，
+// 由调用方回退包围盒口径（真机 2026-09-22：无引用对端的新节点此前总落在包围盒角落=用户视野之外）。
+func cloudAgentViewportAnchor(doc map[string]any) (float64, float64, bool) {
+	viewport, _ := doc["viewport"].(map[string]any)
+	if viewport == nil {
+		return 0, 0, false
+	}
+	x, _ := viewport["x"].(float64)
+	y, _ := viewport["y"].(float64)
+	k, _ := viewport["k"].(float64)
+	if !(k >= 0.05 && k <= 8) {
+		return 0, 0, false
+	}
+	return -x/k + 80.0, -y/k + 80.0, true
+}
+
+// cloudAgentPlacementFreeSlot 从 (x,y) 起向下找第一个不与存量节点重叠的空位（步长=高度+100，
+// 与锚点下让同口径）；skipID 用于被复用的草稿节点自身不参与判定（否则回写时会被自己顶下去）。
+func cloudAgentPlacementFreeSlot(nodes []map[string]any, skipID string, x, y, width, height float64) float64 {
+	for pass := 0; pass <= len(nodes); pass++ {
+		bottom := 0.0
+		for _, node := range nodes {
+			if skipID != "" && stringValue(node["id"]) == skipID {
+				continue
+			}
+			position, _ := node["position"].(map[string]any)
+			nx, _ := position["x"].(float64)
+			ny, _ := position["y"].(float64)
+			nw, _ := node["width"].(float64)
+			nh, _ := node["height"].(float64)
+			if nw <= 0 {
+				nw = 384
+			}
+			if nh <= 0 {
+				nh = 384
+			}
+			if nx+nw <= x || nx >= x+width || ny+nh <= y || ny >= y+height {
+				continue
+			}
+			if next := ny + nh + 100.0; next > bottom {
+				bottom = next
+			}
+		}
+		if bottom == 0 {
+			return y
+		}
+		y = bottom
+	}
+	return y
 }
 
 // cloudAgentColumnStartY 计算新列（x = nextX）放置节点的起始 y：取与目标列水平重叠

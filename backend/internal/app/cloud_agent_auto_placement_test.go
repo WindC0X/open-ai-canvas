@@ -109,3 +109,49 @@ func TestApplyCloudAgentCanvasPlanAnchorsNewNodeToReference(t *testing.T) {
 		t.Fatalf("无引用节点应回退包围盒右侧空列：%+v", lone)
 	}
 }
+
+// 无引用对端的新节点优先落在「用户当前视野」内（真机 2026-09-22：包围盒右上角在视野之外，
+// 用户看到的是「Agent 的节点总在天边」）。画布 viewport 以屏幕位移表示（世界→屏幕 = world*k + (x,y)），
+// 可见世界左上角 = (-x/k, -y/k)，落位再内缩 80px 并避开视野内已有节点。
+func TestApplyCloudAgentCanvasPlanFallsBackToViewport(t *testing.T) {
+	doc := map[string]any{
+		"viewport": map[string]any{"x": -1000.0, "y": -500.0, "k": 0.5},
+		"nodes": []any{
+			map[string]any{"id": "far", "type": "image", "position": map[string]any{"x": -7740.0, "y": 15644.0}, "width": 420.0, "height": 560.0},
+		},
+		"connections": []any{},
+	}
+	ops := []agentCanvasOp{{Type: "add_node", ID: "t1", NodeType: "text"}}
+	if _, err := applyCloudAgentCanvasPlan(doc, ops); err != nil {
+		t.Fatal(err)
+	}
+	// 可见世界左上角 = (1000/0.5, 500/0.5) = (2000, 1000)，内缩 80 → (2080, 1080)
+	if ops[0].X != 2080 || ops[0].Y != 1080 {
+		t.Fatalf("无引用节点应落在当前视野内：x=%v y=%v", ops[0].X, ops[0].Y)
+	}
+	// 视野内已有节点占据该位时向下让位（该节点 h=560 → 1080+560+100）
+	occupied := map[string]any{
+		"viewport": map[string]any{"x": -1000.0, "y": -500.0, "k": 0.5},
+		"nodes": []any{
+			map[string]any{"id": "far", "type": "image", "position": map[string]any{"x": -7740.0, "y": 15644.0}, "width": 420.0, "height": 560.0},
+			map[string]any{"id": "near", "type": "text", "position": map[string]any{"x": 2080.0, "y": 1080.0}, "width": 340.0, "height": 560.0},
+		},
+		"connections": []any{},
+	}
+	ops = []agentCanvasOp{{Type: "add_node", ID: "t2", NodeType: "text"}}
+	if _, err := applyCloudAgentCanvasPlan(occupied, ops); err != nil {
+		t.Fatal(err)
+	}
+	if ops[0].X != 2080 || ops[0].Y != 1740 {
+		t.Fatalf("视野内占位应向下让位：x=%v y=%v", ops[0].X, ops[0].Y)
+	}
+	// 旧文档没有 viewport 时保持包围盒回退（既有行为不变）
+	legacy := map[string]any{"nodes": []any{map[string]any{"id": "a1", "type": "text", "position": map[string]any{"x": 1000.0, "y": 500.0}, "width": 340.0, "height": 240.0}}, "connections": []any{}}
+	legacyOps := []agentCanvasOp{{Type: "add_node", ID: "l1", NodeType: "text"}}
+	if _, err := applyCloudAgentCanvasPlan(legacy, legacyOps); err != nil {
+		t.Fatal(err)
+	}
+	if legacyOps[0].X != 1460 {
+		t.Fatalf("无 viewport 应回退包围盒右侧空列：x=%v", legacyOps[0].X)
+	}
+}
