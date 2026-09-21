@@ -635,6 +635,10 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 		for pass := 0; pass <= len(nodes); pass++ {
 			bottom := 0.0
 			for _, node := range nodes {
+				// 被复用的草稿节点自身不参与占位判定，否则回写时会被自己顶下去。
+				if stringValue(node["id"]) == a.NodeID {
+					continue
+				}
 				position, _ := node["position"].(map[string]any)
 				nx, _ := position["x"].(float64)
 				ny, _ := position["y"].(float64)
@@ -724,6 +728,15 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 	for _, existing := range nodes {
 		if stringValue(existing["id"]) == a.NodeID {
 			existing["metadata"], existing["title"] = meta, a.Title
+			// 落位纠正（真机 2026-09-22）：LLM 常先用 canvas_apply_ops 自己建草稿节点，那一批 ops 里
+			// 没有连线操作 → 落位解析器找不到锚点 → 回退到包围盒右上角（离引用源可达上万像素）；媒体
+			// 路径随后按同一 id 复用该节点，旧实现只改 metadata/标题、保留原位置，于是“手动扩图都紧贴
+			// 源节点、Agent 的在天边”。只在**草稿阶段**（task==nil）重定位：那时节点刚由本轮生成，
+			// 用户没机会挪它；结果回写（task!=nil）保留位置，否则会覆盖用户在审批期间手动摆好的位置
+			// （契约见 agentMediaApprovalAllowsMovesButRejectsContentChanges 的 move 用例）。
+			if task == nil {
+				existing["position"] = map[string]any{"x": x, "y": y}
+			}
 			replaced = true
 			break
 		}

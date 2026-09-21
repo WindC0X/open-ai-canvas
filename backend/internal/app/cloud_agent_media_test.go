@@ -992,3 +992,73 @@ func TestCloudAgentMediaNodeAnchorsToReferenceSource(t *testing.T) {
 		t.Fatalf("锚点位被占时应下让到前一节点下方，got x=%v y=%v（前节点高 %v）", x, y, height)
 	}
 }
+
+// 复用 LLM 自建草稿节点时必须重定位（真机 2026-09-22 用户反馈「手动扩图都紧贴源节点，Agent 的在天边」）：
+// LLM 先用 canvas_apply_ops 建节点，那批 ops 里没有连线操作 → 落位解析器找不到锚点 → 回退到包围盒右上角；
+// 媒体路径随后按同一 id 复用。旧实现只改 metadata/标题、保留那张“天边”坐标。
+func TestCloudAgentMediaNodeRepositionsReusedDraftFromCanvasOps(t *testing.T) {
+	s, db, _, _ := creationTestService(t)
+	doc := map[string]any{"nodes": []map[string]any{
+		{"id": "src", "type": "image", "title": "源图", "position": map[string]any{"x": -7740.0, "y": 15644.0}, "width": 420.0, "height": 560.0, "metadata": map[string]any{"status": "success", "storageKey": "resource:ref"}},
+		// LLM 的 canvas_apply_ops 建的草稿：包围盒右上角回退位（= 用户画布上实测到的坐标）。
+		{"id": "draft-1", "type": "image", "title": "扩图 1536×864", "position": map[string]any{"x": -3763.0, "y": 14198.0}, "width": 720.0, "height": 405.0, "metadata": map[string]any{"status": "idle"}},
+	}, "connections": []any{}}
+	raw, _ := json.Marshal(doc)
+	if err := db.Create(&model.CanvasProject{ID: "agent-canvas", UserID: "user", PayloadJSON: string(raw)}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.Resource{ID: "ref", UserID: "user", Kind: "image", Status: "ready", MimeType: "image/png", Width: 640, Height: 480, Size: 50}).Error; err != nil {
+		t.Fatal(err)
+	}
+	policy, err := s.RuntimePolicy()
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := func() *cloudAgentMediaPlan {
+		canvas, err := s.repo.CanvasProjectForUser("user", "agent-canvas")
+		if err != nil {
+			t.Fatal(err)
+		}
+		updated, err := creationDocument(canvas.PayloadJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &cloudAgentMediaPlan{
+			Args:           cloudAgentMediaArgs{Mode: "image", Prompt: "向外延展", Title: cloudAgentOutpaintTitle(1536, 864), SnapshotHash: cloudAgentContentHash(updated), NodeID: "draft-1", ReferenceNodeIDs: []string{"src"}, OutpaintRatio: "16:9", DraftRunID: "run-1"},
+			OutpaintFrameW: 1536, OutpaintFrameH: 864,
+		}
+	}
+	if err := createCloudAgentMediaNode(s.repo, "user", "agent-canvas", plan(), nil, policy); err != nil {
+		t.Fatal(err)
+	}
+	read := func() (float64, float64) {
+		canvas, err := s.repo.CanvasProjectForUser("user", "agent-canvas")
+		if err != nil {
+			t.Fatal(err)
+		}
+		updated, err := creationDocument(canvas.PayloadJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nodes, err := creationObjects(updated["nodes"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		position, _ := nodes["draft-1"]["position"].(map[string]any)
+		x, _ := position["x"].(float64)
+		y, _ := position["y"].(float64)
+		return x, y
+	}
+	x, y := read()
+	if x != -7224 || y != 15644 {
+		t.Fatalf("复用 LLM 自建草稿时必须拉回引用源旁边，got x=%v y=%v", x, y)
+	}
+	// 再次复用（结果回写）不得因“自己被当成占位节点”而下移。
+	if err := createCloudAgentMediaNode(s.repo, "user", "agent-canvas", plan(), nil, policy); err != nil {
+		t.Fatal(err)
+	}
+	x, y = read()
+	if x != -7224 || y != 15644 {
+		t.Fatalf("重复复用应保持落位，got x=%v y=%v", x, y)
+	}
+}
