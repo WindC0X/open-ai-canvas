@@ -3434,3 +3434,30 @@ Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2
 **验证**：go build ✓；新增测试全过（解析/pad 计划/预览/节点标题画幅）。全量后端套件两次出现 `TestDeleteGeneratedAssetTaskReferences` 失败，用例单跑/双跑均通过（24.9s / 56.1s×2）；后台全量 `-v` 取证定性为 **SQLite 写锁抖动**（`database table is locked: resource_deletion_jobs`，cancelled_output 子用例）：该测试的后台删除 worker 与断言查询共用同一 shared-cache 内存库且 DSN 未设 busy timeout，全量负载下退化成锁错误。先试 `_busy_timeout=5000` **无效**（该错误是 shared-cache 专属的 `SQLITE_LOCKED` 表级锁，busy 超时只对 `SQLITE_BUSY` 生效），最终改为临时文件库 + WAL + busy_timeout（与 `creation_test.go` 同约定，只改测试基础设施）：**全量 `go test ./...` 复跑 0 FAIL**。tsc 0；真机复验待做——新建一次 Agent 扩图，在审批卡选 `1024x1024`，确认预览"本次画幅/扩图画幅"、节点标题与最终出图像素三者一致。
 
 **验证**：tsc 0 / go build + `go test ./...` 全绿 / bun test 1880 项 18 失败（全 pre-existing，零新增）。
+
+## Agent 扩图真机实测（2026-09-21 夜，已由 AI 自测完成，非人工代跑）
+
+**环境**：`CANVAS_BACKEND_DATA_DIR=/home/windc0x/flora-quiet-check`（账号 floracheck）+ 前端 dev server；运行真实 LLM（gpt-5.6-luna）→ 真实审批 → 真实任务。临时画布 `flora-outpaint-verify2`（源图 816x1088，用户画布同款素材）。
+
+**已验证（全部为真实 HTTP/DB 证据）**
+
+| 项 | 证据 |
+| --- | --- |
+| LLM 按新策略带 `size` | 调用参数 `outpaintRatio:"1:1"` + `size:"1024x1024"`（用户明确指定像素时）✓ |
+| 像素档即提交画幅 | 审批预览 `扩图画幅：1024x1024`；草稿节点 `title=扩图 1024×1024`、`metadata.size=1024x1024`、`edit=outpaint` ✓ |
+| 用户改档位生效（核心） | 批准时带 `mediaSettings.size=1536x1024` → 节点标题/`metadata.size` 随之变 `扩图 1536×1024`／`1536x1024` ✓ |
+| 真正下发的 payload | 任务 `operation=image_outpaint`、`config.size=1536x1024`、`referenceImages=[扩图底图 1536x1024]`、`mask=[扩图蒙版 1536x1024]` ✓ |
+| 出图与回写 | 任务 succeeded，产出 **1536×1024** 图；节点 `status=success`、画布框 720×480（=3:2，与出图同比）✓ |
+| 无外扩空间守卫 | 源图本身 1024²、目标 1024x1024 → `tool_failed：所选画幅与原图几乎相同，扩图没有外扩空间` —— 拦下一次付费空操作 ✓ |
+| 快照冲突保护 | 外部改动画布后批准 → 409「画布已变化，请重新读取画布并重新审批；未提交生成任务」；Agent 重读后重新审批成功 ✓ |
+
+**实测暴露并已修的问题**
+
+1. **策略漏洞（已修）**：我先前的措辞「size 生效后 outpaintRatio 仅作参考」可能让 LLM 省掉 ratio → 会走到普通图生图支路（扩图入口条件就是 `outpaintRatio` 非空）。改为「outpaintRatio 必填，size 仅在用户明确指定像素时额外传」。
+2. **提示词写死像素尺寸（已修）**：用户把 1024x1024 改成 1536x1024 后，提示词仍写「扩展到 1024x1024 方形构图」，与实际提交画幅矛盾。策略新增：扩图提示词不得写死像素尺寸，用"方形/横向/纵向构图"或只描述补的背景。
+
+**待决（产品）**
+
+- 守卫拒绝（无外扩空间）时 Agent 只解释并结束，不会主动建议更大的档位。是否要策略要求它给出「改用 1536x1024？」的备选？
+- 临时画布 `flora-outpaint-verify2` 保留作证据（含成功的 1536×1024 扩图结果），确认后可删。
+- 本次实测消耗：1 张图 = 1000 微积分（0.01 积分，余额 139.23）。
