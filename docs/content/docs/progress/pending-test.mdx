@@ -3391,3 +3391,21 @@ Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2
 **加剧因素**：本次提交档位 1K(1024²) 而源图 1254²，且外扩框约为源图 2×，pad 内原图仅占 51% 缩放（528px）；修复前那批 pad 1824 宽、原图 ~1027px，故重绘感较轻。
 
 **决策（用户 2026-09-21 裁定）**：先登记不改。备选方案留档：① 客户端/后端保真合成（结果落位时按提交几何把原图映射覆盖回原图区 + 1–2px 羽化，无论上游是否认 mask 都保证原图区不变）；② 换透传 mask 的 OpenAI images/edits 渠道；③ 扩图档位下限 = 源图长边（避免把原图缩小，治标）。
+
+## 双域 review 二次复核（4 路独立对抗）修复：2×P1 回归 + 3×P2（2026-09-21，待真机复验）
+
+复核范围 `39e1e037..HEAD`，四路（扩图前端/后端、撤销前端/后端）逐条验证首轮修复并做对抗搜索。**首轮修复 39 项中 36 项判定"落地且正确"，发现 2 个由修复批引入的 P1 回归与 3 个 P2。**
+
+**P1-1 撤销事务结构性死锁（撤销前端，已由复核人真实复现）**：`withRemoteUserDataSyncExclusive` 是尾随队列；事务内 `flushRemoteUserDataUnlocked → waitForRemoteProjectLoads` 读**实时** map，会把临界区内新注册、排队在事务**之后**的 load 一并等待 → 「事务等 load、load 等事务」自锁；撤销 POST 数秒窗口内任意一次打开画布 / 生成任务完成回写即中招，尾随队列永久卡死（自动同步/保存/登出全挂起，`undoBusy` 永不复位，无提示）。修复：`withRemoteUserDataSyncExclusive` 在入口同步快照 pending load，临界区只等该快照（区内新注册的 load 按设计等事务结束）。附回归测试 `user-data-sync-load-deadlock.test.ts`（旧代码 timeout / 新代码 resolved，已双向验证）。
+
+**P1-2 渠道模型扩图 prepare 全量失败（扩图后端，复核人已运行证实）**：`cloudAgentOutpaintModelCapability` 把 `string(m.Protocol)`（"openai-image" 等）当 capability 传给 `CapabilitySpecFromModelCapabilityConfig` → 落 `default` 返回"未知模型能力类型" → 前台逻辑模型关闭时（渠道模型是唯一来源）扩图 100% 不可用。修复：改传 `normalizeCapability(m.Capability)`；补契约回归测试（含"协议串必被拒绝"的语义锚点）。
+
+**P2 批修**：① 撤销 POST 补 `AbortSignal.timeout(15s)`（无应用层超时的挂起 POST 会无限期独占同步队列）；② Agent 扩图 ratio 补 0.2–5 边界（与后端同源；越界比例会退化成"近全白底图 + 近乎全透明 mask"，用户按扩图语义付费却拿到无关新图）；③ 扩图重入守卫改可见提示（此前静默 return，用户以为操作丢失）；④ `storeResourceFromBytes` 补 Pending/Failed 分支（Failed 资源被 `storeResource` 统一 409「正在上传」永久卡死，Agent 扩图重试链断死；对齐 `UploadResourceFile` 的 `retryStoredResource`）；⑤ `containsOutsideQuotes` 改逐字符扫描（转义引号 `\"` 被计入奇偶导致提示词回显误分网络类目、遮蔽正确归类）。
+
+**复核确认无误的关键修复**（摘）：撤销恢复粒度与 hash 口径逐键一致（7 键无单向排除）；非终态禁 undo 非永久拒绝（cancel 后可恢复）；`afterSnapshotHash→currentSnapshotHash` 四处一致；replayOnly 误报判定成立（后端每轮消息新 run ID 已由复核人逐行复核）；removeals 活体 basis 在正常路径无误删；扩图 pad+mask 提交结构不变。
+
+**验证**：tsc 0 / go build + `go test ./...` 全绿 / bun test 1880 项 18 失败（全部 pre-existing：断言漂移×3 + 并行抖动 + 诊断缓冲区基线，零新增）。
+
+**待真机**：① 撤销期间打开另一画布/任务完成回写，撤销仍能完成且同步队列不卡（死锁回归）；② 撤销按钮等待 15s 以上时的超时提示与队列恢复；③ Agent 扩图（渠道模型）可正常 prepare；④ Agent 扩图 ratio 给 "8" 时应被拒并提示区间。
+
+**未修留档（P3，复核人给出修法）**：撤销 POST 响应丢失时错误文案仍称"撤销未执行"（应先 re-preview，status=undone 改提示"已生效但确认失败"）；`mergeAgentCanvasEditor` 活体 basis 的对称误删窗口（拖拽 historyPaused 期间新增节点，建议 after=null 仅对 previous∪incoming 存在过的 id 生效）；`cloudAgentUndoBlockedByRunningTask` / `PruneCloudAgentCanvasMutations` 零测试；任务反查 fail-open（DB 错误时静默跳过守卫，建议仅 NotFound 放过）；排除集合双字面量漂移风险（建议抽共享常量）；扩图重试链 mask 复用 storageKey（省配额）、mask 上传失败静默降级（应 toast）、`loadImage` reject 在裁剪/切分链仍是 unhandled rejection；`undo-preview` 契约未入 OpenAPI/http-api 文档。
