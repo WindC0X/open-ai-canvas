@@ -3528,4 +3528,6 @@ Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2
 
 **验证**：新增 `TestCloudAgentMediaNodeRepositionsReusedDraftFromCanvasOps`，直接复现用户坐标（源 `(-7740,15644)` + ops 建的 `(-3763,14198)`）→ 复用后落位 `(-7224, 15644)`；重复复用幂等。`internal/app` 全包测试 ok（401s）。
 
-**仍未覆盖**：完全没有引用对端的节点（例如让 Agent「新建一个空图片节点」）仍回退包围盒右上角；建议改为按画布 `viewport` 落位（用户正在看的地方），待确认后再动。
+**第三步（用户裁定「需要」，2026-09-22）**：完全没有引用对端的新节点此前回退到包围盒右上角（= 用户视野之外，仍是「天边」）。现改为**按画布 `viewport` 落在用户当前视野内**：画布 viewport 以屏幕位移表示（世界→屏幕 = `world*k + (x,y)`，见前端 `canvas-live-viewport`），可见世界左上角 = `(-x/k, -y/k)`，落位内缩 80px，并用 `cloudAgentPlacementFreeSlot` 避开视野内已有节点（与锚点下让同口径）。旧文档没有 viewport 时保持包围盒回退不变。单测 `TestApplyCloudAgentCanvasPlanFallsBackToViewport` 覆盖视野落位 / 视野内占位下让 / 无 viewport 回退三例。
+
+**真机复验待补**：验证需要打开画布，但浏览器侧画布列表卡在「正在打开真机克隆（临时）」的 pending 状态（本地状态，非后端；列表数据本身已刷新，仅打开动作被堵）——重开标签页后即可补验「让 Agent 新建一个空节点 → 应出现在当前视野内」。
