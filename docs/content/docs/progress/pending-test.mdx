@@ -3325,3 +3325,18 @@ Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2
 **P2（登记待排期）**：扩图提交前置 await 无 try/catch 无重入防护（慢网双击重复扣费）；aspect_ratio 制模型提交 WxH 像素 size 必被 admission 拒绝（submitSize 是死代码）；后端源图全量解码无像素上限（解压炸弹 ~1GiB/次）+ storeResourceFromBytes 绕过上传配额；ratio 无上限退化为纯白底图仍计费；前端 outpaint.ratio 解析失败静默回落 96px；appearance 漏出 hash 排除集合（切主题误阻断撤销/写入 409）；canvas_undone 刷新兜底在 supportsPatches/replayOnly 两种订阅形态下都失效（多标签页撤销反噬）；adopt 失败后基线分叉无防反噬；undo 可删除已绑运行中任务的节点（付费产出静默丢弃）；undo 未校验 run 终态；preview 吞非 NotFound 错误。
 
 **流程记录**：ocr CLI 双跑均因 glm 通道超时/空输出失败（185 请求 10 败、25/30 组全组超时），放弃该通道；工作流 v2 用 agentRetries:6 打穿（4/4 完成，30M tokens）。
+
+### 双域 review 完整报告回传补充（同日，四份全文到齐）
+
+此前 journal 截断漏记的发现，经人工验证后补录：
+
+**新增 P2**：
+- Agent 扩图节点 composer 击穿：后端写 `meta["outpaint"]` 声明"供前端识别封装态"，但全仓无消费方（死契约）；Agent 扩图结果节点无 edit 标记 → composer 显示内部模板提示词（与手动扩图行为不一致）。修复方向：门控加 `metadata.outpaint !== undefined` 判据或后端统一写 `edit:"outpaint"`（cloud_agent_media.go:610 / canvas-node.tsx:315）。
+- Agent 扩图对模型能力隐含硬要求（maskSupported + size 自定义）在审批后才爆破：prepare 阶段不校验模型能力，用户审批计费后任务失败（cloud_agent_media_outpaint.go:276）。
+- 重试链丢 mask：mask 只在提交闭包，未持久化到 metadata，重试语义静默降级为无蒙版整图编辑（use-canvas-generation-retry.ts:381）。
+- flush→POST→adopt 在途窗口：本地编辑被 adopt 静默丢弃 / adopt 失败后基线分叉触发反噬；建议包进 `withRemoteUserDataSyncExclusive` 临界区（panel:512）。
+- `expandingTimerRef`（420ms）卸载不清理（无实害，记录在案）。
+
+**新增 P3**：snap16 负 padding（极大源图 mask 边缘发丝线）；scale 四边总和单轴估算过度收缩 ~15% 分辨率；args.Size 与 outpaintRatio 并存时审批预览与执行不一致；mutation 账本无限增长无清理；undone 幂等分支死代码；catch 分支预检未归一 found=false；adopt 链 floating promise undoBusy 提前复位；removals 与 patch 基底不一致窗口；mediaContentHash 退化为重复代码；`gofmt` 9 文件未格式化（已当场修掉 f9913943，测试锚定通过）。
+
+**已检查无问题（新增确认）**：pad 合成不在拖拽高频路径（每次提交单次 encode 峰值可控）；指纹反例逐一核对（宫格/Agent/局部重绘/表情占位均不命中）；回写 metadata 保真（edit/manualSize 经回写/hydrate/重试保留）；undo 三口径闭合与并发串行（storageMu + CAS）；SSE 幂等（seq 去重 + 增量 cursor）。
