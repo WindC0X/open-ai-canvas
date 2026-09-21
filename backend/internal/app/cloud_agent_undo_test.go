@@ -53,6 +53,11 @@ func TestUndoCloudAgentCanvasRestoresLatestMutationAndIsIdempotent(t *testing.T)
 	if afterHash == beforeHash {
 		t.Fatal("canvas mutation did not change snapshot")
 	}
+	// 运行中不可撤销（service 守卫），按真实流程先置终态：
+	if _, err := s.UndoCloudAgentCanvas("user", run.ID, call.ID, afterHash, "运行中撤销"); err == nil {
+		t.Fatal("undo must be rejected while run is still running")
+	}
+	finalizeRunForUndo(t, s, run.ID)
 	result, err := s.UndoCloudAgentCanvas("user", run.ID, call.ID, afterHash, "用户撤销")
 	if err != nil {
 		t.Fatal(err)
@@ -61,8 +66,18 @@ func TestUndoCloudAgentCanvasRestoresLatestMutationAndIsIdempotent(t *testing.T)
 		t.Fatalf("unexpected undo result: %+v", result)
 	}
 	restored, _ := s.repo.CanvasProjectForUser("user", "agent-canvas")
-	if restored.PayloadJSON != canvas.PayloadJSON {
-		t.Fatal("undo did not restore the exact before snapshot")
+	// 恢复粒度（review 2026-09-21 P1）：内容语义回到 before，哈希排除的字段（updatedAt/
+	// viewport/chatSessions 等）保留 current 值。重建期望文档对比，而不是逐字节等于原始串。
+	expectedDoc, _ := creationDocument(canvas.PayloadJSON)
+	restoreExcludedCanvasFields(expectedDoc, mutatedDoc)
+	expectedJSON, _ := json.Marshal(expectedDoc)
+	restoredDoc, _ := creationDocument(restored.PayloadJSON)
+	assertJSONEqual(t, string(expectedJSON), restoredDoc, "undo restored payload mismatch")
+	// 内容键必须严格回到 before：nodes 与原始快照一致。
+	beforeNodes, _ := json.Marshal(expectedDoc["nodes"])
+	restoredNodes, _ := json.Marshal(restoredDoc["nodes"])
+	if string(beforeNodes) != string(restoredNodes) {
+		t.Fatal("undo did not restore the exact before content snapshot")
 	}
 	// 链式语义(review P2-4, PRD A3): applied-only 查询下单 mutation 撤销后, 重复请求
 	// 命中"无可撤销的画布变更", 不再返回 accepted 幂等成功。
@@ -144,7 +159,10 @@ func TestUndoCanvasPreviewReflectsMutationState(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 无任何画布变更: found=false 且不可撤销:
-	empty := s.UndoCanvasPreview("user", run.ID)
+	empty, err := s.UndoCanvasPreview("user", run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if empty["found"] != false || empty["canUndo"] != false {
 		t.Fatalf("empty preview should be not-found and not undoable: %+v", empty)
 	}
@@ -169,20 +187,32 @@ func TestUndoCanvasPreviewReflectsMutationState(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	preview := s.UndoCanvasPreview("user", run.ID)
+	// 运行中预检与执行同守卫（canUndo=false），置终态后才可撤销：
+	runningPreview, previewErr := s.UndoCanvasPreview("user", run.ID)
+	if previewErr != nil {
+		t.Fatal(previewErr)
+	}
+	if runningPreview["canUndo"] != false {
+		t.Fatalf("preview must not offer undo while run is running: %+v", runningPreview)
+	}
+	finalizeRunForUndo(t, s, run.ID)
+	preview, err := s.UndoCanvasPreview("user", run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if preview["found"] != true || preview["canUndo"] != true {
 		t.Fatalf("fresh mutation should be undoable: %+v", preview)
 	}
 	if preview["stepId"] != call.ID || preview["status"] != "applied" {
 		t.Fatalf("preview metadata mismatch: %+v", preview)
 	}
-	if hash, _ := preview["afterSnapshotHash"].(string); len(hash) != 64 {
-		t.Fatalf("afterSnapshotHash should be a 64-hex hash: %+v", preview)
+	if hash, _ := preview["currentSnapshotHash"].(string); len(hash) != 64 {
+		t.Fatalf("currentSnapshotHash should be a 64-hex hash: %+v", preview)
 	}
 	// revision 不应被只读预检递增(基准取写操作 applyCloudAgentCanvas 之后的值):
 	beforePreview, _ := s.repo.CloudAgent("user", run.ID)
-	_ = s.UndoCanvasPreview("user", run.ID)
-	_ = s.UndoCanvasPreview("user", run.ID)
+	_, _ = s.UndoCanvasPreview("user", run.ID)
+	_, _ = s.UndoCanvasPreview("user", run.ID)
 	after, _ := s.repo.CloudAgent("user", run.ID)
 	if after.Revision != beforePreview.Revision {
 		t.Fatalf("preview must not mutate run revision: %d -> %d", beforePreview.Revision, after.Revision)
@@ -194,8 +224,41 @@ func TestUndoCanvasPreviewReflectsMutationState(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 链式语义: 撤销后 applied-only 预检找不到 mutation → found=false(无下一条可撤销)。
-	undone := s.UndoCanvasPreview("user", run.ID)
+	undone, undisErr := s.UndoCanvasPreview("user", run.ID)
+	if undisErr != nil {
+		t.Fatal(undisErr)
+	}
 	if undone["canUndo"] != false || undone["found"] != false {
 		t.Fatalf("after undo, preview should report no undoable mutation: %+v", undone)
+	}
+}
+
+// finalizeRunForUndo 把 run 置为终态：撤销语义只对已结束的 run 开放（service 守卫），
+// 测试按真实流程走（UI 也仅在终态展示撤销条）。
+func finalizeRunForUndo(t *testing.T, s *Service, runID string) {
+	t.Helper()
+	execution, err := s.repo.CloudAgent("user", runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.repo.MutateCloudAgent("user", runID, execution.Revision, func(current *model.CloudAgentExecution, repo *repository.Repository) error {
+		current.Status = "completed"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// assertJSONEqual 递归比较两个 JSON 值（map/slice 的 Go 表示不同来源可能类型不同）。
+func assertJSONEqual(t *testing.T, expected string, actual any, message string) {
+	t.Helper()
+	var expectedValue any
+	if err := json.Unmarshal([]byte(expected), &expectedValue); err != nil {
+		t.Fatal(err)
+	}
+	expectedNorm, _ := json.Marshal(expectedValue)
+	actualNorm, _ := json.Marshal(actual)
+	if string(expectedNorm) != string(actualNorm) {
+		t.Fatalf("%s\nexpected: %s\nactual:   %s", message, expectedNorm, actualNorm)
 	}
 }

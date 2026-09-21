@@ -74,6 +74,31 @@ func (r *Repository) CreateCloudAgentCanvasMutation(mutation *model.CloudAgentCa
 	return r.db.Create(mutation).Error
 }
 
+// PruneCloudAgentCanvasMutations 有界清理画布账本（review 2026-09-21 P3：无清理策略会无限增长）：
+// 超过 keep 条后删除更早的终态记录（undone/not_undoable）。applied 记录永不删除——
+// 链式撤销（apply 后指针下移）依赖它们；终态记录只用于审计，保留最近 keep 条即可。
+func (r *Repository) PruneCloudAgentCanvasMutations(canvasID string, keep int) error {
+	if canvasID == "" {
+		return nil
+	}
+	if keep <= 0 {
+		keep = 200
+	}
+	var ids []string
+	if err := r.db.Model(&model.CloudAgentCanvasMutation{}).
+		Where("canvas_id = ?", canvasID).
+		Order("created_at DESC, id DESC").
+		Limit(keep).
+		Pluck("id", &ids).Error; err != nil {
+		return err
+	}
+	if len(ids) < keep {
+		return nil
+	}
+	return r.db.Where("canvas_id = ? AND status IN ? AND id NOT IN ?", canvasID, []string{"undone", "not_undoable"}, ids).
+		Delete(&model.CloudAgentCanvasMutation{}).Error
+}
+
 func (r *Repository) LatestCloudAgentCanvasMutation(userID, runID string) (*model.CloudAgentCanvasMutation, error) {
 	var mutation model.CloudAgentCanvasMutation
 	// 只取 applied: 链式撤销(PRD A3"撤一次后最新变为上一步")必须跳过已 undone 的记录,

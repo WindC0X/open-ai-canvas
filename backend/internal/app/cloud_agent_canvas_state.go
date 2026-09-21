@@ -37,7 +37,7 @@ var cloudAgentStructuredProjectors = map[string]cloudAgentStructuredProjector{
 func cloudAgentCanvasHash(doc map[string]any) string {
 	content := make(map[string]any, len(doc))
 	for key, value := range doc {
-		if key == "viewport" || key == "updatedAt" || key == "chatSessions" || key == "activeChatId" || key == "backgroundMode" || key == "showImageInfo" {
+		if key == "viewport" || key == "updatedAt" || key == "chatSessions" || key == "activeChatId" || key == "backgroundMode" || key == "showImageInfo" || key == "appearance" {
 			continue
 		}
 		content[key] = cloudAgentHashNormalizable(value)
@@ -100,24 +100,11 @@ func cloudAgentContentHash(doc map[string]any) string {
 
 // Generation does not depend on node positions. Keep the full canvas hash for
 // mutations and undo, which must still detect layout edits before restoring data.
+// 与 cloudAgentContentHash 口径已收敛为同一实现（review 2026-09-21 P3：两函数逐行等价）；
+// 保留独立命名是因为 media 链与 canvas_get_state 的 mediaSnapshotHash 字段语义面向图像，
+// 未来若两口径需要分叉，只改本函数即可。
 func cloudAgentMediaContentHash(doc map[string]any) string {
-	content := make(map[string]any, len(doc))
-	for key, value := range doc {
-		content[key] = value
-	}
-	nodes := creationMaps(doc["nodes"])
-	projected := make([]map[string]any, 0, len(nodes))
-	for _, node := range nodes {
-		item := make(map[string]any, len(node))
-		for key, value := range node {
-			if key != "position" {
-				item[key] = value
-			}
-		}
-		projected = append(projected, item)
-	}
-	content["nodes"] = projected
-	return cloudAgentCanvasHash(content)
+	return cloudAgentContentHash(doc)
 }
 
 func cloudAgentCanvasState(repo *repository.Repository, userID string, doc map[string]any, offset int, ids []string, storyboardOffset int) (any, error) {

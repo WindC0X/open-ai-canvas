@@ -56,5 +56,11 @@ func recordCloudAgentCanvasMutation(repo *repository.Repository, input cloudAgen
 	} else {
 		mutation.Status = "not_undoable"
 	}
-	return repo.CreateCloudAgentCanvasMutation(mutation)
+	if err := repo.CreateCloudAgentCanvasMutation(mutation); err != nil {
+		return err
+	}
+	// 账本有界化：best-effort 清理更早的终态记录，失败不阻塞本次变更落账
+	// （记录已写入，清理属运维性收益 — review 2026-09-21 P3）。
+	_ = repo.PruneCloudAgentCanvasMutations(input.CanvasID, 0)
+	return nil
 }

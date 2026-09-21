@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -44,6 +45,11 @@ func (s *Service) UndoCloudAgentCanvas(userID, runID, stepID, expectedSnapshotHa
 		}
 		return nil, err
 	}
+	// 非终态 run 拒绝撤销（review 2026-09-21 P3）：UI 用 !running 挡了按钮，但直调 API 会
+	// 回滚正在运行的 Agent 已写入内容，形成"撤销又被运行中 Agent 复活"的混乱状态。
+	if !cloudAgentRunTerminal(run.Status) {
+		return nil, creationConflict("Agent 运行尚未结束，暂不能撤销画布变更")
+	}
 	result := map[string]any{"accepted": false}
 	err = s.repo.MutateCloudAgent(userID, runID, run.Revision, func(current *model.CloudAgentExecution, repo *repository.Repository) error {
 		mutation, err := repo.LatestCloudAgentCanvasMutation(userID, runID)
@@ -69,6 +75,9 @@ func (s *Service) UndoCloudAgentCanvas(userID, runID, stepID, expectedSnapshotHa
 			return err
 		}
 		currentHash := cloudAgentCanvasHash(currentDoc)
+		// undone 分支保留作防御：LatestCloudAgentCanvasMutation 已是 applied-only 查询，正常
+		// 流程取不到 undone 状态（重复撤销命中 404/409，测试锚定该语义）；若未来查询口径
+		// 放宽，这里仍能把"已撤销但画布又变"的场景拒绝掉，不会静默重放。
 		if mutation.Status == "undone" {
 			if currentHash == mutation.BeforeSnapshotHash && expectedSnapshotHash == currentHash {
 				result = map[string]any{"accepted": true, "snapshotHash": currentHash}
@@ -98,8 +107,23 @@ func (s *Service) UndoCloudAgentCanvas(userID, runID, stepID, expectedSnapshotHa
 		if cloudAgentCanvasHash(beforeDoc) != mutation.BeforeSnapshotHash {
 			return BadAuthRequest("该 Agent 画布变更的撤销快照校验失败")
 		}
+		// 恢复粒度与哈希口径对齐（review 2026-09-21 P1）：hash 刻意排除对话/外观字段，撤销
+		// 校验因此被它们的变化放行；但 BeforeJSON 是整文档快照，直接落库会把用户在 Agent
+		// 写入之后改的 chatSessions/背景偏好等静默回滚（多标签页/刷新场景永久丢失）。
+		// 恢复前把当前文档的排除字段移植进快照：内容语义回滚，用户态数据保持当前值。
+		// 任务守卫（review 2026-09-21 P2）：撤销会删除 current 有但 before 没有的节点，若这些
+		// 节点已绑定运行中的生成任务（用户 UI 直发，账本 HasSubmittedTask 不覆盖），回写链会
+		// 静默丢弃付费产出——命中时拒绝撤销而不是静默删除。
+		if blocked := s.cloudAgentUndoBlockedByRunningTask(userID, beforeDoc, currentDoc); blocked != "" {
+			return creationConflict(blocked)
+		}
+		restoreExcludedCanvasFields(beforeDoc, currentDoc)
+		restored, err := json.Marshal(beforeDoc)
+		if err != nil {
+			return BadAuthRequest("该 Agent 画布变更的撤销快照无效")
+		}
 		previous := canvas.PayloadJSON
-		canvas.PayloadJSON = mutation.BeforeJSON
+		canvas.PayloadJSON = string(restored)
 		if err := repo.CompareSaveCreationCanvas(canvas, previous); err != nil {
 			if errors.Is(err, repository.ErrCreationConflict) {
 				return creationConflict("画布已发生后续变化，未执行撤销")
@@ -135,38 +159,56 @@ func (s *Service) UndoCloudAgentCanvas(userID, runID, stepID, expectedSnapshotHa
 }
 
 // UndoCanvasPreview 描述最近一次 Agent 画布 mutation 的可撤销状态。面板用它决定
-// 撤销按钮的可用性与禁用原因, 并取 afterSnapshotHash 作为 undo 的 expectedSnapshotHash。
-func (s *Service) UndoCanvasPreview(userID, runID string) map[string]any {
+// 撤销按钮的可用性与禁用原因, 并取 currentSnapshotHash 作为 undo 的 expectedSnapshotHash。
+func (s *Service) UndoCanvasPreview(userID, runID string) (map[string]any, error) {
 	preview := map[string]any{"found": false, "canUndo": false, "blockReason": ""}
 	setBlock := func(reason string) { preview["canUndo"] = false; preview["blockReason"] = reason }
 	// 只读预检: 不走 MutateCloudAgent 写事务(避免递增 revision); 与 undo 的竞态由
 	// undo 主流程的 expectedSnapshotHash 校验兜底(preview 结果仅作 UI 状态, 不作授权)。
 	s.storageMu.Lock()
 	defer s.storageMu.Unlock()
-	if _, err := s.repo.CloudAgent(userID, runID); err != nil {
-		setBlock("Agent 运行不存在或无权访问")
-		return preview
+	execution, err := s.repo.CloudAgent(userID, runID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			setBlock("Agent 运行不存在或无权访问")
+			return preview, nil
+		}
+		// 瞬态存储错误必须上抛 5xx（review 2026-09-21 P3）：吞成 found=false 会让
+		// "没有可撤销变更"与"DB 故障"不可区分，监控不可见。
+		return nil, err
+	}
+	// 与 undo 主流程同守卫（review 2026-09-21 P3）：运行中 run 的预检直接报不可撤销，
+	// 避免 UI 依赖被绕过时预览与执行语义分叉。
+	if !cloudAgentRunTerminal(execution.Status) {
+		setBlock("Agent 运行尚未结束，暂不能撤销")
+		return preview, nil
 	}
 	mutation, err := s.repo.LatestCloudAgentCanvasMutation(userID, runID)
 	if err != nil {
-		setBlock("当前 Agent 运行没有可撤销的画布变更")
-		return preview
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			setBlock("当前 Agent 运行没有可撤销的画布变更")
+			return preview, nil
+		}
+		return nil, err
 	}
 	canvas, err := s.repo.CanvasProjectForUser(userID, mutation.CanvasID)
 	if err != nil {
-		setBlock("画布不存在或无权访问")
-		return preview
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			setBlock("画布不存在或无权访问")
+			return preview, nil
+		}
+		return nil, err
 	}
 	currentDoc, err := creationDocument(canvas.PayloadJSON)
 	if err != nil {
 		setBlock("画布内容读取失败")
-		return preview
+		return preview, nil
 	}
 	currentHash := cloudAgentCanvasHash(currentDoc)
 	preview["found"] = true
 	preview["stepId"] = mutation.StepID
 	preview["status"] = mutation.Status
-	preview["afterSnapshotHash"] = currentHash
+	preview["currentSnapshotHash"] = currentHash
 	preview["hasSubmittedTask"] = mutation.HasSubmittedTask
 	switch {
 	case mutation.Status == "undone":
@@ -182,5 +224,51 @@ func (s *Service) UndoCanvasPreview(userID, runID string) map[string]any {
 	default:
 		preview["canUndo"] = true
 	}
-	return preview
+	return preview, nil
+}
+
+// cloudAgentUndoBlockedByRunningTask 检查撤销将删除的节点是否绑定运行中/排队中的生成任务。
+// 返回非空字符串即拒绝原因（fail-closed）；账本 HasSubmittedTask 只覆盖 Agent 自提任务，
+// 用户 UI 直发的任务只能从节点 metadata.taskId 反查（review 2026-09-21 P2）。
+func (s *Service) cloudAgentUndoBlockedByRunningTask(userID string, beforeDoc, currentDoc map[string]any) string {
+	beforeNodes, err := creationObjects(beforeDoc["nodes"])
+	if err != nil {
+		return ""
+	}
+	currentNodes, err := creationObjects(currentDoc["nodes"])
+	if err != nil {
+		return ""
+	}
+	for id, node := range currentNodes {
+		if beforeNodes[id] != nil {
+			continue
+		}
+		metadata, _ := node["metadata"].(map[string]any)
+		taskID := stringValue(metadata["taskId"])
+		if taskID == "" {
+			continue
+		}
+		task, taskErr := s.repo.TaskForUser(userID, taskID)
+		if taskErr != nil {
+			continue
+		}
+		if task.Status == model.TaskStatusQueued || task.Status == model.TaskStatusRunning {
+			return "待撤销节点上有进行中的生成任务，请等任务完成或取消后再撤销"
+		}
+	}
+	return ""
+}
+
+// restoreExcludedCanvasFields 把 current 文档中哈希排除口径的字段移植进 before 快照。
+// 移植字段必须与 cloudAgentCanvasHash 的排除集合严格同步：viewport（前端 adopt 保留本地）、
+// updatedAt（落库时间戳）、chatSessions/activeChatId（画布助手对话）、backgroundMode/
+// showImageInfo/appearance（外观偏好）。
+func restoreExcludedCanvasFields(beforeDoc, currentDoc map[string]any) {
+	for _, key := range []string{"viewport", "updatedAt", "chatSessions", "activeChatId", "backgroundMode", "showImageInfo", "appearance"} {
+		if value, ok := currentDoc[key]; ok {
+			beforeDoc[key] = value
+		} else {
+			delete(beforeDoc, key)
+		}
+	}
 }
