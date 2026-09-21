@@ -50,12 +50,43 @@
 - 触碰：`canvas-image-batch-retry.ts`(34)、`canvas-generation-task-sync.ts`(5)、`canvas-project-generation.ts`(29)、`canvas-image-generation-executor.ts`、`project.tsx`、`use-canvas-render-model.ts`；新增 `canvas-generation-result.ts`(32)、`canvas-node-visibility.ts`(32)；`docs/design/canvas-consistency-repair.mdx`(40)。
 - **与我方直接同域**：我方图像/视频批链（`canvas-image-batch-retry` 复用、`canvas-generation-task-sync` 6 次热改、video batch 执行器）→ 须逐条对照"节点丢失 / 资源引用 / 刷新状态"三处修复与我方收敛语义。
 
-## 四、零碰撞先遣队（文件级首过，22/49）
+## 四、三方模拟结果（精确层，2026-09-22 实测）
+
+方法：`git merge-file --diff3`，base=`8d60a516` / ours=`bb1db672` / theirs=各提交；统计真实冲突 hunk。
+
+**结果：49 提交中 24 个存在真实冲突，合计 241 个冲突 hunk。** 冲突最重：
+
+| 提交 | hunk | 主要冲突文件 |
+| --- | --- | --- |
+| `dc1ad680` 素材库与画布批量删除修复 | **31** | user-data-sync.ts(12)、globals.css(9)、use-canvas-render-model.ts(4)、canvas-node-prompt-panel.tsx(3) |
+| `6f452405` 画布批量生成一致性 | **26** | project.tsx(13)、use-canvas-render-model.ts(5)、canvas-image-batch-retry.ts(3)、canvas-image-generation-executor.ts(2)、canvas-generation-task-sync.ts(1) |
+| `b8eefdad` 模型选择彩色标签 | **25** | model-picker.tsx(21)、user-session.ts(1)、workspace-product.css(1) |
+| `a3bf0bd8` 多模态表格 PR#549 | **21** | project.tsx(13)、use-canvas-media-tools.ts(3)、canvas-node-prompt-panel.tsx(3) |
+| `19c9a207` 模型候选报价 | **18** | model-picker.tsx(16) |
+| `6d355380` 多模态视频分镜表 | 17 | project.tsx(13)、use-canvas-media-tools.ts(3) |
+| `d87c3944` 合并 v1.5.6 | 16 | project.tsx(13)、canvas-node-prompt-panel.tsx(3) |
+| `5843d489` 列表模式入口 | 15 | project.tsx(12)、canvas-node-prompt-panel.tsx(3) |
+| `7985dbec` 批量生成设置对话框 | 12 | project.tsx(12) |
+| `27bcca62` 批量创作表设置对话框 | 11 | project.tsx(11) |
+| `85de9907` Agent 参数错误有限重试 | 11 | cloud_agent_tools.go(4)、canvas-cloud-agent-panel.tsx(3)、agent_policy_test.go(1)、approval_preview.go(1) |
+| `13707c06` 工具 schema 瘦身 | 4 | cloud_agent_tools.go(4) |
+| `8b8ea291` 运行稳定性 | 7 | cloud_agent_tools.go(4)、resource_delete_test.go(1) |
+| `c5b81f69` Live2D | 7 | canvas-cloud-agent-panel.tsx(4)、.gitignore(1) |
+| `fd3fc44d` 画布写入漏 patch | 2 | cloud_agent_approval_preview.go(1) + 测试 |
+| `13d8f629`/`93bc079b`/`15946e5a`/`4ab43ca6`/`c09304d9`/`6c92c3be`/`76e02734` | 1-4 | settings/index.tsx、pending-test.mdx、index.html、测试等零散 |
+
+**结论**：`project.tsx`（我方 71 次热改）与 `model-picker.tsx`（我方 813 行重写）是两大主战场；`user-data-sync.ts`/`use-canvas-render-model.ts`/批链三文件次之。
+
+## 五、零碰撞先遣队（三方模拟定稿，25/49）
+
+`4066be73` `fd4872a4` `6f1b4577` `937f2b7a` `944a2209` `baddbc2f` `e94eab88` `af968240` `0e5fb27f` `f9dc1c56` `cce2d2d3` `3f5b0bd3` `10b85962` `0e61fb00` `7449c1c0` `0e3fb79b` `edcf7bc7` `5e3bc011` `22d65d01` `ea44d445` `f7a8b9ed` `04d8b85e` `73ef84ff` `5045f7a7` `d5ff2225`
+
+（判据升级：文件级首过的 22 个里有 `c09304d9`（index.html 1 hunk）与 `6c92c3be`（测试 1 hunk）实为有冲突，已剔除；本清单以模拟结果为准）
 
 `d5ff2225`、`5045f7a7`、`c09304d9`、`73ef84ff`、`04d8b85e`、`f7a8b9ed`、`22d65d01`、`6c92c3be`、`5e3bc011`、`edcf7bc7`、`0e3fb79b`、`0e61fb00`、`3f5b0bd3`、`cce2d2d3`、`f9dc1c56`、`0e5fb27f`、`e94eab88`、`baddbc2f`、`944a2209`、`937f2b7a`、`6f1b4577`、`fd4872a4`、`4066be73`
 （判据 = 该提交触碰文件**完全不在**我方 566 提交改动集内；精确零碰撞仍需三方模拟复核）
 
-## 五、我方 delta（侦察基线 `8d60a516` → `bb1db672`）
+## 六、我方 delta（侦察基线 `8d60a516` → `bb1db672`）
 
 | 文件 | 改动量（±行） |
 | --- | --- |
@@ -65,14 +96,14 @@
 | `backend/internal/app/cloud_agent_canvas_state.go` | 86 |
 | `cloud_agent_approval_preview.go` | 落位口径（本次新增锚点/视野/占位助手） |
 
-## 六、拟议裁决卡（签名制材料，不自裁）
+## 七、拟议裁决卡（签名制材料，不自裁）
 
 - **新增卡 10｜批量生成一致性域**：`6f452405` 系（节点丢失/资源引用/刷新状态）与我方 image/video 批链收敛语义的融合口径。
 - **新增卡 11｜模型展示标签域**：`b8eefdad` 后端 `tags` 采纳 + 我方 model-picker 重写体手工接入；与 04/08 卡交叉。
 - **修订卡 04**：增量追加 `19c9a207`（报价显示）与 `13707c06`（工具 schema 瘦身）→ 影响我方模型选择面与工具 schema 面。
 - **修订卡 09**：增量侧 `globals.css` 仅 1 次触碰 → 债区扩张有限，吸收策略不变。
 
-## 七、红线检查（批次七）
+## 八、红线检查（批次七）
 
 - 增量 49 提交**未见 `237f2e2a` 同级"端到端裁断我方依赖链"的语义破坏型提交**；需重点盯的语义项为 `fd3fc44d`（漏 patch 改回给模型）、`85de9907`（参数错误有限重试）、`6f452405`（批链一致性）——三者均与我方既有语义可能相抵，进卡内裁决。
 - 待办：对 49 提交逐个 `git merge-file` 三方模拟 → 精确冲突 hunk 数与先遣队定稿。
