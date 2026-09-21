@@ -3297,3 +3297,15 @@ Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2
 1. 「重新生成」按钮走任务中心重试链，与前端执行链行为不一致：重试 input 带 referenceImages.storageKey → 后端要求公网 URL（requiresPublicMediaUrls 合同）→ 报"生成参考素材地址失败"；而首跑执行链无此 input、不触发水合。同一任务重试语义分叉。
 2. 小白鼠渠道（CHANNEL_000003）gpt-image-2 同端点 502 持续故障（00:10/00:14 两连败）。
 3. 影策渠道的 Provider 分组需 hover 展开 L2 flyout，pinned 直加 CHANNEL_000006::gpt-image-2 后行内可见（用户确认支持扩图 ✓）。
+
+## 扩图结果内部 composer 消除（2026-09-21，待真机验收）
+
+**问题**：扩图结果节点 hover 仍显示内部 composer（提示词覆层）。第一轮修复写错位置——`edit: "outpaint"` 只写进任务提交 metadata（`runBackendCanvasGenerationTask` 参数，落 `task.inputJson`），而门控 `canvas-node.tsx:313` 读的是节点 metadata；任务回写链 `completedTaskMetadata()` 只透传任务簿记字段、不透传 `inputJson.metadata`，门控从未命中。根因是验证止步于类型编译，未走通"标记从哪写入、门控从哪读取"的运行时数据流。
+
+**修复（两步）**：
+1. 占位链补写：扩图占位节点 metadata 增加 `edit: "outpaint"`（use-canvas-media-tools.ts:889），随占位进入结果节点（回写靠 `...node.metadata` 保留）。
+2. 历史节点回退：门控补指纹判据 `generationType === "edit" && manualSize === true`——该组合仅扩图占位写入（图生图/局部重绘占位无 manualSize，宫格子节点无 generationType），存量扩图结果节点无需迁移即被覆盖。
+
+**已验证**：tsc 0 / build 41s / vite 探针确认新代码下发 / 两 commit 已推 fork（ab0a627f、43b26edc）。
+
+**待用户真机**：刷新后 hover 既有扩图结果节点（历史+新生成各一）确认内部 composer 消失；普通图生图结果节点 composer 不受影响。
