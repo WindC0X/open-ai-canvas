@@ -515,7 +515,9 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
             let adoptFailure: unknown = null;
             await withRemoteUserDataSyncExclusive(async () => {
                 await flushRemoteUserDataUnlocked();
-                await undoAgentCanvasRun(activeRun.id, { stepId: preview.stepId, expectedSnapshotHash, reason: reason || undefined });
+                // 显式 15s 超时：POST 挂在临界区内会无限期独占远端同步队列（apiClient 无默认超时，
+                // 挂起连接 = 自动同步/保存/登出全部排队；review 2026-09-21 P2-1，口径同 decideAgentApproval）。
+                await undoAgentCanvasRun(activeRun.id, { stepId: preview.stepId, expectedSnapshotHash, reason: reason || undefined }, AbortSignal.timeout(15_000));
                 // 撤销改的是云端画布; 本地内容/基线/水位必须强制对齐云端(回滚态), 否则残留快照会被
                 // S08"仅本地领先"路径推回云端(实测: 撤销 95 秒后被自动同步反噬)。
                 // 用 adopt 而非 discard+refresh: 后者 previous=undefined 投影会让全部节点被误判为

@@ -1194,7 +1194,12 @@ export function useCanvasMediaTools({
     const outpaintImageNode = useCallback(async (node: CanvasNodeData, payload: CanvasImageOutpaintPayload) => {
         if (!node.metadata?.content) return;
         // 重入守卫：合成+上传窗口内双击/回车会建两套占位+两笔计费（review 2026-09-21 P2）。
-        if (outpaintInFlightRef.current) return;
+        // 守卫覆盖到整批生成结束，期间对另一张图点执行必须可见地拒绝——静默 return 让用户
+        // 以为操作丢失（review 2026-09-21 P2-1，最小修法：提示而非静默）。
+        if (outpaintInFlightRef.current) {
+            message.warning("已有扩图任务正在提交或生成中，请等它完成后再发起");
+            return;
+        }
         outpaintInFlightRef.current = true;
         try {
             await executeOutpaintImageNode(node, payload);

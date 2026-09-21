@@ -449,10 +449,18 @@ export class CreativeAgentController {
                 const contentHeight = Number(sourceNode.metadata?.naturalHeight) || sourceNode.height;
                 // ratio 声明了却解析失败 → 拒绝而非静默回落 96px：模型承诺的目标画幅与实际产出无关且无提示
                 // 是越界值应拒绝语义（review 2026-09-21 P2）。小数比值 "1.5" 已由 parseRatioValue 兼容。
-                if (item.outpaint?.ratio && !parseRatioValue(item.outpaint.ratio)) {
-                    throw new Error(`扩图比例无法解析：${item.outpaint.ratio}（支持 "宽:高" 或小数比值）`);
+                const rawRatio = item.outpaint?.ratio;
+                const parsedRatio = rawRatio ? parseRatioValue(rawRatio) : null;
+                if (rawRatio && !parsedRatio) {
+                    throw new Error(`扩图比例无法解析：${rawRatio}（支持 "宽:高" 或小数比值）`);
                 }
-                const ratio = item.outpaint?.ratio ? parseRatioValue(item.outpaint.ratio) : null;
+                // 边界与后端 cloudAgentOutpaintRatioValue 一致（0.2–5）：越界比例会退化成"近全白底图 +
+                // 近乎全透明 mask"，模型实际做的是与源图无关的全新生成，用户按扩图语义付费却拿不到扩图
+                // （review 2026-09-21 P2-2；后端已拒，前端 Agent 链此前只拒解析失败）。
+                if (parsedRatio !== null && (parsedRatio < 0.2 || parsedRatio > 5)) {
+                    throw new Error(`扩图比例超出可用区间：${rawRatio}（支持 0.2–5，例如 "1.5" 或 "16:9"）`);
+                }
+                const ratio = parsedRatio;
                 const paddingPx = item.outpaint?.paddingPx ?? (ratio ? resolveOutpaintPaddingForRatio({ nodeWidth: contentWidth, nodeHeight: contentHeight, ratio, basePadding: { left: 96, top: 96, right: 96, bottom: 96 } }) : { left: 96, top: 96, right: 96, bottom: 96 });
                 const maskSupported = Boolean(modelCapabilityConfigFor(config, item.model).image?.references?.maskSupported);
                 const variants = await buildOutpaintSubmitVariants(sourceNode.metadata.content, paddingPx, maskSupported);

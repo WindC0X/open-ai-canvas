@@ -231,8 +231,19 @@ export async function applyAgentCanvasPatches(id: string, patches: AgentCanvasPa
     });
 }
 
+/**
+ * 临界区内的 load 依赖快照：只含【进入临界区前已注册】的 load（见 waitForRemoteProjectLoads）。
+ * 临界区外为 null（此时按实时 map 等待是安全的）。
+ */
+let exclusiveEntryLoads: Promise<unknown>[] | null = null;
+
 async function waitForRemoteProjectLoads() {
-    const pending = [...remoteProjectLoadPromises.values()];
+    // 只等进入临界区前注册的 load：它们排在本操作之前（尾随队列串行），必然已 settle。
+    // 临界区内新注册的 load 排在本操作【之后】，等待它们会造成「事务等 load、load 等事务」
+    // 双向死锁（review 2026-09-21 P1 已复现：撤销事务 POST 数秒窗口内任意一次
+    // loadCanvasProjectForEditing —— 生成任务完成回写、打开另一个画布 —— 即中招，
+    // 尾随队列永久卡死、自动同步/保存/登出全部挂起且无任何提示）。
+    const pending = exclusiveEntryLoads ?? [...remoteProjectLoadPromises.values()];
     if (pending.length) await Promise.all(pending);
 }
 
@@ -373,12 +384,21 @@ export function hasRemoteUserDataSyncSession() {
  * 结果仍原样返回，由调用方决定如何提示或重试，避免同步层把写入失败伪装成成功。
  */
 export function withRemoteUserDataSyncExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    // 入口同步快照：此后（临界区内）注册的 load 属于后续队列，不得在本操作内等待，
+    // 否则尾随队列自锁（见 waitForRemoteProjectLoads）。
+    const entryLoads = [...remoteProjectLoadPromises.values()];
     const pending = remoteOperationTail
         .then(
             () => undefined,
             () => undefined,
         )
-        .then(operation);
+        .then(() => {
+            const previousEntryLoads = exclusiveEntryLoads;
+            exclusiveEntryLoads = entryLoads;
+            return operation().finally(() => {
+                exclusiveEntryLoads = previousEntryLoads;
+            });
+        });
     remoteOperationTail = pending.then(
         () => undefined,
         () => undefined,
