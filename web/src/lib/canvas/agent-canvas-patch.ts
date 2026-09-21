@@ -88,18 +88,20 @@ export function applyAgentCanvasPatch(project: CanvasProject, patch: AgentCanvas
 }
 
 export function mergeAgentCanvasEditor(previous: CanvasProject, incoming: CanvasProject, nodes: CanvasNodeData[], connections: CanvasConnection[]) {
-    const changes = <T extends { id: string }>(before: T[], after: T[]): Change<T>[] => {
+    // basis = patch 实际应用的活体状态（编辑器），before = store 基线。删除必须按 basis 判定
+    // （review 2026-09-21 P3）：二者短暂不一致时按 store 基线算会漏删（baseline 已无、编辑器仍有）。
+    const changes = <T extends { id: string }>(before: T[], after: T[], basis: T[]): Change<T>[] => {
         const byId = new Map(before.map((item) => [item.id, item]));
         const afterIds = new Set(after.map((item) => item.id));
         // 撤销会删除节点(2026-09-19 用户实测: 删除被当作冲突抛出, 撤销后画布纹丝不动)。
         // here 的删除只可能来自撤销采纳(云端权威回滚), 按删除语义下发而不是拒绝。
-        const removals = before.filter((item) => !afterIds.has(item.id)).map((item) => ({ before: item, after: null }));
+        const removals = basis.filter((item) => !afterIds.has(item.id)).map((item) => ({ before: item, after: null }));
         return [...removals, ...after.filter((item) => !equal(item, byId.get(item.id))).map((item) => ({ before: byId.get(item.id) ?? null, after: item }))];
     };
     return applyAgentCanvasPatch({ ...previous, nodes, connections }, {
         canvasId: previous.id,
         updatedAt: incoming.updatedAt,
-        nodes: changes(previous.nodes, incoming.nodes),
-        connections: changes(previous.connections, incoming.connections),
+        nodes: changes(previous.nodes, incoming.nodes, nodes),
+        connections: changes(previous.connections, incoming.connections, connections),
     });
 }

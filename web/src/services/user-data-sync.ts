@@ -87,14 +87,17 @@ export async function initializeRemoteUserDataSession(userId: string) {
 
 /** 冲突页"加载云端版本": 放弃本地该画布(从 store 移除), 下一次 load 即走纯远端采纳。不触碰其它画布与持久媒体。 */
 export async function discardLocalCanvasProject(id: string) {
-    await withRemoteUserDataSyncExclusive(async () => {
-        acknowledgedProjects.delete(id);
-        watermarkProjects.delete(id);
-        verifiedProjects.delete(id);
-        useCanvasStore.setState((state) => ({ projects: state.projects.filter((candidate) => candidate.id !== id) }));
-        await flushCanvasStorePersistence();
-        persistWatermarks();
-    });
+    await withRemoteUserDataSyncExclusive(() => discardLocalCanvasProjectUnlocked(id));
+}
+
+/** discard 的无锁变体：调用方必须已持有 withRemoteUserDataSyncExclusive 临界区。 */
+export async function discardLocalCanvasProjectUnlocked(id: string) {
+    acknowledgedProjects.delete(id);
+    watermarkProjects.delete(id);
+    verifiedProjects.delete(id);
+    useCanvasStore.setState((state) => ({ projects: state.projects.filter((candidate) => candidate.id !== id) }));
+    await flushCanvasStorePersistence();
+    persistWatermarks();
 }
 
 export async function loadCanvasProjectForEditing(id: string) {
@@ -180,8 +183,13 @@ export async function refreshCanvasAfterAgent(id: string) {
  * 内容即将被云端(回滚态)覆盖, dirty 无需保护 —— 直接对齐基线+水位, 抑制反向反噬。
  */
 export async function adoptRemoteCanvasAfterUndo(id: string) {
+    await withRemoteUserDataSyncExclusive(() => adoptRemoteCanvasAfterUndoUnlocked(id));
+}
+
+/** adopt 的无锁变体：调用方必须已持有 withRemoteUserDataSyncExclusive 临界区。 */
+export async function adoptRemoteCanvasAfterUndoUnlocked(id: string) {
     const epoch = sessionEpoch;
-    await withRemoteUserDataSyncExclusive(async () => {
+    {
         if (epoch !== sessionEpoch) throw new Error("账号已切换");
         if (!activeRemoteUserId) throw new Error("请先登录");
         const { project } = await getRemoteCanvasProject(id);
@@ -200,7 +208,7 @@ export async function adoptRemoteCanvasAfterUndo(id: string) {
         } else {
             useCanvasStore.setState((state) => ({ projects: [...state.projects.filter((candidate) => candidate.id !== id), projected] }));
         }
-    });
+    }
 }
 
 export async function applyAgentCanvasPatches(id: string, patches: AgentCanvasPatch[]) {
@@ -570,6 +578,19 @@ export async function saveRemoteUserDataNow(options: { force?: boolean } = {}) {
     } finally {
         syncPromise = null;
     }
+}
+
+/**
+ * flush 的无锁变体：调用方必须已持有 withRemoteUserDataSyncExclusive 临界区
+ * （撤销事务 flush→POST→adopt 三步同区，review 2026-09-21 P2）。
+ */
+export async function flushRemoteUserDataUnlocked(options: { force?: boolean } = {}) {
+    const epoch = sessionEpoch;
+    if (!activeRemoteUserId) return;
+    requireRemoteUserDataBaseline();
+    await waitForRemoteProjectLoads();
+    if (epoch !== sessionEpoch) throw new Error("账号已切换，已停止旧会话保存");
+    await drainRemoteUserDataChanges(options);
 }
 
 /**

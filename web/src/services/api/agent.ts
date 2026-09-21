@@ -180,7 +180,8 @@ export type AgentUndoPreview = {
     blockReason?: string;
     stepId?: string;
     status?: string;
-    afterSnapshotHash?: string;
+    /** 当前画布内容哈希；canUndo 时即 undo 的 expectedSnapshotHash 来源。 */
+    currentSnapshotHash?: string;
     hasSubmittedTask?: boolean;
 };
 
