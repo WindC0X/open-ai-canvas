@@ -4,7 +4,7 @@ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { canGenerateImageInPlace, findAvailableGenerationGroupPosition, imageGenerationChildPosition, imageGenerationGroupSize } from "@/lib/canvas/canvas-generation-layout";
 import { cancelIncompleteImageBatch, retireImageBatchChildren } from "@/lib/canvas/canvas-image-batch-retry";
 import { buildImageGenerationNodeTitle } from "@/lib/canvas/canvas-generation-title";
-import { nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
+import { MEDIA_NODE_MAX_SIZE, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
 import { canvasImageReferenceLimitError, buildImageGenerationMetadata, getGenerationCount, isGenerationCanceled, runCanvasGenerationTaskToConsumer } from "@/lib/canvas/canvas-project-generation";
 import { imageGenerationReferenceConnections } from "@/lib/canvas/canvas-resource-references";
 import { canvasGenerationPromptMetadata } from "@/lib/canvas/canvas-generation-submission";
@@ -66,7 +66,9 @@ export async function executeImageGeneration({
     const parentConfig = NODE_DEFAULT_SIZE[isConfigNode ? CanvasNodeType.Config : isImageNode ? CanvasNodeType.Image : CanvasNodeType.Text];
     const imageDefaults = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
     // 生成中占位框按设置比例显示，避免 16:9 任务显示成默认 340x240。
-    const requestedImageSize = nodeSizeFromRatio(generationConfig.size || "auto", imageDefaults.width, imageDefaults.height);
+    // 比例基准 = 媒体标准盒（非 16:9 默认盒）：显式 1:1 占位框 520×520，与扩图占位/上传链
+    // 同尺寸，结束回写不再跳变（用户实测 2026-09-21）。
+    const requestedImageSize = nodeSizeFromRatio(generationConfig.size || "auto", MEDIA_NODE_MAX_SIZE.width, MEDIA_NODE_MAX_SIZE.height);
     const imageConfig = requestedImageSize || imageDefaults;
     // auto 图生图沿用来源节点尺寸；空节点原地生成沿用当前占位框（用户看到的 3:4 不该被 auto 重置成默认 16:9，
     // 否则点生成后占位跳 16:9、结束又跳回，实测 2026-09-21）；用户明确选择比例时必须以目标比例创建节点。

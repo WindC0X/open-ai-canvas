@@ -10,7 +10,7 @@ import { isSeedanceVideoConfig } from "@/lib/seedance-video";
 import { modelCapabilityConfigFor, workflowFieldCurrentValue, workflowFieldHasStoredValue, workflowFieldKey, workflowFieldRandomKey, workflowFieldSubmissionValue, workflowOutputSizeValue, workflowVideoFieldsFromJson } from "@/lib/model-capabilities";
 import { modelRequestOptions, defaultImageParamsForModel, resolveCompatibleModel, resolveModelGenerationDefaults, resolveVideoOperation, type ModelGenerationDefaults, type ModelRequirements } from "@/lib/model-selection";
 import { imageMetadata } from "@/lib/canvas/canvas-generation-task-sync";
-import { ensureMediaNodeMinimumSize, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
+import { ensureMediaNodeMinimumSize, MEDIA_NODE_MAX_SIZE, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
 import { interruptFileUpload } from "@/lib/canvas/canvas-file-upload";
 import { isCanvasWorkflowProvider, resolveCanvasWorkflowProvider } from "@/lib/canvas/canvas-workflow";
 import type { CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-prompt-panel";
@@ -530,7 +530,8 @@ export function resolveCanvasGenerationModel(config: AiConfig, model: string | u
 export function mediaNodeInitialSize(config: AiConfig, nodeType: CanvasNodeTypeId): { width: number; height: number } | null {
     const type = nodeType === CanvasNodeType.Image ? "image" : nodeType === CanvasNodeType.Video ? "video" : null;
     if (!type) return null;
-    const spec = NODE_DEFAULT_SIZE[nodeType as CanvasNodeType];
+    // 比例基准 = 媒体标准盒（与上传/扩图占位/完成回写同源，见 canvas-node-size.ts）。
+
     const fallbackModel = type === "image" ? defaultConfig.imageModel : defaultConfig.videoModel;
     const preferred = type === "image" ? config.imageModel || fallbackModel : config.videoModel || fallbackModel;
     const model = resolveCanvasGenerationModel(config, preferred, type);
@@ -539,7 +540,7 @@ export function mediaNodeInitialSize(config: AiConfig, nodeType: CanvasNodeTypeI
         ? defaultImageParamsForModel(config, model).size
         : resolveModelGenerationDefaults(config, model, type).size;
     if (!ratio || ratio === "auto") return null;
-    return nodeSizeFromRatio(ratio, spec.width, spec.height);
+    return nodeSizeFromRatio(ratio, MEDIA_NODE_MAX_SIZE.width, MEDIA_NODE_MAX_SIZE.height);
 }
 
 function applyWorkflowParameterValues(fields: WorkflowFieldMapping[] | undefined, values: Record<string, unknown>) {

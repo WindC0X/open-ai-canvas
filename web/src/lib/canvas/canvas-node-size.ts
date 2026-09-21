@@ -2,13 +2,19 @@ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { CanvasNodeType, isBuiltinCanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 
 export const MEDIA_NODE_MIN_SIZE = { width: 420, height: 236 } as const;
-export const VIDEO_NODE_MAX_SIZE = { width: 720, height: 520 } as const;
+// 媒体节点标准盒（全局唯一，2026-09-21 收敛）：上传、视频、扩图占位、宫格拆分、hydrate
+// 自然尺寸与「比例→尺寸」基准共用同一组上限。此前图片链的比例基准用 16:9 默认盒
+// (NODE_DEFAULT_SIZE.Image = 720×405)，1:1 被 405 高钳到最小宽 420×420，而扩图占位按本
+// 标准盒得 520×520 —— 同一比例两个尺寸，用户实测 2026-09-21 报「auto 生成 1:1 比占位小」。
+export const MEDIA_NODE_MAX_SIZE: { width: number; height: number } = { width: 720, height: 520 };
+// 视频链既有引用；值与媒体标准盒同源，不再各写一份。
+export const VIDEO_NODE_MAX_SIZE: { width: number; height: number } = MEDIA_NODE_MAX_SIZE;
 
 // 媒体完成时与节点当前宽高比的容差（相对差）。同比例保持节点现框（flora 原位显现语义），
 // S05 图片守卫与 S07 视频完成守卫共用同一个定义。
 export const MEDIA_SAME_RATIO_TOLERANCE = 0.02;
 
-export function fitNodeSize(width: number, height: number, maxWidth = 720, maxHeight = 520, minWidth = MEDIA_NODE_MIN_SIZE.width, minHeight = MEDIA_NODE_MIN_SIZE.height) {
+export function fitNodeSize(width: number, height: number, maxWidth = MEDIA_NODE_MAX_SIZE.width, maxHeight = MEDIA_NODE_MAX_SIZE.height, minWidth = MEDIA_NODE_MIN_SIZE.width, minHeight = MEDIA_NODE_MIN_SIZE.height) {
     const w = Math.max(1, width);
     const h = Math.max(1, height);
     // 媒体节点既要保留原始比例，也要给生成状态、操作按钮留下稳定的可读空间。

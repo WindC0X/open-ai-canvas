@@ -1,5 +1,5 @@
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
-import { fitNodeSize, nodeSizeFromRatio, videoCompletionSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
+import { fitNodeSize, MEDIA_NODE_MAX_SIZE, nodeSizeFromRatio, videoCompletionSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { compositeEmotionImage } from "@/lib/canvas/canvas-emotion";
 import { storeGeneratedAudio } from "@/services/api/audio";
 import { storeGeneratedVideo } from "@/services/api/video";
@@ -147,20 +147,24 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
                 ? { url: await resolveImageUrl(image.storageKey, image.dataUrl), storageKey: image.storageKey, width: image.width || 1024, height: image.height || 1024, bytes: image.bytes || 0, mimeType: image.mimeType || "image/png" }
                 : await uploadImage(resultDataUrl);
         const imageConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
-        const requestedImageSize = nodeSizeFromRatio(node.metadata?.size || "auto", imageConfig.width, imageConfig.height);
-        // 显式比例: 结果框按用户比例 fit; auto: 比例不可预知, 结果按上游输出 fit 全局标准,
-        // 不钳进占位框(占位框是旧比例, 会把 1:1 输出钳成小一号, 用户实测 2026-09-21)。
-        const imageSizeBounds = requestedImageSize || imageConfig;
+        // 比例基准 = 媒体标准盒（非 16:9 默认盒）：显式 1:1 的目标框是 520×520，与扩图占位/
+        // 上传链同尺寸（用户实测 2026-09-21：同 1:1 占位 520，生成结果被默认盒 405 高钳到 420）。
+        const requestedImageSize = nodeSizeFromRatio(node.metadata?.size || "auto", MEDIA_NODE_MAX_SIZE.width, MEDIA_NODE_MAX_SIZE.height);
         const hasReportedImageSize = Boolean(image.width && image.width > 0 && image.height && image.height > 0);
         const resultWidth = image.storageKey && !hasReportedImageSize && requestedImageSize ? requestedImageSize.width : uploaded.width;
         const resultHeight = image.storageKey && !hasReportedImageSize && requestedImageSize ? requestedImageSize.height : uploaded.height;
         const normalizedImage = resultWidth === uploaded.width && resultHeight === uploaded.height ? uploaded : { ...uploaded, width: resultWidth, height: resultHeight };
         const imageSize =
-            // 扩图占位框 = 几何合同（manualSize）：上游实际输出不按提交像素出图是常态，
-            // 回写不改框，偏差由 outpaintSizeMismatch 角标示警（用户实测占位/成功后尺寸跳变 2026-09-20）。
-            node.metadata?.generationType === "edit" && (node.metadata?.manualSize || !requestedImageSize)
+            // 尺寸合同链（任一命中就沿用现框，不改写）：扩图占位 manualSize（上游不按提交像素出图是
+            // 常态，偏差走 outpaintSizeMismatch 角标，用户实测 2026-09-20）；用户拉过的框
+            // userResized/manualSize 与自由比例 freeResize（与 hydrate 定尺寸守卫同源，尊重人工尺寸）；
+            // edit+auto 沿用现框（提交框已是按比例建立的几何）。
+            // 其余（生成结果无人工尺寸）按【全局媒体标准】fitNodeSize 回写：不传边界盒 = 720×520 上限
+            // + 420×236 地板，与扩图占位/上传/hydrate 同一条规则——同比例同一尺寸（用户实测 2026-09-21）。
+            node.metadata?.manualSize || node.metadata?.freeResize || node.metadata?.userResized
+                || (node.metadata?.generationType === "edit" && !requestedImageSize)
                 ? { width: node.width || imageConfig.width, height: node.height || imageConfig.height }
-                : fitNodeSize(resultWidth, resultHeight, imageSizeBounds.width, imageSizeBounds.height);
+                : fitNodeSize(resultWidth, resultHeight);
         // 扩图合同（manualSize）回写链也重算画幅偏差角标：此前只在直连成功路径计算，
         // hydrate/任务中心重试回写后角标静默丢失（review 2026-09-21 P3）。提交尺寸取任务
         // input.config.size（WxH 串）；解析失败或非扩图节点不写角标。

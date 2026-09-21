@@ -25,9 +25,31 @@ function configWithVideoModel(ratios: string[], defaultRatio: string): AiConfig 
 }
 
 describe("mediaNodeInitialSize", () => {
-    test("video 渠道默认 1:1 → 空框跟随为正方形（420 最小宽度地板，与 S05 实测一致）", () => {
+    test("video 渠道默认 1:1 → 空框为媒体标准正方 520×520（比例基准=媒体标准盒 720×520）", () => {
+        // 2026-09-21 统一：比例→尺寸基准从 16:9 默认盒(720×405)改为媒体标准盒(720×520)，
+        // 1:1 不再被 405 高钳到最小宽 420（与上传/扩图占位同比例同尺寸）。
         const size = mediaNodeInitialSize(configWithVideoModel(["1:1", "16:9", "9:16"], "1:1"), "video");
-        expect(size).toEqual({ width: 420, height: 420 });
+        expect(size).toEqual({ width: 520, height: 520 });
+    });
+
+    test("同比例同一尺寸：图片与视频链的 1:1 空框一致（防两链基准漂移）", () => {
+        const videoSize = mediaNodeInitialSize(configWithVideoModel(["1:1"], "1:1"), "video");
+        const capabilityConfig: ModelCapabilityConfig = { ...defaultModelCapabilityConfig("openai-image", "gpt-image-2"), ratios: ["1:1"] };
+        const channel: ModelChannel = {
+            id: "ch3",
+            enabled: true,
+            name: "t3",
+            baseUrl: "https://relay.example.com",
+            apiKey: "k",
+            apiFormat: "openai",
+            models: ["gpt-image-2"],
+            modelCosts: [{ model: "gpt-image-2", displayName: "gpt-image-2", capability: "image" as const, billingMode: "per_image" as const, unitPriceMicrocredits: 1, capabilityConfig }],
+        } as unknown as ModelChannel;
+        const models = ["ch3::gpt-image-2"];
+        const config: AiConfig = { ...defaultConfig, channels: [channel], models, imageModels: models, imageModel: models[0] };
+        const imageSize = mediaNodeInitialSize(config, "image");
+        expect(imageSize).toEqual({ width: 520, height: 520 });
+        expect(imageSize).toEqual(videoSize);
     });
 
     test("video 渠道默认 16:9 → 空框为 720×405 基准横幅", () => {
@@ -63,5 +85,6 @@ describe("mediaNodeInitialSize", () => {
         const size = mediaNodeInitialSize(config, "image");
         expect(size).not.toBeNull();
         expect(size!.width).toBe(size!.height);
+        expect(size).toEqual({ width: 520, height: 520 });
     });
 });
