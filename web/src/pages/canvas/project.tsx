@@ -72,6 +72,7 @@ import { CanvasZoomControls } from "@/components/canvas/canvas-zoom-controls";
 import { CanvasShareModal } from "@/components/canvas/canvas-share-modal";
 import { CanvasScriptEditor, CanvasScriptNodeContent } from "@/components/canvas/canvas-script-node";
 import { CanvasBatchTableNodeContent } from "@/components/canvas/canvas-batch-table-node";
+import { batchReferenceColumns, promoteLegacyBatchTableSize } from "@/lib/canvas/canvas-batch-table";
 import { STORYBOARD_HEADER_HEIGHT, STORYBOARD_ROW_HEIGHT, storyboardMinNodeHeight, storyboardTableHeight } from "@/lib/canvas/canvas-storyboard-layout";
 import { CanvasDirectorNodePanel } from "@/components/canvas/director/canvas-director-node-panel";
 import { CanvasVersionCompareModal } from "@/components/canvas/canvas-version-compare-modal";
@@ -102,7 +103,6 @@ import { batchRootExpanded, createCanvasNode, getInputSummary, isHiddenBatchChil
 import { stampCanvasNodeChanges, updateCanvasNode, updateCanvasNodes } from "@/lib/canvas/canvas-node-timestamps";
 import { canvasAssetHandoffAttempt, finalizeCanvasAssetHandoff, uninsertedCanvasAssetHandoffPayloads } from "@/lib/canvas/canvas-asset-handoff";
 import { batchSourceRestriction } from "@/lib/canvas/canvas-batch-connection";
-import { batchReferenceColumns } from "@/lib/canvas/canvas-batch-table";
 import { deriveStoryboardPipelineProgress } from "@/lib/canvas/canvas-storyboard-progress";
 import { CanvasOperationChangeToast, CanvasMergeStatusToast, CanvasUploadStatusToast } from "./canvas-project-feedback";
 import { backendProviderConfig, getGenerationCount } from "@/lib/canvas/canvas-project-generation";
@@ -900,6 +900,7 @@ function InfiniteCanvasPage() {
         lightingNodeId,
         emotionNodeId,
         annotationNodeId,
+        annotationEditNodeId,
         createImageReversePromptNodes,
         openPortraitTextureEditor,
         cropImageNode,
@@ -921,6 +922,10 @@ function InfiniteCanvasPage() {
         handleSegmentConfirm,
         maskEditImageNode,
         maskEditNodeId,
+        imageEditNodeId,
+        imageEditPreset,
+        layerDecompositionNodeId,
+        textEditNodeId,
         outpaintImageNode,
         outpaintNodeId,
         setOutpaintNodeId,
@@ -937,8 +942,22 @@ function InfiniteCanvasPage() {
         setLightingNodeId,
         setEmotionNodeId,
         setAnnotationNodeId,
+        setAnnotationEditNodeId,
         setCropNodeId,
         setMaskEditNodeId,
+        setImageEditNodeId,
+        setImageEditPreset,
+        openBackgroundRemoval,
+        openLayerDecomposition,
+        decomposeImageLayers,
+        setLayerDecompositionNodeId,
+        setTextEditNodeId,
+        openTextEditNode,
+        openAnnotationEditNode,
+        detectImageText,
+        editTextImageNode,
+        editAnnotatedImageNode,
+        editImageNode,
         setUpscaleNodeId,
         splitImageNode,
         openVideoFrameExtractor,
@@ -1428,6 +1447,7 @@ function InfiniteCanvasPage() {
         imageAssets,
         infoNode,
         maskEditNode,
+        imageEditNode,
         outpaintNode,
         mentionReferencesByNodeId,
         nodeById,
@@ -1459,6 +1479,7 @@ function InfiniteCanvasPage() {
         infoNodeId,
         cropNodeId,
         maskEditNodeId,
+        imageEditNodeId,
         outpaintNodeId,
         annotationNodeId,
         splitNodeId: null,
@@ -1945,7 +1966,7 @@ function InfiniteCanvasPage() {
         handleGenerateNode,
     });
 
-    const { addReferenceColumn: addBatchReferenceColumn, addTextColumn: addBatchTextColumn, addRow: addBatchRow, fillRowsFromConnections, generateRows: generateBatchRows, moveReferenceCell: moveBatchReferenceCell, patchTable: patchBatchTable, removeRow: removeBatchRow, reorderReferenceColumns: reorderBatchReferenceColumns, syncRowsFromConnections, updateRow: updateBatchRow } = useCanvasBatchTable({
+    const { addReferenceColumn: addBatchReferenceColumn, addRow: addBatchRow, fillRowsFromConnections, generateRows: generateBatchRows, moveReferenceCell: moveBatchReferenceCell, patchTable: patchBatchTable, removeReferenceColumn: removeBatchReferenceColumn, removeRow: removeBatchRow, reorderReferenceColumns: reorderBatchReferenceColumns, syncRowsFromConnections, updateRow: updateBatchRow } = useCanvasBatchTable({
         nodesRef,
         connectionsRef,
         setNodes,
@@ -1956,16 +1977,30 @@ function InfiniteCanvasPage() {
 
     useEffect(() => {
         if (!projectLoaded) return;
+        setNodes((current) => {
+            let changed = false;
+            const next = current.map((node) => {
+                const promoted = promoteLegacyBatchTableSize(node);
+                if (promoted !== node) changed = true;
+                return promoted;
+            });
+            return changed ? next : current;
+        });
         nodesRef.current.filter((node) => node.type === CanvasNodeType.BatchTable).forEach((node) => {
             syncRowsFromConnections(node.id, true);
         });
-    }, [connections, projectLoaded, syncRowsFromConnections]);
+    }, [connections, projectLoaded, setNodes, syncRowsFromConnections]);
 
     const handleUploadBatchReference = useCallback(async (tableNodeId: string, rowId: string, columnIndex: number, file: File) => {
         const tableNode = nodesRef.current.find((item) => item.id === tableNodeId);
         const table = tableNode?.metadata?.batchTable;
         const row = table?.rows.find((item) => item.id === rowId);
         if (!tableNode || !table || !row) return;
+        const existingId = row.inputNodeIds[columnIndex];
+        if (existingId) {
+            await replaceNodeMedia(existingId, file);
+            return;
+        }
         const rowIndex = table.rows.findIndex((item) => item.id === rowId);
         const uploadedNodeId = await createFileNode(file, {
             x: tableNode.position.x - 240,
@@ -1976,7 +2011,7 @@ function InfiniteCanvasPage() {
         inputNodeIds[columnIndex] = uploadedNodeId;
         updateBatchRow(tableNodeId, rowId, { inputNodeIds });
         message.success(`已上传并填入参考图 ${columnIndex + 1}`);
-    }, [createFileNode, message, nodesRef, updateBatchRow]);
+    }, [createFileNode, message, nodesRef, replaceNodeMedia, updateBatchRow]);
 
     const { addScriptRow, createAndGenerateScriptVideos, createScriptActionBoards, createScriptImageNodes, createScriptVideoNodes, generateScriptImages, generateScriptRows, generateScriptVideos, removeScriptRow, replaceScriptRows, updateScriptRow } =
         useCanvasStoryboard({
@@ -2201,10 +2236,10 @@ function InfiniteCanvasPage() {
                         onGenerate={(rowIds) => void generateBatchRows(contentNode.id, rowIds)}
                         onRetryItem={(batchId, itemId) => retryFailedBatchItems(contentNode.id, batchId, itemId)}
                         onAddReferenceColumn={() => addBatchReferenceColumn(contentNode.id)}
-                        onAddTextColumn={() => addBatchTextColumn(contentNode.id)}
+                        onRemoveReferenceColumn={() => removeBatchReferenceColumn(contentNode.id)}
+                        onFocusOutput={(nodeId) => focusCanvasImageNode(nodeId)}
                         onReorderReferenceColumns={(fromColumnId, toColumnId) => reorderBatchReferenceColumns(contentNode.id, fromColumnId, toColumnId)}
                         onMoveReferenceCell={(sourceRowId, sourceColumnIndex, targetRowId, targetColumnIndex) => moveBatchReferenceCell(contentNode.id, sourceRowId, sourceColumnIndex, targetRowId, targetColumnIndex)}
-                        onReplaceReference={replaceCanvasNodeMedia}
                         onUploadReference={(rowId, columnIndex, file) => { void handleUploadBatchReference(contentNode.id, rowId, columnIndex, file); }}
                         onConnectStart={(event, handleId) => handleConnectStart(event, contentNode.id, "target", handleId)}
                         onConnectDrop={(event, handleId) => handleConnectDrop(event, contentNode.id, handleId)}
@@ -2282,7 +2317,6 @@ function InfiniteCanvasPage() {
         },
         [
             addBatchReferenceColumn,
-            addBatchTextColumn,
             addBatchRow,
             addScriptRow,
             configInputsById,
@@ -2293,6 +2327,7 @@ function InfiniteCanvasPage() {
             createScriptVideoNodes,
             currentProject?.directorScenes,
             fillRowsFromConnections,
+            focusCanvasImageNode,
             generateBatchRows,
             generateScriptImages,
             generateScriptRows,
@@ -2309,6 +2344,7 @@ function InfiniteCanvasPage() {
             openDirectorWorkbench,
             openStoryInput,
             patchBatchTable,
+            removeBatchReferenceColumn,
             removeBatchRow,
             reorderBatchReferenceColumns,
             replaceCanvasNodeMedia,
@@ -3046,6 +3082,10 @@ function InfiniteCanvasPage() {
                         onToggleFreeResize={(node) => toggleNodeFreeResize(node.id)}
                         onToggleLocked={(node) => toggleNodeLocked(node.id)}
                             onDelete={(node) => deleteNodes(new Set([node.id]))}
+                            onAnnotationEdit={openAnnotationEditNode}
+                            onRemoveBackground={openBackgroundRemoval}
+                            onLayerDecomposition={openLayerDecomposition}
+                            onTextEdit={openTextEditNode}
                         />
                     ))}
                     {isMiniMapOpen && !focusMode ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} canvasContainerRef={containerRef} onViewportPreviewChange={previewViewport} onViewportChange={handleViewportChange} /> : null}
@@ -3449,13 +3489,22 @@ function InfiniteCanvasPage() {
                         <CanvasProjectMediaDialogs
                             cropNode={cropNode}
                             annotationNode={annotationNode}
+                            annotationEditNode={annotationEditNodeId ? nodeById.get(annotationEditNodeId) || null : null}
                             maskEditNode={maskEditNode}
+                            imageEditNode={imageEditNode}
+                            layerDecompositionNode={layerDecompositionNodeId ? nodeById.get(layerDecompositionNodeId) || null : null}
+                            textEditNode={textEditNodeId ? nodeById.get(textEditNodeId) || null : null}
+                            imageEditPreset={imageEditPreset}
                             outpaintNode={outpaintNode}
                             canvasContainerRef={containerRef}
                             upscaleNode={upscaleNode}
                             onCloseCrop={() => setCropNodeId(null)}
                             onCloseAnnotation={() => setAnnotationNodeId(null)}
+                            onCloseAnnotationEdit={() => setAnnotationEditNodeId(null)}
                             onCloseMaskEdit={() => setMaskEditNodeId(null)}
+                            onCloseImageEdit={() => { setImageEditNodeId(null); setImageEditPreset(null); }}
+                            onCloseLayerDecomposition={() => setLayerDecompositionNodeId(null)}
+                            onCloseTextEdit={() => setTextEditNodeId(null)}
                             onCloseOutpaint={() => setOutpaintNodeId(null)}
                             // 扩图拖图会话活跃态：世界层 SVG 强调连线拖动中隐藏防旧锚点残影。
                             onOutpaintImageDragChange={setOutpaintImageDragging}
@@ -3466,6 +3515,15 @@ function InfiniteCanvasPage() {
                             onCloseUpscale={() => setUpscaleNodeId(null)}
                             onCrop={(node, crop) => void cropImageNode(node, crop).catch((error) => message.error(error instanceof Error ? error.message : "图片裁剪失败"))}
                             onAnnotate={(node, dataUrl) => void saveAnnotatedImageNode(node, dataUrl)}
+                            onAnnotationEdit={(node, payload) => void editAnnotatedImageNode(node, payload)}
+                            onImageOperation={(node, payload) => void editImageNode(node, payload)}
+                            onLayerDecomposition={(node, payload) => void decomposeImageLayers(node, payload)}
+                            onDetectText={() => {
+                                const node = textEditNodeId ? nodeById.get(textEditNodeId) : null;
+                                return node ? detectImageText(node) : Promise.reject(new Error("图片节点已不存在"));
+                            }}
+                            onTextEdit={(node, payload) => void editTextImageNode(node, payload)}
+
                             onMaskEdit={(node, payload) => void maskEditImageNode(node, payload).catch((error) => message.error(error instanceof Error ? error.message : "局部重绘失败"))}
                             onOutpaint={(node, payload) => void outpaintImageNode(node, payload)}
                             onUpscale={(node, params) => void upscaleImageNode(node, params).catch((error) => message.error(error instanceof Error ? error.message : "图片放大失败"))}

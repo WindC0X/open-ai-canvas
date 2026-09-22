@@ -86,29 +86,31 @@ func (s *Service) cloudAgentModelIntent(userID, canvasID, arguments string) (*Mo
 }
 
 type cloudAgentMediaArgs struct {
-	DraftRunID         string   `json:"-"`
-	Mode               string   `json:"mode"`
-	Prompt             string   `json:"prompt"`
-	LogicalModelID     string   `json:"logicalModelId"`
-	ChannelID          string   `json:"channelId"`
-	ChannelModelKey    string   `json:"channelModelKey"`
-	Duration           int      `json:"durationSeconds"`
-	Size               string   `json:"size"`
-	Quality            string   `json:"quality"`
-	VideoGenerateAudio *bool    `json:"videoGenerateAudio"`
-	SnapshotHash       string   `json:"snapshotHash"`
-	NodeID             string   `json:"nodeId"`
-	Title              string   `json:"title"`
-	SourceNodeID       string   `json:"sourceNodeId"`
-	ReferenceNodeIDs   []string `json:"referenceNodeIds"`
+	DraftRunID            string   `json:"-"`
+	Mode                  string   `json:"mode"`
+	Prompt                string   `json:"prompt"`
+	LogicalModelID        string   `json:"logicalModelId"`
+	ChannelID             string   `json:"channelId"`
+	ChannelModelKey       string   `json:"channelModelKey"`
+	Duration              int      `json:"durationSeconds"`
+	Size                  string   `json:"size"`
+	Quality               string   `json:"quality"`
+	VideoGenerateAudio    *bool    `json:"videoGenerateAudio"`
+	SnapshotHash          string   `json:"snapshotHash"`
+	NodeID                string   `json:"nodeId"`
+	Title                 string   `json:"title"`
+	SourceNodeID          string   `json:"sourceNodeId"`
+	ReferenceNodeIDs      []string `json:"referenceNodeIds"`
+	ReferenceTransientIDs []string `json:"referenceTransientIds"`
 	// OutpaintRatio 非空时本次图片生成按扩图语义执行：恰好 1 张图片参考被
 	// 服务端 pad 成目标画幅并合成 mask，走 image_outpaint 操作计价与执行。
 	OutpaintRatio string `json:"outpaintRatio,omitempty"`
 }
 
 type cloudAgentMediaPlan struct {
-	Args   cloudAgentMediaArgs
-	CallID string
+	Args                cloudAgentMediaArgs
+	CallID              string
+	TransientReferences map[string]cloudAgentTransientReference
 	// 扩图提交画幅（pad 合成后的精确像素，prepare 阶段解出）。扩图节点标题与 metadata.size
 	// 必须写这个真值：Agent 传的 ratio、用户在审批卡选的原始档位都可能在服务端被对齐/收缩。
 	OutpaintFrameW int
@@ -213,7 +215,7 @@ func cloudAgentReference(repo *repository.Repository, userID string, node map[st
 	return map[string]any{"id": node["id"], "name": node["title"], "storageKey": key, "type": resource.MimeType, "mimeType": resource.MimeType, "bytes": resource.Size, "width": resource.Width, "height": resource.Height, "durationMs": resource.DurationMs, "inputKind": descriptor.InputKind}, adapter.PayloadField, nil
 }
 
-func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID string, args cloudAgentMediaArgs) (*model.CanvasProject, map[string]any, map[string]any, error) {
+func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID string, args cloudAgentMediaArgs, transient ...map[string]cloudAgentTransientReference) (*model.CanvasProject, map[string]any, map[string]any, error) {
 	canvas, err := repo.CanvasProjectForUser(userID, canvasID)
 	if err != nil {
 		return nil, nil, nil, err
@@ -318,6 +320,20 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 		list, _ := refs[payloadField].([]any)
 		refs[payloadField] = append(list, ref)
 	}
+	if len(args.ReferenceTransientIDs) > 0 && len(transient) > 0 {
+		available := map[string]cloudAgentTransientReference{}
+		if len(transient) > 0 && transient[0] != nil {
+			available = transient[0]
+		}
+		for _, id := range args.ReferenceTransientIDs {
+			ref, ok := available[id]
+			if !ok || !strings.HasPrefix(ref.MIMEType, "image/") || !strings.HasPrefix(ref.DataURL, "data:image/") {
+				return nil, nil, nil, BadAuthRequest("临时参考图不存在、类型不匹配或已过期，请重新渲染标注")
+			}
+			list, _ := refs["referenceImages"].([]any)
+			refs["referenceImages"] = append(list, map[string]any{"id": ref.ID, "name": ref.Name, "mimeType": ref.MIMEType, "dataUrl": ref.DataURL})
+		}
+	}
 	return canvas, doc, refs, nil
 }
 
@@ -348,6 +364,14 @@ func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime
 	}
 	for _, id := range a.ReferenceNodeIDs {
 		if err := validateCloudAgentID(id, "参考节点 ID", 80); err != nil {
+			return err
+		}
+	}
+	if len(a.ReferenceTransientIDs) > 4 {
+		return BadAuthRequest("临时参考图最多 4 个")
+	}
+	for _, id := range a.ReferenceTransientIDs {
+		if err := validateCloudAgentID(id, "临时参考图 ID", 120); err != nil {
 			return err
 		}
 	}
@@ -514,7 +538,7 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	if (a.LogicalModelID == "" && (a.ChannelID == "" || a.ChannelModelKey == "")) || (a.LogicalModelID != "" && (a.ChannelID != "" || a.ChannelModelKey != "")) {
 		return CreateTaskRequest{}, nil, BadAuthRequest("请复制 model_list 的 selection：逻辑模型或系统渠道二选一，不得混用")
 	}
-	_, _, refs, err := cloudAgentMediaDocument(s.repo, run.UserID, state.Request.CanvasID, a)
+	_, _, refs, err := cloudAgentMediaDocument(s.repo, run.UserID, state.Request.CanvasID, a, state.TransientReferences)
 	if err != nil {
 		return CreateTaskRequest{}, nil, err
 	}
@@ -584,7 +608,11 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 		metadata["videoEditOperation"] = operation
 	}
 	input["metadata"] = metadata
-	return CreateTaskRequest{ProjectID: state.Request.CanvasID, Type: "canvas_" + a.Mode, Operation: operation, Prompt: a.Prompt, LogicalModelID: a.LogicalModelID, Model: a.ChannelModelKey, Input: input}, &cloudAgentMediaPlan{Args: a, CallID: call.ID, OutpaintFrameW: outpaintFrameW, OutpaintFrameH: outpaintFrameH}, nil
+	transientSnapshot := map[string]cloudAgentTransientReference{}
+	for id, ref := range state.TransientReferences {
+		transientSnapshot[id] = ref
+	}
+	return CreateTaskRequest{ProjectID: state.Request.CanvasID, Type: "canvas_" + a.Mode, Operation: operation, Prompt: a.Prompt, LogicalModelID: a.LogicalModelID, Model: a.ChannelModelKey, Input: input}, &cloudAgentMediaPlan{Args: a, CallID: call.ID, OutpaintFrameW: outpaintFrameW, OutpaintFrameH: outpaintFrameH, TransientReferences: transientSnapshot}, nil
 }
 
 func saveCloudAgentDocument(repo *repository.Repository, canvas *model.CanvasProject, doc map[string]any, policy RuntimePolicySetting) error {
@@ -611,7 +639,7 @@ func saveCloudAgentDocument(repo *repository.Repository, canvas *model.CanvasPro
 // Called inside the same transaction as the task, charge reservation and Agent checkpoint.
 func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID string, plan *cloudAgentMediaPlan, task *model.Task, policy RuntimePolicySetting, recorder ...cloudAgentMutationRecorder) error {
 	a := plan.Args
-	canvas, doc, _, err := cloudAgentMediaDocument(repo, userID, canvasID, a)
+	canvas, doc, _, err := cloudAgentMediaDocument(repo, userID, canvasID, a, plan.TransientReferences)
 	if err != nil {
 		return err
 	}

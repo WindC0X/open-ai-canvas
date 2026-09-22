@@ -317,6 +317,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         }
         const controller = new AbortController();
         setQuotedCredits(null);
+        if (!quoteRequest.logicalModelID) {
+            return;
+        }
         quoteLogicalModel(quoteRequest.logicalModelID, quoteRequest.intent, controller.signal)
             .then(({ quote }) => setQuotedCredits(quote.amountMicrocredits / 1_000_000))
             .catch(() => {

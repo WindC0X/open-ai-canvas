@@ -31,6 +31,7 @@ type UseCanvasRenderModelOptions = {
     infoNodeId: string | null;
     cropNodeId: string | null;
     maskEditNodeId: string | null;
+    imageEditNodeId: string | null;
     outpaintNodeId: string | null;
     annotationNodeId: string | null;
     splitNodeId: string | null;
@@ -63,6 +64,7 @@ export function useCanvasRenderModel({
     infoNodeId,
     cropNodeId,
     maskEditNodeId,
+    imageEditNodeId,
     outpaintNodeId,
     annotationNodeId,
     splitNodeId,
@@ -226,6 +228,7 @@ export function useCanvasRenderModel({
     const infoNode = infoNodeId ? nodeById.get(infoNodeId) || null : null;
     const cropNode = cropNodeId ? nodeById.get(cropNodeId) || null : null;
     const maskEditNode = maskEditNodeId ? nodeById.get(maskEditNodeId) || null : null;
+    const imageEditNode = imageEditNodeId ? nodeById.get(imageEditNodeId) || null : null;
     const outpaintNode = outpaintNodeId ? nodeById.get(outpaintNodeId) || null : null;
     const annotationNode = annotationNodeId ? nodeById.get(annotationNodeId) || null : null;
     const splitNode = splitNodeId ? nodeById.get(splitNodeId) || null : null;
@@ -384,6 +387,7 @@ export function useCanvasRenderModel({
         imageAssets,
         infoNode,
         maskEditNode,
+        imageEditNode,
         outpaintNode,
         mentionReferencesByNodeId,
         nodeById,

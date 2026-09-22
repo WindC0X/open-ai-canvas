@@ -5,14 +5,14 @@ import { Popover, Tooltip } from "antd";
 
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor, normalizeModelCapabilityConfig, videoDurationOptions } from "@/lib/model-capabilities";
-import { formatPriceRange, modelQuoteRequest, normalizeTierResolution, priceTierSummaryLabel, priceTiersForCurrentSelection } from "@/lib/model-pricing";
+import { formatPriceRange, modelQuoteRequest, normalizeTierResolution, priceTierSummaryLabel, priceTiersForCurrentSelection, modelQuoteDescription } from "@/lib/model-pricing";
 import { compatibleModelInGroup, configuredModelDisplayName, groupModelsByDisplayName, modelCompatibilityError, resolveCompatibleModel, type ModelRequirements } from "@/lib/model-selection";
 import { cn } from "@/lib/utils";
 import { logicalModelFamilyOf, modelDisplayName, modelIcon, modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { ModelLogo, modelProviderTitleOf } from "@/components/model-logo";
-import { quoteLogicalModel, type CapabilitySpec, type LogicalModelQuote } from "@/services/api/logical-models";
+import { quoteLogicalModel, type CapabilitySpec, type LogicalModelQuote, quoteModel } from "@/services/api/logical-models";
 
 // flora 语法: 模型置顶(Pinned models 组)。影策无账号级收藏服务, 前端 localStorage 持久化(按浏览器/用户代理隔离)。
 const MODEL_PICKER_PINNED_KEY = "canvas-model-picker-pinned";
@@ -29,6 +29,8 @@ function loadPinnedModels(): string[] {
         return [];
     }
 }
+
+import { groupModelsForPicker, isDirectSystemModel, modelChannelLabel } from "@/lib/model-picker-groups";
 
 type ModelPickerProps = {
     config: AiConfig;
@@ -259,8 +261,9 @@ export function ModelPicker({
         const tail = ungrouped.length ? [{ key: "__ungrouped", label: "Models", scope: "", models: ungrouped }] : [];
         return [...managedProviderGroups, ...channelGroups, ...tail];
     }, [config, grouping, options]);
+    const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
     const storedCurrent = value?.trim() || "";
-    const resolvedCurrent = resolveCompatibleModel(config, storedCurrent, selectionRequirements) || storedCurrent;
+    const resolvedCurrent = isDirectSystemModel(config, storedCurrent) ? storedCurrent : resolveCompatibleModel(config, storedCurrent, selectionRequirements) || storedCurrent;
     // 旧画布可能保存过已下架或前端历史内置模型；它们不能重新进入当前可选目录。
     const current = options.includes(resolvedCurrent) ? resolvedCurrent : "";
     const currentPrice = modelMenuPrice(config, current, capability, false, requirements);
@@ -285,7 +288,7 @@ export function ModelPicker({
         }
         const controller = new AbortController();
         setRouteQuote(undefined);
-        quoteLogicalModel(quoteRequest.logicalModelID, quoteRequest.intent, controller.signal)
+        quoteModel(quoteRequest, controller.signal)
             .then((payload) => setRouteQuote(payload.quote))
             .catch(() => {
                 if (!controller.signal.aborted) setRouteQuote(undefined);
@@ -364,7 +367,7 @@ export function ModelPicker({
     };
     const focusMenuOption = (last = false) => {
         window.requestAnimationFrame(() => {
-            const buttons = menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]');
+            const buttons = menuRef.current?.querySelectorAll<HTMLButtonElement>('[data-model-picker-item]:not(:disabled)');
             const target = last ? buttons?.item((buttons?.length || 1) - 1) : buttons?.item(0);
             target?.focus();
         });
@@ -382,8 +385,14 @@ export function ModelPicker({
             triggerRef.current?.focus();
             return;
         }
+        if (event.key === "ArrowLeft" && activeGroupKey !== null) {
+            event.preventDefault();
+            setActiveGroupKey(null);
+            focusMenuOption();
+            return;
+        }
         if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-        const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]'));
+        const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[data-model-picker-item]:not(:disabled)'));
         if (!buttons.length) return;
         event.preventDefault();
         const activeIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -778,6 +787,8 @@ function ModelLabel({
     theme,
     creationVariant,
     showConfiguredModelName,
+    label,
+    requirements,
     showPrice,
     disabledReason,
     inlineBadges,
@@ -788,6 +799,8 @@ function ModelLabel({
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
     creationVariant: boolean;
     showConfiguredModelName: boolean;
+    label?: string;
+    requirements?: ModelRequirements;
     showPrice: boolean;
     disabledReason?: string;
     inlineBadges?: ReactNode;
@@ -800,7 +813,7 @@ function ModelLabel({
     const capabilitySummary =
         disabledReason ||
         logicalCost?.description?.trim() ||
-        (logicalSpec ? logicalCapabilitySummary(logicalSpec) : videoProfile ? `${formatDurationSummary(videoProfile)} · ${videoProfile.resolutions.map((item) => item.toUpperCase()).join("/")}` : meta.description);
+        (isDirectSystemModel(config, model) ? "" : logicalSpec ? logicalCapabilitySummary(logicalSpec) : videoProfile ? `${formatDurationSummary(videoProfile)} · ${videoProfile.resolutions.map((item) => item.toUpperCase()).join("/")}` : meta.description);
     // flora 权威行: logo squircle24-r8; 第一行=名字+消耗+媒体类型(同行, 名字右侧); 第二行=描述 12px/350
     // (2026-09-07 用户指令: 徽章在模型名右边同行; 名字降部不得截断; 描述溢出 hover 滚动)
     const subtitleRef = useRef<HTMLSpanElement | null>(null);
@@ -947,7 +960,7 @@ function formatDurationSummary(profile: NonNullable<ReturnType<typeof modelCapab
     return `${profile.duration.min || values[0]}-${profile.duration.max || values[values.length - 1]}s`;
 }
 
-type ModelMenuPrice = { kind: "tiers"; label: string; compactLabel: string; chipLabel?: string; title: string } | { kind: "estimate" } | { kind: "fixed"; value: number; unit: "次" | "秒" | "百万 Token" };
+type ModelMenuPrice = { kind: "tiers"; label: string; compactLabel: string; chipLabel?: string; title: string } | { kind: "estimate"; label?: string; title?: string } | { kind: "fixed"; value: number; unit: "次" | "秒" | "百万 Token" };
 
 function modelMenuPrice(config: AiConfig, model: string, capability?: ModelCapability, summary = false, requirements?: ModelRequirements): ModelMenuPrice | null | undefined {
     if (!model) return undefined;
@@ -958,27 +971,35 @@ function modelMenuPrice(config: AiConfig, model: string, capability?: ModelCapab
         const tiers = cost.logicalPriceTiers || [];
         if (!tiers.length) return null;
         const matched = summary ? tiers : priceTiersForCurrentSelection(tiers, capability, config, requirements);
-        return channelTierPriceSummary(matched.length ? matched : tiers, tiers);
+        if (!summary && !matched.length) return { kind: "tiers", label: "当前规格无报价", compactLabel: "当前规格无报价", title: "请调整参数，或选择支持当前规格的渠道" };
+        return channelTierPriceSummary(matched.length ? matched : tiers, tiers, capability);
     }
-    if (cost.billingMode === "token") return { kind: "estimate" };
+    if (cost.billingMode === "token") {
+        const rate = cost.outputTokenPriceMicrocredits;
+        return capability === "video" && typeof rate === "number" && Number.isFinite(rate) && rate >= 0
+            ? { kind: "estimate", label: formatPriceRange([rate / 1_000_000], "积分/百万视频 Token"), title: "按视频 Token 单价预估，优先按有效上游用量结算；未返回用量时按视频公式结算" }
+            : { kind: "estimate" };
+    }
     return { kind: "fixed", value: cost.unitPriceMicrocredits / 1_000_000, unit: cost.billingMode === "per_second" ? "秒" : "次" };
 }
 
 function pickerModelDisplayName(config: AiConfig, model: string, showConfiguredModelName: boolean) {
-    return showConfiguredModelName ? configuredModelDisplayName(config, model) : modelDisplayName(config, model);
+    const name = showConfiguredModelName ? configuredModelDisplayName(config, model) : modelDisplayName(config, model);
+    return isDirectSystemModel(config, model) ? `${name} · ${modelChannelLabel(config, model)}` : name;
 }
 
 function pickerModelOptionLabel(config: AiConfig, model: string, showConfiguredModelName: boolean) {
     const displayName = showConfiguredModelName ? configuredModelDisplayName(config, model) : modelDisplayName(config, model);
     const channel = resolveModelChannel(config, model);
-    return channel.scope === "system" ? displayName : `${displayName}（${channel.name}）`;
+    return channel.scope === "system" ? pickerModelDisplayName(config, model, showConfiguredModelName) : `${displayName}（${channel.name}）`;
 }
 
 function channelTierPriceSummary(
     visibleTiers: NonNullable<NonNullable<AiConfig["channels"][number]["modelCosts"]>[number]["logicalPriceTiers"]>,
     allTiers: NonNullable<NonNullable<AiConfig["channels"][number]["modelCosts"]>[number]["logicalPriceTiers"]>,
+    capability?: ModelCapability,
 ): Extract<ModelMenuPrice, { kind: "tiers" }> {
-    const label = priceTierSummaryLabel(visibleTiers);
+    const label = priceTierSummaryLabel(visibleTiers, capability);
     // chip 徽章只显数值(flora: badge=数字+icon, "积分"字样省略)
     const chipLabel = label.replace(/积分\/秒$/, "/秒").replace(/积分$/, "").trim();
     return {
@@ -986,7 +1007,7 @@ function channelTierPriceSummary(
         label,
         compactLabel: label,
         chipLabel,
-        title: `系统规格价格：${allTiers.map((tier) => `${tierSpecificationLabel(tier)} ${tierPriceLabel(tier)}`).join("；")}`,
+        title: `系统规格价格：${allTiers.map((tier) => `${tierSpecificationLabel(tier)} ${priceTierSummaryLabel([tier], capability)}`).join("；")}${allTiers.some((tier) => tier.billingMode === "token") ? (capability === "video" ? "；优先按有效上游用量结算，未返回用量时按视频公式结算" : "；Token 费用为预估，最终按成功任务的实际用量结算") : ""}`,
     };
 }
 
@@ -1010,6 +1031,7 @@ function tierSpecificationLabel(tier: NonNullable<NonNullable<AiConfig["channels
         tier.resolution !== "*" ? tierResolutionLabel(tier.resolution) : "",
         tier.videoSeconds ? tierDurationLabel(tier.videoSeconds) : "",
         selector.imageCount && selector.imageCount !== "*" ? `${selector.imageCount} 张参考图` : "",
+        selector.videoGenerateAudio === "true" ? "有声" : selector.videoGenerateAudio === "false" ? "无声" : "",
     ].filter(Boolean);
     return details.length ? details.join(" / ") : "默认规格";
 }
@@ -1085,5 +1107,5 @@ function modelMenuMeta(model: string, capability?: ModelCapability): { descripti
 }
 
 export function ModelIcon({ config, model, icon }: { config?: AiConfig; model?: string; icon?: string }) {
-    return <ModelLogo icon={icon || (config && model ? modelIcon(config, model) : "")} size={14} className="opacity-80" />;
+    return <ModelLogo icon={icon || (config && model ? modelIcon(config, model) : "")} size={14} />;
 }
