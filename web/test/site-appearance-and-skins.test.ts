@@ -165,6 +165,7 @@ describe("site appearance and editable skin library", () => {
         // 上游 9ce158aa(admin 独立设计系统)把 admin token 定义从 admin-ui.css 迁至 admin-tokens.css,
         // 状态色也由 var(--palette-status-warning) 引用改为皮肤注入的实色 — 断言跟随承载文件与形态演进。
         expect(adminTokens).toContain("--admin-status-warning");
+        expect(adminStyles).toContain("var(--admin-status-warning)");
         expect(adminStyles).toContain("border-radius: var(--menu-radius);");
     });
 });

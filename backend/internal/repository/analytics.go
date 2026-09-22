@@ -209,7 +209,12 @@ func (r *Repository) VideoAPICallRoot(log model.ApiCallLog) (*model.ApiCallLog, 
 }
 
 func (r *Repository) apiCallLogQuery(filter AnalyticsFilter) *gorm.DB {
-	query := r.db.Where("api_call_logs.created_at >= ? AND api_call_logs.created_at < ?", filter.From, filter.To)
+	// SQLite 的 created_at 以字符串落盘，驱动/连接时区不同会写成 "+08:00" 或 "Z" 后缀，
+	// 字典序在两种写法间不可比（同一时刻排序不同）。这里对两种时区写法做 OR 匹配：
+	// 行级谓词不会重复计数；PostgreSQL 下两种绑定等价，无副作用。
+	query := r.db.Where("(api_call_logs.created_at >= ? AND api_call_logs.created_at < ?)"+
+		" OR (api_call_logs.created_at >= ? AND api_call_logs.created_at < ?)",
+		filter.From, filter.To, filter.From.UTC(), filter.To.UTC())
 	if filter.UserID != "" {
 		query = query.Where("api_call_logs.user_id = ?", filter.UserID)
 	}

@@ -7,6 +7,7 @@ import { parseBackendGenerationResult } from "@/services/api/generation-task";
 import type { GenerationTask, GenerationTaskOutput } from "@/services/api/task-center";
 import { resolveMediaUrl, type UploadedFile } from "@/services/file-storage";
 import { resolveImageUrl, uploadImage, type UploadedImage } from "@/services/image-storage";
+import { getCachedResourceBlob } from "@/services/resource-blob-cache";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { applyGenerationConsumerEffect, generationEffectApplied } from "@/services/generation-consumer-dedupe";
@@ -188,17 +189,9 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
     }
 
     if (mode === "video") {
-        if (!result.video?.dataUrl) throw new Error("后端任务没有返回视频");
+        if (!result.video?.storageKey && !result.video?.dataUrl) throw new Error("后端任务没有返回视频");
         const video = result.video.storageKey
-            ? {
-                  url: await resolveMediaUrl(result.video.storageKey, result.video.dataUrl),
-                  storageKey: result.video.storageKey,
-                  width: result.video.width,
-                  height: result.video.height,
-                  durationMs: result.video.durationMs,
-                  bytes: result.video.bytes || 0,
-                  mimeType: result.video.mimeType || "video/mp4",
-              }
+            ? await cacheGeneratedRemoteVideo({ ...result.video, storageKey: result.video.storageKey })
             : await storeGeneratedVideo({ url: result.video.dataUrl, mimeType: result.video.mimeType || "video/mp4" });
         // S07 同比例守卫：媒体与现框比例一致时保持现框（flora 原位显现），位置不动；
         // 仅比例真不同才 refit（对齐 S05 图片 fitToImage 守卫语义，locked 分支不受影响）。
@@ -233,6 +226,36 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
         ...node,
         type: CanvasNodeType.Text,
         metadata: { ...node.metadata, content: result.text, richText: undefined, prompt, ...completedTaskMetadata(task), status: "success", errorDetails: undefined, generationErrorCode: undefined, resourceReloadAvailable: undefined, failedPromptFingerprint: undefined },
+    };
+}
+
+type GeneratedVideoResult = {
+    dataUrl: string;
+    storageKey?: string;
+    width?: number;
+    height?: number;
+    durationMs?: number;
+    bytes?: number;
+    mimeType?: string;
+};
+
+/**
+ * 生成任务的远程视频只有在浏览器已拿到可复用的 Blob 后才进入成功态。
+ * 节点仍保存稳定的资源文件地址，Blob 只作为本地缓存和后续字节处理的加速层。
+ */
+async function cacheGeneratedRemoteVideo(result: GeneratedVideoResult & { storageKey: string }): Promise<UploadedFile> {
+    const blob = await getCachedResourceBlob(result.storageKey);
+    if (!blob) throw new Error("生成视频资源缓存失败，未标记为成功");
+    const url = await resolveMediaUrl(result.storageKey, result.dataUrl || "");
+    if (!url) throw new Error("生成视频资源地址为空，未标记为成功");
+    return {
+        url,
+        storageKey: result.storageKey,
+        width: result.width,
+        height: result.height,
+        durationMs: result.durationMs,
+        bytes: result.bytes || blob.size,
+        mimeType: result.mimeType || blob.type || "video/mp4",
     };
 }
 

@@ -6,8 +6,113 @@ description: 当前项目已实现功能的手工验证清单与未确认边界
 # 待测试
 
 ## 画布图片扩图 F-06（2026-09-20，待用户真机验收）
-
 画布内扩图工具与 Agent 扩图已实现：外扩框（8 手柄 + 三分网格 + “+”号纹理 + 尺寸标注）、框内拖图重定位、比例/档位锁定、双协议提交（蒙版/指令）、画幅偏差角标、Agent 审批扩图。开发侧已用 headless 与真实渠道（ddcat gpt-image-2）验证主链，以下仍待用户真机确认：
+## Agent 任务诊断与模型选择强校验
+- 已修复：成功任务不再由空错误文本生成“任务未完成”；执行失败与回写失败独立保留。模型选择缺失、不完整、混用、`null` 和空白值在读画布及产生草稿 / 审批 / 收费任务前拒绝，返回字段级修正信息；未知字段继续拒绝，不自动选择模型或重放收费任务。
+- 已修复：出站 DNS 失败使用 `502 / upstream_dns_failed`，保留内部原因链且不公开请求地址；Agent 按持久诊断展示 DNS 原因，不修改代理、解析器、私网放行或自动重试策略。
+- [x] 本地专项回归：Agent 参数与执行流程、任务诊断、出站 DNS / 取消 / SSRF、HTTP 错误脱敏通过；缺失模型选择不会新增任务、账单、审批或画布草稿。
+- [ ] 全量回归发现 `TestDeleteGeneratedAssetTaskReferences/failed_output` 查询 `resource_deletion_jobs` 时遇到 SQLite 表锁；该用例单独复跑通过，未修改资源删除逻辑或增加重试，仍需排查并发稳定性。
+- [ ] 部署后检查真实模型渠道域名及后端 DNS；在真实 Agent 会话中验证失败提示、纠正参数后重新审批，以及成功任务与回写失败的分离展示。本地回归不等于部署 DNS 已恢复，也不替代真实供应商与浏览器验收。
+## 画布 Agent 入口拖动
+- [x] 右下角 Agent 图标支持鼠标和触屏拖动，使用指针捕获与 6px 阈值区分点击和拖动；拖动结束不打开面板，中断或失去捕获时结束手势，不传播到画布。
+- [x] 位置作为独立本机 UI 偏好保存，重新打开画布或收起面板后恢复；限制在可视范围，窗口缩小时自动回位。方向键移动 10px，Shift + 方向键移动 40px，保留键盘点击打开。
+- [x] 前端类型检查与 20 项专项/相邻测试通过，覆盖真实生产 hook 的点击、拖动、取消、丢失捕获、多指隔离、持久化和键盘/缩屏行为。
+- [ ] 本地浏览器访问跳转登录，未完成登录后真实画布验收；需验证鼠标/触屏拖动不带动画布、不误开面板、刷新恢复，以及明暗主题和窄屏边缘显示。专项测试不替代浏览器验收。
+## 系统模型同页渠道与模型管理
+- [x] 规格列更新为成本价 / 销售价 / 利润率，按次、按秒、文本输入/输出/缓存和视频 Token 分别展示；缺失配置、零售价利润率显示 `—`，亏损显示负利润率。
+- [x] 支持跨页多选最多 100 个模型统一调价。弹窗打开即展示模型，一行一个模型，列为模型展示名、渠道展示名（上游模型 ID）、规格、成本及售价输入框；多规格在模型行内纵向对齐，不拆成多个模型行，规格上游覆盖单独标注。
+- [x] 调价弹窗模型价格列表进一步压缩行高：上下留白 6px、行内文字间距 2px，常规尺寸售价输入框与利润率同排，扩大售价列并保持规格对齐。弹窗居中固定高度 900px（不超过视窗高度减 48px），列表填充剩余空间并内部滚动，短屏允许内容区滚动；紧凑效果与滚动仍待真实页面视觉验收。
+- [x] 目标利润率和 0–6 位小数（默认 2 位）实时重算，旁边增加「重新计算」按钮，按当前参数对所有规格精确四舍五入。重算覆盖手动值并明确提示；之后可逐项修改，提交最终输入售价。服务端强校验归属、成本、价格和模型/规格版本，事务保存，冲突整批回滚，不改成本或启停状态。
+- [x] 前端类型检查、69 项专项及相邻回归测试通过，包含真实表格组件渲染、多规格单模型行、输入框最终值、精度和手动价重算。后端调价与相邻成本/删除测试通过，覆盖真实 HTTP 登录/管理员权限、整数/null/零售价、最终手工售价保存、过期版本拒绝及并发冲突事务回滚。验证使用内存 SQLite，未进行 PostgreSQL 或浏览器验收。
+- [ ] 待登录后的真实页面验收：多选/跨页/切换渠道，修改比例/精度后实时计算，手动编辑后点击「重新计算」恢复所有规格价格，逐项编辑保存、成功刷新与错误保留；覆盖未配置成本、零成本、Token 多计费项、长名称、明暗主题、窄屏、表头与规格对齐及滚动。不操作现有环境真实价格数据。
+- [x] 样式细化：渠道列表改为留白分组与中性选中描边，数量与启停状态分别呈现；模型头部说明成本口径，规格与成本分行，操作列固定在右侧，超过三个规格可展开查看。
+- [x] 规格成本读取管理员接口已有的 `priceTiers[].costPricing`，与销售价分开呈现；未配置成本明确提示，显式零成本正常显示，异常或缺失数值显示 `—`。
+- [x] 本轮 49 项专项与相邻回归测试、前端类型检查通过；新增成本摘要真实组件渲染测试，覆盖成本/售价隔离、零成本、缺失/异常值、Token 单位、规格选择器与展开内容。样式细化仍需在登录后的真实页面检查明暗主题、长名称、多规格行高、横向滚动与固定操作列。
+- [x] 系统渠道入口改为同页工作区：桌面左侧约 20% 展示渠道搜索、状态筛选、新增和排序，右侧约 80% 展示当前渠道信息与模型管理；移除模型管理的二级页面和返回入口，窄屏改为上下布局。
+- [x] 保留渠道编辑、复制、启停、删除及模型拉取、选择导入、编辑、排序和批量删除。新增或复制后自动选中渠道；切换渠道时隔离模型列表、筛选、勾选和编辑状态，渠道与模型加载失败显示重试入口。服务端仍使用原分页接口，左栏分批读取全部渠道，避免默认仅展示前 20 个。
+- [x] 40 项专项及相邻回归测试通过，覆盖渠道筛选与选择回退、更新后选中数据、真实模型管理组件静态渲染、同页结构，以及既有模型导入、批量删除、排序和编辑规则；前端类型检查通过。
+- [ ] 本地真实 `/admin/channels` 路由跳转登录页，未完成登录后的浏览器验收。需检查明暗主题、桌面 20/80 比例、窄屏上下布局、左右滚动、搜索及切换、新增/编辑弹窗；确认新增/复制后选中、删除当前渠道后的回退、多页渠道完整加载和快速切换不串模型。静态渲染不等同于浏览器或真实写入链路通过。
+## 工作台菜单表面与素材显示密度
+- [x] 根据焦点样式反馈，内容库筛选下拉取消鼠标 / 触屏点击后的粗外圈，聚焦和展开改用柔和底色；工具栏区分指针与键盘输入，键盘聚焦保留 1px 细轮廓，不主动移除焦点。离开工具栏后恢复键盘默认状态，相关复用筛选入口同步生效。本轮 12 项专项测试及类型检查通过；指针 / 键盘切换仍需真实页面验收。
+- [x] 顶部和侧栏账户菜单共用无描边、无投影表面，去掉箭头、装饰分隔线和积分卡渐变；清理旧版 `ant-popover-inner` 覆盖，使用当前组件的 `ant-popover-container`。
+- [x] 用户工作台 Select、Dropdown、Popover 通过显式组件类共用柔和表面和中性选中态；内容库工具栏的 Select 统一使用 filled 变体，保留禁用、危险操作和键盘焦点状态。后台、画布编辑器的通用浮层以及 Modal / 通知不纳入本次修改。
+- [x] 修复素材密度状态被固定 224px 网格覆盖的问题：舒适 / 标准 / 紧凑分别采用 272 / 208 / 160px 卡片最小宽度，随容器自动换列，窄容器不会超宽；保持原有本地偏好值。密度入口补充无障碍名称，网格图标前置，恢复下拉箭头。
+- [x] 13 项专项测试通过，覆盖偏好恢复、密度尺寸策略、真实工具栏静态渲染与浮层配置、主题 token、样式边界及 CSS 层顺序；前端类型检查、生产构建和 `git diff --check` 通过。构建仍提示部分 chunk 超过 500 kB，未在本次进行无关拆包。
+- [ ] 本地真实 `/assets` 路由跳转登录页，尚未完成浏览器视觉与交互验收：登录后在明暗主题检查两个账户入口和列表菜单；切换三档密度、刷新恢复偏好，检查窄屏、长文案、禁用态和键盘导航。静态渲染及尺寸策略测试不等同于浏览器验收；未部署线上。
+## Agent 磨砂面板与紧凑操作区
+- [x] 根据视觉反馈增强磨砂：外壳底色混合比例由 88% 降至 68%，背景模糊调为 32px、饱和度调为 145%，加入轻微柔光而不增加描边；保留减少透明度偏好的不透明降级。模型选择框由 144px 加宽至 208px，保留最大宽度限制、操作区换行和完整名称悬停提示。
+- [x] 真实 Agent 组件改为磨砂外壳、无分隔线头部、柔和消息与工具表面；新增空态技能入口和只填草稿的创作建议，保留审批与错误状态。
+- [x] 执行权限入口只显示当前模式图标，点击打开原权限选择菜单；只读、请求审批、自动执行使用不同图标，悬停提示和无障碍名称保留当前权限。Skills 入口缩短为 `Skills(x)`。
+- [x] 左上缩放手柄向面板内部偏移并改为对角缩放图标，保留拖动和方向键调整；欢迎语从品牌配置读取名称，显示「在这里，和{品牌名称}让灵感，慢慢成形」。
+- [x] 发送按钮从 36px 缩小为 28px、箭头从 16px 缩小为 14px，去掉发光阴影；停止按钮同步缩小。发送、空草稿禁用、发送中禁用逻辑不变。
+- [x] 27 项专项测试通过，覆盖空态品牌文本转义、空画布入口、三种权限图标、发送禁用状态、面板尺寸算法、工具消息和 CSS 层顺序；前端类型检查通过。
+- [ ] 在已登录的真实画布复验明暗主题、窄屏及长品牌名称换行；确认左上缩放图标与键盘焦点不再被圆角裁切、权限菜单和 Skills 入口可用、发送按钮大小合适。本次本地浏览器停留在登录页，未完成这些视觉/交互验收；未调用生成任务或部署线上。临时预览网络拦截已撤销。
+## 生产构建 CSS 层顺序
+- [x] 本地产物确认：应用动态加载的依赖列表中，内置编辑器 CSS 先于全局 CSS；编辑器先声明 `utilities` 层，会使随后出现的 `base` reset 优先于工具类，影响画布和 Agent 等区域的间距、边框与布局。
+- [x] HTML 最早内联样式固定 `theme, base, components, utilities` 顺序，不依赖生产拆包的 CSS 加载顺序；未调整画布业务逻辑或逐个组件添加覆盖。
+- [x] 两项层顺序回归和一项相邻滚动条回归通过；前端类型检查与生产构建通过，并确认构建后的 HTML 在外部样式和脚本之前保留层顺序声明。
+- [x] 登录线上真实画布确认同样的 CSS 加载顺序：Agent 内容区 `px-5 py-5` 计算内边距为 `0px`。仅在调试标签页头部临时声明层顺序后，内容区恢复 `20px`，头部恢复水平 `16px`，输入区外层恢复 `8px 12px 12px`；截图确认留白恢复。撤掉临时声明后内容区再次变为 `0px`，验证因果关系。未修改服务器、提交生成/审批或编辑画布内容，临时样式已移除。
+- [ ] 发布后复验画布与 Agent 的消息内边距、待办间距、输入区和工具栏，覆盖冷启动直达、站内导航、明暗主题。本次浏览器验证为暗色空对话面板，未覆盖原截图的历史审批会话；线上尚未部署修复。
+## PR #544–#546 合并后回归
+- 上传弹窗的调用方保留安装 Promise，上传期间防止重复提交和关闭；复制配置复用开发规范中的有效示例，并展示剪贴板失败。减弱动画保留动画完成事件，不以禁用动画名称阻断弹窗退场。
+- 易支付插件更新至 `1.0.9`：必须配置可信网关；查单和通知强校验订单、金额与流水，保留长数字交易号精度；只允许明确的支付跳转协议。非成功通知在入队前拒绝，避免占用到账事件的幂等键。源码、跨平台可执行文件和插件包保持一致。
+- V2 查单协议尚未核实，不新增猜测接口。V2 只实现下单与通知验签，查单、收银台刷新和安全关单不支持，需网关人工核对；V1 本地关单不等于上游链接失效。
+- [ ] 真实管理页面检查上传成功、失败、重复点击、关闭后重开，以及浅色/深色和减弱动画下的弹窗退场；确认剪贴板不可用时有明确提示。
+- [ ] 使用可信测试商户验证 V1 下单、查询、重复/篡改通知、到账幂等及本地关单后的迟到通知；V2 另行验证 RSA 回调，并确认不支持的操作不会显示成功。
+- [ ] 核对数据概览与订单列表、CSV 的财务口径及跨渠道模型分组，详见下一节。
+PR #543 本次未合入：其已发布迁移校验和改写、管理员显式图片输入限制被覆盖，以及无关插件定制需要先拆分。主分支的迁移谱系、模型能力强校验和画布实现保持不变。
+本轮验证：前端全量 `bun test` 1832 项通过，生产构建（含类型检查）、项目 lint 和 CI 涉及文件的格式检查通过；后端财务统计（含 SQLite 集成）、模型分组、易支付插件与真实插件 RPC 专项通过，六个平台产物及插件包校验通过。后端 `go test ./...` 有一项素材删除测试 `TestDeleteAdminResourcesSupportsPartialSuccessAndBatchedReferences` 遇到 SQLite 表锁，其测试和对应删除逻辑本轮未改动，单独连续复跑 3 次通过；全量结果仍记为未通过，不能用专项复跑替代。尚未做浏览器、真实商户或部署后验收。
+## 数据概览财务统计与模型一级分组
+已实现：移除数据概览的独立价格编辑入口；按系统模型订单快照汇总已结算收入、成本、利润与利润率，并同步 CSV。“模型展示名（一级目录）”支持搜索、选择跨系统渠道已有分组及输入新分组。
+自动化验证：后台 UI 回归测试 17 项通过，前端类型检查与生产构建通过；财务汇总、实际用量成本和无效成本价格专项测试通过。本轮合并复测已完成 SQLite 集成测试，此前本机 GCC/CGO 阻断不再存在；以下真实页面与数据链路仍待验收。
+缺失字段修复验证：新增 4 项测试直接执行模型表格财务列的渲染函数，覆盖未返回或空财务对象、零金额、部分成本和亏损；与后台 UI 回归测试共 21 项通过，前端类型检查及生产构建通过。
+- [ ] 在真实数据概览切换时间、模型、渠道和用户，核对订单去重、部分成本提示及 CSV 金额；确认退款、未结算订单不计收入。
+- [ ] 工作流上传、结构查询、轮询、下载和取消相关日志不承载订单金额；核对 CSV 与概览一致。
+- [ ] 后端响应缺少财务统计时，页面应保留其他统计并显示提示，金额为 `--`，不误报零费用或暂无订单；后端更新并重启后刷新，确认财务数据恢复。模型分组列表未返回时编辑器仍可输入名称。
+- [ ] 检查浅色、深色与窄屏下的费用区域、模型表格横向滚动及长金额换行。
+- [ ] 新建或编辑模型，在“模型展示名（一级目录）”选择其他渠道已有分组；输入新分组保存后再次编辑，确认下拉更新且创作端归组正确。
+## CI 检查修复与镜像构建提速
+- [x] 修复导演台 DEV 复现入口在 React 初始化前请求 `/api/public/appearance` 导致的 E2E 502：入口和 Provider 共用精确路径隔离，普通页面与生产环境仍执行外观初始化，未放宽浏览器错误断言。
+- [x] 外观启动与导演台专项测试 54 项通过，包含执行真实 `main.tsx` 分支的 9 项新增回归；生产构建（含 TypeScript 检查）通过，仍有 chunk 大小告警。
+- [ ] 在 GitHub 重跑 Director P0 Chrome E2E，确认六个场景不再出现外观接口 502；本轮未启动本地开发服务器或执行 Chrome E2E，不以入口回归测试替代浏览器验收。
+- [x] 修复画布连线可见性文件的 Prettier 格式；增量格式检查改用 Prettier API，移除会触发 EPIPE 的管道比较，覆盖新文件、历史格式、无父提交、全零基线和错误传播。
+- [x] 本地前端类型检查、Lint、1844 项测试通过，其中包含 20 项 CI 格式检查与镜像复用/晋级回归；两个 Dockerfile 的 BuildKit 检查无警告，Actions 工作流通过 actionlint。
+- [x] 使用原失败运行的提交区间重跑实际增量格式脚本，检查通过且未再出现 EPIPE；原生 ARM64 前端 Docker 镜像构建通过。
+- [ ] 后端本地 Docker 完整构建在 Go 依赖下载阶段被 `proxy.golang.org` 的 EOF 阻断，两次同类失败后停止原路径重试；尚不能据此确认后端镜像完整构建通过，未改用不可信依赖或吞掉错误。
+- [ ] 在 GitHub 验证质量检查失败时不构建、不更新镜像标签；确认必要检查规则匹配可复用工作流的实际名称。
+- [ ] 验证 AMD64/ARM64 原生后端构建及支付插件 smoke、前端静态资源单次编译；检查最终镜像的两个架构和实际容器运行。
+- [ ] 连续推送同一 SHA 的 main/tag，确认复用已构建摘要；模拟旧 main 晚完成、镜像不存在、GHCR 鉴权/网络失败，确认不会错误降级或回退 `latest`。
+- [ ] 比较冷/热缓存耗时，使用 `go-test-timings` 分析 `internal/app` 的慢测试。本次未删除测试、未调用真实收费模型、未推送镜像或发布线上版本；不能宣称云端耗时已经降到固定分钟数。
+## 画布素材链路与工作条改造（2026-09-19）
+已实现：
+- 素材库已有手动新增、重命名、删除分类，以及分类筛选和批量移动能力。
+- 画布支持“设置隐藏节点连线”：开启后隐藏普通连线，悬停、聚焦或选中节点时显示关联连线。
+- 画布底部素材入口改为带“素材”文字和数量徽标的按钮；手势切换恢复无文字的纯图标胶囊滑块，不使用标签按钮外观。
+- 手势图标固定为 16px，统一选中 / 未选中描边粗细，未选中态使用不透明颜色而非整体半透明。工具栏切换专项覆盖普通 / 紧凑尺寸、无文字及单个圆形滑块的真实组件静态渲染；尚未完成浏览器视觉验收。
+- 远程素材展示统一走资源文件地址；Blob 只保留给字节处理和本地缓存，不作为远程媒体展示 `src`。
+- 画布生成视频在进入成功态前先完成 Blob 缓存；缓存失败不得标记成功。
+- 文本节点字号随节点尺寸联动，普通文本、富文本和编辑态保持一致。
+自动化验证已完成：画布连线可见性与文本字号专项测试通过，前端类型检查和 `git diff --check` 通过。以下仍需真实页面验收：
+- [ ] 登录真实账号打开素材库，新建、重命名、删除分类并移动素材；确认刷新后分类和素材归属仍正确，删除分类不会删除素材文件。
+- [ ] 在浅色、深色主题和窄屏布局下检查画布底部工作条，确认素材数量徽标、选择 / 移动切换、键盘焦点和提示文案可读。
+- [ ] 开启隐藏节点连线后，确认默认连线不可见且不可点击；悬停、聚焦、单选和多选节点时只显示关联连线，取消交互后恢复隐藏。
+- [ ] 使用真实视频生成渠道验收：资源缓存完成后再显示成功；网络或资源下载失败时显示失败，不出现“成功但视频不可播放”。
+- [ ] 调整文本节点宽高，确认普通文本、富文本和编辑态字号都随尺寸变化，极端尺寸仍在可读范围内。
+## Agent 工具诊断与错误恢复
+针对交互日志中的字段误报、输出可引用状态被误认为输入缺失、已绑定任务无法诊断、展示字段导致审批快照失效等问题，调整工具的数据合同和共用准入规则。没有新增场景关键词路由、自动选参考图、自动重试生成或新的系统提示词规则；工具说明明确区分编辑画布和提交收费生成，去除具体广告场景例子。
+- [x] 后端 `go test ./internal/app -run 'TestCloudAgent' -count=1` 通过：操作字段错误与修正后的预览、失败/取消任务诊断及跨用户/画布隔离、敏感错误脱敏、已绑定任务拒绝、展示信息自动保存不阻断审批、实际内容变化仍阻断、取消来源只记录一次；使用临时 SQLite 和模拟任务，未调用收费模型。
+- [ ] 真实模型验收：相同画布分别请求“只连线”“只创建节点”“生成视频”，确认工具选择符合意图；读取失败视频时能区分产物不可引用与实际任务错误，按字段诊断修正参数，不自行换节点重复生成。
+- [ ] 发布后验证页面引用标签与任务错误可见性、审批期间移动/缩放节点及自动保存、取消后导出日志中的来源与关联任务。旧审批快照算法变化时需重新读取审批；未做线上部署或真实收费模型对比，不能以合同测试代替模型行为验收。
+## Agent 媒体提示词引用标签
+Agent 创建或续用未提交媒体草稿时，保留已有 `@图片N` / `@视频N` / `@音频N` 引用，为遗漏的已选画布素材补齐带名称的引用块。各类型独立编号，目标入边与任务参考数组顺序一致；草稿、审批与实际提交使用相同提示词。模型工具说明同步要求在对应描述中使用引用标签，编号越界和补齐后超长均在提交前报错。
+- [x] 后端媒体、画布阶段事件与审批专项通过，覆盖编号与顺序、已有引用不重复、无引用任务、临时标注图、长度上限、草稿持久化、审批后提交及重放不重复收费。
+- [x] 前端 11 项实际引用解析与生成上下文测试通过，覆盖图片/音频/文本混排、槽位编号、引用移除和再次提交。
+- [ ] 更新后端后，在真实页面验证 Agent 生成节点中的引用标签、缩略图/音频标识、刷新和续用草稿。本次未进行浏览器验收或线上部署；历史节点不自动补写。
+## MiniMax H3 视频失败原因透传
+MiniMax Hailuo Video V2 / H3 插件更新至 `2.0.1`，创建和查询均优先读取 `task.error.message`，并识别 `task.error.code`。参考图片尺寸不符合要求等具体错误通过已有任务错误字段返回，避免被替换成“上游返回失败状态”。补回该插件的可维护源码目录，并同步插件包和接口文档。
+- [x] 插件专项回归覆盖嵌套错误、缺少任务状态、具体错误优先级、已有错误格式和成功响应；相邻视频媒体角色测试通过。
+- [x] 后端模拟 HTTP 上游验证创建失败与轮询失败，具体原因进入任务错误文案，且不重复提交；前端实际错误格式化函数和画布失败元数据保留该原因。插件包与源码一致，其他请求、结果映射保持不变。
+- [ ] 更新线上插件后，以真实失败任务验收画布和任务详情的错误展示；本次未部署、未调用收费模型。历史失败任务已保存的通用错误不会自动改写。
 ## 模型展示名归组与管理员积分成本
 
 创作目录固定直接读取系统渠道模型，一级按模型展示名跨渠道分组，二级按各模型的渠道展示名展示；删除渠道级“前台名称”，不反查逻辑模型。成本配置限定在管理员价格档编辑，按下单快照核算，后台请求记录与 CSV 显示销售价、成本价；普通用户目录、报价和账单不返回成本字段。
@@ -2441,6 +2546,12 @@ affordance-in 只覆盖透明度渐显，缺空间展开。补 og 语法（`tran
 
 ## 云端 Agent Skills 选择与 Token 预算（2026-09-13）
 
+文本 Agent 已改为按所选文本模型能力计算上下文预算：渠道模型读取 `contextWindowTokens` / `maxOutputTokens`，逻辑模型按候选线路取安全交集，旧配置回退 128K / 16K；前端发送前检查与后端轮次预算使用同一语义。1M 模型可配置更大输入预算，运行 checkpoint 的 512KB 持久化上限保持独立。后端上下文压缩保留任务、生成、审批、计费、取消和回写事实，只移除可重新读取正文。
+
+- [x] 后端按能力合同计算 Token 预算、输出预留和压缩阈值，移除生产路径固定 96KB/120KB/192KB 上下文窗口。
+- [x] provider 文本任务从能力合同读取 `maxOutputTokens`；前端模型能力编辑器支持上下文窗口和最大输出配置。
+- [ ] 使用真实 1M 模型 tokenizer 做大上下文压力测试，并验证多线路路由、SSE 断线恢复和费用估算在生产等价环境的一致性。
+
 Skills 选择器已扩大为固定高度面板，增加宽松留白、自定义多选状态、250ms 搜索防抖和服务端分页的滚动续载；Agent 输入恢复画布节点 `@` 候选，`/` 选择技能后保留可读技能名，不再显示内部 skill ID 或残留斜杠。Token 计费模型现可进入 Agent，账单会把预授权报价固化为最终扣费上限。前端生产构建、ESLint、29 项相关测试，以及后端 app/repository/database 测试通过，需浏览器和真实计费渠道验收：
 
 - [ ] 在明暗主题、窄窗口和低高度窗口打开 Skills，确认面板尺寸稳定、列表独立滚动、空态不缩高、选中态与焦点清晰。
@@ -3334,106 +3445,64 @@ d (docs(progress): 登记视频族S6裁剪批与持久化自愈修复)
 - [ ] 390px 窄屏检查侧栏抽屉、资料菜单、顶栏积分入口和首页 Composer 无横向溢出。
 - [ ] 真实登录态检查 `/`、`/tasks`、`/wallet` 关键路由及登录过期跳转。
 
-
 **W1-C线 merge式同步上游42提交（2026-09-17）**：上游 origin/main 自 9868f5e8(v1.3.0) 前进 42 提交，按 MASTER-PLAN 决策3 从 rebase 转为 merge 式消化（专用 worktree sync/upstream-2026-09-17 完成冲突解决后合回 main）。13 个冲突文件逐处人审：代码层取我们侧（S08 同步冲突门 / hover 归属状态机 / 挂件化 composer / 模型目录演进），上游增量语义嫁接进我们的架构（forceSaveCanvasProject 强制覆盖、onSendSelectionToAgent 选中态@Agent、model-picker activeGroupKey+previewedModel 状态）；globals.css 模型菜单取我们定宽 384/高 560（flora P51-030 十轮实测依据）拒绝上游 420；pending-test.mdx 三方拼接保留两侧全部记录。附带修正：canvas-video-settings-popover 重复段去重、app-changelog-dialog 裸 padding:0 改 AppModal flush、index.html 移除上游 logo.svg 恢复品牌中立、测试断言跟进源演进（Reorder import 宽松化 / ModePicker→ModelPicker / creation-submit-cost / useActiveTheme）。终验：tsc 0，bun test 1774 pass / 18 fail（全部落在并行漂移+主仓同败基线两桶，无合并引入回归），vite build 32.36s。现在本地 ahead 354 / behind 0，分叉消除。待测：真机过一遍上游 42 提交带入的功能（暗黑模式 #524、主题隔离、批量创作表、canvas restore、统一视频轮询、多角度 dash、欢迎页开关、创作模式 tabs 改版）；fork 推送与 PR 待用户决策。
-
 **HUD让位适配Agent自由浮窗（2026-09-17 merge后首轮反馈）**：上游 v1.3 把画布 Agent 面板从右缘停靠改成自由浮窗（use-agent-panel-layout：可拖拽/西+北向调宽高/localStorage 持久化 canvas:agent-panel-layout:v1，默认宽 448 停靠右缘），而 fork 的 ObjectHudPanel 让位公式仍是旧假设 `canvas-inset-x + assistantWidth(520/440/360/300) + space-3`——assistantWidth 是 project 层独立 state，与浮窗真实宽度（layout.width，用户可拖变）无关，面板被拖离右缘（如画布中央）时 HUD 仍白让一块 → 用户实测"没开 Agent HUD 正常、打开即偏移"。修复（3 文件 +28/-12）：useAgentPanelLayout 返回值外曝纯数字 layout+compact，hook 状态提升到 project.tsx（panelLayout prop 注入面板组件），hudRightInset 按 memo 真实几何计算——面板贴右缘（右缘距视口 ≤48px）且顶入 HUD 垂直带（top<420）才让出实际占位（width+rightGap），compact(<640 全屏)/拖离右缘/面板在下半区均不让位；删除 assistantWidth state。待测：真机验证 Agent 面板贴右缘时 HUD 正确让位、拖到画布中央后 HUD 回位、拖动过程中 HUD 实时跟随。
-
 **Merge 后首轮反馈三连定性（2026-09-17）**：① 强刷弹"画布在本地和云端都有修改"= S08 同步冲突门按设计触发（loadCanvasProjectForEditing：本地 updatedAt≠水位 且 远端 updatedAt≠水位 → diverged），非合并损坏；单次出现按提示导出备份→加载云端即可，若每次强刷都弹需查水位推进。② 主页/短剧创作/素材库布局坍塌：逐文件比对 served CSS/JS 与磁盘一致、tailwind utility（flex-1/min-w-28 等）均在产物中，vite 跨 186 文件 merge 的模块图状态不可信 → 已清 node_modules/.vite 重启（vite v8.1.5 ready），待用户硬刷新复验。③ 首页 vs 画布参数面板：上游原生两套实现（首页 creation-workspace 内部 GenerationSettingsMenu/DurationMenu/ImageSizePicker 的 creation-parameter-menu 体系；画布 canvas-{image,video,audio,text,count}-settings-popover 独立体系），唯一共享 ModelPicker；上游 42 提交改了首页套（mode-tabs/mode-button 重做 +138 行）与画布 settings popovers 3 文件（自动合入），两套差异是上游设计非合并丢失。④ 截图右下角绿色"ljq_driver: 已连接"徽标在全部页面出现，为浏览器扩展悬浮层非应用元素，Agent pill 遮挡属正常 z 序。
-
 **模型菜单双栏设计泄漏修复（2026-09-17 晚）**：上游 42 提交含 ModelPicker 菜单整体重设计（两级品牌→模型双栏 + previewedModel hover 描述），与我们 flora flyout 分组菜单同区域平行演进；merge 时 7 处冲突全取我们侧，但上游非冲突碎片（根节点 `is-brand-list/is-model-list` className 三元、setPickerOpen 内 preview 重置两拍）自动混入，两套布局 CSS 杂交致模型列表乱（用户截图：置顶行模型名丢失/勾选错位）。修复：恢复我们侧根 className（creationVariant ? "creation-model-picker-menu w-[360px]" : ...）+ 删孤儿 state activeGroupKey/previewedModel + setPickerOpen 恢复原文；与 merge 前版本 diff 仅剩 useActiveTheme 主题迁移与注释。待测：真机验证模型菜单 flyout 分组/置顶/搜索/价格徽标全部正常。
-
 **强刷每弹冲突门根修（2026-09-17 晚）**：用户实测"每次强刷都弹 diverged 冲突门"。根因：`saveRemoteUserDataBatch`（user-data-sync.ts）项目/素材支路同步成功后 `watermarkProjects.set / watermarkAssets.set` 只推进内存 Map，全程无 `persistWatermarks()`——该函数的 persist 只存在于 discard（93）/加载采纳（129）/快照采纳（218）三点。后果链：内存水位随每次保存推进，localStorage 水位永远停在会话初值；刷新后 `loadWatermarks` 读回旧水位 → 本地 updatedAt≠旧水位（本会话同步过）且远端 updatedAt≠旧水位（22:08-22:09 后端日志密集 PUT 200 实证远端在推进）→ 118 行判 diverged → 每刷必弹。修复：批量保存引入 savedAny 标志（素材/项目支路成功处置位），函数末尾统一 `persistWatermarks()`。验证：tsc 0，canvas-sync-conflict/asset-remote-sync/canvas-generation-task-sync/agent-canvas-sync 41 项全绿，全量 18 fail=登记基线。待测：真机强刷不再弹门（首次刷新若 localStorage 水位已滞后，仍可能弹最后一次——点"加载云端版本"或"导出备份"后即自愈，此后不应再弹）。
-
 **Agent 浮窗层级修复（2026-09-17 晚）**：用户实测"图片生成"节点面板压住 Agent 面板右下角（遮挡输入区）。根因：Agent 浮窗固定 `z-[var(--z-modal-overlay)]`(110)，而节点面板挂 `useCanvasOverlayLayer` 置顶机制（交互后 `--z-canvas-overlay-active`:150）——用户点过节点面板后它永久 150，Agent 永远 110 被压。修复：CanvasCloudAgentPanel 接入同一置顶体系 `useCanvasOverlayLayer("agent-panel", var(--z-modal-overlay))`，面板 pointerdown capture（与拖拽 handler 链式合并）+ onFocusCapture 触发 bringToFront，zIndex 并入 style；launcher 保持 110。语义回归设计意图：Agent 与节点面板/连接菜单/素材托盘同属"最后交互的画布浮层居顶"（--z-canvas-overlay-active:150 单值槽）。验证：tsc 0，agent-panel-layout 13 测试全绿，build 33.5s。待测：真机验证点击 Agent 输入区后 Agent 居顶、再点节点面板后节点面板居顶（互斥置顶正常轮转）。
-
 **上游合并 review 修复批（2026-09-17 深夜，code-review-expert 对 065ecf13 + 4 修复提交）**：P1×2 + P2×3 全修。① 水位落盘移入 finally——9eefc445 把 persistWatermarks 放函数末尾，但 saveRemoteUserDataBatch 项目支路 catch 内 throw 上抛（设计约定）导致多实体批次部分成功+部分失败时成功实体新水位仍只留内存，"每刷必弹"在部分失败场景复发；主体包 try/finally 后逃逸路径关闭。② Go 测试 TestCloudAgentNodeTypesExposeExecutableAllowList 硬编码 7 节点类型，上游 9868f5e8 注册 batch-table 后未自更（origin/main 同 FAIL 实证为上游自带失配）；改为按类型集合断言（8 类型全集+panorama 排除），防未来类型演进再挂红。③ isPanelCarrier 注释更正：095b1f72 代码实际为"排除 BatchTable"（与上游一致、行为正确——BatchTable 编辑内联于节点 body），commit message/两处注释/pending-test 登记误写"并入"；真机当时只验证挂载点唯一未验证并入语义。④ 上游双栏菜单死 CSS 清删 42 块（globals.css 33+workspace-product 10+cloud-agent.css 3，零消费确认，agent-model-picker 测试随 flyout 语义更新断言）。⑤ useAgentPanelLayout 返回值 useMemo 化 + onResizeKeyDown useCallback 稳定化 + handlers 走 ref；hudRightInset 依赖改值（agentPanelGeometry/compact），拖拽 setLayout 每帧重渲染压力收敛到布局值变化本身。验证：tsc 0、go test 关键面绿、bun test 1779 pass/18 fail（全部登记基线）、build 1m1s。待测：真机拖拽 Agent 浮窗流畅度（对比提升前）与多画布场景冲突门不再复弹。
-
 **模型行布局根修（2026-09-18 凌晨，用户第二轮"又乱"反馈）**：真正根因不是泄漏 className 杂交（8e142575 修的是真实但次要的问题），而是 **flex 嵌套百分比失效**：merge 自动合并使 option-body 获得上游的 `width: 100%` 声明（缝合怪：`.canvas-model-picker-option-body { display:flex; align-items:center; gap:8px; flex:1 1 auto; min-width:0; overflow:hidden; display:flex; align-items:center; width:100% }`），ModelLabel 根 span 的 `w-full`（width:100%）在「flex 嵌套两层 + min-width:0 + overflow:hidden 链」下百分比解析 indefinite → 根塌 min-content（32px=logo24+gap8）→ title 在 min-w-0 truncate 链下宽 0（文本仍在 DOM，getBoundingClientRect=0）→ 视觉=模型名不可见、价格/媒体徽标全部挤到行左（用户两轮截图同症）。诊断路径：headless Chrome 注入 pinned localStorage（正确形态为 encodeChannelModel 全 id 如 `CHANNEL_000001::grok-imagine-image-2.0`）复现 → 父链逐级 computed width 定位断点（body 322 正常、root 32 异常）→ matched-rules 排除数据层（displayName 函数均有 || model 兜底）→ 实验 flex:1 1 0% 恢复。修复：ModelLabel 根 `w-full` → `flex-1`（basis 0%+grow，脱离百分比链）。验证：headless 实测 title 0→150px、chip 回位、双行 pinned 全渲染；tsc 0。教训：flex 子项宽度优先用 flex-1 而非 w-full（百分比 width 在嵌套 flex 里可能 indefinite）；merge 的缝合怪规则体（同名规则双段拼接）是引入此类回归的典型载体。
-
 **模型菜单深灰胶囊根修（2026-09-18 02:30，用户第三轮"依旧不对"反馈）**：flex-1 修复后模型名恢复，但名字+徽标+副标题被包进"深灰胶囊"——用户浏览器 DOM 实测定位于 merge 并入的上游 `.creation-model-picker-surface` 规则块（globals.css 原 20949-20964）：上游 DOM 的 `option > span:first-child > span:first-child` 是 32×32 图标方块，我们结构同位置是 ModelLabel 根（整行内容容器），其 `width/height:32px` 造成前一轮误判的"w-full 百分比失效"（部分真因）、`background:...!important + border-radius:10px` 涂出胶囊（flex-1 修宽度但抵不了 !important 背景，headless 只测宽度漏了背景——环境差异教训：composer 触发器无 surface 类、画布面板 variant=creation 有，headless 验证不覆盖用户路径）。同块还含：菜单容器 `max-height:none/width:min(360px,...)!important` 侧门绕过 flora P51-030（384/min(560px,100vh-132px)）裁决、subheading/.text-amber-600 JSX 零命中死规则、option 55px 覆盖我们 53px。整块删除。验证：用户浏览器实测 rootBg rgba(0,0,0,0)、radius 0px、title 158px、菜单宽 378。过程教训：CSS 文件里写 `//` 注释会炸 PostCSS 全站白屏（已用 `/* */` 修正）；vite 重启必须带 VITE_API_PROXY_TARGET（再次踩坑导致误跳登录页）。
-
 **挂件随节点resize错位根修（2026-09-18 03:30，用户三截图反馈）**：点击模型列表/参数面板切换比例（applyNodeConfigPatch 对空节点重算 width/height + position 中心保持）后，pendant 冻结在旧几何（右偏/左偏/纵向压盖三形态，偏移量随旧新尺寸差变化）。用户浏览器 DOM 实测定性：① pendant 单实例、enterPhase=settle、props 新、effect deps 已记录新值，但 transform 旧值——**拖动 1px 强制 update 后立即完美归位（dx=0, dy=1）**，证明 update/闭包/guard 全部正常，缺口纯在"节点尺寸变化无事件源触发 update"；② viewport preview 订阅注入假 viewport 无反应（订阅失联，effect hook destroy=undefined 提示 setup 曾中断）；③ **overlay 的 viewport prop（x=9555, k=1.604）与 world layer DOM transform（x=3868, k=0.6184）长期脱节**——initialPosition 声明式换算基于陈旧 viewport，命令式 update 才是唯一正确路径。修复：subscription effect 增加**节点元素 ResizeObserver**（尺寸变化→update）+**world layer MutationObserver**（style 属性变更→update，覆盖 pan/zoom 提交与拖拽 preview 每帧直写），保留原 container RO 与 preview/drag 订阅。tsc 0、affordance/attribution 43 tests pass、build 33s。遗留登记：viewport prop 与 DOM 脱节的根源（viewport 提交链）未修，建议独立任务排查；pending：真实设备验证切模型/切比例/pan/zoom/拖拽五场景挂件跟随。
-
 **挂件底缘间距 1px→8px→10px（2026-09-18 04:20，用户反馈"完全贴着"）**：S2 接力语义曾为坠落动画起点衔接把 gap 从上游 10px 压到 1px；后续坠落位移分量删除（位置零位移防回跳）后，1px 在视觉上读作贴死（识图实测节点边框与面板顶缘视觉间距仅 3-5px）。两处 gap（getAttachedNodePanelPosition DOM 路径 + getNodePanelPosition 数据路径）先同步改 8px；用户仍嫌贴合，两轮拍板回到外浮面板时代原值 10px。动画衔接不受影响（信息态退场坠出深度 40px 远大于间距）。
-
 **挂件形态回归上游原版（2026-09-18 05:00，用户第三轮"还是不是原来的"）**：用户给出实现 vs 上游对比截图，识图揭示真差异——间距（14 vs 12px）几乎相同，**上游四角全圆（12-16px）独立悬浮卡 vs 我们顶部两角直角**（globals.css 挂件化时 `[data-panel-pendant] .canvas-node-composer { border-top-*-radius: 0 }` 的"顶缘连接节点底缘"设计）。直角让面板视觉上焊死在节点下——**"贴合感"的根源是形状不是距离**，解释了两轮调间距（8/10px）无感。修复：删除顶角取直规则（composer 回归 var(--canvas-composer-radius)=--r-lg 全圆）+ gap 10→12px 对齐上游。教训：视觉"贴合感"反馈优先查形状语言（圆角/描边/阴影），距离参数是次位嫌疑。
-
 **W2 线上游同步 v1.5.0（2026-09-18 06:00）**：merge origin/main 14 提交（b6bae4f9→8d60a516，v1.4.0+v1.5.0），8 文件冲突人审定稿：model-picker 全取我们侧（上游"统一模型选择器"=固定 creation 变体+双栏菜单，无语义增量，flyout 零损失）；cloud-agent 嫁接 plan/pendingQuestion（计划插话记忆）增量并保持 panelLayout prop 注入架构（补 markdownPlainText import）；admin 样式区取上游（9ce158aa 迁 admin-ui.css/admin-tokens.css，globals 删 1120 行旧区块）；workspace-product 媒体查询对齐上游 dock 结构。测试跟随源码演进 3 处：create-library-button（上游对话页布局断言+清 mode-row 残留）、site-appearance（admin token 断言迁 admin-tokens.css）、migrate 清单补 agent_lessons/agent_memory_settings 两表（上游 6892732b 加模型未更清单，上游树同挂）。Gate：tsc 0、build 33.7s、bun test 1807 pass/18 fail（全基线：诊断缓冲区×11+toolbar-switch+创作控制器×3=并行漂移 solo 全过，skill chips/storyboard/task-cancellation×3=主仓既有）、go test ./... 全绿。备份 backup/main-pre-merge-v150。
-
 **W2 review 修复批（2026-09-18 06:40）**：merge review 发现冲突裁决盲区——model-picker 冲突块取我们侧清掉了双栏 JSX，但 globals.css 中 18148-18285 的**非冲突自动并入段**（品牌/模型两级菜单规则 138 行：brands/two-pane/brand-rail/secondary-head/back 等）零消费存活。教训：CSS 冲突裁决后必须对整个选择器词族做全文件清点，不能只看冲突块内部。已整块清删（build 40s、agent-model-picker/create-library-button 测试绿）。其余 review 项核验：本凌晨四项修复（gap 12、顶角全圆、flex-1、ResizeObserver/MutationObserver）merge 中全部幸存；上游积分中心 AppModal flush 合规；/wallet 路由改写弹窗重定向保留查询参数；虎皮椒 MD5 签名时序安全（EqualFold+空拒绝）；agent 域菜单 340px 裁决正确。
-
 **viewport prop"脱节"排查定性（2026-09-18 07:30，B 选项任务）**：静止状态实测 viewport prop={x:1525,y:-5401,k:0.3276} 与 DOM translate3d(1525.28,-5400.96) 及 --canvas-live-scale=0.3276 **完全同步**——当前代码无持久脱节。当时（挂件 review）读数的脱节是两个因素叠加的假象：① 排查期间注入的合成 wheel 走 preview 链直写 DOM 而 commit 未即时跟随；② commit 走 120ms setTimeout debounce，**tmwd-browser 后台操作时标签被 intensive throttling 推迟至 ≥1min**，窗口期内 React state 落后 DOM。双轨机制本身正确：preview 只写 DOM+ref，commit 归一 world layer scale(k/committed)→1 并 setState。真实用户前台操作不受影响。硬化已落地：visibilitychange 回前台立即 flush pending commit。教训：跨 tab 自动化采集的时序证据必须先排除后台节流因素；"脱节"读数要用静止状态复测后才可定性。
-
 **P4 族3 角色引用/分镜 S1-S4（2026-09-18）**：角色引用 chip 交互落地（分镜行 assets 列：+ 按钮 Popover 列画布资产目录、hover 显 Remove、`storyboardRowAssetBindingPatch` 纯函数统一增删并同步 `row.characters` 供文本注入与参考图集消费）；端口复用行级 `row:<id>` handle（连线→binding 既有链），空槽 helper + 每行上限 8（自设计）。真机已验（tmwd DOM 自动化）：chip 双向增删闭环、reload 持久化、R17/R18 语义 aria。**待用户人眼**：① hover Remove 手感与 Popover 视觉（明/暗主题各看一眼）；② 左侧 handle 拖拽图片节点到分镜行的连线绑定；③ 绑定角色后行生成（prompt 应含"角色：名字：描述"文本+参考图 mention）。**真机发现已修**：分镜资产弹层 portal 进 world layer 子树与挂件 worldMutations 死循环（Maximum update depth）→ Popover 改 body portal。**登记边界**：flora source `cursor:not-allowed`（technique 无输出禁连出）本地无对应物不采纳；每行 8 上限与候选目录 60 条为自设计值。
-
 **族3 第二轮真机反馈五连修（2026-09-18）**：①分镜 chip 缩略 9:16 竖图破格溢出行边界——dev 环境 Tailwind base 层 `img{height:auto}` 压过 utilities 的 `size-full`（层序异常，build 正常），缩略 img 改 inline 尺寸根治，自动化复验 contained ✓；②拖线预览吸附到节点中点、松手才落到行 handle——预览渲染只消费 anchorRatio 不知 handleId，controller 命中行时回传 ratio（拖拽+commit 双路径）；③亮色画布 HUD 面板恒黑——object-hud-panel 漏迁 W1-C 主题通道（useThemeStore→useActiveTheme）；④拖动 Agent 面板时 HUD 逐帧被挤——gesturing 期间冻结让位，松手一次到位；⑤绘图/分镜/转换/批量/导演台等节点连接参考后误显 hover 信息态 composer——白名单限 image/video。**待用户复验**：拖线吸附手感、Agent 拖动时 HUD 行为、亮色 HUD 外观（点选图片节点查看）、hover composer 不再出现在扩展节点。
-
 **族3 五连修 v1 复验失败与 v2 根修（65be3d67，2026-09-18）**：用户复验①②依旧——v1 两处验证失实：①chip inline `height:100%` 在 grid+place-items-center 容器里是**循环依赖**（行高由内容定、内容百分比由行定），解析失败回退原图比例（60px 破格），且 v1 只自动化验了一张非 9:16 图就宣布 contained——根修为 **absolute inset-0**（基准=button 36px padding box，任意比例数学 contained，实测 27≤29 ✓）；②v1 修的 anchorRatio **根本没被预览渲染消费**——`activeConnectionPath` 终点 y 调 `connectionHandleY(target)` 时漏传 handleId 恒走中点分支，v1 只改了数据链没改渲染链。v2 全链补 `connectionTargetHandleId`（controller state 写入/清理 → project prop → leafer 透传 → activeConnectionPath 目标侧按 handleId 取行 y 含滚动 clamp），补吸附单测 5 条（行 y/滚动/缺省回退/终点跟随/回归守卫）全绿。**验证纪律教训**：声明修复前必须在改动点直接断言（渲染端消费链），不能只验数据链；9:16 场景必须用真 9:16 图复验。**待用户人眼**：拖线吸附预览终点应随行 handle 实时移动。**新独立疑点（未诊断）**：本会话多次 reload 后全部资产 img 的 blob URL 挂起不加载（complete:false 无 error 事件，无 sync-conflict toast），是否稳定复现待用户下次刷新确认。——**用户下次刷新确认未复现**（2026-09-18），判定为本会话 CDP 伪造 session + 高频 reload 环境的瞬态，非产品缺陷，撤案。
-
 **Review 修复批（22563449，2026-09-18）**：五连修 v2 复查（38bd4615..HEAD，skill review）发现并修复三项——**P1**：v2 拖线吸附只修了单线预览，leafer `batchDrafts` 分支的 `activeConnectionPath` 仍只传 5 参，**多选拖拽到分镜行的预览还是吸中点**（类型/controller 早已备好 targetHandleId，只差渲染端一跳），已补参 + 结构守卫测试；**P2**：v1 的 `connectionTargetAnchorRatio` 预览 state 是死遗产（渲染端零消费，v2 证明实际消费 handleId），state 链全删、两处 targetAnchorRatio 行换算还原 undefined，注释"预览渲染只吃 anchorRatio"方向已反一并更正；**P2**：三处连续重复 setState（python 插入锚点双命中产物）去重。P3 登记：HUD 拖动中冻结用 return undefined 存在"让位↔不让位"两次跳变（用户已接受现状）；controller dropTarget.handleId→preview state 无直接单测（拖拽事件链 CDP 不可自动化，真机已验）。Gate：tsc 0、全量 1823 pass/18 fail（全基线）。 **批次二（会话误登出根修 + batch 拖线复验引导）**：用户第三次被误踢登录页后问"这算不算 bug"——确认是 P2 健壮性缺陷：后端 `/auth/session` 对 session 失效统一返回 `200 + {user:null}`（handler/auth.go:158），因此 hydrator 的 `getAuthSession().catch()` 里收到的失败**全部是传输层瞬态**（vite 代理空窗/后端重启/网络闪断），原实现把一切 catch 当游客处理=误登出。修复：`isAuthRejectedStatus`（仅 401/403 视为身份拒绝）+ 其余失败显示"连接中断+重新连接"卡片保留现场；3 条单测锚定契约。**顺带根治 dev 工具链坑**：WSL /mnt inotify 对外部写入不可靠，vite 长期服务启动时刻的旧转换（batch P1 修复已在磁盘但用户浏览器拿不到，导致用户复验 batch 拖线"依旧中点"假阴性）——vite.config 加 `watch.usePolling:true interval:300` 根治。**待用户复验**：① batch 多选拖拽到分镜行预览吸附（vite 轮转后首次真验）；② 下次 vite/后端重启时应看到"连接中断"重试卡而非被踢登录页。dev 凭据登记 .local/dev-test-account.md（gitignored）。
-
-
 **Agent 面板画布撤销接线（b80c5a6c，2026-09-19）**：后端 undo 端点（既有）此前是孤岛——面板零消费。本批：①后端新增 `GET /agent/runs/:id/undo-preview` 只读预检（可撤销状态/`expectedSnapshotHash` 来源/禁用原因；明确不走 MutateCloudAgent 写事务，单测锚定"预检不递增 revision"）；②面板新增 `AgentUndoBar`（run 终态预检→可撤销显轻确认+可选理由→不可撤销显禁用原因），撤销成功追加系统消息并走 `refreshCanvasAfterAgent`；③`canvas_undone` 事件接入 `agent-canvas-sync` 刷新通道（此前该事件被忽略，本地画布永不回滚）。Gate：tsc 0、后端 undo/preview 单测绿、build 1m9s、全量 1845 pass/18 fail（18 与基线逐一比对无新增）。**待用户人眼（A1-A8 于 prd.md）**：A1 完成一轮会产生画布写的任务后撤销条出现；A2 点击撤销→画布回滚→系统条目；A3 链式撤销；A4 硬刷新后仍是回滚态；A5 Agent 后手动改画布→撤销被拒且原因正确；A6 已提交任务的运行撤销被拒；A7 明暗主题样式；A8 无画布变更轮次不误显示。**已知环境限制**：tmwd 合成指针在此页面打不开 Agent 面板（React 状态不响应，CDP 鼠标同断），面板级交互需用户真手。
-
-
 **Agent 撤销真机自验结果（2026-09-19，playwright 真实 chromium 驱动 + 真实 LLM(gpt-5.6-luna) 工作流）**：A1 ✓（撤销条随 run 终态出现）；A2 ✓（撤销→确认→节点消失→系统条目"已撤销 Agent 最近一次画布修改"）；A3 ✓ 链式（C1/C2 两轮逐一撤销，云端双双消失互不污染）；A4 ✓（修复后硬刷新保持回滚态）；A5 ✓（Agent 后手动拖节点→撤销被拒"画布已发生后续变化"且不误伤，节点本地+云端完好）；A8 ✓（纯对话轮零噪音）。**发现并修复的缺陷**：①撤销反噬——撤销只改云端，本地 IndexedDB/水位残留被 S08"仅本地领先"路径推回云端（实测撤销 95 秒后被自动同步反噬）→ 成功路径 discardLocalCanvasProject + refresh 后强制 drain（PUT trace 实锤：撤销后 PUT 推回滚态）；②纯对话轮禁用条噪音。**登记未修**：③**generate_media 图片模式被 videoGenerateAudio 校验拦截**（工具 schema 未限制该字段 video-only，模型传了→提交前被拒→媒体任务无法提交，无扣费）→ A6(已提交任务的撤销被拒)真机不可达，由后端单测 TestUndoCloudAgentCanvasRejectsChangedCanvasAndSubmittedTask 代偿；修复排验收后。A7 主题：撤销条/确认态全走 canvasThemes token（代码保证），亮色实态留用户一眼。**验证通道备注**：tmwd 合成指针在此页面不可用（React 状态不响应），改用 playwright 持久 profile 真实输入（isTrusted=true），登录凭据 .local/dev-test-account.md。
-
 ## 撤销前 flush 未同步编辑（2026-09-19 review P2-1）
-
 - 撤销 POST 前强制 `saveRemoteUserDataNow()`：预检后用户的本地编辑先上云，服务端哈希随之变化 → undo 被正确拒绝（"画布已发生后续变化"），不再出现"撤销成功但本地未同步编辑被 adopt 静默覆盖"。
 - 待人眼：预检 → 立即拖动画布（1.2s 内）→ 确认撤销 → 应看到"撤销未执行/画布已发生后续变化"，且本地拖动保留。
-
 ## 验收缺陷登记：request_approval 轮次重复创建节点（2026-09-19 用户实测）
-
 - 现象：request_approval 轮次里，工具①`canvas_apply_ops` 结果已是「画布内容已保存至服务端」（已落盘），助手文案却说「等待你在画布确认后写入」；用户回「我不是确认了吗？」→ 模型读画布后**再次**创建同名节点《第8轮测试》→ 画布出现重复节点；助手第二轮文案又称「点击画布里的批准后就会正式写入」。截图 orca-paste-1789824661444 / -1789824802842。
 - 判定：**模型行为 + 设计缺口各半**。模型：把已落盘误述为待审批、未识别节点已存在而重复创建。设计缺口：①工具结果文本未向模型明示"已创建并落盘，勿重复创建"；②request_approval 模式下审批卡片与工具执行的时序在转录里不可见，模型叙述与真实状态脱节；③服务端对同 run 内相同 add_node（同名同内容）无幂等去重。
 - 待修复方向：工具结果文本加"已创建落盘"明示；同 run 相同 add_node 幂等去重（返回已有节点）；审批态与转录对齐。修复排验收后。
-
 ## A3 链式撤销真机测试结果（2026-09-19 晚，tmwd 实测，run agcb57d39 双 mutation）
-
 - ✅ **链式撤销服务端语义通过**：新后端(applied-only 过滤)上，run 含 2 条 applied mutation；第一次撤销后预检返回第二条 `canUndo:true`（applied 只剩 step1），链式语义正确。撤销本身 60→59 节点回滚成功，系统条目出现。
 - ❌ **缺陷 D1（前端，P1）：撤销成功后撤销条不回来**。`undoLastCanvasChange` 的 adopt→重预检链未生效：服务端预检明确 `canUndo:true`，UI 撤销条消失且不恢复（收起/展开面板、切换会话均无法唤回）。
 - ❌ **缺陷 D2（前端，P1）：页面刷新后撤销条永久消失**。`conversation.run` 未被持久化（IndexedDB 会话文档 868KB 中无任何 `"run":` 键，仅有消息 detail 里的旧 runId 文本）→ reload 后 hydrate 出的 run 为 null/失真 → 撤销预检 effect 依赖 `run?.id` 不触发 → 服务端明明可撤销，UI 永远不显示撤销条。需手动 API 调用才能确认撤销可用。
 - ⚠️ 观测：测试期间"同意执行"审批按钮在**画布上**而非面板内，面板状态一度显示"等待审批"但无批准入口（跨容器审批 UI 可达性）。
 - 复测环境：后端 22:11 新二进制（applied-only）+ vite polling 前端，测试会话 lJVWIfO7 画布。
-
 ## 撤销链自毁双根修与 A3 链式真机全通（2026-09-20）
-
 ### 已修复（真机验证通过）
-
 1. **hash 口径对话字段自毁**：撤销成功后面板追加"已撤销"系统条目 → 画布 `chatSessions` 变化 → 全文档 hash 变化 → 链式撤销永远命中"画布已发生后续变化"。修复：`cloudAgentCanvasHash` 排除 chatSessions/activeChatId/backgroundMode/showImageInfo（viewport/updatedAt 原已排除）。
 2. **节点时间戳自毁**：Agent 写入的节点不带时间戳，本地同步 PUT 补 `createdAt/updatedAt` → 仅时间戳之差改变 hash，同样自毁链式。修复：hash 归一化递归剔除所有层级的 createdAt/updatedAt。
 3. **归一化反射修**：执行链把 nodes 归一成 `[]map[string]any`（JSON 解析后是 `[]any`），type switch 对具体 Go 类型失配导致整棵子树跳过剔除，prepare 口径与 patch 口径分叉 4.7KB。修复：改用 reflect 递归。
 4. **撤销条质感与"不撤销"**：撤销条改 PlanBar 同卡片家族（node.fill+node.stroke），新增"不撤销"收起钮（服务端能力不变，预检变化自动重现），不可撤销提示同家族化。
-
 ### 真机验证记录（tmwd 实测）
-
 - A3 链式双连撤：65→64→63 节点，第一撤后撤销条回归呈现上一步（重预检 canUndo:true），第二撤后无可撤消失，服务端 mutation 链 applied→undone 正确
 - 撤销成功 adopt 后本地与服务端节点数一致，无反噬（PUT 回滚态被覆盖问题未复现）
 - 存量 mutation 因 hash 口径变更作废（dev 库清空，生产无存量）
-
 ## Agent 执行容错与 HUD 三修（2026-09-20）
-
 ### 用户报告（真机截图 4 张）
-
 1. 执行期间拖动节点 → Agent 写入被「画布已变化」拒绝（orca-paste-1789837628955）
 2. 失败后模型自恢复链路繁琐（重读→重新审批），质疑容错性（orca-paste-1789837977303）
 3. HUD 被 Agent 面板挤压，超宽面板时 HUD 几乎滑出屏幕左缘只剩残边（orca-paste-1789837663296）
 4. Agent 创建的节点 HUD 无「创建」时间行，手动创建的有（orca-paste-1789837709944）
-
 ### 修复（全部真机验证）
-
 1. **内容口径 hash**：模型可见 snapshotHash（canvas_get_state 返回/工具结果/同轮刷新/批量表/分镜）剔除节点 position，用户拖动画布不再使 Agent 写入失败。mutation 账本与 undo 保持完整口径（A5 手动变更阻断撤销语义不变）。真机：等待审批期间改节点位置 → 批准 → 写入成功（节点 G createdAt 正常落库）。
 2. **409 冲突不再终止 run**：审批阶段画布冲突转工具结果，模型自动重读重试（真机复验：待办自动转入「重新读取当前画布状态」）。
 3. **snapshotHash 抄断自动修复**：模型抄 hash 丢末字符（真机 5 连败全是 63 位前缀实锤）自动补全，前缀匹配才救，不放宽并发保护。
 4. **Agent 节点时间戳**：creationAddedNode 补 createdAt/updatedAt，HUD 创建时间不再回退画布级时间（误导）；手动创建守卫比对剔除时间戳。
 5. **HUD 让位钳制**：right inset 取 min(让位量, 屏内边界)，面板再宽 HUD 完整可见。
-
 ## Agent 节点 HUD 一致性核查（2026-09-20，用户追问）
-
 ### 结论（数据层逐字段对比 + 真机样本）
-
 | HUD 行 | Agent 创建 | 手动创建 | 一致性 |
 | --- | --- | --- | --- |
 | 创建 | 修复后服务端补 createdAt ✓ | 前端 now ✓ | 一致 |
@@ -3442,183 +3511,107 @@ d (docs(progress): 登记视频族S6裁剪批与持久化自愈修复)
 | 大小/格式 | 服务端写回**缺 bytes/mimeType**，由前端任务轮询 imageMetadata 补齐（Agent 任务带 input.metadata.nodeId，前端 sync 节点匹配同链） ✓ | 前端 imageMetadata ✓ | 依赖前端任务轮询兜底，字段等价 |
 | 消耗 | taskBilling 由前端 completedTaskMetadata 写（两链同源） | 同左 | 一致 |
 | 文本节点 | 全部行按类型过滤，文本节点本就只有创建行 | 同左 | 一致 |
-
 ### 本轮新修（顺带发现）
-
 图片生成请求被「videoGenerateAudio 仅适用于视频生成」反复拒绝：模型坚信音频开关是必填参数，重试循环无法自愈（真机 2 轮复现实锤）。修复：非视频模式的 videoGenerateAudio/durationSeconds 错位参数静默忽略；时长必填、画幅、参考上限等真正约束仍严格校验。
-
 ### 待真机复核
-
 Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2026-09-20 已核（前端 sync 补全链路与手动一致，闭环）。
-
 ### HUD 钳制真机验证补充（2026-09-20，前台化后实测）
-
 用户标签页此前因 Chrome 原生窗口遮挡检测被另一重复标签窗口盖住（`visibilityState:hidden`），CDP 输入被静默丢弃。经窗口置顶+激活原标签（1146108367）后实测通过：
-
 - 正常停靠态（面板 726px）：HUD `right=min(...)=766px`、288px 宽、opacity 1，内容含 Agent 创建节点「创建 9/20 11:34」（createdAt 修复活体证据）
 - 超宽态（面板 2296px 贴左缘，让位量 2336 > 视口 2320）：`min()` 正确取第二项，HUD `right=2016px = 2320-288-16`（理论值精确命中），x=16 完整贴屏内
 - 验证后已恢复用户原布局（726/1022/1582/145）
-
 ### HUD 归宿模型重设计（2026-09-20，用户指认画布中央漂移缺陷）
-
 几何让位模型本身有问题：面板停靠右侧时 HUD 被推到视口 55% 处悬在画布上（贴面板左缘=潜入画布内部），上一轮的 min() 钳制只防滑出屏不防压内容。用户两轮拍板后定为纯层叠模型：HUD 固定右上角家（right:16）永不漂移、不淡出不隐藏；z 层从 --z-modal-overlay(110) 降到 --z-panel-floating(80)，Agent 面板（基线 110、交互后 150）始终在上层，路过时自然盖住 HUD、移开即露出，与普通窗口层叠一致。中间实现的"相交淡出"方案被用户否决（"我不要遮挡淡出，要 agent 在上层、hud 不漂移"）后整体替换为 z 层叠。待用户空闲时人眼复核盖住/露出两个状态。
-
 ## 扩图占位尺寸合同化（2026-09-21 凌晨，待真机终验）
-
 **改动**：扩图成功回写改为"占位框=几何合同"——前端执行链 `use-canvas-media-tools.ts` 局部重绘/扩图两处成功回写从 `fitNodeSize(输出, 源节点框)` 改为保持占位节点框（此前用源图节点当 bounds，横版扩图结果被钳进竖版源图宽度：720×404 占位 → 成功后缩到源图宽，用户实测三次复现）；配合上一轮 manualSize 合同（任务恢复链回写/hydrate/fitToImage 不改框）。上游不按提交像素出图由既有 `outpaintSizeMismatch` 画幅偏差角标明示。
-
 **已验证**：tsc 0 / 相关单测 36 绿 / build 通过 / vite 探针确认新代码下发 / 真机提交链路全通（影策渠道 gpt-image-2 选中、计费 0.005 积分、任务创建 CHANNEL_000006 ✓）。
-
 **未完成**：任务成功→占位 vs 成功后尺寸一致性最终比对。卡点：上游 `api.ddcat.pronhubcn.com/v1/images/edits` 持续连接层故障（4 连败：3×EOF + 1×TLS handshake timeout，00:19-00:25；昨晚同端点已有 4.2/6.8 分钟读超时）。上游恢复后跑一轮扩图即可闭环。
-
 **顺带发现的独立问题（登记不修）**：
 1. 「重新生成」按钮走任务中心重试链，与前端执行链行为不一致：重试 input 带 referenceImages.storageKey → 后端要求公网 URL（requiresPublicMediaUrls 合同）→ 报"生成参考素材地址失败"；而首跑执行链无此 input、不触发水合。同一任务重试语义分叉。
 2. 小白鼠渠道（CHANNEL_000003）gpt-image-2 同端点 502 持续故障（00:10/00:14 两连败）。
 3. 影策渠道的 Provider 分组需 hover 展开 L2 flyout，pinned 直加 CHANNEL_000006::gpt-image-2 后行内可见（用户确认支持扩图 ✓）。
-
 ## 扩图结果内部 composer 消除（2026-09-21，待真机验收）
-
 **问题**：扩图结果节点 hover 仍显示内部 composer（提示词覆层）。第一轮修复写错位置——`edit: "outpaint"` 只写进任务提交 metadata（`runBackendCanvasGenerationTask` 参数，落 `task.inputJson`），而门控 `canvas-node.tsx:313` 读的是节点 metadata；任务回写链 `completedTaskMetadata()` 只透传任务簿记字段、不透传 `inputJson.metadata`，门控从未命中。根因是验证止步于类型编译，未走通"标记从哪写入、门控从哪读取"的运行时数据流。
-
 **修复（两步）**：
 1. 占位链补写：扩图占位节点 metadata 增加 `edit: "outpaint"`（use-canvas-media-tools.ts:889），随占位进入结果节点（回写靠 `...node.metadata` 保留）。
 2. 历史节点回退：门控补指纹判据 `generationType === "edit" && manualSize === true`——该组合仅扩图占位写入（图生图/局部重绘占位无 manualSize，宫格子节点无 generationType），存量扩图结果节点无需迁移即被覆盖。
-
 **已验证**：tsc 0 / build 41s / vite 探针确认新代码下发 / 两 commit 已推 fork（ab0a627f、43b26edc）。
-
 **待用户真机**：刷新后 hover 既有扩图结果节点（历史+新生成各一）确认内部 composer 消失；普通图生图结果节点 composer 不受影响。
-
 ## 双域对抗 review 结论（2026-09-21，工作流4代理+人工复核，OCR 通道失败放弃）
-
 扩图域与撤销域各两视角（正确性/安全）。子代理发现经人工复核后的结论：
-
 **已当场修复**：
 1. composer 指纹误伤（P1，人工自查发现）：`manualSize` 也被手动 resize 写入，图生图结果（带 generationType:edit）+ 用户拉框 → 误丢 composer。修复：`handleNodeResize` 成对写 `userResized:true`，门控回退判据排除它（3954dabb）。已知残留：修复前已拉过的历史图生图节点无 userResized 标记，仍会误丢（需真机确认量级）。
-
 **P1（待修，建议下批）**：
 2. 批量(count>1)扩图子节点缺 `edit:"outpaint"/manualSize` 合同（use-canvas-media-tools.ts:900）：hydrate/任务中心重试路径子节点框跳变 + composer 在子节点照常弹出。修复：childNodes metadata 与 root 同源补两字段。
 3. undo 整文档回滚 vs hash 剔除口径矛盾（cloud_agent_undo.go:106）：BeforeJSON 整份恢复会把 chatSessions/背景偏好等被 hash 刻意排除的字段回滚，多标签页/刷新场景用户对话记录永久丢失。修复：恢复时把 current doc 的 hash 排除字段移植进 BeforeJSON。
 4. replayOnly 固化（canvas-cloud-agent-panel.tsx:341，211e4495 引入回归）：续聊复用同一 run ID，effect 不重跑，replayOnly 保持终态 true → 同 run 续聊第二轮所有 canvas_updated 不落画布。修复：回放/实时分界改由订阅层的回放结束信号驱动。
-
 **P2（登记待排期）**：扩图提交前置 await 无 try/catch 无重入防护（慢网双击重复扣费）；aspect_ratio 制模型提交 WxH 像素 size 必被 admission 拒绝（submitSize 是死代码）；后端源图全量解码无像素上限（解压炸弹 ~1GiB/次）+ storeResourceFromBytes 绕过上传配额；ratio 无上限退化为纯白底图仍计费；前端 outpaint.ratio 解析失败静默回落 96px；appearance 漏出 hash 排除集合（切主题误阻断撤销/写入 409）；canvas_undone 刷新兜底在 supportsPatches/replayOnly 两种订阅形态下都失效（多标签页撤销反噬）；adopt 失败后基线分叉无防反噬；undo 可删除已绑运行中任务的节点（付费产出静默丢弃）；undo 未校验 run 终态；preview 吞非 NotFound 错误。
-
 **流程记录**：ocr CLI 双跑均因 glm 通道超时/空输出失败（185 请求 10 败、25/30 组全组超时），放弃该通道；工作流 v2 用 agentRetries:6 打穿（4/4 完成，30M tokens）。
-
 ### 双域 review 完整报告回传补充（同日，四份全文到齐）
-
 此前 journal 截断漏记的发现，经人工验证后补录：
-
 **新增 P2**：
 - Agent 扩图节点 composer 击穿：后端写 `meta["outpaint"]` 声明"供前端识别封装态"，但全仓无消费方（死契约）；Agent 扩图结果节点无 edit 标记 → composer 显示内部模板提示词（与手动扩图行为不一致）。修复方向：门控加 `metadata.outpaint !== undefined` 判据或后端统一写 `edit:"outpaint"`（cloud_agent_media.go:610 / canvas-node.tsx:315）。
 - Agent 扩图对模型能力隐含硬要求（maskSupported + size 自定义）在审批后才爆破：prepare 阶段不校验模型能力，用户审批计费后任务失败（cloud_agent_media_outpaint.go:276）。
 - 重试链丢 mask：mask 只在提交闭包，未持久化到 metadata，重试语义静默降级为无蒙版整图编辑（use-canvas-generation-retry.ts:381）。
 - flush→POST→adopt 在途窗口：本地编辑被 adopt 静默丢弃 / adopt 失败后基线分叉触发反噬；建议包进 `withRemoteUserDataSyncExclusive` 临界区（panel:512）。
 - `expandingTimerRef`（420ms）卸载不清理（无实害，记录在案）。
-
 **新增 P3**：snap16 负 padding（极大源图 mask 边缘发丝线）；scale 四边总和单轴估算过度收缩 ~15% 分辨率；args.Size 与 outpaintRatio 并存时审批预览与执行不一致；mutation 账本无限增长无清理；undone 幂等分支死代码；catch 分支预检未归一 found=false；adopt 链 floating promise undoBusy 提前复位；removals 与 patch 基底不一致窗口；mediaContentHash 退化为重复代码；`gofmt` 9 文件未格式化（已当场修掉 f9913943，测试锚定通过）。
-
 **已检查无问题（新增确认）**：pad 合成不在拖拽高频路径（每次提交单次 encode 峰值可控）；指纹反例逐一核对（宫格/Agent/局部重绘/表情占位均不命中）；回写 metadata 保真（edit/manualSize 经回写/hydrate/重试保留）；undo 三口径闭合与并发串行（storageMu + CAS）；SSE 幂等（seq 去重 + 增量 cursor）。
-
 ## 双域 review 修复批（2026-09-21，全部修正落地，待真机复验）
-
 对 review 报告（P1×4 / P2×18 / P3×14）执行"全部修正"，五批提交：
-
 **扩图前端**（8 文件）：批量子节点补 `edit:"outpaint"+manualSize` 合同（hydrate/任务中心重试不再跳框、子节点 composer 不再弹出）；提交前置 await 包 try/重入守卫/loadImage onerror（慢网双击不再双扣费、解码失败不再静默挂起）；aspect_ratio 制模型改提交枚举 size（`submitSize` 死代码复活）；ratio 解析兼容小数并失败拒绝（不再静默回落 96px）；mask 物化 `outpaintMaskStorageKey` + 重试链恢复（蒙版语义不降级）；`outpaintSizeMismatch` 下沉回写链（hydrate/重试路径角标不丢）。
-
 **扩图后端**（4 文件）：源图 `DecodeConfig` 40MP 像素上限（解压炸弹防护）；`storeResourceFromBytes` 补配额三段式；ratio 限 0.2–5（极端比例拒）；prepare 阶段能力预检（maskSupported/size 域，审批前拦而非计费后爆）；scale 长边按轴拆分（过度收缩 ~15% 修正）；snap16 负 padding 钳 0；审批预览扩图不展示将被覆盖的 size；`meta["outpaint"]` 死契约改 `edit` 标记（Agent 扩图结果 composer 不再击穿）；网络分类仅匹配引号外区段（提示词回显不误分类）。
-
 **撤销后端**（6 文件）：undo 恢复粒度与 hash 口径对齐（排除字段移植进快照，对话/外观不再被静默回滚）；被删节点绑定运行中任务时拒绝撤销（fail-closed）；非终态 run 禁 undo 且 preview 同守卫；`appearance` 入 hash 排除集合；preview 非 NotFound 错误上抛 5xx；`afterSnapshotHash` 改名 `currentSnapshotHash`；账本有界清理（保留最近 200 条终态）；undone 死分支注释为防御；mediaContentHash 收敛为 contentHash 别名。
-
 **撤销前端**（5 文件）：撤销事务 flush→POST→adopt 收进同一 `withRemoteUserDataSyncExclusive` 临界区；adopt 失败哨兵 `discardLocalCanvasProjectUnlocked`（防线分叉反噬）；`canvas_undone` 无条件触发 needsRefresh 且穿透 replayOnly 门控（多标签页对齐撤销态）；catch 分支预检归一 found=false；busy 生命周期覆盖完整链；`mergeAgentCanvasEditor` removals 按活体 basis 判定（漏删窗口修）。
-
 **验证**：tsc 0 / build 44s / go build+vet 0 / go test ./... 全绿 / bun test 1874 项 19 失败（3 项与 15 项均已 stash 对照实锤为 pre-existing：断言漂移×3 + 并行抖动类；无新增失败）。
-
 **误报澄清**：review 的"replayOnly 固化丢弃续聊轮画布增量"经代码核查为误报——后端每轮消息创建**新 run ID**（`Each additional message starts a new immutable turn and returns its ID`），panel `setRun` 换 id 触发订阅 effect 重跑，门控按新 run 状态重算；未为此实施改动。
-
 **待真机**：① 既有扩图结果节点打开画布无跳框、无内部 composer；② 续聊一轮 Agent 画布写入落画布；③ 撤销后切标签页/多端打开时画布对齐回滚态；④ 撤销期间编辑不丢失（临界区内）；⑤ 极端比例（如 1e9:1）被拒文案。
-
 ## 媒体节点尺寸标准统一：同比例同一尺寸（2026-09-21，待真机复验）
-
 **用户实测现象**：auto 参数生成的 1:1 图（1254×1254）在画布上比扩图占位 1:1 小——真机 DOM 反解 zoom≈1.1595 后实锤：生成结果 420×420、扩图占位 520×520（两个未拉动节点均 487 px=420 单位，占位 603 px=520 单位）。
-
 **根因**：全仓媒体尺寸规则共有六条链，其中五条用 **fitNodeSize 全局边界（720×520 上限 + 420×236 地板）**——上传、宫格拆分、图片 hydrate 自然尺寸、视频完成、扩图占位；唯独「比例→尺寸」基准 (`nodeSizeFromRatio` 的 base) 在图片链用 `NODE_DEFAULT_SIZE.Image = 720×405`（16:9 默认盒）。1:1 比例被 405 高钳住后落到 420 最小宽度地板 → 420×420，与占位 520×520 差 24% 线性尺寸。`e46780ce`（同日早间）把 auto 回写从「占位框」改为「默认盒」后仍是 405 高边界，故残留。
-
 **修复**（单一标准盒 `MEDIA_NODE_MAX_SIZE = {720,520}`，`VIDEO_NODE_MAX_SIZE` 改为同源别名）：
 - 比例基准改媒体标准盒：`canvas-image-generation-executor`（生成占位框）、`canvas-generation-task-sync`（回写目标框）、`canvas-project-domain.applyNodeConfigPatch`（空节点选比例）、`canvas-project-generation.mediaNodeInitialSize`（渠道默认比例建框）。
 - 完成回写 `buildGenerationTaskNodeResult`：非人工尺寸节点改用**全局标准 fit**（原先传默认盒边界）；人工尺寸合同链扩展为 `manualSize || freeResize || userResized || (edit && auto)` 一律保持现框——用户拉过的框不再被回写重置（与 hydrate 定尺寸守卫同源）。
 - 契约测试 `canvas-media-standard-size.test.ts`：1:1 → 520×520（1254 与 1568 目标像素同尺寸）、16:9 → 720×405 不变、9:16 地板不变；`canvas-media-node-initial-size.test.ts` 的 420 锚点更新为 520。
-
 **影响面**：1:1 及 4:3/5:4 等「比 16:9 窄、非竖版」比例的新生成/新选择节点会变大（16:9 与竖版不变）；已有节点尺寸不回改。视频链因基准同源一并统一。
-
 **验证**：tsc 0 / build 64s / bun test 1879 项 18 失败（全部为已实锤 pre-existing：诊断缓冲区基线 + 3 项 stash 对照断言漂移 + 并行抖动，零新增）。
-
 **待真机**：① 新生成 auto 1:1 结果节点 = 520×520，与扩图占位同尺寸；② 生成中占位框 → 结果落位无跳变（显式 1:1 路径）；③ 用户手动拉过尺寸的节点再生成时框保持不变；④ 16:9 节点尺寸无变化。
-
 ## 扩图"改变原图内容"诊断：渠道不认 mask 整图重绘（2026-09-21，登记不改）
-
 **用户报告**：扩图结果改动了原图内容（猫前方原为海岸线/红顶房屋，扩图后变成水面并多出一条船）。
-
 **结论：不是 2026-09-21 review 修复批造成，也不是新出现的回归——该渠道的扩图一直是整图重绘语义（无像素级保留）。**
-
 **证据链（全部来自运行期实据，非推理）**：
 1. 上游请求逐字核对（`api_call_logs`，任务 7a33b954/20:20:26）：`POST /v1/images/edits`，`images[0]` = pad 底图 JPEG 1024×1024（白边 top 503/right 503，原图在左下 528px），`mask` = PNG 1024×1024（74.1% 全透明 = 待生成外扩区，与 OpenAI edits 掩码语义一致），prompt = 透明区变体，`size=1024x1024`。**mask 与 pad 均正确送达**，结构与此前各次一致。
 2. 修复批对扩图链的改动面：mask 物化（新增上传，首发传参路径不变）、`loadImage` onerror（仅错误路径）、后端 scale/40MP/配额（**仅 Agent 扩图链**，画布直连链的 pad 由浏览器合成不经后端）——本次运行未经过其中任何一条。
 3. 修复前后各取两次扩图做"原图区保真度"模板匹配（MAD，像素级保真应 ≈0–5）：修复前 16.4 / 17.3 / 21.0 / 24.3，修复后 26.5 / 28.7 —— **全部是重绘，无一次保真**，故无回归。
 4. 渠道性质：`CHANNEL_000006`（api.ddcat.pronhubcn.com，api_format openai）为 ChatGPT Web 中转，响应下载域名为 `…/r2/chatgpt2api/transfers/…`，route 元数据 `provider: gpt / group_name: 算法超分 / flow: … algorithm-cf direct transfer → original source output`。ChatGPT Web 图像工具无 mask 输入 → 我们发的 mask 被丢弃，模型把 pad 底图当参考图整幅重画（拉远镜头重新构图）。
-
 **加剧因素**：本次提交档位 1K(1024²) 而源图 1254²，且外扩框约为源图 2×，pad 内原图仅占 51% 缩放（528px）；修复前那批 pad 1824 宽、原图 ~1027px，故重绘感较轻。
-
 **决策（用户 2026-09-21 裁定）**：先登记不改。备选方案留档：① 客户端/后端保真合成（结果落位时按提交几何把原图映射覆盖回原图区 + 1–2px 羽化，无论上游是否认 mask 都保证原图区不变）；② 换透传 mask 的 OpenAI images/edits 渠道；③ 扩图档位下限 = 源图长边（避免把原图缩小，治标）。
-
 ## 双域 review 二次复核（4 路独立对抗）修复：2×P1 回归 + 3×P2（2026-09-21，待真机复验）
-
 复核范围 `39e1e037..HEAD`，四路（扩图前端/后端、撤销前端/后端）逐条验证首轮修复并做对抗搜索。**首轮修复 39 项中 36 项判定"落地且正确"，发现 2 个由修复批引入的 P1 回归与 3 个 P2。**
-
 **P1-1 撤销事务结构性死锁（撤销前端，已由复核人真实复现）**：`withRemoteUserDataSyncExclusive` 是尾随队列；事务内 `flushRemoteUserDataUnlocked → waitForRemoteProjectLoads` 读**实时** map，会把临界区内新注册、排队在事务**之后**的 load 一并等待 → 「事务等 load、load 等事务」自锁；撤销 POST 数秒窗口内任意一次打开画布 / 生成任务完成回写即中招，尾随队列永久卡死（自动同步/保存/登出全挂起，`undoBusy` 永不复位，无提示）。修复：`withRemoteUserDataSyncExclusive` 在入口同步快照 pending load，临界区只等该快照（区内新注册的 load 按设计等事务结束）。附回归测试 `user-data-sync-load-deadlock.test.ts`（旧代码 timeout / 新代码 resolved，已双向验证）。
-
 **P1-2 渠道模型扩图 prepare 全量失败（扩图后端，复核人已运行证实）**：`cloudAgentOutpaintModelCapability` 把 `string(m.Protocol)`（"openai-image" 等）当 capability 传给 `CapabilitySpecFromModelCapabilityConfig` → 落 `default` 返回"未知模型能力类型" → 前台逻辑模型关闭时（渠道模型是唯一来源）扩图 100% 不可用。修复：改传 `normalizeCapability(m.Capability)`；补契约回归测试（含"协议串必被拒绝"的语义锚点）。
-
 **P2 批修**：① 撤销 POST 补 `AbortSignal.timeout(15s)`（无应用层超时的挂起 POST 会无限期独占同步队列）；② Agent 扩图 ratio 补 0.2–5 边界（与后端同源；越界比例会退化成"近全白底图 + 近乎全透明 mask"，用户按扩图语义付费却拿到无关新图）；③ 扩图重入守卫改可见提示（此前静默 return，用户以为操作丢失）；④ `storeResourceFromBytes` 补 Pending/Failed 分支（Failed 资源被 `storeResource` 统一 409「正在上传」永久卡死，Agent 扩图重试链断死；对齐 `UploadResourceFile` 的 `retryStoredResource`）；⑤ `containsOutsideQuotes` 改逐字符扫描（转义引号 `\"` 被计入奇偶导致提示词回显误分网络类目、遮蔽正确归类）。
-
 **复核确认无误的关键修复**（摘）：撤销恢复粒度与 hash 口径逐键一致（7 键无单向排除）；非终态禁 undo 非永久拒绝（cancel 后可恢复）；`afterSnapshotHash→currentSnapshotHash` 四处一致；replayOnly 误报判定成立（后端每轮消息新 run ID 已由复核人逐行复核）；removeals 活体 basis 在正常路径无误删；扩图 pad+mask 提交结构不变。
-
 **验证**：tsc 0 / go build + `go test ./...` 全绿 / bun test 1880 项 18 失败（全部 pre-existing：断言漂移×3 + 并行抖动 + 诊断缓冲区基线，零新增）。
-
 **待真机**：① 撤销期间打开另一画布/任务完成回写，撤销仍能完成且同步队列不卡（死锁回归）；② 撤销按钮等待 15s 以上时的超时提示与队列恢复；③ Agent 扩图（渠道模型）可正常 prepare；④ Agent 扩图 ratio 给 "8" 时应被拒并提示区间。
-
 **未修留档（P3，复核人给出修法）**：撤销 POST 响应丢失时错误文案仍称"撤销未执行"（应先 re-preview，status=undone 改提示"已生效但确认失败"）；`mergeAgentCanvasEditor` 活体 basis 的对称误删窗口（拖拽 historyPaused 期间新增节点，建议 after=null 仅对 previous∪incoming 存在过的 id 生效）；`cloudAgentUndoBlockedByRunningTask` / `PruneCloudAgentCanvasMutations` 零测试；任务反查 fail-open（DB 错误时静默跳过守卫，建议仅 NotFound 放过）；排除集合双字面量漂移风险（建议抽共享常量）；扩图重试链 mask 复用 storageKey（省配额）、mask 上传失败静默降级（应 toast）、`loadImage` reject 在裁剪/切分链仍是 unhandled rejection；`undo-preview` 契约未入 OpenAPI/http-api 文档。
-
 ## Agent 扩图体验批修：落位锚定 + 撤销可见性（2026-09-21，待真机复验）
-
 **用户三问**：① Agent 调扩图工具，为什么流程像图生图（确认→建节点→选模型参数→确认提交）？② 新建节点"偏到姥姥家"；③ 没有 undo。
-
 **① 不是图生图（DB 实据）**：该任务 `operation = image_outpaint`、`mask = 1376×784 PNG`、`referenceImages = [扩图底图(1376×784 pad 底图)]`、prompt 为扩图专属文案、`config.size = 1376x784`（pad 目标）→ 走的就是扩图工具（pad + 蒙版）。失败原因 `模型服务暂时不可用（HTTP 502）`（上游 gpt-image-2 通道），不是流程错误。"草稿节点 + 审批卡"是云 Agent 的既有设计：批准才提交收费任务（计费闸门）、用户能在画布上看到将创建什么/在哪（可视化）、结果自动回写。**但呈现层与图生图完全同构**，用户无法从节点/卡片分辨这是扩图 —— 这是真实缺口（见"待决"）。
-
 **② 落位（已修 + 3 条测试）**：根因 = Agent 新节点统一落"全局包围盒右侧空列 + 顶部对齐"。该画布 64 节点、x∈[-7740,6050]、y∈[129,33296]，新节点落到 (6050,129) = 包围盒右上角，距用户视野数万像素，连线横跨全图。修法：优先锚定**本批连线的对端节点**（画布约定：源节点右侧 +96、与源顶部对齐；同锚点多节点按默认高度 +100 逐个下移；支持同批链式新增），无引用可依才回退空列。测试覆盖：锚定既有节点、同锚点不压叠、无引用回退。
-
 **③ undo（部分成立，已改善）**：变更一直在撤销账本里（该画布当日 3 条 applied，含本次扩图步），但面板在 run 运行中**整条隐藏** + 后端非终态拒绝（防"撤销又被运行中的 Agent 复活"）→ 用户看到"没有 undo 功能"。修法：后端 preview 在非终态如实回报 `found=true` + `blockReason="Agent 运行中，暂不能撤销；停止运行后可撤销该变更"`，前端运行中显示禁用态撤销条（不再整条消失）。授权仍由 undo 主流程把守。
-
 **任务守卫加固（复核 P3 批）**：任务反查 fail-closed（仅 NotFound 放过，DB 错误上抛）；排除集合改单一源常量 `cloudAgentCanvasHashExcludedKeys`（恢复粒度与哈希口径不可能再漂移）；补 `cloudAgentUndoBlockedByRunningTask`、`PruneCloudAgentCanvasMutations` 零测试用例；扩图重试 mask 复用 `storageKey`（不再重复上传耗配额）；mask 上传失败改可见提示；裁剪/切分/放大/局部重绘链补 catch（`loadImage` reject 不再成 unhandled rejection）。
-
 **② 审批卡画幅选择已改为生效（480d752a，用户裁定 2026-09-21）**：此前扩图画幅由 `outpaintRatio` 推导、`config.size` 被 pad 像素覆盖，但审批卡给用户显示了 size 选择器 → 用户质疑"手动扩图能选尺寸，这里就不让了？"。修法不是砍控件而是让选择生效，与手动扩图链 `submitTarget` 同语义：
-
 - 像素档（`1024x1024`/`1536*1024`/`1024×768`）→ **即提交画幅**：原图等比缩到目标内（只缩不放，目标更大时余量全部成为外扩带宽、保原图清晰度）＋四周均分补边；右/下取整差由合成端吸收，最终尺寸恰好等于对齐后的目标像素（`snap16`）；长边 1536 上限同比收缩；与原图几乎同尺寸（无外扩空间）显式拒绝，防"mask 全不透明 = 按扩图计价的原图重绘"。
 - 未选像素档（`size=""`，Agent 默认）→ 维持 ratio 推导，行为零变化（Agent 提示词也继续"不要传 size"）。
 - 比例档（`16:9` 这类）在扩图链不可达：扩图能力预检要求模型声明自定义像素尺寸。
 - 同步面：审批预览选定像素时展示"扩图画幅：1024x1024"（不再展示会被覆盖的 ratio）；媒体策略提示词＋`generate_media` schema 改为"仅用户明确指定目标像素时才传 size，该像素即提交画幅"；新增解析/ pad 计划 / 预览三组测试（含缩小档、限长边档、无外扩空间拒绝）。
-
 **③ 扩图节点标题按最终画幅生成（同批落地，用户裁定 2026-09-21）**：此前标题沿用 Agent 写的文本（如"扩图结果 16:9"），与真实画幅脱节、用户改档位后也不更新。现在 prepare 解出提交画幅后统一写 `扩图 {W}×{H}`（单一源 `cloudAgentOutpaintTitle`）：**新建草稿与续用草稿两条路径同一真值**，用户改档位重审时既有草稿节点的标题与 `metadata.size` 随之更新；审批预览、`generation_task_created` 事件、节点 metadata 全部消费同一字符串。扩图语义另有 `metadata.edit="outpaint"` + `composerContent=""`（既有契约）与 `metadata.size`=提交像素（草稿路径 task 为空时也只有这里的真值可写）。测试 `TestCloudAgentOutpaintNodeTitleAndSizeUseResolvedFrame` 覆盖：新建草稿标题/画幅/语义、改档位重审后标题与 size 更新。
-
 **验证**：go build ✓；新增测试全过（解析/pad 计划/预览/节点标题画幅）。全量后端套件两次出现 `TestDeleteGeneratedAssetTaskReferences` 失败，用例单跑/双跑均通过（24.9s / 56.1s×2）；后台全量 `-v` 取证定性为 **SQLite 写锁抖动**（`database table is locked: resource_deletion_jobs`，cancelled_output 子用例）：该测试的后台删除 worker 与断言查询共用同一 shared-cache 内存库且 DSN 未设 busy timeout，全量负载下退化成锁错误。先试 `_busy_timeout=5000` **无效**（该错误是 shared-cache 专属的 `SQLITE_LOCKED` 表级锁，busy 超时只对 `SQLITE_BUSY` 生效），最终改为临时文件库 + WAL + busy_timeout（与 `creation_test.go` 同约定，只改测试基础设施）：**全量 `go test ./...` 复跑 0 FAIL**。tsc 0；真机复验待做——新建一次 Agent 扩图，在审批卡选 `1024x1024`，确认预览"本次画幅/扩图画幅"、节点标题与最终出图像素三者一致。
-
 **验证**：tsc 0 / go build + `go test ./...` 全绿 / bun test 1880 项 18 失败（全 pre-existing，零新增）。
-
 ## Agent 扩图真机实测（2026-09-21 夜，已由 AI 自测完成，非人工代跑）
-
 **环境**：`CANVAS_BACKEND_DATA_DIR=/home/windc0x/flora-quiet-check`（账号 floracheck）+ 前端 dev server；运行真实 LLM（gpt-5.6-luna）→ 真实审批 → 真实任务。临时画布 `flora-outpaint-verify2`（源图 816x1088，用户画布同款素材）。
-
 **已验证（全部为真实 HTTP/DB 证据）**
-
 | 项 | 证据 |
 | --- | --- |
 | LLM 按新策略带 `size` | 调用参数 `outpaintRatio:"1:1"` + `size:"1024x1024"`（用户明确指定像素时）✓ |
@@ -3628,84 +3621,70 @@ Agent 生成媒体**成功态**的 bytes/mimeType/naturalWidth 行——用户 2
 | 出图与回写 | 任务 succeeded，产出 **1536×1024** 图；节点 `status=success`、画布框 720×480（=3:2，与出图同比）✓ |
 | 无外扩空间守卫 | 源图本身 1024²、目标 1024x1024 → `tool_failed：所选画幅与原图几乎相同，扩图没有外扩空间` —— 拦下一次付费空操作 ✓ |
 | 快照冲突保护 | 外部改动画布后批准 → 409「画布已变化，请重新读取画布并重新审批；未提交生成任务」；Agent 重读后重新审批成功 ✓ |
-
 **实测暴露并已修的问题**
-
 1. **策略漏洞（已修）**：我先前的措辞「size 生效后 outpaintRatio 仅作参考」可能让 LLM 省掉 ratio → 会走到普通图生图支路（扩图入口条件就是 `outpaintRatio` 非空）。改为「outpaintRatio 必填，size 仅在用户明确指定像素时额外传」。
 2. **提示词写死像素尺寸（已修）**：用户把 1024x1024 改成 1536x1024 后，提示词仍写「扩展到 1024x1024 方形构图」，与实际提交画幅矛盾。策略新增：扩图提示词不得写死像素尺寸，用"方形/横向/纵向构图"或只描述补的背景。
-
 **待决（产品）**
-
 - ~~守卫拒绝（无外扩空间）时 Agent 只解释并结束，不会主动建议更大的档位。~~ **已裁定（用户 2026-09-22）：不改**——扩图求的是空间关系，不是分辨率；源图已经够大时拦下付费空操作是对的，不引导用户往上换档。
 - 临时画布 `flora-outpaint-verify2` 保留作证据（含成功的 1536×1024 扩图结果），确认后可删。
 - 本次实测消耗：1 张图 = 1000 微积分（0.01 积分，余额 139.23）。
-
 ## 界面级「小白用户」实测（2026-09-21 深夜，AI 自测）
-
 **方式**：真实浏览器（用户 Chrome，登录态），在界面上按普通用户操作——侧边栏点「自由画布」→ 点画布卡进入 → 点右下角 Agent 球打开面板 → 在 composer 里敲自然语言 → 点「同意执行」→ 在卡片里点画幅档位 → 再点「同意执行」。全程未读取任何 cookie/密钥，费用 0.01 积分/张。
-
 **场景与结果**
-
 | 场景（小白说法） | 界面表现 | 服务端/产物 |
 | --- | --- | --- |
 | 「把画布上这张图向外扩大成 1024x1024 的方形画幅」 | 卡片：`扩图画幅：1024x1024`、`生成图片《扩图 1024×1024》`；画布节点标题同步为 `扩图 1024×1024` | 提交 size=1024x1024 ✓ |
 | 「扩成 16:9 的宽画幅」（未指定像素） | 卡片：**`扩图目标画幅：16:9`**、节点 `扩图 1536×864` | 出图 **1536×864** ✓ |
 | 「做成宽屏画幅」→ Agent 自选 **21:9** → **用户在卡片里点 3:2** | 卡片 `本次规格：3:2`；批准后节点标题/`metadata.size` 变 **`扩图 1536×1024`** | 批准参数 `size=3:2` ✓，出图 **1536×1024**（**用户选择压过 Agent 的 21:9** ✓） |
-
 **界面实测抓到并已修的产品缺陷**
-
 - **比例档被静默忽略（真 bug，本轮修复）**：比例制模型（gpt-image-2）的画幅控件给的是比例档；用户点 `3:2` 时前端把 `size:"3:2"` 发给服务端，而扩图支路此前**只读 `outpaintRatio`** → 用户点档位不生效（画幅仍是 Agent 选的 21:9）。修法：卡片里合法的比例档优先于 Agent 请求的 ratio（`cloudAgentOutpaintRequestedRatio`），像素档仍走像素目标路径；单测覆盖。
 - 顺带确认：像素档路径浏览器侧会把比例解析成像素（`本次规格：1536x1024`），两条路径（比例串 / 像素串）现在都能生效。
-
 **界面实测观察（非缺陷，留档）**
-
 - 批准前置动作会先排空本地→云端同步；若本地副本落后于 Agent 刚写入的画布，会触发快照冲突。本次由「中途重启后端」放大：后端热更新后旧运行直接报 **「Agent 运行使用旧版执行合同，无法继续原运行；请新建一轮消息」**（设计如此，防按旧合同执行）——按提示新建一轮即恢复正常。
 - Agent 首次可能挑到不支持蒙版的模型，服务端能力闸门给出明确提示（`当前模型不支持蒙版输入，不能执行扩图；请选择支持蒙版编辑的图片模型`），它会自己换模型重试 ✓。
 - 面板在点「同意执行」期间有「处理中」提示；若请求挂起（本次是重启后端留下的死连接），界面无失败红字，刷新页面后重新点击即成功。
-
 ## Agent 新建媒体节点落位锚定修复（2026-09-21 深夜，真机实测发现）
-
 **现象（用户截图）**：画布上源图节点在世界坐标 `(-7740, 15643)`，三张扩图结果却落在 `(80,80)` / `(300,622)` / `(1352,254)`——参考连线横跨 7820×15564 px，画布包围盒 9093×15564，视图被迫缩到 **5%** 才看得见全貌（「隔了八百里」）。
-
 **根因**：`createCloudAgentMediaNode`（`internal/app/cloud_agent_media.go`）自带一套落位逻辑，只认 `sourceNodeId` 取 y；而媒体调用按语义把源节点放在 **`referenceNodeIds`**、`sourceNodeId` 留空 → 锚点永不命中 → 落到默认 `(80,80)`。审批预览路径（`cloudAgentPlacementAnchor`：锚点右侧 +96、顶部对齐）早已正确，**只有真实创建这条路没走它**——预览一处、落位另一处。
-
 **修法**：媒体节点落位复用预览同口径（引用对端作锚点 → `anchor.x + width + 96`、y 与锚点顶部对齐、目标位被占时按前节点高度 +100 向下让位；无引用对端才回退包围盒右侧新列）。回归测试 `TestCloudAgentMediaNodeAnchorsToReferenceSource` 覆盖远场源节点 + 同锚点第二个节点下让两例。
-
 **真机复验**（修复后重启后端，界面再跑一轮）：新草稿 `扩图 1360×1024` 落在 **(2168, 254)** = 其引用节点 `(1352,254)` 右侧 +96、顶部对齐 ✓（旧逻辑会得到 `(2152, 80)` ✗ —— y 完全对不上，证明新代码生效）。该轮卡片按「暂不执行」拒绝，未产生费用。
-
 **残留**：修复前创建的老节点不会自动归位（本测试画布上仍有 3 个远场节点）；真实画布上的历史错位节点需要用户手动拖动（或后续做「整理画布」）。
-
 ## Agent 媒体节点落位锚定 - 真机验收通过（2026-09-22 凌晨）
-
 **夹具**：新建临时画布，只放一个源图节点，**故意放在世界坐标 `(-7740, 15644)`**（复现用户截图里"源图在画布尽头"的条件）。
-
 **流程（全程界面，未读 cookie）**：画布列表点开夹具 → 右下 Agent 球开面板 → 输入「把画布上这张图向外扩大成 16:9 的宽画幅，补背景，原图内容不要改动」→ 点「同意执行」（计划）→ 卡片显示 `扩图目标画幅：16:9` → 点「同意执行」（生成）。
-
 | 检查项 | 修复前 | 修复后（本次实测） |
 | --- | --- | --- |
 | 新草稿节点落位 | `(80, 80)`（距源 7820×15564 px） | **`(-7224, 15644)`** = 源节点右缘 +96、顶部对齐 |
 | 参考连线长度 | Δx≈7820 / Δy≈15564 px，画布被迫缩到 5% | **Δx=516 / Δy=0** —— 一小段短线 |
 | 出图 | —— | 任务 succeeded，产出 **1536×864**（= 卡片 16:9 画幅） |
 | 结果回写 | —— | 节点 `size=1536x864`、`status=success`、`edit=outpaint`，落位不变 |
-
 截图证据：草稿落位（源图 + 紧贴右侧的空草稿 + 短线）、结果落位（源图 + 16:9 扩图结果并排）。
-
 **已修（2026-09-22）**：画幅由 Agent 的比例推导（用户未手动选档）时，卡片底部「本次规格」此前显示为空的 `本次规格：· auto`。现改为回退显示该比例，两者都空才显示「默认」（`agentApprovalSpecLabel`）；前端此前根本没解析 `outpaintRatio`。真机复验：卡片显示 `本次规格：4:3`，与 `扩图目标画幅：4:3` 一致。
-
 **费用**：1 张图 = 0.01 积分（余额 139.193）。
-
 ## Agent 媒体节点落位锚定（第二处） - 复用 LLM 自建草稿时重定位（2026-09-22）
-
 **用户追问**：「手动扩图 / 图生图的新节点都紧贴源节点，为什么 Agent 的总在天边？都修了几次了？」
-
 **真机取证（用户 64 节点画布）**：`扩图 1536×864` 位于 `(-3763, 14198)`，其父节点 `扩图结果` 位于 `(-6119, 22658)`（Δx=2356 / Δy=8459）。`(-3763, 14198)` **恰好等于该画布包围盒 maxX 与全局 minY**，即落位解析器的**回退分支**；该节点 `agentDraftRunId=None`，运行事件里先出现「Agent 准备新增 1 个节点」（画布操作），媒体草稿事件在其后。
-
 **根因**：LLM 先用 `canvas_apply_ops` 自建草稿节点——那一批 ops 里没有连线操作 → `cloudAgentPlacementPeers` 取不到对端 → 回退到包围盒右上角；随后媒体路径按同一 id **复用**该节点，旧实现只改 `metadata`/标题、**保留原位置** → 结果就是「手动的紧贴、Agent 的天边」。此前两次修复分别覆盖了 create_node 工具路径与媒体路径**新建**节点，唯独漏了「ops 建、媒体复用」这条组合。
-
 **修法**：媒体路径复用草稿时按锚点口径重定位（引用源右侧 +96、顶部对齐、占位下让），且仅限草稿阶段（`task==nil`）——结果回写仍保留位置，避免覆盖用户在审批期间手动移动的节点（既有契约用例 `agentMediaApprovalAllowsMovesButRejectsContentChanges/move` 通过）；占位判定跳过被复用节点自身，防回写下移。
-
 **验证**：新增 `TestCloudAgentMediaNodeRepositionsReusedDraftFromCanvasOps`，直接复现用户坐标（源 `(-7740,15644)` + ops 建的 `(-3763,14198)`）→ 复用后落位 `(-7224, 15644)`；重复复用幂等。`internal/app` 全包测试 ok（401s）。
-
 **第三步（用户裁定「需要」，2026-09-22）**：完全没有引用对端的新节点此前回退到包围盒右上角（= 用户视野之外，仍是「天边」）。现改为**按画布 `viewport` 落在用户当前视野内**：画布 viewport 以屏幕位移表示（世界→屏幕 = `world*k + (x,y)`，见前端 `canvas-live-viewport`），可见世界左上角 = `(-x/k, -y/k)`，落位内缩 80px，并用 `cloudAgentPlacementFreeSlot` 避开视野内已有节点（与锚点下让同口径）。旧文档没有 viewport 时保持包围盒回退不变。单测 `TestApplyCloudAgentCanvasPlanFallsBackToViewport` 覆盖视野落位 / 视野内占位下让 / 无 viewport 回退三例。
-
 **真机复验待补**：验证需要打开画布，但浏览器侧画布列表卡在「正在打开真机克隆（临时）」的 pending 状态（本地状态，非后端；列表数据本身已刷新，仅打开动作被堵）——重开标签页后即可补验「让 Agent 新建一个空节点 → 应出现在当前视野内」。
+## PR #547 本地选择性整合验收
+以主分支 UI 为准移植功能，不整包合并 PR 页面。尚需真实浏览器和真实模型验收：
+- 左侧常驻主页、节点、资产、任务、历史菜单，已移除工具菜单，工作区面板默认折叠；菜单采用小字细线图标、加大纵向间距，展开/收起按钮置底。验证点击分类展开、再次点击收起、短窗口滚动、键盘焦点和明暗主题；与原有项目章节栏互斥，小屏抽屉、专注模式、历史版本预览无误，不能通过历史预览编辑当前画布。
+- 节点边框、主题和提示词面板原尺寸不变；图片节点直接展示风格 / 预设，移除提示词模板入口（包含放大编辑器和斜杠触发），其他节点模板入口保留；明暗主题、窄屏、浮层滚轮、键盘和点击外部关闭。
+- 风格选取/替换/清除、保存重载；节点风格优先于项目画风，清除后恢复继承。运镜可多个但不能重复；特效没有内置预设，可创建自定义工具。
+- 九宫格从已有图片创建独立子节点和引用连线，原图不变，不自动扣费或生成；用户明确点击生成后确认模型收到展开的提示词。
+- 节点内工具选取、收藏幂等、跨账号隔离、搜索分页、请求失败提示；自定义删除验证 API 权限。公开工具预览暂不接受私人上传资源；相对路径种子预览不显示，不在启动时下载。
+- 资产面板直接展示分类、名称/标签搜索、媒体类型、刷新及分页；使用现有素材服务与插入合同。验证文本、图片、视频、音频插入，entity/model 不应出现虚假的插入成功；管理素材 / 项目素材仍打开原有入口。
+- 任务列表明确展示最近 30 条，不是完整历史；进行中过滤普通生成任务，历史包含 Agent；刷新、取消、切换项目/账号后不串数据。
+- 工具被删除、停用、不可见、类型错误或标签损坏时，生成必须报错，不能静默忽略；排队后删除工具也应失败。
+- 使用备份的本地测试数据库验证 schema 29 → 31 和第二次启动幂等；PostgreSQL 序列、迁移工具实库验证待补。不要用生产数据库直接试。
+自动检查不能替代以上真实页面/生成验收；本次不自动启动服务，不调用付费模型。左侧菜单补齐后尝试访问已有本地服务，内置浏览器停在登录页，未代填凭据，登录态视觉验收仍待进行。
+本地自动验证记录：前端 8 个专项测试文件共 59 项通过，生产构建通过（仍有大分块提示）；后端 tools、database、repository、迁移命令、handler 测试及工具权限、项目封面引用专项通过。初次后端全量测试未全绿：项目封面测试夹具缺少 tools 表，补齐后专项通过；资源删除 cancelled_output 用例出现 SQLite 锁表，单独复跑通过。修复后未重跑整套后端测试，不将其记录为全量通过。PostgreSQL 实库、真实浏览器和模型调用仍待验收。
+侧栏补齐复测：前端生产构建通过，9 个专项文件共 63 项通过（含 4 项侧栏结构守护测试）；源码守护不代表浏览器视觉验收通过。
+侧栏配色对齐：左侧菜单直接复用画布工具条的 `canvasDockStyle` 和画布主题，统一背景、图标文字、悬停和选中态，保留默认折叠与纵向间距。侧栏与主题隔离专项共 10 项通过，生产构建通过（仍有大分块提示）；明暗主题下与工具条的实际视觉一致性仍待登录态页面验收。
+移除画布底部独立的「素材 + 数量」悬浮入口，保留左侧资产面板及原有缩放控件；待确认刷新后不再显示该按钮，左侧资产浏览与插入正常。
+提示词模板清空回填修复：统一提示词写入器显式同步 `generationSpec.prompt`，避免旧合同覆盖清空或连续编辑后的草稿；已有媒体的原始生成提示词保持不变。新增回归测试先复现失败，修复后提示词、引用、生成引用及工具整合 4 个文件共 48 项通过，TypeScript 类型检查通过。待真实页面确认：图片节点选择模板 → 清空 → 点击画布取消聚焦 → 重新选择节点仍为空；再次修改及保存重载后内容正确。
+入口精简与工具草稿复测：移除左侧工具菜单及图片节点提示词模板入口，保留图片风格 / 预设和其他节点模板入口。工具引用列表读取草稿改用空值判断，明确清空时不再从原始生成提示词回读旧标签。风格和预设的选择、替换、连续编辑、标签移除、全文清空及保存重载覆盖有图/空节点两种情况；5 个专项文件共 58 项通过，TypeScript 类型检查通过。实际页面仍需确认普通/放大编辑器均无图片提示词模板入口，以及风格和预设清空后重新聚焦不回填。
+主分支提交前复测：前端 `bun run test` 全量 1925 项通过，生产构建、类型检查、UI 退场 lint 通过；构建仍有大分块提示。同步了技能/工具标签结构与多行连接菜单的源码守护断言。后端 `go test ./...` 全量通过，工具、迁移、资源引用、handler 及工具预览权限/项目封面专项通过。本轮未执行真实模型调用、PostgreSQL 实库迁移或登录态浏览器验收，这些项目继续保留待验收。

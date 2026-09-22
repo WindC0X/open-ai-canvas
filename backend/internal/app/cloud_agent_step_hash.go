@@ -26,6 +26,24 @@ func cloudAgentCaptureStepSnapshotHash(calls []cloudAgentCall) string {
 	return ""
 }
 
+// cloudAgentCaptureStepFullSnapshotHash 与 cloudAgentCaptureStepSnapshotHash 同点调用，
+// 捕获链衔接所需的 fullHash 口径基线（mutation 账本 Before/After 均为 cloudAgentCanvasHash）。
+// W4 过渡态：执行序 3 提前、范围受限；W5 按 adf3a5be 完整版复核。取不到时返回空串，链证明据此拒绝（安全方向）。
+func cloudAgentCaptureStepFullSnapshotHash(s *Service, run *model.CloudAgentExecution, state *cloudAgentRuntime) string {
+	if s == nil || run == nil || state == nil {
+		return ""
+	}
+	canvas, err := s.repo.CanvasProjectForUser(run.UserID, state.Request.CanvasID)
+	if err != nil {
+		return ""
+	}
+	doc, err := creationDocument(canvas.PayloadJSON)
+	if err != nil {
+		return ""
+	}
+	return cloudAgentCanvasHash(doc)
+}
+
 func cloudAgentRewriteCallSnapshotHash(call cloudAgentCall, hash string) cloudAgentCall {
 	args := map[string]any{}
 	if err := json.Unmarshal([]byte(call.Function.Arguments), &args); err != nil {
@@ -104,16 +122,72 @@ func (s *Service) cloudAgentRefreshStepSnapshotHash(run *model.CloudAgentExecuti
 		log.Printf("agent step hash filled: run=%s step=%d index=%d tool=%s", run.ID, state.Step, state.CallIndex, call.Function.Name)
 		return call
 	}
-	latest := cloudAgentContentHash(doc)
-	if current.SnapshotHash == state.StepSnapshotHash {
-		// 同轮接力: 模型 hash 仍等于本轮读时基线, 直接接到当前画布。
-		if latest == "" || latest == current.SnapshotHash {
-			return call
+	baseline := state.StepSnapshotHash
+	if baseline == "" || current.SnapshotHash != baseline {
+		// 互斥分支一（我方，优先）: 截断/换哈希笔误的前缀修复（卡 02 B3：与链证明互斥，不串联）。
+		if repaired := cloudAgentRepairSnapshotHashAgainst(call, run.ID, current.SnapshotHash, cloudAgentContentHash(doc)); repaired.Function.Arguments != call.Function.Arguments {
+			return repaired
 		}
-		call = cloudAgentRewriteCallSnapshotHash(call, latest)
-		log.Printf("agent step hash refreshed: run=%s step=%d index=%d tool=%s", run.ID, state.Step, state.CallIndex, call.Function.Name)
 		return call
 	}
-	// 基线不匹配(模型换过哈希或抄断截断): 落到前缀修复, 复用已加载文档不增加 DB 读。
-	return cloudAgentRepairSnapshotHashAgainst(call, run.ID, current.SnapshotHash, latest)
+	latest := cloudAgentContentHash(doc)
+	if latest == "" || latest == current.SnapshotHash {
+		return call
+	}
+	if repaired := cloudAgentRepairSnapshotHashAgainst(call, run.ID, current.SnapshotHash, latest); repaired.Function.Arguments != call.Function.Arguments {
+		return repaired
+	}
+	// 上游链证明结构（执行序 1）；W4 过渡态，W5 按 adf3a5be 完整重演。
+	latestCanvas := cloudAgentCanvasHash(doc)
+	if latestCanvas == "" {
+		return call
+	}
+	if latest == "" || latest == current.SnapshotHash {
+		return call
+	}
+	latestMutation, err := s.repo.LatestCloudAgentCanvasMutationForCanvas(run.UserID, state.Request.CanvasID)
+	if err != nil || latestMutation.RunID != run.ID || latestMutation.AfterSnapshotHash != latestCanvas {
+		return call
+	}
+	chain, err := s.repo.CloudAgentCanvasMutationChain(run.UserID, run.ID, state.Request.CanvasID)
+	if err != nil {
+		return call
+	}
+	stepIDs := map[string]bool{}
+	for _, candidate := range state.Calls {
+		if candidate.ID != "" {
+			stepIDs[candidate.ID] = true
+		}
+	}
+	// 本轮步骤基线（我方文件无上游的 baseline 变量，取 state.StepSnapshotHash）
+	// 链衔接基线（fullHash 口径，与 mutation 账本同口径）；空值即拒绝（安全方向）。
+	baselineFull := state.StepFullSnapshotHash
+	if baselineFull == "" {
+		return call
+	}
+	expected := baselineFull
+	advanced := false
+	for _, mutation := range chain {
+		if !stepIDs[mutation.StepID] {
+			continue
+		}
+		if !advanced {
+			if mutation.BeforeSnapshotHash != expected {
+				continue
+			}
+			advanced = true
+		} else if mutation.BeforeSnapshotHash != expected {
+			return call
+		}
+		expected = mutation.AfterSnapshotHash
+		if expected == latestCanvas {
+			break
+		}
+	}
+	if !advanced || expected != latestCanvas {
+		return call
+	}
+	call = cloudAgentRewriteCallSnapshotHash(call, latest)
+	log.Printf("agent step hash refreshed: run=%s step=%d index=%d tool=%s", run.ID, state.Step, state.CallIndex, call.Function.Name)
+	return call
 }

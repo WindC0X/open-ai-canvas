@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { App, Button, Dropdown, Input, Modal, Tag, Tooltip } from "antd";
 import type { MenuProps } from "antd";
-import { Camera, Check, ChevronDown, ChevronRight, Ellipsis, Images, Plus, SlidersHorizontal, UserRound } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronRight, Ellipsis, Grid3x3, Images, Plus, SlidersHorizontal, UserRound } from "lucide-react";
 
 import { ASSET_CATEGORY_OPTIONS } from "@/lib/asset-category";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -47,7 +47,7 @@ type CanvasNodeToolbarProps = {
     onMaskEdit: (node: CanvasNodeData) => void;
     onRemoveBackground: (node: CanvasNodeData) => void;
     onLayerDecomposition: (node: CanvasNodeData) => void;
-    onOutpaint: (node: CanvasNodeData) => void;
+    onOutpaint: (node: CanvasNodeData) => void
     onEmotion: (node: CanvasNodeData) => void;
     onPortraitTexture: (node: CanvasNodeData) => void;
     onCrop: (node: CanvasNodeData) => void;
@@ -71,6 +71,7 @@ type CanvasNodeToolbarProps = {
     onToggleFreeResize: (node: CanvasNodeData) => void;
     onToggleLocked: (node: CanvasNodeData) => void;
     onDelete: (node: CanvasNodeData) => void;
+    onNineGrid: (node: CanvasNodeData, toolId: number, label: string, icon: string) => void;
     workspaceMode?: CanvasWorkspaceMode;
 };
 
@@ -138,6 +139,7 @@ export function CanvasNodeToolbar({
     onToggleFreeResize,
     onToggleLocked,
     onDelete,
+    onNineGrid,
     workspaceMode = "professional",
 }: CanvasNodeToolbarProps) {
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -239,7 +241,7 @@ export function CanvasNodeToolbar({
         }
         copyText(prompt, "提示词已复制");
     };
-    const imageTools = buildImageToolbarTools(node, {onUpload, onToggleFreeResize, onAnnotate, onAnnotationEdit, onTextEdit, onMaskEdit, onRemoveBackground, onLayerDecomposition, onEmotion, onPortraitTexture, onCrop, onUpscale, onSuperResolve, onAngle, onLighting, onPanorama, onViewImage, onCopyPrompt: copyImagePrompt, onReversePrompt, onOutpaint});
+    const imageTools = buildImageToolbarTools(node, { onUpload, onToggleFreeResize, onAnnotate, onAnnotationEdit, onTextEdit, onMaskEdit, onRemoveBackground, onLayerDecomposition, onEmotion, onPortraitTexture, onCrop, onUpscale, onSuperResolve, onAngle, onLighting, onPanorama, onViewImage, onCopyPrompt: copyImagePrompt, onReversePrompt, onNineGrid , onOutpaint });
 
     // 构建 ToolContext——供注册表解析工具
     const nodeHoverHandlers = {
@@ -302,6 +304,7 @@ export function CanvasNodeToolbar({
     const viewpointLightingTools = compact ? [] : [...inGroup("viewpoint"), ...inGroup("lighting")];
     const panoramaTools = compact ? [] : inGroup("panorama");
     const processTools = compact ? [...inGroup("portrait"), ...inGroup("viewpoint"), ...inGroup("lighting"), ...inGroup("panorama"), ...inGroup("process")] : inGroup("process");
+    const nineGridTools = compact ? [] : inGroup("nine_grid");
     const workspaceTools = narrow ? [] : inGroup("workspace");
     const utilityTools = inGroup("utility");
     const moreTools = [...(narrow ? [...primary.slice(1), ...inGroup("workspace")] : []), ...inGroup("more")];
@@ -336,6 +339,7 @@ export function CanvasNodeToolbar({
                     style={{ color: theme.node.text }}
                 >
                 {primaryTools.map((tool) => <NodeDockToolButton key={tool.id} tool={tool} />)}
+                {nineGridTools.length ? <NodeDockMenuButton menuId="nine-grid" label="九宫格" icon={<Grid3x3 className="size-3.5" />} tools={nineGridTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}
                 {panoramaTools.map((tool) => <NodeDockToolButton key={tool.id} tool={tool} />)}
                 {portraitTools.length ? <NodeDockMenuButton menuId="portrait" label="人像调整" icon={<UserRound className="size-3.5" />} tools={portraitTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}
                 {viewpointLightingTools.length ? <NodeDockMenuButton menuId="viewpoint-lighting" label="视角" icon={<Camera className="size-3.5" />} tools={viewpointLightingTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}

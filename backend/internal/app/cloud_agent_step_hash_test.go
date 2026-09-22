@@ -43,7 +43,11 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	if err := db.First(&canvas, "id = ?", "agent-canvas").Error; err != nil {
 		t.Fatal(err)
 	}
+	beforeRaw := canvas.PayloadJSON
 	doc, err := creationDocument(canvas.PayloadJSON)
+	// 生产路径在收到这一轮调用时同点记录链衔接口径（fullHash）基线（runtime.go 的 capture 处）；
+	// 此处等价复现：基线取画布在读时的完整哈希，mutation 账本 Before/After 与之同口径。
+	state.StepFullSnapshotHash = cloudAgentCanvasHash(doc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,6 +59,9 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	latest := cloudAgentContentHash(doc)
 	if latest == base {
 		t.Fatal("测试前提不成立：画布哈希没变")
+	}
+	if err := s.repo.CreateCloudAgentCanvasMutation(&model.CloudAgentCanvasMutation{ID: "mutation-1", RunID: run.ID, UserID: run.UserID, CanvasID: run.CanvasID, StepID: state.Calls[0].ID, Operation: "canvas_apply_ops", BeforeSnapshotHash: state.StepFullSnapshotHash, AfterSnapshotHash: cloudAgentCanvasHash(doc), BeforeJSON: beforeRaw, Status: "applied"}); err != nil {
+		t.Fatal(err)
 	}
 
 	got = s.cloudAgentRefreshStepSnapshotHash(run, &state, state.Calls[1])
@@ -103,6 +110,8 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	//    否则这几条会被判成"模型自己换了哈希"而跳过补哈希。
 	state.Calls[1].Function.Arguments = got.Function.Arguments // 服务端：整批同一个哈希
 	state.StepSnapshotHash = latest                            // 服务端：基线同步抬到该哈希
+	// 链衔接口径（fullHash）：本轮第二次写之前的完整哈希，mutation 账本同口径。
+	midFull := cloudAgentCanvasHash(doc)
 	doc["nodes"] = append(creationMaps(doc["nodes"]), map[string]any{"id": "bound-task", "type": "video", "title": "第一条提交后绑上 taskId"})
 	rawBound, _ := json.Marshal(doc)
 	if err := db.Model(&model.CanvasProject{}).Where("id = ?", "agent-canvas").Update("payload_json", string(rawBound)).Error; err != nil {
@@ -111,6 +120,9 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	afterBind := cloudAgentContentHash(doc)
 	if afterBind == latest {
 		t.Fatal("测试前提不成立：提交第一条后画布哈希没变")
+	}
+	if err := s.repo.CreateCloudAgentCanvasMutation(&model.CloudAgentCanvasMutation{ID: "mutation-2", RunID: run.ID, UserID: run.UserID, CanvasID: run.CanvasID, StepID: state.Calls[1].ID, Operation: "generate_media_submit", BeforeSnapshotHash: midFull, AfterSnapshotHash: cloudAgentCanvasHash(doc), BeforeJSON: string(raw), Status: "applied"}); err != nil {
+		t.Fatal(err)
 	}
 	fresh := s.cloudAgentRefreshStepSnapshotHash(run, &state, state.Calls[1])
 	var freshArgs struct {
@@ -182,4 +194,61 @@ func TestCloudAgentRefreshStepSnapshotHash(t *testing.T) {
 	if untouched.Function.Arguments != foreignTrunc.Function.Arguments {
 		t.Fatal("非当前哈希前缀的陌生哈希不应被改写")
 	}
+}
+
+func TestCloudAgentRefreshStepSnapshotHashRejectsExternalWrites(t *testing.T) {
+	s, db, a := agentMediaFixture(t)
+	if sqlDB, err := db.DB(); err == nil {
+		t.Cleanup(func() { _ = sqlDB.Close() })
+	}
+	baseCanvas, err := s.repo.CanvasProjectForUser("user", "agent-canvas")
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseDoc, err := creationDocument(baseCanvas.PayloadJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := cloudAgentCanvasHash(baseDoc)
+	state := cloudAgentRuntime{Request: agentTestRequest(), Step: 1, CallIndex: 1, StepSnapshotHash: base}
+	state.Request.CanvasID = "agent-canvas"
+	state.Calls = []cloudAgentCall{agentMediaCall(a), agentMediaCall(a)}
+	run := &model.CloudAgentExecution{ID: "run-current", UserID: "user", CanvasID: "agent-canvas"}
+
+	// A direct autosave or another tab has no current-run mutation record.
+	directDoc := cloneCreationDocument(baseDoc)
+	directDoc["nodes"] = append(creationMaps(directDoc["nodes"]), map[string]any{"id": "external-node", "type": "image"})
+	directRaw, _ := json.Marshal(directDoc)
+	if err := db.Model(&model.CanvasProject{}).Where("id = ?", "agent-canvas").Update("payload_json", string(directRaw)).Error; err != nil {
+		t.Fatal(err)
+	}
+	got := s.cloudAgentRefreshStepSnapshotHash(run, &state, state.Calls[1])
+	if got.Function.Arguments != state.Calls[1].Function.Arguments {
+		t.Fatal("无记录的外部写入不能被吸收")
+	}
+
+	// A different Agent run's mutation is also a conflict for this run.
+	if err := db.Model(&model.CanvasProject{}).Where("id = ?", "agent-canvas").Update("payload_json", baseCanvas.PayloadJSON).Error; err != nil {
+		t.Fatal(err)
+	}
+	otherDoc := cloneCreationDocument(baseDoc)
+	otherDoc["nodes"] = append(creationMaps(otherDoc["nodes"]), map[string]any{"id": "other-run-node", "type": "image"})
+	otherRaw, _ := json.Marshal(otherDoc)
+	if err := db.Model(&model.CanvasProject{}).Where("id = ?", "agent-canvas").Update("payload_json", string(otherRaw)).Error; err != nil {
+		t.Fatal(err)
+	}
+	otherHash := cloudAgentCanvasHash(otherDoc)
+	if err := s.repo.CreateCloudAgentCanvasMutation(&model.CloudAgentCanvasMutation{ID: "mutation-other", RunID: "run-other", UserID: "user", CanvasID: "agent-canvas", StepID: "other-call", Operation: "canvas_apply_ops", BeforeSnapshotHash: base, AfterSnapshotHash: otherHash, Status: "applied"}); err != nil {
+		t.Fatal(err)
+	}
+	got = s.cloudAgentRefreshStepSnapshotHash(run, &state, state.Calls[1])
+	if got.Function.Arguments != state.Calls[1].Function.Arguments {
+		t.Fatal("其他 Agent run 的写入不能被当前 run 吸收")
+	}
+}
+
+func cloneCreationDocument(doc map[string]any) map[string]any {
+	raw, _ := json.Marshal(doc)
+	copy, _ := creationDocument(string(raw))
+	return copy
 }

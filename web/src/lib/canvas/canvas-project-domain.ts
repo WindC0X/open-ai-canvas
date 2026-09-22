@@ -13,6 +13,7 @@ import { batchReferenceHandleY } from "@/lib/canvas/canvas-batch-table";
 import { reconcileImageBatchRoot } from "@/lib/canvas/canvas-image-batch-retry";
 import { scopedLocalStorage } from "@/lib/user-scope";
 import type { GenerationTask } from "@/services/api/task-center";
+import { synchronizeGenerationSpec } from "@/lib/canvas/generation-contract";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type CanvasNodeTypeId, type ConnectionHandle, type Position, type StoryboardColumn, type StoryboardRow } from "@/types/canvas";
 
 /** 批量展开态中立读取：视频 batch 用 batchExpanded，图像沿用 imageBatchExpanded（历史字段不动）。 */
@@ -189,7 +190,7 @@ const NODE_MODEL_GENERATION_PARAMS: ReadonlyArray<keyof CanvasNodeMetadata> = [
 export function applyNodeConfigPatch(node: CanvasNodeData, patch: Partial<CanvasNodeMetadata>) {
     const safePatch = patch || {};
     const nextPatch = resetGenerationParamsOnModelSwitch(node, safePatch);
-    const next = { ...node, metadata: { ...node.metadata, ...nextPatch } };
+	const next = synchronizeGenerationSpec(node, nextPatch);
     // 比例→尺寸基准 = 媒体标准盒（非 16:9 默认盒）：1:1 空节点 520×520，与上传/扩图占位/
     // 完成回写同一尺寸，生成前后不跳变（用户实测 2026-09-21）。
     const size = typeof safePatch.size === "string" && !node.metadata?.content ? nodeSizeFromRatio(safePatch.size, MEDIA_NODE_MAX_SIZE.width, MEDIA_NODE_MAX_SIZE.height) : null;
