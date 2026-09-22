@@ -32,3 +32,18 @@
 | `backend/internal/database/migrations_test.go` | 1 | 同上 |
 | `docs/content/docs/backend/backend-database.mdx` | 1 | 随 schema 同步（卡 06 ④） |
 | `docs/content/docs/progress/pending-test.mdx` | 1 | 登记合并 |
+
+## W1-a 未决明细：user-data-sync.ts 12 块（卡 06 域，地形已探明 2026-09-22）
+
+上游 `35ebed30` 侧 = **整函数重写**（新增/改写）：
+- `loadCanvasProjectForEditing(id, { latest?, historyRestore?{snapshotId,revision}, onLoad? })` —— 签名扩展（块 1）；
+- `preserveAgentConflict(project)` + `preserveCanvasSyncDraft(project)`（块 4，「云端画布已有更新，请保留草稿并加载最新版本」）；
+- `flushCanvasStorePersistence()` 调用点（块 3）、`repairMissingCanvasAssets(changedProjectIds, incrementalSession)`（块 7）；
+- revision 校验：`saved.revision !== source.revision! + 1` → 抛 409「服务端未返回有效画布版本，请加载云端最新版本」（块 9）；
+- 同步进度 store：`setProjectProgress(id, { phase, message })`（块 3/4）；media/asset 绑定修复与「素材先于画布」保存顺序（块 6）。
+
+我方侧 = **水位门 + 临界区**：
+- 水位判据注释「本地在'上次确认同步'之后修改过（含上一会话同步失败的残留）时，不得静默采纳远端覆盖；远端在水位之后也变了 → 双向分歧抛冲突；仅本地领先 → 保留本地交既有防抖同步」（块 2）；
+- `flush` 的无锁变体（调用方必须已持 `withRemoteUserDataSyncExclusive` 临界区；撤销事务 flush→POST→adopt 三步同区，review 2026-09-21 P2）（块 6）；`discardLocalCanvasProject`（块 1）。
+
+**重核要点（下一轮执行）**：把"水位门"落在上游新签名 `loadCanvasProjectForEditing` 的新分支结构里（latest/historyRestore/onLoad 之外），并确认上游 `preserveAgentConflict` 草稿路径不与水位门双重拦截；块 5/8/10 为缩进/格式与尾部收尾差异（机械取上游或我方缩进一致侧）。
