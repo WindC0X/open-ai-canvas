@@ -57,6 +57,12 @@ export function createAgentCanvasSync(options: Options) {
                 // 撤销事件永不携带 canvasPatch（权威回滚是整文档恢复）：无论订阅是否已进入
                 // 增量模式都必须刷新画布（review 2026-09-21 P2）。supportsPatches 单调锁存
                 // 曾让该事件被静默忽略 —— 其他标签页停在撤销前状态，编辑一次即反噬撤销。
+                // 此地与上游 35ebed30 同向（上游: canvas_updated||canvas_undone 均无条件刷新）；
+                // 差异仅剩 canvas_updated —— 保留在 !supportsPatches 门内走增量，不盲目刷新。
+                needsRefresh = true;
+            } else if (event.type === "canvas_updated" && Boolean(event.payload.requiresRefresh)) {
+                // 上游 35ebed30 语义：服务端显式宣告整文档失效时必须刷新（防旧内容覆盖），
+                // 该信号优先于增量模式；普通 canvas_updated 在增量模式下仍走 patch（卡 07 我方语义）。
                 needsRefresh = true;
             } else if (!supportsPatches && (event.type === "canvas_updated" || event.type === "generation_task_created" || event.type === "tool_failed" || event.type === "run_failed" || (event.type === "tool_completed" && ["canvas_apply_ops", "generate_media"].includes(String(event.payload.toolName))))) {
                 needsRefresh = true;

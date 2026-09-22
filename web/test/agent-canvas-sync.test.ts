@@ -86,3 +86,14 @@ test("canvas_undone event schedules a canvas refresh (undo panel wiring)", () =>
         if (events.refresh < 1) throw new Error("canvas_undone did not trigger refresh");
     });
 });
+
+test("a full invalidation and undo still refresh after delta support was detected", async () => {
+    const refresh = mock(async () => {});
+    const sync = createAgentCanvasSync({ canvasId: "canvas", applyPatches: async () => {}, refresh, onError: () => {}, batchMs: 0, refreshIntervalMs: 0 });
+    sync.receive(delta); await sleep();
+    sync.receive(event("canvas_updated", { canvasId: "canvas", requiresRefresh: true })); await sleep();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    sync.receive(event("canvas_undone", { canvasId: "canvas" })); await sleep();
+    expect(refresh).toHaveBeenCalledTimes(2);
+    sync.dispose();
+});

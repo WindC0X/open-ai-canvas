@@ -79,3 +79,13 @@ test("undo adoption removes agent-created nodes (deletion semantics)", () => {
     const editor = mergeAgentCanvasEditor(withCreated, rolledBack, withCreated.nodes, withCreated.connections);
     expect(editor.nodes.some((item) => item.id === "x1")).toBe(false);
 });
+
+test("full Agent refresh removes unchanged nodes but preserves conflicting local edits", () => {
+    const remaining = { ...node, id: "remaining", metadata: {} };
+    const previous = { ...project, nodes: [node, remaining] };
+    const incoming = { ...previous, nodes: [remaining] };
+    expect(mergeAgentCanvasEditor(previous, incoming, previous.nodes, []).nodes).toEqual([remaining]);
+    const local = { ...node, title: "Unsaved local title" };
+    expect(() => mergeAgentCanvasEditor(previous, incoming, [local, remaining], [])).toThrow("冲突");
+    expect(local.title).toBe("Unsaved local title");
+});

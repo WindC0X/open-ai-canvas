@@ -106,6 +106,9 @@ import { deriveStoryboardPipelineProgress } from "@/lib/canvas/canvas-storyboard
 import { CanvasOperationChangeToast, CanvasMergeStatusToast, CanvasUploadStatusToast } from "./canvas-project-feedback";
 import { backendProviderConfig, getGenerationCount } from "@/lib/canvas/canvas-project-generation";
 import { cancelGenerationTask } from "@/services/api/task-center";
+import { CanvasSyncStatus } from "./canvas-sync-status";
+import { CanvasVersionHistory, useCanvasVersionHistory } from "./canvas-version-history";
+import { CanvasVersionPreview } from "./canvas-version-preview";
 import { CanvasTopBar } from "./canvas-project-top-bar";
 import { LibTVImportDialog } from "./components/libtv-import-dialog";
 import { TapNowImportDialog } from "./components/tapnow-import-dialog";
@@ -395,7 +398,7 @@ function InfiniteCanvasPage() {
     const [titleEditing, setTitleEditing] = useState(false);
     const [titleDraft, setTitleDraft] = useState("");
     const [shortcutRequestNonce, setShortcutRequestNonce] = useState(0);
-    const { assistantOpen, closeAgent, openAgent } = useCanvasAssistantVisibility();
+    const { assistantOpen, closeAgent, openAgent: openAssistant } = useCanvasAssistantVisibility();
     // Agent 面板是自由浮窗(上游 v1.3 改造: 可拖拽/调宽/localStorage 持久化), 布局状态提升到本层供面板组件消费。
     // HUD 归宿(2026-09-20 用户拍板): HUD 固定右上角家, z 层压在面板之下(80 < 面板基线 110) ——
     // 面板在上层, 路过时自然盖住 HUD, 移开即露出; 不淡出、不隐藏、不随面板几何漂移。
@@ -404,14 +407,6 @@ function InfiniteCanvasPage() {
     void agentPanelGeometry;
     const agentMentionReferences = useMemo(() => buildCanvasAgentMentionReferences(nodes), [nodes]);
 
-    const sendSelectionToAgent = useCallback((nodeId?: string) => {
-        const ids = nodeId ? [nodeId] : Array.from(selectedNodeIdsRef.current);
-        const references = ids.map((id) => agentMentionReferences.find((reference) => reference.nodeId === id)).filter((reference): reference is CanvasResourceReference => Boolean(reference));
-        if (!references.length) return;
-        setAgentPrefillPrompt(`${references.map(canvasResourceMentionToken).join(" ")} `);
-        openAgent();
-        setContextMenu(null);
-    }, [agentMentionReferences, openAgent]);
     const { tasks: activeTasks } = useCanvasActiveTasks(projectId, projectLoaded);
     const { focusMode, enterFocusMode, exitFocusMode, toggleFocusMode } = useFocusMode();
     const [focusDockRevealed, setFocusDockRevealed] = useState(false);
@@ -495,7 +490,7 @@ function InfiniteCanvasPage() {
         [cleanupAssetImages, getHistoryCleanupContext],
     );
 
-    const { addedSkills, agentCreatedNodes, clearCanvasFiles, createAndOpenProject, currentProject, deleteCurrentProject, forceSaveCanvasProject, loadConflict, loadError, loadRemoteAfterDiscard, renameCurrentProject, retryLoad, saveCanvasProject, updateProject } = useCanvasProjectLifecycle({
+    const { addedSkills, agentCreatedNodes, clearCanvasFiles, createAndOpenProject, currentProject, deleteCurrentProject, forceSaveCanvasProject, loadConflict, loadError, loadRemoteAfterDiscard, reloadLatestCanvasProject, renameCurrentProject, restoreCanvasProjectVersion, retryLoad, saveCanvasProject, updateProject } = useCanvasProjectLifecycle({
         projectId,
         projectLoaded,
         nodes,
@@ -508,6 +503,8 @@ function InfiniteCanvasPage() {
         viewport,
         nodesRef,
         connectionsRef,
+        chatSessionsRef,
+        activeChatIdRef,
         viewportRef,
         historyPausedRef,
         setNodes,
@@ -524,13 +521,24 @@ function InfiniteCanvasPage() {
         cleanupCanvasFiles,
     });
 
-    // 强制覆盖会改写云端版本并重绑媒体素材关联，必须让用户显式确认 destructive 语义。
+    const versions = useCanvasVersionHistory(projectId, restoreCanvasProjectVersion);
+    const openVersions = () => { closeAgent(); setVersionCompareRootId(null); versions.show(); };
+    const openAgent = useCallback(() => { versions.close(); openAssistant(); }, [versions.close, openAssistant]);
+
+    const sendSelectionToAgent = useCallback((nodeId?: string) => {
+        const ids = nodeId ? [nodeId] : Array.from(selectedNodeIdsRef.current);
+        const references = ids.map((id) => agentMentionReferences.find((reference) => reference.nodeId === id)).filter((reference): reference is CanvasResourceReference => Boolean(reference));
+        if (!references.length) return;
+        setAgentPrefillPrompt(`${references.map(canvasResourceMentionToken).join(" ")} `);
+        openAgent();
+        setContextMenu(null);
+    }, [agentMentionReferences, openAgent]);
+    // 修复素材关联仍遵守当前画布版本，不能替用户确认覆盖云端的新内容。
     const confirmForceSaveCanvas = useCallback(() => {
         modal.confirm({
-            title: "用本地内容强制覆盖云端？",
-            content: "将把当前本地画布保存并覆盖云端版本，同时自动修复画布媒体与素材库的绑定（缺少素材记录时会按节点新建）。云端尚未同步到本地的改动会被覆盖。",
-            okText: "强制覆盖保存",
-            okButtonProps: { danger: true },
+            title: "修复素材关联并保存？",
+            content: "核对画布媒体与素材库的关联，补齐缺失素材后保存。若云端已有新版本，会保留本地草稿并提示加载最新版。",
+            okText: "修复并保存",
             cancelText: "取消",
             onOk: () => forceSaveCanvasProject(),
         });
@@ -546,7 +554,7 @@ function InfiniteCanvasPage() {
             connectionsRef.current = nextConnections;
             setNodes(nextNodes);
             setConnections(nextConnections);
-            const saved = await saveCanvasProject();
+            const saved = await saveCanvasProject({ requireRemote: false });
             if (!saved) {
                 nodesRef.current = previousNodes;
                 connectionsRef.current = previousConnections;
@@ -567,7 +575,7 @@ function InfiniteCanvasPage() {
             connectionsRef.current = nextConnections;
             setNodes(nextNodes);
             setConnections(nextConnections);
-            const saved = await saveCanvasProject();
+            const saved = await saveCanvasProject({ requireRemote: false });
             if (!saved) {
                 nodesRef.current = previousNodes;
                 connectionsRef.current = previousConnections;
@@ -1686,6 +1694,7 @@ function InfiniteCanvasPage() {
     }, [clearCanvasFiles, deselectCanvas, message, nodesRef, projectId, setEmotionNodeId]);
 
     useCanvasKeyboard({
+        enabled: projectLoaded && !versions.preview,
         nodesRef,
         selectedNodeIdsRef,
         selectedConnectionId,
@@ -2540,13 +2549,17 @@ function InfiniteCanvasPage() {
                 跳转到画布主内容
             </a>
             <main id="canvas-main" tabIndex={-1} className="flex h-full min-h-0 overflow-hidden outline-none" style={{ background: resolvedCanvasAppearance.background, color: theme.node.text }}>
-                {!focusMode && shortDramaEnabled && currentProject?.projectId ? (
+                {!focusMode && !versions.preview && shortDramaEnabled && currentProject?.projectId ? (
                     <CanvasProjectSidebar projectId={currentProject.projectId} detail={linkedProjectQuery.data} onAddChapter={handleProjectChapterInsert} onLocateStyle={locateProjectStyleNode} onOpenAssets={() => openProjectAssets()} />
                 ) : null}
                 <CanvasOverlayLayerProvider>
-                    <section className="relative min-w-0 flex-1 flex flex-col min-h-0 overflow-hidden">
+                    <div className="canvas-editor-shell relative flex min-w-0 flex-1">
+                    <section data-canvas-editor inert={Boolean(versions.preview)} style={{ visibility: versions.preview ? "hidden" : undefined, opacity: versions.preview ? 0 : undefined }} className="relative min-w-0 flex-1 flex flex-col min-h-0 overflow-hidden">
                     {!focusMode ? (
                         <CanvasTopBar
+                            syncStatus={<CanvasSyncStatus projectId={projectId} onLoadLatest={reloadLatestCanvasProject} onOpenVersions={openVersions} />}
+                            versionsOpen={versions.open}
+                            onToggleVersions={() => { closeAgent(); setVersionCompareRootId(null); versions.toggle(); }}
                             title={currentProject?.title || "未命名画布"}
                             titleDraft={titleDraft}
                             isTitleEditing={titleEditing}
@@ -2621,6 +2634,7 @@ function InfiniteCanvasPage() {
                     <div className="relative flex min-h-0 min-w-0 flex-1">
                         <div className="relative min-w-0 flex-1 overflow-hidden">
                             <InfiniteCanvas
+                            interactive={!versions.preview}
                                 containerRef={containerRef}
                                 viewport={viewport}
                                 appearance={canvasAppearance}
@@ -2742,6 +2756,9 @@ function InfiniteCanvasPage() {
 
                             {focusMode ? (
                                 <CanvasFocusModeBar
+                                    syncStatus={<CanvasSyncStatus projectId={projectId} onLoadLatest={reloadLatestCanvasProject} onOpenVersions={openVersions} />}
+                                    versionsOpen={versions.open}
+                                    onToggleVersions={() => { closeAgent(); versions.toggle(); }}
                                     dockRevealed={focusDockRevealed}
                                     zoomPercent={viewport.k}
                                     onToggleDock={() => setFocusDockRevealed((value) => !value)}
@@ -2798,20 +2815,23 @@ function InfiniteCanvasPage() {
                             ) : null}
                         </div>
 
-                        <CanvasCloudAgentPanel
-                            canvasId={projectId}
-                            domainProjectId={currentProject?.projectId}
-                            nodeCount={nodes.length}
-                            references={agentMentionReferences}
-                            panelLayout={agentPanelLayout}
-                            open={assistantOpen}
-                            onOpen={() => openAgent()}
-                            onCollapse={closeAgent}
-                            onFocusNode={(nodeId) => {
-                                if (!nodesRef.current.some((node) => node.id === nodeId)) { message.info("该节点已删除或尚未同步到画布"); return; }
-                                focusCanvasNode(nodeId);
-                            }}
-                        />
+                        <div className={versions.open ? "hidden" : "contents"}>
+                            <CanvasCloudAgentPanel
+                                canvasId={projectId}
+                                domainProjectId={currentProject?.projectId}
+                                nodeCount={nodes.length}
+                                references={agentMentionReferences}
+                                prefillPrompt={agentPrefillPrompt}
+                                panelLayout={agentPanelLayout}
+                                open={assistantOpen}
+                                onOpen={openAgent}
+                                onCollapse={closeAgent}
+                                onFocusNode={(nodeId) => {
+                                    if (!nodesRef.current.some((node) => node.id === nodeId)) { message.info("该节点已删除或尚未同步到画布"); return; }
+                                    focusCanvasNode(nodeId);
+                                }}
+                            />
+                        </div>
                     </div>
 
                         <CanvasNodeSearchModal
@@ -2995,14 +3015,15 @@ function InfiniteCanvasPage() {
                     {isMiniMapOpen && !focusMode ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} canvasContainerRef={containerRef} onViewportPreviewChange={previewViewport} onViewportChange={handleViewportChange} /> : null}
 
                     {angleNode?.metadata?.content ? (
-                        <AppModal
-                            flush
-                            open
-                            centered
-                            title="多角度编辑器"
-                            footer={null}
-                            width={620}
-                            onCancel={() => setAngleNodeId(null)}
+                        <CanvasNodePanelOverlay
+                            node={angleNode}
+                            viewport={viewport}
+                            containerRef={containerRef}
+                            panelWidth={640}
+                            panelHeight={540}
+                            allowOverflow
+                            dragOffset={dragPreview?.nodeIds.has(angleNode.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
+                            isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(angleNode.id))}
                         >
                             <CanvasNodeAnglePanel
                                 dataUrl={angleNode.metadata.content}
@@ -3011,7 +3032,7 @@ function InfiniteCanvasPage() {
                                     void generateAngleNode(angleNode, params);
                                 }}
                             />
-                        </AppModal>
+                        </CanvasNodePanelOverlay>
                     ) : null}
 
                         {lightingNode?.metadata?.content ? (
@@ -3442,7 +3463,10 @@ function InfiniteCanvasPage() {
                             onInsertFolder={projectAssetScope === "canvas" ? handleProjectFolderInsert : undefined}
                         />
                     </section>
+                    {versions.preview ? <CanvasVersionPreview key={versions.preview.key} preview={versions.preview} onReturn={versions.returnToCurrent} onShowVersions={versions.show} /> : null}
+                    </div>
                 </CanvasOverlayLayerProvider>
+                <CanvasVersionHistory history={versions} />
             </main>
         </>
     );

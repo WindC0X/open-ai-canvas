@@ -4,6 +4,8 @@ import type { CanvasConnection, CanvasNodeData } from "@/types/canvas";
 type Change<T> = { before: T | null; after: T | null };
 export type AgentCanvasPatch = {
     canvasId: string;
+    baseRevision?: number;
+    revision?: number;
     updatedAt: string;
     nodes: Change<CanvasNodeData>[];
     connections: Change<CanvasConnection>[];
@@ -47,13 +49,11 @@ function mergeItems<T extends { id: string }>(items: T[], changes: Change<T>[]):
     for (const { before, after } of changes) {
         // after=null 是删除语义。唯一合法来源是撤销采纳(云端回滚); canvas_apply_ops 禁止删除,
         // 实时 canvas_updated 增量永不产生 after=null, 因此不会误伤 Agent 运行中的增量。
-        if (after === null) {
-            if (!before?.id) throw new Error("无效的画布增量节点");
-            next.delete(before.id);
-            continue;
-        }
-        if (!after?.id || (before && before.id !== after.id)) throw new Error("无效的画布增量节点");
-        next.set(after.id, mergeValue(next.get(after.id) ?? null, before, after) as T);
+        const id = after?.id || before?.id;
+        if (!id || (before && after && before.id !== after.id)) throw new Error("无效的画布增量节点");
+        const merged = mergeValue(next.get(id) ?? null, before, after) as T | null;
+        if (merged === null) next.delete(id);
+        else next.set(id, merged);
     }
     const result = [...next.values()];
     return result.length === items.length && result.every((item, index) => item === items[index]) ? items : result;
@@ -64,6 +64,7 @@ export function applyAgentCanvasPatch(project: CanvasProject, patch: AgentCanvas
     const byId = new Map(project.nodes.map((node) => [node.id, node]));
     const nodeChanges = patch.nodes.map((change) => {
         // 删除语义(after=null)不经任务守卫: 撤销回滚必须能移除生成节点绑定的任务结果。
+        // 只豁免显式 null(删除); 缺省 after(undefined) 仍走任务守卫。
         if (change.after === null) return change;
         const current = byId.get(change.after.id);
         const beforeTask = change.before?.metadata?.taskId;
@@ -95,7 +96,11 @@ export function mergeAgentCanvasEditor(previous: CanvasProject, incoming: Canvas
         const afterIds = new Set(after.map((item) => item.id));
         // 撤销会删除节点(2026-09-19 用户实测: 删除被当作冲突抛出, 撤销后画布纹丝不动)。
         // here 的删除只可能来自撤销采纳(云端权威回滚), 按删除语义下发而不是拒绝。
-        const removals = basis.filter((item) => !afterIds.has(item.id)).map((item) => ({ before: item, after: null }));
+        // removals 与 updates 的 id 互斥(前者不在 afterIds, 后者在), 顺序无副作用。
+        // 融合(2026-09-22)：删除集合仍按 basis 判定(P3 漏删修复保留)；若该 id 在 store 基线里存在，
+        // 用基线副本作 before，使 mergeItems 的三方删除能识别"本地改过却被删除"并报冲突(上游语义：
+        // 并发修改或删除是冲突，永不静默覆盖)；基线缺该 id(仅编辑器有)时保持纯删除，不误报。
+        const removals = basis.filter((item) => !afterIds.has(item.id)).map((item) => ({ before: byId.get(item.id) ?? item, after: null }));
         return [...removals, ...after.filter((item) => !equal(item, byId.get(item.id))).map((item) => ({ before: byId.get(item.id) ?? null, after: item }))];
     };
     return applyAgentCanvasPatch({ ...previous, nodes, connections }, {

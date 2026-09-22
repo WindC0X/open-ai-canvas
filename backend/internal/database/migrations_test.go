@@ -78,8 +78,8 @@ func TestMigrateSchemaV15UpgradesExistingDatabase(t *testing.T) {
 	}
 }
 
-func TestMigrateSchemaV16UpgradesExistingDatabase(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-lessons-v16?mode=memory&cache=shared"})
+func TestMigrateSchemaV17UpgradesExistingDatabase(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-lessons-v17?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,11 +89,11 @@ func TestMigrateSchemaV16UpgradesExistingDatabase(t *testing.T) {
 	if err := db.Migrator().DropTable(&model.AgentLesson{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 16).Delete(&schemaMigration{}).Error; err != nil {
+	if err := db.Where("version = ?", 17).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := MigrateSchema(db); err != nil {
-		t.Fatalf("upgrade from v15: %v", err)
+		t.Fatalf("upgrade from v16: %v", err)
 	}
 	if !db.Migrator().HasTable(&model.AgentLesson{}) || !db.Migrator().HasIndex(&model.AgentLesson{}, "idx_agent_lessons_status") {
 		t.Fatal("v16 upgrade did not install Agent lesson table and status index")
@@ -104,8 +104,8 @@ func TestMigrateSchemaV16UpgradesExistingDatabase(t *testing.T) {
 	}
 }
 
-func TestMigrateSchemaV17UpgradesExistingDatabase(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-lessons-v17?mode=memory&cache=shared"})
+func TestMigrateSchemaV18UpgradesExistingDatabase(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-lessons-v18?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestMigrateSchemaV17UpgradesExistingDatabase(t *testing.T) {
 	if err := db.Migrator().DropIndex(&model.AgentLesson{}, "idx_agent_lessons_author_status"); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 17).Delete(&schemaMigration{}).Error; err != nil {
+	if err := db.Where("version = ?", 18).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := MigrateSchema(db); err != nil {
@@ -130,8 +130,8 @@ func TestMigrateSchemaV17UpgradesExistingDatabase(t *testing.T) {
 	}
 }
 
-func TestMigrateSchemaV18UpgradesExistingDatabase(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-memory-settings-v18?mode=memory&cache=shared"})
+func TestMigrateSchemaV19UpgradesExistingDatabase(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-memory-settings-v19?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestMigrateSchemaV18UpgradesExistingDatabase(t *testing.T) {
 	if err := db.Migrator().DropTable(&model.AgentMemorySetting{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 18).Delete(&schemaMigration{}).Error; err != nil {
+	if err := db.Where("version = ?", 19).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := MigrateSchema(db); err != nil {
@@ -156,8 +156,8 @@ func TestMigrateSchemaV18UpgradesExistingDatabase(t *testing.T) {
 	}
 }
 
-func TestMigrateSchemaV19AddsPaymentPluginVersion(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-payment-plugin-version-v19?mode=memory&cache=shared"})
+func TestMigrateSchemaV20AddsPaymentPluginVersion(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-payment-plugin-version-v20?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestMigrateSchemaV19AddsPaymentPluginVersion(t *testing.T) {
 	if err := db.Migrator().DropColumn(&model.PaymentOrder{}, "PluginVersion"); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 19).Delete(&schemaMigration{}).Error; err != nil {
+	if err := db.Where("version = ?", 20).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := MigrateSchema(db); err != nil {
@@ -185,6 +185,44 @@ func TestMigrateSchemaV19AddsPaymentPluginVersion(t *testing.T) {
 	status, err := ReadSchemaStatus(db)
 	if err != nil || !status.Ready || status.Current != CurrentSchemaVersion {
 		t.Fatalf("unexpected upgraded schema status: %+v, %v", status, err)
+	}
+}
+
+func TestMigrateSchemaV16BackfillsCanvasRevisions(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-canvas-revisions-v16?mode=memory&cache=shared"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSchema(db); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrator().DropTable(&model.CanvasSnapshotResource{}, &model.CanvasSnapshot{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrator().DropColumn(&model.CanvasProject{}, "Revision"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec(`INSERT INTO canvas_projects (id, user_id, title, payload_json) VALUES ('legacy', 'owner', 'Existing canvas', '{"nodes":[]}')`).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Where("version = ?", 16).Delete(&schemaMigration{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSchema(db); err != nil {
+		t.Fatal(err)
+	}
+	var project model.CanvasProject
+	if err := db.First(&project, "id = ?", "legacy").Error; err != nil {
+		t.Fatal(err)
+	}
+	if project.Revision != 1 || project.PayloadJSON != `{"nodes":[]}` {
+		t.Fatalf("legacy canvas changed: %+v", project)
+	}
+	if !db.Migrator().HasTable(&model.CanvasSnapshot{}) || !db.Migrator().HasTable(&model.CanvasSnapshotResource{}) {
+		t.Fatal("history tables missing")
+	}
+	if err := MigrateSchema(db); err != nil {
+		t.Fatalf("migration not idempotent: %v", err)
 	}
 }
 
