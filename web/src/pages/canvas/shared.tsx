@@ -226,7 +226,11 @@ export default function SharedCanvasPage() {
             metadata: { ...node.metadata, frame: { collapsed, expandedWidth: collapsed ? node.width : frame?.expandedWidth || node.width, expandedHeight: collapsed ? node.height : frame?.expandedHeight || node.height } },
         };
     }));
-const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.type === CanvasNodeType.Script ? <SharedScriptNode node={node} onUnauthorized={unauthorized} /> : node.type === CanvasNodeType.BatchTable ? <CanvasBatchTableNodeContent node={node} nodes={nodes} connections={connections} batch={node.metadata?.generationBatches?.at(-1)} theme={theme} readOnly onPatchTable={() => {}} onAddRow={() => {}} onRemoveRow={() => {}} onUpdateRow={() => {}} onFillRows={() => {}} onGenerate={() => {}} onRetryItem={() => {}} onAddReferenceColumn={() => {}} onConnectStart={() => {}} /> : <SharedConfigNode node={node} onUnauthorized={unauthorized} />, [connections, nodes, theme, unauthorized]);
+    const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => {
+        if (node.type === CanvasNodeType.Script) return <SharedScriptNode node={node} onUnauthorized={unauthorized} />;
+        if (node.type === CanvasNodeType.BatchTable) return <CanvasBatchTableNodeContent node={node} nodes={nodes} connections={connections} batch={node.metadata?.generationBatches?.at(-1)} theme={theme} readOnly onPatchTable={() => {}} onAddRow={() => {}} onRemoveRow={() => {}} onUpdateRow={() => {}} onFillRows={() => {}} onGenerate={() => {}} onRetryItem={() => {}} onAddReferenceColumn={() => {}} onAddTextColumn={() => {}} onReorderReferenceColumns={() => {}} onMoveReferenceCell={() => {}} onReplaceReference={() => {}} onUploadReference={() => {}} onConnectStart={() => {}} />;
+        return <SharedConfigNode node={node} onUnauthorized={unauthorized} />;
+    }, [connections, nodes, theme, unauthorized]);
     // 微供给双实例(与主画布同语义): 选中节点工具栏常驻, hover 其它节点时第二实例微浮现。
     // 只读页无拖拽/框选/设置气泡 guard。
     const selectedToolbarNode = selectedNodeId ? nodeById.get(selectedNodeId) || null : null;
@@ -235,7 +239,6 @@ const renderSharedNode = useCallback((node: CanvasNodeData): ReactNode => node.t
         { nodeId: node.id, hoveredNodeId, dialogNodeId: selectedNodeId, selfHover: false },
         { nodeDragging: false, selectionBoxActive: false, settingsOpen: false },
     );
-
     if (loading) return <FullScreenLoader label="正在打开共享画布" detail="读取节点、连线和视图状态" />;
     if (loadError) return <div className="grid h-screen place-items-center px-5" style={{ background: theme.canvas.background }}><WorkspaceState icon="error" title="分享链接不可用" description={loadError} action={<Link to="/"><Button>返回首页</Button></Link>} /></div>;
 
