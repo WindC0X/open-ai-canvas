@@ -121,7 +121,17 @@ function liveCanvasIfUnchanged(id: string, snapshot: CanvasProject | null | unde
 export async function loadCanvasProjectForEditing(id: string, options: { latest?: boolean; historyRestore?: { snapshotId: string; revision: number }; onLoad?: (project: CanvasProject) => void } = {}) {
     if (!options.latest && !options.historyRestore) {
         const pending = remoteProjectLoadPromises.get(id);
-        if (pending) return pending;
+        if (pending) {
+            // 去重命中：多个调用者共用同一笔 load，但 onLoad 只在创建时绑定 —— 新调用者的 onLoad 必须在
+            // 同一笔 load 完成时一并调用，否则它的调用点拿不到加载结果。（dev/StrictMode 双挂载下第二次
+            // 挂载的 onLoad 被去重吃掉，其渲染门永远打不开 ⇒ 编辑器永久骨架屏；batch 10 S2 根因）
+            return options.onLoad
+                ? pending.then((project) => {
+                      if (project) options.onLoad?.(project);
+                      return project;
+                  })
+                : pending;
+        }
     }
     const epoch = sessionEpoch;
     const request = withRemoteUserDataSyncExclusive(async () => {

@@ -91,3 +91,34 @@ test("事务执行期间并发注册的 load 不再与临界区互相死等", as
     expect(loaded).toBe("loaded");
     expect(queueAlive).toBe(true);
 }, 20000);
+
+// 回归：去重命中时第二个调用者的 onLoad 必须被调用。
+// 历史缺陷（batch 10 S2/S5/S6 六红同根因，2026-09-23 dev-only）：第二个调用者拿到的是第一笔 load 的
+// promise，而 onLoad 只在创建时绑定 → 第二次挂载（StrictMode 双挂载）的 onLoad 永不触发，其渲染门
+// （setProjectLoaded）永不打开 ⇒ 编辑器永久停在 CanvasRefreshShell 骨架屏。
+test("去重命中时第二个调用者的 onLoad 仍被调用", async () => {
+    projects = [initial];
+    await initializeRemoteUserDataSession("dedup-onload-user");
+    const spy = spyOn(http, "get").mockResolvedValue({ project: remote });
+    const called: string[] = [];
+    const loadedIds: string[] = [];
+    const first = loadCanvasProjectForEditing("deadlock-probe", {
+        onLoad: (project) => {
+            called.push("first");
+            loadedIds.push(project.id);
+        },
+    });
+    const second = loadCanvasProjectForEditing("deadlock-probe", {
+        onLoad: (project) => {
+            called.push("second");
+            loadedIds.push(project.id);
+        },
+    });
+    const [firstProject, secondProject] = await Promise.all([first, second]);
+    spy.mockRestore();
+    await resetRemoteUserDataSync();
+    expect(called).toEqual(["first", "second"]);
+    expect(loadedIds).toEqual(["deadlock-probe", "deadlock-probe"]);
+    expect(firstProject?.id).toBe("deadlock-probe");
+    expect(secondProject?.id).toBe("deadlock-probe");
+});

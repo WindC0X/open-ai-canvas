@@ -99,10 +99,14 @@ export function useCanvasProjectLifecycle({
     const historyRestoreRef = useRef<{ snapshotId: string; revision: number; resolve: () => void; reject: (error: unknown) => void } | null>(null);
     const pendingReloadRef = useRef<{ resolve: () => void; reject: (error: unknown) => void } | null>(null);
     const editorReadyRef = useRef(false);
+    // load 尝试序号：StrictMode 双挂载下，每次 effect setup 递增；旧挂载的迟到回调按序号失配丢弃。
+    // 仅用闭包 boolean 会把「第二次挂载已生效」误判为取消（dev 骨架屏根因之一，batch 10 S2）。
+    const loadAttemptRef = useRef(0);
 
     useEffect(() => {
         if (!hydrated || !sessionHydrated) return;
-        let cancelled = false;
+        const attempt = ++loadAttemptRef.current;
+        const isStale = () => loadAttemptRef.current !== attempt;
         // Keep load intent on the refs until this attempt finishes. React Strict
         // Mode remounts the effect; consuming the flags here would turn "load
         // latest" into a normal open and immediately recreate the conflict.
@@ -117,7 +121,7 @@ export function useCanvasProjectLifecycle({
             observedContentRef.current = null;
         }
         const applyRestoredProject = (targetProject: CanvasProject) => {
-            if (cancelled) return;
+            if (isStale()) return;
             const fallbackTheme = useCanvasThemeStore.getState().theme;
             const restoredAppearance = targetProject.appearance
                 ? normalizeCanvasAppearance(targetProject.appearance, fallbackTheme)
@@ -162,7 +166,7 @@ export function useCanvasProjectLifecycle({
                 applyRestoredProject(cachedProject);
             }
             const loadedProject = await loadCanvasProjectForEditing(projectId, { latest, historyRestore: historyRestore || undefined, onLoad: applyRestoredProject });
-            if (cancelled) return;
+            if (isStale()) return;
             if (historyRestoreRef.current === historyRestore) {
                 historyRestoreRef.current = null;
                 historyRestore?.resolve();
@@ -172,23 +176,26 @@ export function useCanvasProjectLifecycle({
                 return;
             }
             const project = useCanvasStore.getState().projects.find((p) => p.id === projectId) || loadedProject;
+            // 辅助保险(batch 10)：load 已成功返回时，本次尝试的渲染门必须打开——即使 onLoad 因去重合并
+            // 或旧挂载被跳过，也不允许永久停在骨架屏（幂等，正常路径下 onLoad 已置 true）。
+            setProjectLoaded(true);
 
             // 画布媒体由节点自己的视口观察器按需加载；打开时遍历并解析全部节点会让大画布形成 N+1 资源读取。
             void hydrateAssistantImages(project.chatSessions || [])
                 .then((hydratedSessions) => {
-                    if (!cancelled) setChatSessions((current) => {
+                    if (!isStale()) setChatSessions((current) => {
                         const merged = mergeHydratedSessions(current, hydratedSessions);
                         if (observedContentRef.current?.chatSessions === current) observedContentRef.current = { ...observedContentRef.current, chatSessions: merged };
                         return merged;
                     });
                 })
                 .catch(() => {
-                    if (!cancelled) message.warning("部分助手会话素材恢复失败，已使用项目记录继续打开");
+                    if (!isStale()) message.warning("部分助手会话素材恢复失败，已使用项目记录继续打开");
                 });
         };
         void load()
             .then(() => {
-                if (cancelled) return;
+                if (isStale()) return;
                 loadLatestRef.current = false;
                 if (pendingReloadRef.current === pendingReload) {
                     pendingReloadRef.current = null;
@@ -196,7 +203,7 @@ export function useCanvasProjectLifecycle({
                 }
             })
             .catch((error) => {
-                if (cancelled) return;
+                if (isStale()) return;
                 loadLatestRef.current = false;
                 if (historyRestoreRef.current === historyRestore) {
                     historyRestoreRef.current = null;
@@ -218,7 +225,8 @@ export function useCanvasProjectLifecycle({
                 else setLoadError(detail);
             });
         return () => {
-            cancelled = true;
+            // 迟到的回调按序号失配丢弃；下一次 setup 会再次递增。
+            if (loadAttemptRef.current === attempt) loadAttemptRef.current = attempt + 1;
         };
     }, [hydrated, sessionHydrated, loadAttempt, message, navigate, openProject, projectId, resetHistory, setActiveChatId, setBackgroundMode, setCanvasAppearance, setChatSessions, setConnections, setNodes, setShowImageInfo, setViewport]);
 
