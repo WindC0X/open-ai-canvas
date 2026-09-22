@@ -97,17 +97,25 @@ export function useCanvasProjectLifecycle({
     const observedContentRef = useRef<CanvasHistorySnapshot | null>(null);
     const loadLatestRef = useRef(false);
     const historyRestoreRef = useRef<{ snapshotId: string; revision: number; resolve: () => void; reject: (error: unknown) => void } | null>(null);
+    const pendingReloadRef = useRef<{ resolve: () => void; reject: (error: unknown) => void } | null>(null);
+    const editorReadyRef = useRef(false);
 
     useEffect(() => {
         if (!hydrated || !sessionHydrated) return;
         let cancelled = false;
-        setProjectLoaded(false);
-        setLoadError("");
+        // Keep load intent on the refs until this attempt finishes. React Strict
+        // Mode remounts the effect; consuming the flags here would turn "load
+        // latest" into a normal open and immediately recreate the conflict.
         const latest = loadLatestRef.current;
-        loadLatestRef.current = false;
         const historyRestore = historyRestoreRef.current;
-        historyRestoreRef.current = null;
-        observedContentRef.current = null;
+        const pendingReload = pendingReloadRef.current;
+        const keepEditor = editorReadyRef.current && (latest || Boolean(historyRestore));
+        if (!keepEditor) {
+            editorReadyRef.current = false;
+            setProjectLoaded(false);
+            setLoadError("");
+            observedContentRef.current = null;
+        }
         const applyRestoredProject = (targetProject: CanvasProject) => {
             if (cancelled) return;
             const fallbackTheme = useCanvasThemeStore.getState().theme;
@@ -143,6 +151,7 @@ export function useCanvasProjectLifecycle({
             setShowImageInfo(snapshot.showImageInfo);
             setViewport(targetProject.viewport);
             resetHistory(snapshot);
+            editorReadyRef.current = true;
             setProjectLoaded(true);
         };
 
@@ -153,8 +162,11 @@ export function useCanvasProjectLifecycle({
                 applyRestoredProject(cachedProject);
             }
             const loadedProject = await loadCanvasProjectForEditing(projectId, { latest, historyRestore: historyRestore || undefined, onLoad: applyRestoredProject });
-            historyRestore?.resolve();
             if (cancelled) return;
+            if (historyRestoreRef.current === historyRestore) {
+                historyRestoreRef.current = null;
+                historyRestore?.resolve();
+            }
             if (!loadedProject) {
                 if (!cachedProject) navigate("/canvas", { replace: true });
                 return;
@@ -174,22 +186,39 @@ export function useCanvasProjectLifecycle({
                     if (!cancelled) message.warning("部分助手会话素材恢复失败，已使用项目记录继续打开");
                 });
         };
-        void load().catch((error) => {
-            // 上游：历史恢复调用方需感知失败；同步进度落 error，但冲突相位不覆盖（冲突门已在 service 侧设好）。
-            historyRestore?.reject(error);
-            if (!cancelled && useSyncProgressStore.getState().syncingProjects[projectId]?.phase !== "conflict") useSyncProgressStore.getState().setProjectProgress(projectId, { phase: "error", message: error instanceof Error ? error.message : "读取云端版本失败" });
-            // 我方：双向分歧冲突走冲突页（导出本地/放弃本地/加载云端），不当作普通读取失败。
-            if (cancelled) return;
-            if (error instanceof CanvasSyncConflictError) {
-                setLoadConflict(error);
-                setLoadError(error.message);
-                return;
-            }
-            setLoadError(error instanceof Error ? error.message : "读取画布失败，请重试");
-        });
+        void load()
+            .then(() => {
+                if (cancelled) return;
+                loadLatestRef.current = false;
+                if (pendingReloadRef.current === pendingReload) {
+                    pendingReloadRef.current = null;
+                    pendingReload?.resolve();
+                }
+            })
+            .catch((error) => {
+                if (cancelled) return;
+                loadLatestRef.current = false;
+                if (historyRestoreRef.current === historyRestore) {
+                    historyRestoreRef.current = null;
+                    historyRestore?.reject(error);
+                }
+                if (pendingReloadRef.current === pendingReload) {
+                    pendingReloadRef.current = null;
+                    pendingReload?.reject(error);
+                }
+                if (useSyncProgressStore.getState().syncingProjects[projectId]?.phase !== "conflict") useSyncProgressStore.getState().setProjectProgress(projectId, { phase: "error", message: error instanceof Error ? error.message : "读取云端版本失败" });
+                // 我方：双向分歧冲突走冲突页（导出本地/放弃本地/加载云端），不当作普通读取失败。
+                if (error instanceof CanvasSyncConflictError) {
+                    setLoadConflict(error);
+                    setLoadError(error.message);
+                    return;
+                }
+                const detail = error instanceof Error ? error.message : "读取画布失败，请重试";
+                if (keepEditor) message.error(detail);
+                else setLoadError(detail);
+            });
         return () => {
             cancelled = true;
-            historyRestore?.reject(new Error("画布页面已关闭，请重新打开查看恢复结果"));
         };
     }, [hydrated, sessionHydrated, loadAttempt, message, navigate, openProject, projectId, resetHistory, setActiveChatId, setBackgroundMode, setCanvasAppearance, setChatSessions, setConnections, setNodes, setShowImageInfo, setViewport]);
 
@@ -310,8 +339,12 @@ export function useCanvasProjectLifecycle({
 
     const reloadLatestCanvasProject = useCallback(async () => {
         await persistLocalEdits();
-        loadLatestRef.current = true;
-        setLoadAttempt((value) => value + 1);
+        return new Promise<void>((resolve, reject) => {
+            pendingReloadRef.current?.reject(new Error("已有新的加载请求"));
+            loadLatestRef.current = true;
+            pendingReloadRef.current = { resolve, reject };
+            setLoadAttempt((value) => value + 1);
+        });
     }, [persistLocalEdits]);
 
     const restoreCanvasProjectVersion = useCallback(async (snapshotId: string, revision: number) => {

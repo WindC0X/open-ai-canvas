@@ -47,6 +47,15 @@ func TestMigrateSchemaRecordsAndValidatesVersion(t *testing.T) {
 	if !db.Migrator().HasColumn(&model.PaymentProviderConfig{}, "plugin_version") || !db.Migrator().HasColumn(&model.PaymentOrder{}, "plugin_version") {
 		t.Fatal("schema migration v19 did not add payment plugin version columns")
 	}
+	if !db.Migrator().HasTable(&model.BannerAnnouncement{}) {
+		t.Fatal("schema migration v20 did not create banner announcements")
+	}
+	if !db.Migrator().HasColumn(&model.BannerAnnouncement{}, "title_runs") {
+		t.Fatal("schema migration v21 did not create banner announcements title_runs")
+	}
+	if !db.Migrator().HasColumn(&model.BannerAnnouncement{}, "notice_type") {
+		t.Fatal("schema migration v22 did not create banner announcements notice_type")
+	}
 	if err := MigrateSchema(db); err != nil {
 		t.Fatalf("migration should be idempotent: %v", err)
 	}
@@ -78,8 +87,8 @@ func TestMigrateSchemaV15UpgradesExistingDatabase(t *testing.T) {
 	}
 }
 
-func TestMigrateSchemaV17UpgradesExistingDatabase(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-lessons-v17?mode=memory&cache=shared"})
+func TestMigrateSchemaV16UpgradesExistingDatabase(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-lessons-v16?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,11 +98,11 @@ func TestMigrateSchemaV17UpgradesExistingDatabase(t *testing.T) {
 	if err := db.Migrator().DropTable(&model.AgentLesson{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 17).Delete(&schemaMigration{}).Error; err != nil {
+	if err := db.Where("version = ?", 16).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := MigrateSchema(db); err != nil {
-		t.Fatalf("upgrade from v16: %v", err)
+		t.Fatalf("upgrade from v15: %v", err)
 	}
 	if !db.Migrator().HasTable(&model.AgentLesson{}) || !db.Migrator().HasIndex(&model.AgentLesson{}, "idx_agent_lessons_status") {
 		t.Fatal("v16 upgrade did not install Agent lesson table and status index")
@@ -104,8 +113,8 @@ func TestMigrateSchemaV17UpgradesExistingDatabase(t *testing.T) {
 	}
 }
 
-func TestMigrateSchemaV18UpgradesExistingDatabase(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-lessons-v18?mode=memory&cache=shared"})
+func TestMigrateSchemaV17UpgradesExistingDatabase(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-lessons-v17?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +124,7 @@ func TestMigrateSchemaV18UpgradesExistingDatabase(t *testing.T) {
 	if err := db.Migrator().DropIndex(&model.AgentLesson{}, "idx_agent_lessons_author_status"); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 18).Delete(&schemaMigration{}).Error; err != nil {
+	if err := db.Where("version = ?", 17).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := MigrateSchema(db); err != nil {
@@ -130,8 +139,8 @@ func TestMigrateSchemaV18UpgradesExistingDatabase(t *testing.T) {
 	}
 }
 
-func TestMigrateSchemaV19UpgradesExistingDatabase(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-memory-settings-v19?mode=memory&cache=shared"})
+func TestMigrateSchemaV18UpgradesExistingDatabase(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-agent-memory-settings-v18?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +150,7 @@ func TestMigrateSchemaV19UpgradesExistingDatabase(t *testing.T) {
 	if err := db.Migrator().DropTable(&model.AgentMemorySetting{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 19).Delete(&schemaMigration{}).Error; err != nil {
+	if err := db.Where("version = ?", 18).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := MigrateSchema(db); err != nil {
@@ -156,8 +165,8 @@ func TestMigrateSchemaV19UpgradesExistingDatabase(t *testing.T) {
 	}
 }
 
-func TestMigrateSchemaV20AddsPaymentPluginVersion(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-payment-plugin-version-v20?mode=memory&cache=shared"})
+func TestMigrateSchemaV19AddsPaymentPluginVersion(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-payment-plugin-version-v19?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +179,7 @@ func TestMigrateSchemaV20AddsPaymentPluginVersion(t *testing.T) {
 	if err := db.Migrator().DropColumn(&model.PaymentOrder{}, "PluginVersion"); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 20).Delete(&schemaMigration{}).Error; err != nil {
+	if err := db.Where("version = ?", 19).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := MigrateSchema(db); err != nil {
@@ -188,8 +197,118 @@ func TestMigrateSchemaV20AddsPaymentPluginVersion(t *testing.T) {
 	}
 }
 
-func TestMigrateSchemaV16BackfillsCanvasRevisions(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-canvas-revisions-v16?mode=memory&cache=shared"})
+func TestMigrateSchemaV20UpgradesExistingDatabaseWithBannerAnnouncements(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-banner-announcements-v20?mode=memory&cache=shared"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSchema(db); err != nil {
+		t.Fatal(err)
+	}
+	if !db.Migrator().HasTable(&model.BannerAnnouncement{}) {
+		t.Fatal("v20 migration did not create banner_announcements table")
+	}
+	// 模拟旧库升级：删表 + 删除 v20 记录，重跑迁移应能重建。
+	if err := db.Migrator().DropTable(&model.BannerAnnouncement{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Where("version = ?", 20).Delete(&schemaMigration{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSchema(db); err != nil {
+		t.Fatalf("upgrade from v19: %v", err)
+	}
+	if !db.Migrator().HasTable(&model.BannerAnnouncement{}) {
+		t.Fatal("v20 upgrade did not reinstall banner_announcements table")
+	}
+	status, err := ReadSchemaStatus(db)
+	if err != nil || !status.Ready || status.Current != CurrentSchemaVersion {
+		t.Fatalf("unexpected upgraded schema status: %+v, %v", status, err)
+	}
+}
+
+func TestMigrateSchemaV21AddsBannerAnnouncementTitleRuns(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-banner-title-runs-v21?mode=memory&cache=shared"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSchema(db); err != nil {
+		t.Fatal(err)
+	}
+	if !db.Migrator().HasColumn(&model.BannerAnnouncement{}, "title_runs") {
+		t.Fatal("v21 migration did not add banner_announcements.title_runs")
+	}
+	legacy := &model.BannerAnnouncement{ID: "legacy-banner", Title: "旧库通知", Status: "active"}
+	if err := db.Create(legacy).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrator().DropColumn(&model.BannerAnnouncement{}, "title_runs"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Where("version = ?", 21).Delete(&schemaMigration{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSchema(db); err != nil {
+		t.Fatalf("upgrade from v20: %v", err)
+	}
+	if !db.Migrator().HasColumn(&model.BannerAnnouncement{}, "title_runs") {
+		t.Fatal("v21 upgrade did not restore banner_announcements.title_runs")
+	}
+	var stored model.BannerAnnouncement
+	if err := db.First(&stored, "id = ?", "legacy-banner").Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.Title != "旧库通知" {
+		t.Fatalf("legacy banner lost during upgrade: %+v", stored)
+	}
+	status, err := ReadSchemaStatus(db)
+	if err != nil || !status.Ready || status.Current != CurrentSchemaVersion {
+		t.Fatalf("unexpected upgraded schema status: %+v, %v", status, err)
+	}
+}
+
+func TestMigrateSchemaV22AddsBannerAnnouncementNoticeType(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-banner-notice-type-v22?mode=memory&cache=shared"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSchema(db); err != nil {
+		t.Fatal(err)
+	}
+	if !db.Migrator().HasColumn(&model.BannerAnnouncement{}, "notice_type") {
+		t.Fatal("v22 migration did not add banner_announcements.notice_type")
+	}
+	legacy := &model.BannerAnnouncement{ID: "legacy-banner-v21", Title: "旧库通知", TitleRunsJSON: `[{"text":"旧库通知"}]`, Status: "active"}
+	if err := db.Create(legacy).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrator().DropColumn(&model.BannerAnnouncement{}, "notice_type"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Where("version = ?", 22).Delete(&schemaMigration{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSchema(db); err != nil {
+		t.Fatalf("upgrade from v21: %v", err)
+	}
+	if !db.Migrator().HasColumn(&model.BannerAnnouncement{}, "notice_type") {
+		t.Fatal("v22 upgrade did not restore banner_announcements.notice_type")
+	}
+	var stored model.BannerAnnouncement
+	if err := db.First(&stored, "id = ?", "legacy-banner-v21").Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.Title != "旧库通知" || stored.TitleRunsJSON != `[{"text":"旧库通知"}]` {
+		t.Fatalf("legacy banner lost during upgrade: %+v", stored)
+	}
+	status, err := ReadSchemaStatus(db)
+	if err != nil || !status.Ready || status.Current != CurrentSchemaVersion {
+		t.Fatalf("unexpected upgraded schema status: %+v, %v", status, err)
+	}
+}
+
+func TestMigrateSchemaV23BackfillsCanvasRevisions(t *testing.T) {
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:migration-canvas-revisions-v23?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +324,7 @@ func TestMigrateSchemaV16BackfillsCanvasRevisions(t *testing.T) {
 	if err := db.Exec(`INSERT INTO canvas_projects (id, user_id, title, payload_json) VALUES ('legacy', 'owner', 'Existing canvas', '{"nodes":[]}')`).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 16).Delete(&schemaMigration{}).Error; err != nil {
+	if err := db.Where("version = ?", 23).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := MigrateSchema(db); err != nil {
