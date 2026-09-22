@@ -2772,6 +2772,55 @@ function InfiniteCanvasPage() {
                             shortDramaGuide={shortDramaGuide}
                         />
                     ) : null}
+                    {/* W4 集成遗漏回归修复（2026-09-23，batch10 第 2 缺陷）：W4 处置类A③ 误删上游新版挂载三件套，
+                        导致全画布无节点创建入口（素材插入除外）。以下为上游 9148ceab:2663-2707 的挂载形态（含
+                        freeformCreateCommands 消费，见 emptyCanvasState），锚点=画布编辑区 TopBar 之后同级。
+                        注意：这是「画布工具栏 CanvasToolbar」，与 F-06 双实例的「节点工具栏 CanvasNodeToolbar」是不同组件。 */}
+                    <CanvasFileDropOverlay active={fileDropActive} theme={theme} />
+
+                    {emptyCanvasState}
+
+                    {!focusMode || focusDockRevealed ? (
+                        <CanvasToolbar
+                            selectedCount={selectedNodeIds.size}
+                            workspaceMode={workspaceMode}
+                            canvasTool={canvasTool}
+                            onToolChange={setCanvasTool}
+                            isProjectLinked={Boolean(shortDramaEnabled && currentProject?.projectId)}
+                            canUndo={historyState.canUndo}
+                            canRedo={historyState.canRedo}
+                            appearance={canvasAppearance}
+                            backgroundMode={backgroundMode}
+                            showImageInfo={showImageInfo}
+                            onAddImage={() => createNode(CanvasNodeType.Image)}
+                            onAddVideo={() => createNode(CanvasNodeType.Video)}
+                            onAddAudio={() => createNode(CanvasNodeType.Audio)}
+                            onAddText={() => createNode(CanvasNodeType.Text)}
+                            onChooseStyle={() => setStylePickerOpen(true)}
+                            onAddScript={() => createNode(CanvasNodeType.Script)}
+                            onAddFrame={() => createNode(CanvasNodeType.Frame)}
+                            onAddFolder={createFolder}
+                            onAddDrawing={() => createNode(CanvasNodeType.Drawing)}
+                            onAddExtensionNode={(type) => createNode(type)}
+                            onAddWorkflow={() => createNode(CanvasNodeType.Config)}
+                            onOpenDirector={() => setDirectorTemplateRequest({})}
+                            onUndo={undoCanvas}
+                            onRedo={redoCanvas}
+                            onUpload={() => handleUploadRequest()}
+                            onDelete={() => deleteNodes(new Set(selectedNodeIds))}
+                            onClear={() => setClearConfirmOpen(true)}
+                            onDeselect={deselectCanvas}
+                            onAppearanceChange={applyCanvasAppearance}
+                            onSaveAppearanceDefault={saveCanvasAppearanceDefault}
+                            onBackgroundModeChange={setBackgroundMode}
+                            onShowImageInfoChange={setShowImageInfo}
+                            onOpenWorkspace={() => setWorkspaceOpen((value) => !value)}
+                            onOpenMyAssets={() => {
+                                openCanvasAssetLibrary();
+                            }}
+                            onOpenProjectCharacters={() => openProjectAssets("character")}
+                        />
+                    ) : null}
 
                     <CanvasNodeSearchModal
                         open={nodeSearchOpen}
