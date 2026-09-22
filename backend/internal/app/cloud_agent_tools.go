@@ -191,9 +191,9 @@ func compileCloudAgentTools(req CloudAgentRequest, includeProfileTool bool) []ma
 				"steps": map[string]any{"type": "array", "maxItems": 12, "items": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
-						"tool":   str("这一步用哪个工具（工具名）"),
+						"tool":   str("工具名"),
 						"action": str("这一步做什么"),
-						"note":   str("可选：坑/前提/注意"),
+						"note":   str("可选：坑或前提"),
 					},
 					"required": []string{"tool", "action"}, "additionalProperties": false,
 				}},
@@ -235,7 +235,7 @@ func compileCloudAgentTools(req CloudAgentRequest, includeProfileTool bool) []ma
 			"globalPrompt": str("set_global_prompt 使用；非空时覆盖各任务提示词，空字符串清除全局提示词"),
 		}, "snapshotHash", "nodeId", "action")
 		opProperties := map[string]any{
-			"type":       map[string]any{"type": "string", "enum": []string{"add_node", "update_node", "connect_nodes"}},
+			"type":       map[string]any{"type": "string", "enum": []string{"add_node", "update_node", "connect_nodes"}, "description": "必填的操作类型；新增节点必须传 add_node，nodeType 不能代替本字段"},
 			"id":         str("节点或连线唯一ID"),
 			"nodeType":   map[string]any{"type": "string", "enum": cloudAgentNodeTypeNames()},
 			"title":      str("标题；更新操作可选"),

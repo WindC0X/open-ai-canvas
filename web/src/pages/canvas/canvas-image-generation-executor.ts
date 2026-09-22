@@ -2,10 +2,11 @@ import { nanoid } from "nanoid";
 
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { canGenerateImageInPlace, findAvailableGenerationGroupPosition, imageGenerationChildPosition, imageGenerationGroupSize } from "@/lib/canvas/canvas-generation-layout";
-import { cancelIncompleteImageBatch, retireImageBatchChildren } from "@/lib/canvas/canvas-image-batch-retry";
+import { cancelIncompleteImageBatch, hasImageBatchResult, reconcileImageBatchRoot, retireImageBatchChildren } from "@/lib/canvas/canvas-image-batch-retry";
 import { buildImageGenerationNodeTitle } from "@/lib/canvas/canvas-generation-title";
 import { MEDIA_NODE_MAX_SIZE, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
 import { canvasImageReferenceLimitError, buildImageGenerationMetadata, getGenerationCount, isGenerationCanceled, runCanvasGenerationTaskToConsumer } from "@/lib/canvas/canvas-project-generation";
+import { resetGenerationTaskMetadata } from "@/lib/canvas/canvas-project-generation";
 import { imageGenerationReferenceConnections } from "@/lib/canvas/canvas-resource-references";
 import { canvasGenerationPromptMetadata } from "@/lib/canvas/canvas-generation-submission";
 import { CONTENT_MODERATION_ERROR_CODE, generationFailureMetadata, type GenerationFailureMetadata } from "@/lib/generation-error";
@@ -54,7 +55,7 @@ export async function executeImageGeneration({
     const count = getGenerationCount(generationConfig.count);
     const isConfigNode = sourceNode?.type === CanvasNodeType.Config;
     const isImageNode = sourceNode?.type === CanvasNodeType.Image;
-    const isExistingImageNode = isImageNode && Boolean(sourceNode?.metadata?.content);
+    const isExistingImageNode = isImageNode && hasImageBatchResult(sourceNode);
     const reuseSourceNode = canGenerateImageInPlace(sourceNode);
     const retired = reuseSourceNode && sourceNode ? retireImageBatchChildren(sourceNode, canvasNodes, canvasConnections) : { nodes: canvasNodes, connections: canvasConnections, removedIds: [] as string[] };
     const workingNodes = retired.nodes;
@@ -73,7 +74,7 @@ export async function executeImageGeneration({
     // auto 图生图沿用来源节点尺寸；空节点原地生成沿用当前占位框（用户看到的 3:4 不该被 auto 重置成默认 16:9，
     // 否则点生成后占位跳 16:9、结束又跳回，实测 2026-09-21）；用户明确选择比例时必须以目标比例创建节点。
     const referenceNode = referenceImages.length === 1 ? canvasNodes.find((node) => node.id === referenceImages[0].id && node.type === CanvasNodeType.Image) : undefined;
-    const imageSizeSource = requestedImageSize ? undefined : isImageNode && sourceNode?.metadata?.content ? sourceNode : reuseSourceNode && sourceNode ? sourceNode : referenceNode;
+    const imageSizeSource = requestedImageSize ? undefined : isExistingImageNode ? sourceNode : referenceNode;
     const outputNodeSize = imageSizeSource ? { width: imageSizeSource.width, height: imageSizeSource.height } : imageConfig;
     const parentPosition = sourceNode?.position || { x: 0, y: 0 };
     const parentWidth = sourceNode?.width || parentConfig.width;
@@ -98,7 +99,7 @@ export async function executeImageGeneration({
         width: rootWidth,
         height: rootHeight,
         metadata: {
-            ...(reuseSourceNode ? sourceNode?.metadata || {} : {}),
+            ...resetGenerationTaskMetadata(reuseSourceNode ? sourceNode?.metadata : undefined, NODE_STATUS_LOADING),
             ...canvasGenerationPromptMetadata(prompt, effectivePrompt),
             status: NODE_STATUS_LOADING,
             size: generationConfig.size,
@@ -108,6 +109,8 @@ export async function executeImageGeneration({
             batchUsesReferenceImages: referenceImages.length > 0,
             primaryImageId: undefined,
             content: reuseSourceNode ? "" : undefined,
+            storageKey: undefined,
+            assetId: undefined,
             ...generationMetadata,
             ...styleMetadata,
             ...skillMetadata,
@@ -148,7 +151,7 @@ export async function executeImageGeneration({
         ...workingNodes.map((node) => {
             if (node.id !== nodeId) return node;
             if (isConfigNode) return { ...node, metadata: { ...node.metadata, ...canvasGenerationPromptMetadata(prompt, effectivePrompt), status: NODE_STATUS_LOADING, errorDetails: undefined } };
-            if (reuseSourceNode) return { ...node, position: rootNode.position, width: rootNode.width, height: rootNode.height, title: rootNode.title, metadata: { ...node.metadata, ...rootNode.metadata, errorDetails: undefined } };
+            if (reuseSourceNode) return { ...node, position: rootNode.position, width: rootNode.width, height: rootNode.height, title: rootNode.title, metadata: rootNode.metadata };
             if (isImageNode) return node;
             return {
                 ...node,
@@ -214,7 +217,7 @@ export async function executeImageGeneration({
                     setNodes((current) => {
                         const child = current.find((node) => node.id === targetId);
                         const root = current.find((node) => node.id === rootId);
-                        if (!child?.metadata?.content || !root || root.metadata?.primaryImageId) return current;
+                        if (!child || !hasImageBatchResult(child) || !root || root.metadata?.primaryImageId) return current;
                         const center = { x: root.position.x + root.width / 2, y: root.position.y + root.height / 2 };
                         const geometry = root.metadata?.locked
                             ? {}
@@ -293,6 +296,7 @@ export async function executeImageGeneration({
                 };
             }
             if (node.id === rootId) {
+                if (count > 1) return reconcileImageBatchRoot(node, current);
                 return {
                     ...node,
                     metadata: {

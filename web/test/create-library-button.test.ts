@@ -69,8 +69,7 @@ describe("creation library button", () => {
         const source = readCreateWorkspaceSource();
         const styles = readFileSync(resolve(import.meta.dir, "../src/styles/globals.css"), "utf8");
 
-        expect(source).toContain("Reorder"); // 上游演进后 import 合并为 { Reorder, LayoutGroup, motion, useReducedMotion }
-        expect(source).toContain('"motion/react"');
+        expect(source).toContain('import { Reorder, LayoutGroup, motion, useReducedMotion } from "motion/react"');
         expect(source).toContain("<Reorder.Group");
         expect(source).toContain('axis="x"');
         expect(source).toContain("values={visibleAttachments}");

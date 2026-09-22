@@ -12,6 +12,7 @@ import { logicalModelFamilyOf, modelDisplayName, modelIcon, modelOptionName, PUB
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { ModelLogo, modelProviderTitleOf } from "@/components/model-logo";
+import { ModelTags } from "@/components/model-tags";
 import { quoteLogicalModel, type CapabilitySpec, type LogicalModelQuote, quoteModel } from "@/services/api/logical-models";
 
 // flora 语法: 模型置顶(Pinned models 组)。影策无账号级收藏服务, 前端 localStorage 持久化(按浏览器/用户代理隔离)。
@@ -718,7 +719,7 @@ export function ModelPicker({
                 fiber 实测: hooks 已提交 null 而陈旧 flyout 仍 connected)。根级挂载让 portal
                 的卸载跟随本组件自身 commit, 与 antd 动画生命周期解耦。挂载点仍是
                 document.body(position:fixed 定位语义不变)。 */}
-            {createPortal(
+            {typeof document !== "undefined" && document.getElementById("root") ? createPortal(
                 flyoutGroup ? (
                     <div
                         ref={flyoutRef}
@@ -752,8 +753,9 @@ export function ModelPicker({
                 // 挂载点 body → #root(2026-09-11 issue-1 根修): React 19 委托 listener 在
                 // createRoot container 上派发最可靠; #root 顶层无 transform 祖先,
                 // position:fixed 定位语义不变, z-index 1200 已在 CSS 声明。
+                // SSR/静态渲染下无 document: 仅在浏览器侧解析 portal 根(flyout 由 flyoutGroup 驱动, SSR 恒不渲染)。
                 document.getElementById("root") as HTMLElement,
-            )}
+            ) : null}
         </div>
     );
 }
@@ -780,7 +782,7 @@ function imageCapabilityChips(config: AiConfig, model: string): string[] {
     return tiers.map((tier) => tier.toUpperCase());
 }
 
-function ModelLabel({
+export function ModelLabel({
     config,
     model,
     capability,
@@ -843,6 +845,7 @@ function ModelLabel({
                 >
                     <span className="canvas-model-picker-subtitle-inner">{capabilitySummary}</span>
                 </span>
+                <ModelTags tags={logicalCost?.tags} />
             </span>
             {showPrice ? <ModelPrice price={modelMenuPrice(config, model, capability, true)} chip /> : null}
         </span>
