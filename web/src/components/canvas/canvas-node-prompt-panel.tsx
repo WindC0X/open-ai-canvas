@@ -1,7 +1,8 @@
 import { Button, Image as AntImage, InputNumber, Modal, Popover } from "antd";
 import { Tooltip } from "@/components/ui/base/tooltip";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowUp, AtSign, Boxes, Camera, ChevronDown, FileText, GripVertical, ImageIcon, ImagePlus, Link2, LoaderCircle, Maximize2, Music2, Pencil, Quote, SlidersHorizontal, UserRound, Video, WandSparkles, X, ArrowLeftRight } from "lucide-react";
+
+import { ArrowUp, AtSign, Boxes, Camera, ChevronDown, FileText, GripVertical, ImageIcon, ImagePlus, Link2, LoaderCircle, Maximize2, Music2, Pencil, Quote, SlidersHorizontal, UserRound, Video, WandSparkles, X, ArrowLeftRight, LayoutList } from "lucide-react";
 
 import { ModelPicker } from "@/components/model-picker";
 import { defaultConfig, modelOptionName, resolveModelChannel, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
@@ -58,6 +59,7 @@ type CanvasNodePromptPanelProps = {
     onNodeMouseDown?: (event: ReactPointerEvent, nodeId: string) => void;
     onImageSettingsOpenChange?: (open: boolean) => void;
     workspaceMode?: CanvasWorkspaceMode;
+    onListGenerate?: (nodeId: string, prompt: string) => void;
 };
 
 type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
@@ -76,7 +78,7 @@ const PROMPT_EDITOR_MODAL_WIDTH = "min(1200px, 92vw)";
 const PROMPT_EDITOR_MODAL_DEFAULT_WIDTH = 1200;
 const PROMPT_EDITOR_MODAL_DEFAULT_HEIGHT = 420;
 
-export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChange, onConfigChange, onGenerate, mentionReferences = [], onAddReference, onRemoveReference, onReorderReferences, onReplaceReference, onReplaceReferenceFiles, onClose, onNodeMouseDown, onImageSettingsOpenChange, workspaceMode = "professional" }: CanvasNodePromptPanelProps) {
+export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChange, onConfigChange, onGenerate, mentionReferences = [], onAddReference, onRemoveReference, onReorderReferences, onReplaceReference, onReplaceReferenceFiles, onClose, onNodeMouseDown, onImageSettingsOpenChange, workspaceMode = "professional", onListGenerate }: CanvasNodePromptPanelProps) {
     const globalConfig = useEffectiveConfig();
     const themeName = useActiveTheme();
     const theme = canvasThemes[themeName];
@@ -295,7 +297,8 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const submit = () => {
         const text = prompt.trim();
         if (!text || isRunning) return false;
-        onGenerate(node.id, mode, text);
+        if (mode === "text" && node.metadata?.listMode && onListGenerate) onListGenerate(node.id, text);
+        else onGenerate(node.id, mode, text);
         return true;
     };
 
@@ -513,14 +516,28 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     />
                     <span aria-hidden className="canvas-node-composer-divider" />
                     {mode === "text" ? (
-                        <CanvasTextSettingsPopover
-                            supplyNodeId={node.id}
-                            value={Math.max(1, Math.min(15, Math.floor(Math.abs(Number(node.metadata?.textCount) || 1))))}
-                            onChange={(value) => onConfigChange(node.id, { textCount: value })}
-                            placement={expanded ? "topRight" : "topLeft"}
-                            buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
-                        />
-                    ) : mode === "image" ? (
+                        <>
+                            <div className="flex h-7 items-center overflow-hidden rounded-md border" style={{ borderColor: theme.node.stroke }}>
+                                <button type="button" aria-pressed={!node.metadata?.listMode} onClick={() => onConfigChange(node.id, { listMode: false })} className={`flex h-full items-center gap-1 px-2 text-[var(--fs-tiny)] transition-colors focus-visible:outline ${!node.metadata?.listMode ? "font-medium" : ""}`} style={!node.metadata?.listMode ? { background: theme.toolbar.activeBg, color: theme.toolbar.activeText } : { color: theme.node.muted }}>
+                                    <FileText className="size-3" />
+                                    文本
+                                </button>
+                                <button type="button" aria-pressed={Boolean(node.metadata?.listMode)} onClick={() => onConfigChange(node.id, { listMode: true })} className={`flex h-full items-center gap-1 px-2 text-[var(--fs-tiny)] transition-colors focus-visible:outline ${node.metadata?.listMode ? "font-medium" : ""}`} style={node.metadata?.listMode ? { background: theme.toolbar.activeBg, color: theme.toolbar.activeText } : { color: theme.node.muted }}>
+                                    <LayoutList className="size-3" />
+                                    列表
+                                </button>
+                            </div>
+                            {!node.metadata?.listMode ? (
+                                <CanvasTextSettingsPopover
+                                supplyNodeId={node.id}
+                                value={Math.max(1, Math.min(15, Math.floor(Math.abs(Number(node.metadata?.textCount) || 1))))}
+                                onChange={(value) => onConfigChange(node.id, { textCount: value })}
+                                placement={expanded ? "topRight" : "topLeft"}
+                                buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
+                                />
+                                ) : <span className="text-[10px]" style={{ color: theme.node.muted }}>行数和列结构由模型判断</span>}
+                        </>
+                        ) : mode === "image" ? (
                         // 份数入口恒显示: maxOutputs=1 的模型(如 Grok)列表只有 1 行, 入口消失会让用户找不到份数设置。
 
                         <CanvasCountSettingsPopover
