@@ -76,7 +76,7 @@ type cloudAgentRuntime struct {
 	EmptyOutputNudged      int                       `json:"emptyOutputNudged,omitempty"`
 	StepSnapshotHash       string                    `json:"stepSnapshotHash,omitempty"`
 	// StepFullSnapshotHash 与 StepSnapshotHash 同点赋值，仅用于 mutation 链衔接（fullHash 口径）；
-	// W4 过渡态：W5 按 adf3a5be 复核（若上游自带双口径或改守卫口径，删除本字段取上游方案）。
+	// W5 复核（卡 02）：上游无自带双口径方案，本字段为执行序 3 的定点实现，保留。
 	StepFullSnapshotHash string                                  `json:"stepFullSnapshotHash"`
 	StoryboardTaskID     string                                  `json:"storyboardTaskId,omitempty"`
 	Plan                 []cloudAgentPlanItem                    `json:"plan,omitempty"`

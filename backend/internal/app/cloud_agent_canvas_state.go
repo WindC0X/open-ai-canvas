@@ -89,7 +89,7 @@ func cloudAgentHashNormalizable(value any) any {
 // "画布已变化"拒绝, Agent 需重读重审批)。所有面向模型的 snapshotHash(canvas_get_state 返回、
 // 工具结果、同轮刷新)都用本口径; mutation 账本与 undo 校验仍用完整口径, 保住 A5"用户手动变更
 // 阻断撤销"的语义(撤销不得静默回滚用户拖动)。
-// W4 过渡态，W5 按 adf3a5be 完整重演（执行序 3：链证明内 fullHash 校验、重写值 contentHash 口径统一）。
+// W5 复核（卡 01）：模型可见口径 = contentHash（剔 position）；上游全口径返回点已全部改接，本波收口。
 func cloudAgentContentHash(doc map[string]any) string {
 	projected := make(map[string]any, len(doc))
 	for key, value := range doc {
@@ -114,7 +114,7 @@ func cloudAgentContentHash(doc map[string]any) string {
 // Generation uses the graph, not canvas presentation or autosave bookkeeping.
 // Keep all node business fields (including unknown metadata) fail-closed, and
 // keep the full canvas hash for mutations/undo and the database CAS.
-// W4 过渡态：采纳上游宽容口径（忽略 position/width/height/createdAt/updatedAt）；W5 卡 01 口径核对清单条目。
+// W5 复核（卡 01）：与上游 adf3a5be 完整实现逐行一致（采纳上游宽容字段集），本波收口。
 func cloudAgentMediaContentHash(doc map[string]any) string {
 	content := map[string]any{"connections": doc["connections"]}
 	nodes := creationMaps(doc["nodes"])

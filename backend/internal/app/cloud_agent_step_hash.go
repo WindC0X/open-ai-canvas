@@ -28,7 +28,8 @@ func cloudAgentCaptureStepSnapshotHash(calls []cloudAgentCall) string {
 
 // cloudAgentCaptureStepFullSnapshotHash 与 cloudAgentCaptureStepSnapshotHash 同点调用，
 // 捕获链衔接所需的 fullHash 口径基线（mutation 账本 Before/After 均为 cloudAgentCanvasHash）。
-// W4 过渡态：执行序 3 提前、范围受限；W5 按 adf3a5be 完整版复核。取不到时返回空串，链证明据此拒绝（安全方向）。
+// W5 复核（卡 02）：本函数为「上游链证明 + 我方截断修复」融合体的定点实现，
+// 执行序 1/2/3 均已完整落地，双口径字段见 state.StepFullSnapshotHash。
 func cloudAgentCaptureStepFullSnapshotHash(s *Service, run *model.CloudAgentExecution, state *cloudAgentRuntime) string {
 	if s == nil || run == nil || state == nil {
 		return ""
@@ -137,7 +138,8 @@ func (s *Service) cloudAgentRefreshStepSnapshotHash(run *model.CloudAgentExecuti
 	if repaired := cloudAgentRepairSnapshotHashAgainst(call, run.ID, current.SnapshotHash, latest); repaired.Function.Arguments != call.Function.Arguments {
 		return repaired
 	}
-	// 上游链证明结构（执行序 1）；W4 过渡态，W5 按 adf3a5be 完整重演。
+	// 上游链证明结构（卡 02 执行序 1）：链内以 fullHash 校验（与 mutation 账本同口径），
+	// 最终重写值取我方 contentHash（卡 01 模型可见口径）。
 	latestCanvas := cloudAgentCanvasHash(doc)
 	if latestCanvas == "" {
 		return call
