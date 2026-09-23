@@ -64,3 +64,22 @@ test("节点 DOM 锚点 data-node-id 由节点组件提供（e2e 可见性断言
     const nodeSource = readFileSync(new URL("../src/components/canvas/canvas-node.tsx", import.meta.url), "utf8");
     expect(nodeSource).toContain("data-node-id={data.id}");
 });
+
+// 回归：第 4 缺陷（条件结构拼接，2026-09-23）——W4 拼接时把上游的
+// {angleNode?.metadata?.content ? ( wrapper 装到了 fork 本体 node={selectedPanelNode} 上，
+// 条件对普通节点恒 false ⇒ composer 面板永不渲染。以下两例锁定「条件与渲染对象配对」。
+test("普通节点 toggleDialog 后 composer 面板必须可渲染（无 angleNode 条件包裹）", () => {
+    const match = pageSource.match(/\{selectedPanelNode \? \([\s\S]*?<\/AffordanceSurface>/);
+    expect(match).toBeTruthy();
+    const block = match![0];
+    expect(block).toContain("<CanvasNodePanelOverlay");
+    expect(block).toContain("node={selectedPanelNode}");
+    expect(block).not.toContain("angleNode?.metadata?.content ? (");
+});
+
+test("angleNode 面板（独立块）仍可达：条件与渲染对象配对", () => {
+    const conditionCount = (pageSource.match(/angleNode\?\.metadata\?\.content \? \(/g) || []).length;
+    expect(conditionCount).toBe(1);
+    const match = pageSource.match(/\{angleNode\?\.metadata\?\.content \? \([\s\S]*?node=\{angleNode\}/);
+    expect(match).toBeTruthy();
+});

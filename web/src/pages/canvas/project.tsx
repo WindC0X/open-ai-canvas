@@ -3041,7 +3041,6 @@ function InfiniteCanvasPage() {
                             className="canvas-node-panel-affordance absolute inset-0"
                             style={{ pointerEvents: "none" }}
                         >
-                        {angleNode?.metadata?.content ? (
                             <CanvasNodePanelOverlay
                                 node={selectedPanelNode}
                                 viewport={viewport}
@@ -3053,7 +3052,6 @@ function InfiniteCanvasPage() {
                                 {/* 按节点强重建(issue-1 根修): 复用实例会让旧节点曾打开的 ModelPicker 菜单 open state 跨节点残留。 */}
                                 <div key={selectedPanelNode.id} className="canvas-node-panel-enter">{renderCanvasNodePanel(selectedPanelNode)}</div>
                             </CanvasNodePanelOverlay>
-                            ) : null}
                         </AffordanceSurface>
                     ) : null}
 
