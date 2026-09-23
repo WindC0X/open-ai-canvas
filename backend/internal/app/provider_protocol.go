@@ -118,9 +118,7 @@ func runProtocolAdapterTaskWithPolicy(ctx context.Context, input canvasGeneratio
 		if err != nil {
 			return videoPollOutcome{}, err
 		}
-		if state.TaskID != "" {
-			taskID = state.TaskID
-		}
+		taskID = resolvePolledTaskID(taskID, state.TaskID)
 		switch state.Status {
 		case protocol.StatusSucceeded:
 			result, err := finishProtocolAdapterResult(ctx, input, adapter, request, taskID, state.Result, policy)
@@ -130,6 +128,16 @@ func runProtocolAdapterTaskWithPolicy(ctx context.Context, input canvasGeneratio
 		}
 		return videoPollOutcome{}, nil
 	})
+}
+
+// resolvePolledTaskID 决定轮询响应携带的任务 ID 是否覆写当前任务 ID。
+// G1（2026-09-24 批2）：旧打包件的模板 $coalesce 尾项可能是缺省哨兵裸字面量 "taskId"，
+// 它不是真实 ID，不得覆写宿主任务 ID；空值同样保持现状；其余（真实响应 ID / 宿主 taskID）照常采用。
+func resolvePolledTaskID(current, polled string) string {
+	if polled == "" || polled == "taskId" {
+		return current
+	}
+	return polled
 }
 
 func extractProviderTaskID(body []byte) (string, error) {

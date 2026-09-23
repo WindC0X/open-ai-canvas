@@ -264,3 +264,16 @@ func fastVideoPollPolicy() videoPollPolicy {
 func runVideoTaskForTest(ctx context.Context, input canvasGenerationInput) (map[string]interface{}, error) {
 	return runVideoTaskWithPolicy(ctx, input, fastVideoPollPolicy())
 }
+
+// G1（2026-09-24 批2）：旧打包件模板缺省哨兵裸字面量 "taskId" 不得覆写宿主真实任务 ID。
+func TestPolledTaskIDSentinelDoesNotOverrideHostTaskID(t *testing.T) {
+	if got := resolvePolledTaskID("real-task-1", "taskId"); got != "real-task-1" {
+		t.Fatalf("sentinel overwrote host id: %q", got)
+	}
+	if got := resolvePolledTaskID("real-task-1", ""); got != "real-task-1" {
+		t.Fatalf("empty poll id overwrote host id: %q", got)
+	}
+	if got := resolvePolledTaskID("real-task-1", "real-task-2"); got != "real-task-2" {
+		t.Fatalf("real poll id not applied: %q", got)
+	}
+}

@@ -333,7 +333,9 @@ HTTP 失败、业务错误码或状态进入 `failed` 时，任务以失败结�
               {
                 "$ref": "response.data.id"
               },
-              "taskId"
+              {
+                "$ref": "taskId"
+              }
             ]
           },
           "status": {
@@ -627,7 +629,9 @@ HTTP 失败、业务错误码或状态进入 `failed` 时，任务以失败结�
               {
                 "$ref": "response.data.id"
               },
-              "taskId"
+              {
+                "$ref": "taskId"
+              }
             ]
           },
           "status": {
@@ -897,7 +901,9 @@ HTTP 失败、业务错误码或状态进入 `failed` 时，任务以失败结�
               {
                 "$ref": "response.data.id"
               },
-              "taskId"
+              {
+                "$ref": "taskId"
+              }
             ]
           },
           "status": {
@@ -1167,7 +1173,9 @@ HTTP 失败、业务错误码或状态进入 `failed` 时，任务以失败结�
               {
                 "$ref": "response.data.id"
               },
-              "taskId"
+              {
+                "$ref": "taskId"
+              }
             ]
           },
           "status": {
@@ -1437,7 +1445,9 @@ HTTP 失败、业务错误码或状态进入 `failed` 时，任务以失败结�
               {
                 "$ref": "response.data.id"
               },
-              "taskId"
+              {
+                "$ref": "taskId"
+              }
             ]
           },
           "status": {
@@ -1724,7 +1734,9 @@ HTTP 失败、业务错误码或状态进入 `failed` 时，任务以失败结�
               {
                 "$ref": "response.data.id"
               },
-              "taskId"
+              {
+                "$ref": "taskId"
+              }
             ]
           },
           "status": {
@@ -2022,7 +2034,9 @@ HTTP 失败、业务错误码或状态进入 `failed` 时，任务以失败结�
               {
                 "$ref": "response.data.id"
               },
-              "taskId"
+              {
+                "$ref": "taskId"
+              }
             ]
           },
           "status": {
@@ -2362,7 +2376,9 @@ HTTP 失败、业务错误码或状态进入 `failed` 时，任务以失败结�
               {
                 "$ref": "response.data.id"
               },
-              "taskId"
+              {
+                "$ref": "taskId"
+              }
             ]
           },
           "status": {

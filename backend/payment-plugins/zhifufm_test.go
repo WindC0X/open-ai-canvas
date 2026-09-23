@@ -2,9 +2,11 @@ package paymentplugins
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -79,5 +81,56 @@ func TestZhiFuFMProviderCreateOrderAndVerifyNotification(t *testing.T) {
 	}
 	if !notification.Paid || notification.AmountFen != 1000 || notification.MerchantOrderNo != "TEST_ORDER_12345" {
 		t.Fatalf("unexpected notification: %#v", notification)
+	}
+}
+
+func TestZhiFuFMNotificationRejectsNonSuccessStateAndLeakySignature(t *testing.T) {
+	merchantNum := "694771317639364608"
+	secretKey := "f17bc85d99c1d2b4b4d81eaba1489c7e"
+	provider := NewZhiFuFMProvider(nil)
+	config := Config{"merchantNum": merchantNum, "secretKey": secretKey, "gateway": "https://example.zhifu.fm/api", "checkoutMode": "redirect"}
+
+	// state=0（非成功）：即使签名正确也必须拒绝（旧行为会落 Paid=false/Closed=true 供对账误关单）。
+	state := "0"
+	orderNo := "TEST_ORDER_2"
+	amount := "10.00"
+	sign := md5Hex(state + merchantNum + orderNo + amount + secretKey)
+	body := "merchantNum=" + merchantNum + "&orderNo=" + orderNo + "&amount=" + amount + "&state=" + state + "&sign=" + sign
+	if _, err := provider.VerifyNotification(context.Background(), config, nil, []byte(body)); err == nil {
+		t.Fatal("non-success state accepted")
+	}
+
+	// 坏签名：错误文案不得回显"期望签名"（含 secretKey 的摘要 = 签名预言机）。
+	stateOK := "1"
+	bad := "merchantNum=" + merchantNum + "&orderNo=" + orderNo + "&amount=" + amount + "&state=" + stateOK + "&sign=deadbeef"
+	_, err := provider.VerifyNotification(context.Background(), config, nil, []byte(bad))
+	if err == nil {
+		t.Fatal("bad signature accepted")
+	}
+	expected := md5Hex(stateOK + merchantNum + orderNo + amount + secretKey)
+	if strings.Contains(strings.ToLower(err.Error()), strings.ToLower(expected)) || strings.Contains(err.Error(), "deadbeef") {
+		t.Fatalf("signature error leaks sign material: %v", err)
+	}
+}
+
+func TestZhiFuFMQueryAndCloseReturnUnsupportedProviderError(t *testing.T) {
+	provider := NewZhiFuFMProvider(nil)
+	config := Config{"merchantNum": "m", "secretKey": "s", "gateway": "https://example.zhifu.fm/api", "checkoutMode": "redirect"}
+
+	if _, err := provider.QueryOrder(context.Background(), config, QueryRequest{MerchantOrderNo: "ORDER-1"}); err == nil {
+		t.Fatal("QueryOrder should be unsupported")
+	} else {
+		var perr *ProviderError
+		if !errors.As(err, &perr) || perr.Code != "zhifufm_query_unsupported" {
+			t.Fatalf("unexpected query error: %v", err)
+		}
+	}
+	if _, err := provider.CloseOrder(context.Background(), config, CloseRequest{MerchantOrderNo: "ORDER-1"}); err == nil {
+		t.Fatal("CloseOrder should be unsupported")
+	} else {
+		var perr *ProviderError
+		if !errors.As(err, &perr) || perr.Code != "zhifufm_close_unsupported" {
+			t.Fatalf("unexpected close error: %v", err)
+		}
 	}
 }

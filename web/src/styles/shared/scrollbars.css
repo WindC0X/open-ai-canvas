@@ -24,6 +24,12 @@
         border-radius: 999px;
     }
 
+    /* 画布设置面板的 thin-scrollbar 着色覆盖（2026-09-24 H4 去重自 globals；保持原语义） */
+    .canvas-settings-roll.thin-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--workspace-foreground) 22%, transparent) transparent;
+    }
+
     .storyboard-scrollbar {
         overscroll-behavior: contain;
         scrollbar-color: rgba(148, 163, 184, 0.72) rgba(120, 113, 108, 0.14);

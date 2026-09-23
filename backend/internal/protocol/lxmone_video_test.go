@@ -49,3 +49,25 @@ func TestOfficialLxmoneVideoResultURLs(t *testing.T) {
 		})
 	}
 }
+
+// G1（2026-09-24 批2）：轮询响应缺 id/task_id 时必须回退宿主真实 taskID，
+// 不得再落模板缺省哨兵 "taskId"（旧打包件 $coalesce 尾项裸字面量，poll 404 的根因）。
+func TestOfficialLxmoneVideoPollKeepsHostTaskIDWhenResponseLacksID(t *testing.T) {
+	providers := []string{
+		"lxmone-wan-videos", "lxmone-wan-channel-s", "lxmone-seedance-videos", "lxmone-h3-max-videos",
+		"lxmone-sd-videos", "lxmone-sd-mini-videos", "lxmone-grok-videos", "lxmone-h3-workflow",
+	}
+	for _, provider := range providers {
+		t.Run(provider, func(t *testing.T) {
+			adapter := officialPackageAdapter(t, "lxmone-video-suite.yingce-plugin", provider)
+			body := []byte(`{"status":"processing"}`)
+			polled, err := adapter.ParsePoll(context.Background(), PollContext{TaskID: "real-task-123"}, body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if polled.TaskID != "real-task-123" {
+				t.Fatalf("task id = %q, want host fallback real-task-123", polled.TaskID)
+			}
+		})
+	}
+}

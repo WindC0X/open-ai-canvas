@@ -3,6 +3,7 @@ package paymentplugins
 import (
 	"context"
 	"crypto/md5"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -155,20 +156,15 @@ func (p *ZhiFuFMProvider) CreateOrder(ctx context.Context, config Config, reques
 	}, nil
 }
 
-func (p *ZhiFuFMProvider) QueryOrder(ctx context.Context, config Config, request QueryRequest) (Result, error) {
-	return Result{
-		MerchantOrderNo: request.MerchantOrderNo,
-		Currency:        "CNY",
-	}, nil
+func (p *ZhiFuFMProvider) QueryOrder(context.Context, Config, QueryRequest) (Result, error) {
+	// G3（2026-09-24 批2）：不伪造 Paid=false 结果——上游无查单接口，必须报错，
+	// 否则刷新/对账会把可支付订单当成未支付。
+	return Result{}, &ProviderError{Code: "zhifufm_query_unsupported", Message: "支付FM未提供订单查询接口"}
 }
 
-func (p *ZhiFuFMProvider) CloseOrder(ctx context.Context, config Config, request CloseRequest) (Result, error) {
-	return Result{
-		MerchantOrderNo: request.MerchantOrderNo,
-		Closed:          true,
-		ProviderStatus:  "CLOSED",
-		Currency:        "CNY",
-	}, nil
+func (p *ZhiFuFMProvider) CloseOrder(context.Context, Config, CloseRequest) (Result, error) {
+	// G3：不无条件返回 Closed=true——上游无关单接口，报错避免本地误关单。
+	return Result{}, &ProviderError{Code: "zhifufm_close_unsupported", Message: "支付FM未提供关单接口"}
 }
 
 func (p *ZhiFuFMProvider) VerifyNotification(_ context.Context, config Config, headers http.Header, rawBody []byte) (Notification, error) {
@@ -193,9 +189,17 @@ func (p *ZhiFuFMProvider) VerifyNotification(_ context.Context, config Config, h
 	}
 
 	// 验签: sign = md5(state + merchantNum + orderNo + amount + secretKey)
+	// G3（2026-09-24 批2）：常数时间比较 + 不回显期望值（避免把期望签名——即含 secretKey 的
+	// 摘要——当作错误信息回显，形成签名预言机）。
 	expectedSign := md5Hex(state + merchantNum + orderNo + amountStr + strings.TrimSpace(config["secretKey"]))
-	if !strings.EqualFold(sign, expectedSign) {
-		return Notification{}, fmt.Errorf("支付FM异步通知签名不匹配: got %s, want %s", sign, expectedSign)
+	if subtle.ConstantTimeCompare([]byte(strings.ToLower(sign)), []byte(strings.ToLower(expectedSign))) != 1 {
+		return Notification{}, errors.New("支付FM异步通知签名不匹配")
+	}
+
+	// G3：仅成功态通知（state=1）入库；其它状态返回失败让网关重试，避免把非成功通知
+	// 当成有效回调（旧行为会落一条 Paid=false/Closed=true，被对账误关单）。
+	if state != "1" {
+		return Notification{}, fmt.Errorf("支付FM异步通知状态非成功: %s", state)
 	}
 
 	actualAmountStr := strings.TrimSpace(params.Get("actualPayAmount"))
