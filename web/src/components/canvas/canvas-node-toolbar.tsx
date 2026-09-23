@@ -320,7 +320,12 @@ export function CanvasNodeToolbar({
             className="canvas-node-toolbar absolute z-[var(--z-node-toolbar)] -translate-x-1/2 -translate-y-full"
             style={{ left: 0, top: 0, transform: `translate3d(${anchor.left}px, ${anchor.top}px, 0)`, width: "max-content", maxWidth: "calc(100% - 20px)", color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
-            onFocusCapture={() => onFocusChange?.(node.id, true)}
+            onFocusCapture={(event) => {
+                // T3（2026-09-24 三模型复核）：仅键盘来源（:focus-visible）才升级供给等级。鼠标点击
+                // 按钮留下的焦点不是 hover 供给，未加闸门时指针离开后工具栏仍被钉在 full（与
+                // canvas-workspace-overlays.tsx 菜单的同规则先例一致）。
+                if ((event.target as Element | null)?.matches?.(":focus-visible")) onFocusChange?.(node.id, true);
+            }}
             onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onFocusChange?.(node.id, false); }}
             onPointerDown={(event) => event.stopPropagation()}
             data-canvas-no-zoom

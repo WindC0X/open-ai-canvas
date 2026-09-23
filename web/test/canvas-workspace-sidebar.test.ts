@@ -5,9 +5,11 @@ import { canvasThemes } from "../src/lib/canvas-theme";
 
 const component = (name: string) => readFileSync(new URL(`../src/components/canvas/${name}`, import.meta.url), "utf8");
 
-test("canvas removes the standalone asset tray while retaining sidebar assets and zoom controls", () => {
+test("canvas keeps the standalone asset tray alongside sidebar assets and zoom controls", () => {
     const page = readFileSync(new URL("../src/pages/canvas/project.tsx", import.meta.url), "utf8");
-    expect(page).not.toContain("CanvasAssetTray");
+    // 2026-09-24 批2·H3 裁决：保留 CanvasAssetTray（与工作区资产面板共存，09-23 控制线共存在案）。
+    // 上游 9148ceab 带入的「removes tray」断言按合并现实重写；sidebar assets 与缩放控件不变。
+    expect(page).toContain("<CanvasAssetTray");
     expect(page).toContain("<CanvasZoomControls");
     expect(page).toContain("<CanvasWorkspacePanel");
     expect(component("canvas-workspace-panel.tsx")).toContain("<CanvasWorkspaceAssetPanel");

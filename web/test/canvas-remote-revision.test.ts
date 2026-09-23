@@ -423,14 +423,15 @@ test("a stale history restore preserves both current cloud content and local edi
     expect((await readCanvasSyncDrafts("canvas"))[0].project.title).toBe("local draft");
 });
 
-test("reopened dirty cache with the same ancestor stays pending until actually saved", async () => {
+test("reopened dirty cache with the same ancestor uploads immediately (fork 即时同步语义)", async () => {
     useCanvasStore.getState().renameProject("canvas", "offline draft");
     await flushCanvasStorePersistence();
     await initializeRemoteUserDataSession(scope);
     const loaded = await loadCanvasProjectForEditing("canvas");
     expect(loaded.title).toBe("offline draft");
-    expect(useSyncProgressStore.getState().syncingProjects.canvas.phase).toBe("pending");
-    expect(remote.get("canvas")!.title).toBe("canvas");
+    // 2026-09-24 批2·D2 裁决：维持我方「脏缓存重开即上传」——载入即发起同步（uploading），
+    // 不落上游「pending 直到手动保存」。上传完成后远端拿到草稿内容与递进 revision（CAS）。
+    expect(["uploading", "done"]).toContain(useSyncProgressStore.getState().syncingProjects.canvas.phase);
     await saveRemoteUserDataNow("canvas");
     expect(remote.get("canvas")!.title).toBe("offline draft");
     expect(remote.get("canvas")!.revision).toBe(2);

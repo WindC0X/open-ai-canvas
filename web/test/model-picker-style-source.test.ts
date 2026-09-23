@@ -1,13 +1,19 @@
 import { expect, test } from "bun:test";
 
-test("模型行只保留选中高亮，价格使用独立的彩色标签", async () => {
+// 2026-09-24 批2·D1 裁决：菜单保留 fork flyout 交互（非上游单层品牌/模型列表）——
+// 本文件原为 W7 带入的上游形状断言，按合并现实重写：flyout hover 打开 / mousedown 选中
+// 即收起 / 空配置回调；价格标签与样式视口边界回归保持不变。
+
+test("模型行保留 hover 预览与独立彩色价格标签（fork flyout 版）", async () => {
     const [component, styles, workspace] = await Promise.all([
         Bun.file(new URL("../src/components/model-picker.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/styles/shared/model-picker.css", import.meta.url)).text(),
         Bun.file(new URL("../src/styles/workspace-product.css", import.meta.url)).text(),
     ]);
     expect(component).not.toContain("previewedModel");
-    expect(component).not.toContain("onMouseEnter");
+    // fork flyout：provider 行 hover 打开二级面板并交付在飞关闭（上游断言为 not.toContain("onMouseEnter")）
+    expect(component).toContain("onMouseEnter={(event) => openFlyout(group.key, event.currentTarget)}");
+    expect(component).toContain("scheduleFlyoutClose");
     expect(styles).not.toMatch(/canvas-model-picker-(?:brand|option)(?:\[[^\]]*\])?:hover/);
     expect(workspace).not.toContain(".canvas-model-picker-brand.is-active");
     expect(styles).toContain('.canvas-model-picker-brand[aria-pressed="true"]');
@@ -23,28 +29,34 @@ test("模型行只保留选中高亮，价格使用独立的彩色标签", async
     expect(badge).toContain("background: color-mix");
     expect(badge).toContain("padding: 2px 5px");
     expect(price).toContain("--model-price-ink: #946900");
-    expect(component).toContain('<Coins className="model-picker-price-icon" aria-hidden="true" />');
+    // fork 行价格渲染 = canvas-model-picker-chip + Coins size-3（上游 .model-picker-price-icon 类不在我方渲染路径；
+    // .model-picker-price 样式断言仍由 shared 样式侧覆盖）
+    expect(component).toContain('<Coins className="size-3" />');
     expect(styles).toContain("width: min(800px, calc(100vw - 24px))");
 });
 
-test("每次打开菜单都展开当前选中模型所属目录，无有效选中时显示一级目录", async () => {
+test("打开菜单派发 model-picker-open 并处理空配置（fork flyout 版）", async () => {
     const component = await Bun.file(new URL("../src/components/model-picker.tsx", import.meta.url)).text();
     const opening = component.match(/const setPickerOpen = \(nextOpen: boolean\) => \{([\s\S]*?)\n    \};/)?.[1] || "";
-    expect(opening).toContain("setActiveGroupKey(optionGroups.find((group) => group.models.some((item) => item.models.includes(current)))?.key ?? null)");
-    expect(opening).not.toContain("setActiveGroupKey(null)");
+    expect(opening).toContain('window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }))');
+    expect(opening).toContain("onMissingConfig?.()");
+    expect(opening).toContain("setOpen(nextOpen)");
+    // fork 无「打开即展开当前选中目录」的 setActiveGroupKey 行为（目录展开由 flyout hover 驱动）
+    expect(opening).not.toContain("setActiveGroupKey");
 });
 
-test("选择模型保留菜单及行内焦点，仍可通过 Escape 和外部点击关闭", async () => {
+test("选择模型按 fork 语义：mousedown 即选中并收起，落空点击由时间窗拦截", async () => {
     const component = await Bun.file(new URL("../src/components/model-picker.tsx", import.meta.url)).text();
-    const selection = component.match(/onClick=\{\(\) => \{\s*if \(!model\) return;([\s\S]*?)\}\}/)?.[1] || "";
+    const selection = component.match(/onMouseDown=\{\(\) => \{([\s\S]*?)\}\}/)?.[1] || "";
     expect(selection).toContain("onChange(model)");
-    expect(selection).not.toContain("setOpen(false)");
-    expect(selection).not.toContain("focus()");
+    expect(selection).toContain("setFlyoutGroup(null)");
+    expect(selection).toContain("setOpen(false)");
+    expect(selection).toContain("triggerRef.current?.focus()");
     expect(component).toContain('event.key === "Escape"');
     expect(component).toContain('window.addEventListener("pointerdown", closeOnOutsidePointer, true)');
 });
 
-test("ModelPicker 样式独立加载，并保留模型列表的视口边界", async () => {
+test("ModelPicker 样式独立加载，并保留模型列表的视口边界（双源期）", async () => {
     const [application, globals, pickerStyles] = await Promise.all([
         Bun.file(new URL("../src/application.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text(),
@@ -52,7 +64,8 @@ test("ModelPicker 样式独立加载，并保留模型列表的视口边界", as
     ]);
 
     expect(application).toContain('import "./styles/shared/model-picker.css";');
-    expect(globals).not.toContain("canvas-model-picker");
+    // 合并双源现状：globals 仍承载 fork 侧补充规则（G7/H4 去重为独立批次；完成后此处收紧为 not.toContain）。
+    expect(globals).toContain("canvas-model-picker");
     expect(pickerStyles).toContain(".canvas-model-picker-menu {");
     expect(pickerStyles).toContain("max-height: min(420px, calc(100vh - 32px));");
 
