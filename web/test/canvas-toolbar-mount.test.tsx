@@ -29,3 +29,38 @@ test("画布工具栏自身渲染创建菜单组件（CanvasCreateMenu）", () =
     expect(toolbarSource).toContain("<CanvasCreateMenu");
     expect(toolbarSource).toContain("commands={commands}");
 });
+
+// 回归：第三缺陷（画布渲染层缺失，2026-09-23）——W4 同一处置连带删除了整个画布区
+// （容器 div + InfiniteCanvas + world layers + 面板层 + 模态层），节点虽进 store/后端却零 DOM。
+test("画布层挂载：InfiniteCanvas 渲染且以 graphicsLayer 接入 leafer 层", () => {
+    expect(pageSource).toContain("<InfiniteCanvas");
+    expect(pageSource).toContain("interactive={!versions.preview}");
+    expect(pageSource).toMatch(/graphicsLayer=\{\s*<CanvasLeaferGraphicsLayer/);
+});
+
+test("画布世界层与节点上下文挂载（节点 DOM 的来源）", () => {
+    expect(pageSource).toContain("<CanvasProjectWorldLayers");
+    expect(pageSource).toContain("<CanvasNodeActionContext.Provider");
+    expect(pageSource).toContain("<CanvasNodeGraphContext.Provider");
+});
+
+test("同区面板与模态层挂载（活动任务/专注模式/agent 面板/短剧引导/分享/风格/导演/导入）", () => {
+    for (const component of [
+        "<CanvasActiveTaskPanel",
+        "<CanvasFocusModeBar",
+        "<CanvasCloudAgentPanel",
+        "<CanvasShortDramaGuide",
+        "<CanvasShareModal",
+        "<CanvasStylePickerModal",
+        "<CanvasDirectorTemplateModal",
+        "<LibTVImportDialog",
+        "<TapNowImportDialog",
+    ]) {
+        expect(pageSource).toContain(component);
+    }
+});
+
+test("节点 DOM 锚点 data-node-id 由节点组件提供（e2e 可见性断言依据）", () => {
+    const nodeSource = readFileSync(new URL("../src/components/canvas/canvas-node.tsx", import.meta.url), "utf8");
+    expect(nodeSource).toContain("data-node-id={data.id}");
+});
