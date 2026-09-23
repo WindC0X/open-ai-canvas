@@ -7543,6 +7543,21 @@ html:not(.dark) .creation-studio-control[aria-expanded="true"] { background: #e7
         pointer-events: none !important;
     }
 
+    /* T4（2026-09-24 三模型复核）：反制——画布节点工具栏菜单（九宫格/宫格切分/样式）在
+       rc-motion 相位期间必须保持可点；失焦节流下相位推进可能滞后数秒，若整树继承上面的
+       pe:none，点击会穿透并被判为外部点击导致菜单自动关闭。仅恢复本方菜单，其它浮层防护不变。 */
+    .canvas-node-toolbar-menu {
+        pointer-events: auto;
+    }
+
+    /* T5（2026-09-24）：分镜脚本弹窗列选择器布局（W4 样式拆分时丢失，基线 globals:7439 原规则）。 */
+    .script-column-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        font-size: 12px;
+    }
+
     /* 模型菜单专用 surface: flora live 权威值(2026-09-07 flora 现场抓取)
        bg rgba(32,32,32,.9) + backdrop blur16 + border 白.05 + radius16 + 无阴影。
        (9263e82 曾误判"flora 实心"砍掉玻璃感, 与 corpus flora-canvas-analysis.md:233

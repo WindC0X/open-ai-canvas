@@ -313,3 +313,18 @@ export function resolveOutpaintPaddingForRatio(input: { nodeWidth: number; nodeH
     const top = Math.min(shRounded, Math.max(0, Math.round((shRounded + (base.top - base.bottom)) / 2)));
     return { left, right: swRounded - left, top, bottom: shRounded - top };
 }
+// T2（2026-09-24 三模型复核）：扩图 frame 与遮罩洞都以 frame-local 坐标写入（相对 frame 的
+// offsetParent=container）。container 原点会因布局偏移（如 64px 工作区侧栏）不在屏幕 (0,0)，
+// 洞必须减去 containerRect 再减 frame 偏移，否则整个洞平移 container 原点宽度。
+export function resolveOutpaintClipHole(params: {
+    nodeRect: { left: number; top: number; width: number; height: number };
+    containerRect: { left: number; top: number };
+    frameOffset: { left: number; top: number };
+}) {
+    return {
+        x: params.nodeRect.left - params.containerRect.left - params.frameOffset.left,
+        y: params.nodeRect.top - params.containerRect.top - params.frameOffset.top,
+        width: params.nodeRect.width,
+        height: params.nodeRect.height,
+    };
+}

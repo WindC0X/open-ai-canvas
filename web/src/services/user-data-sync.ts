@@ -373,7 +373,12 @@ export async function applyAgentCanvasPatches(id: string, patches: AgentCanvasPa
         useSyncProgressStore.getState().setProjectProgress(id, { phase: sameCanvasContent(remote, projected) ? "done" : "pending", message: "已同步 Agent 画布结果" });
         return projected;
         } catch (error) {
-            if (epoch === sessionEpoch) await preserveAgentConflict(openLocalProject(id) || current);
+            const local = openLocalProject(id) || current;
+            // H2（2026-09-24）：只有本地确有未同步改动才落冲突草稿；版本不连续等可恢复错误
+            // 只应触发对账，不能让无本地改动的画布凭空出现 conflict/草稿。
+            if (epoch === sessionEpoch && (!local.remoteContentHash || local.remoteContentHash !== await canvasContentHash(local))) {
+                await preserveAgentConflict(local);
+            }
             throw error;
         }
     });

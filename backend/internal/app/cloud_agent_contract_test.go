@@ -354,3 +354,38 @@ func TestCloudAgentDurablePolicySnapshotRejectsMissingOrUnsupportedContracts(t *
 		})
 	}
 }
+
+func TestCloudAgentCanvasConnectionPaginationContract(t *testing.T) {
+	// F10（2026-09-24）：canvas_get_state 的连线分页契约——schema 已向模型承诺
+	// nextConnectionOffset/hasMoreConnections；返回体必须携带（大画布连线超页不得静默截断）。
+	small := map[string]any{"nodes": []map[string]any{{"id": "n1", "type": "text", "title": "镜头", "position": map[string]any{"x": 0.0, "y": 0.0}, "width": 100.0, "height": 80.0, "metadata": map[string]any{"status": "idle", "content": "正文"}}}}
+	view, err := cloudAgentCanvasState(nil, "user", "agent-canvas", small, 0, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := view.(map[string]any)
+	if page["hasMoreConnections"] != false || page["nextConnectionOffset"] != 0 || page["pageByteBudget"] != cloudAgentReadPageBytes {
+		t.Fatalf("small canvas pagination defaults wrong: %v", page)
+	}
+	nodes := make([]map[string]any, 0, 900)
+	for i := 0; i < 900; i++ {
+		id := fmt.Sprintf("n%03d", i)
+		nodes = append(nodes, map[string]any{"id": id, "type": "text", "title": id, "position": map[string]any{"x": float64(i), "y": 0.0}, "width": 100.0, "height": 80.0, "metadata": map[string]any{"status": "idle", "content": strings.Repeat("画", 30)}})
+	}
+	connections := make([]map[string]any, 0, 899)
+	for i := 0; i+1 < 900; i++ {
+		connections = append(connections, map[string]any{"id": fmt.Sprintf("c%03d", i), "fromNodeId": fmt.Sprintf("n%03d", i), "toNodeId": fmt.Sprintf("n%03d", i+1)})
+	}
+	big := map[string]any{"nodes": nodes, "connections": connections}
+	view, err = cloudAgentCanvasState(nil, "user", "agent-canvas", big, 0, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page = view.(map[string]any)
+	if page["nextOffset"].(int) == 0 && page["nextConnectionOffset"].(int) == 0 {
+		t.Fatalf("expected truncation in oversized canvas: %+v", page)
+	}
+	if page["hasMoreConnections"].(bool) != (page["nextConnectionOffset"].(int) > 0) {
+		t.Fatalf("hasMoreConnections must mirror nextConnectionOffset: %+v", page)
+	}
+}

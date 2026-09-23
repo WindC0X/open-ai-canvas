@@ -2805,7 +2805,7 @@ function InfiniteCanvasPage() {
                                         containerRef={containerRef}
                                         viewport={viewport}
                                         theme={theme}
-                                        displayConnections={displayConnections}
+                                        displayConnections={visibleDisplayConnections}
                                         selectedConnectionId={selectedConnectionId}
                                         relatedConnectionIds={relatedHighlight.connectionIds}
                                         scriptScrollTopById={scriptScrollTopById}
@@ -2839,7 +2839,7 @@ function InfiniteCanvasPage() {
                                     projectId={projectId}
                                     viewportScale={viewport.k}
                                     connectionLayerBounds={connectionLayerBounds}
-                                    displayConnections={displayConnections}
+                                    displayConnections={visibleDisplayConnections}
                                     selectedConnectionId={selectedConnectionId}
                                     relatedConnectionIds={relatedHighlight.connectionIds}
                                     scriptScrollTopById={scriptScrollTopById}
@@ -2971,6 +2971,7 @@ function InfiniteCanvasPage() {
                                     onOpenMyAssets={() => {
                                         openCanvasAssetLibrary();
                                     }}
+                                    onOpenWorkspace={() => setWorkspaceOpen(value => !value)}
                                     onOpenProjectCharacters={() => openProjectAssets("character")}
                                 />
                             ) : null}
@@ -2994,24 +2995,6 @@ function InfiniteCanvasPage() {
                             />
                         </div>
                     </div>
-
-                        <CanvasNodeSearchModal
-                            open={nodeSearchOpen}
-                            nodes={nodes}
-                            onClose={() => setNodeSearchOpen(false)}
-                            onFocus={(nodeId) => {
-                                const target = nodeById.get(nodeId);
-                                const parent = target?.parentId ? nodeById.get(target.parentId) : null;
-                                if (parent?.metadata?.frame?.collapsed) toggleFrameCollapsed(parent.id);
-                                const batchRoot = target?.metadata?.batchRootId ? nodeById.get(target.metadata.batchRootId) : null;
-                                if (batchRoot && !batchRoot.metadata?.imageBatchExpanded) toggleBatchExpanded(batchRoot.id);
-                                const selection = new Set([nodeId]);
-                                selectedNodeIdsRef.current = selection;
-                                setSelectedNodeIds(selection);
-                                setSelectedConnectionId(null);
-                                focusCanvasNode(nodeId);
-                            }}
-                        />
 
                     <CanvasNodeSearchModal
                         open={nodeSearchOpen}
@@ -3251,68 +3234,8 @@ function InfiniteCanvasPage() {
                             三拍动画双驱)。BatchTable 编辑全内联于节点 body, 本就不开面板(排除与上游一致,
                             旧注释误写为"并入", 2026-09-17 review 更正)。 */}
 
-                        {pendingConnectionCreate ? (
-                            <CanvasConnectionCreateMenu
-                                pending={pendingConnectionCreate}
-                                viewport={viewport}
-                                viewportSize={size}
-                                containerRef={containerRef}
-                                canCreateDrawing={canCreateDrawingFromConnection}
-                                getDisabledReason={(type) => getConnectionCreateDisabledReason(type, pendingConnectionCreate)}
-                                onCreate={(type) => void createConnectedNode(type, pendingConnectionCreate)}
-                                onClose={cancelPendingConnectionCreate}
-                            />
-                        ) : null}
-
-                        {connectionReplaceHover ? (
-                            <div
-                                className="pointer-events-none fixed z-[var(--z-dialog-popover)] flex select-none items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white/90 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur-md transition-all"
-                                style={{
-                                    left: connectionReplaceHover.clientX + 14,
-                                    top: connectionReplaceHover.clientY + 14,
-                                    transform: "translateY(-50%)",
-                                }}
-                            >
-                                <ArrowLeftRight className="size-3 text-blue-400" />
-                                <span>松开替换</span>
-                                <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold text-blue-200">@{connectionReplaceHover.referenceLabel}</span>
-                            </div>
-                        ) : null}
-
-                        {selectedNodeBounds && !selectionBox && !isCanvasNodeMoving ? (
-                            <CanvasProjectSelectionToolbar
-                                anchorRef={selectionBoundsElementRef}
-                                containerRef={containerRef}
-                                count={selectedNodeBounds.count}
-                                selectedVideoCount={selectedVideoNodes.length}
-                                mergingVideos={Boolean(mergeVideoProgress)}
-                                onAlign={alignSelectedNodes}
-                                onArrange={arrangeSelectedNodes}
-                                onCreateStoryboard={createStoryboardGroup}
-                                onCreateReferenceGroup={createReferenceGroup}
-                                onBatchConnect={() => beginBatchConnectionMode(Array.from(selectedNodeIds))}
-                                onMergeVideos={() => void mergeSelectedVideos()}
-                                onSendSelectionToAgent={() => sendSelectionToAgent()}
-                            />
-                        ) : null}
-
-                        {uploadStatus ? <CanvasUploadStatusToast status={uploadStatus} theme={theme} /> : null}
-                        {mergeVideoProgress ? <CanvasMergeStatusToast progress={mergeVideoProgress} theme={theme} /> : null}
-                        {lastAgentChange ? (
-                            <CanvasOperationChangeToast
-                                change={lastAgentChange}
-                                theme={theme}
-                                onView={viewLastAgentChange}
-                                onUndo={() => {
-                                    undoAgentOps();
-                                }}
-                                onClose={dismissLastAgentChange}
-                            />
-                        ) : null}
-
-
-{isMiniMapOpen && !focusMode ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} canvasContainerRef={containerRef} onViewportPreviewChange={previewViewport} onViewportChange={handleViewportChange} /> : null}
-
+                        {/* F9（2026-09-24 三模型复核）：本区遗留双实例（连线菜单/替换提示/选择工具条/三 toast/Minimap）
+                            已清理，唯一实例保留于上方主区；再添浮层请勿在此区重复挂载。 */}
                         {!focusMode ? (
                             <CanvasOverlayLayerContainer
                                 overlayId="asset-tray"

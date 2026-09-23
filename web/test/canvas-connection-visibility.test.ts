@@ -23,3 +23,13 @@ describe("canvas connection visibility", () => {
         expect(filterCanvasDisplayConnections(connections, { enabled: true, selectedConnectionId: "c" }).map((item) => item.connection.id)).toEqual(["c"]);
     });
 });
+
+// 回归：T1（2026-09-24 三模型复核）——过滤值必须接入渲染层：W4 区域恢复时
+// 两处渲染点曾回退为原始 displayConnections，开关彻底失效（usedAsProp=0）。
+test("render layers consume the filtered connection list (T1)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const pageSource = readFileSync(new URL("../src/pages/canvas/project.tsx", import.meta.url), "utf8");
+    const wired = pageSource.match(/displayConnections=\{visibleDisplayConnections\}/g) || [];
+    expect(wired.length).toBe(2);
+    expect(pageSource).not.toContain("displayConnections={displayConnections}");
+});

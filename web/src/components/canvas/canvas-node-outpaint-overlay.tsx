@@ -14,7 +14,7 @@ import {
     type ImageResolutionChoice,
     type ImageResolutionTier,
 } from "@/lib/image-resolution-tiers";
-import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveDragAxis, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type FrameAxis, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
+import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveDragAxis, resolveOutpaintClipHole, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type FrameAxis, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { CANVAS_NODE_DRAG_PREVIEW_EVENT, subscribeCanvasViewportPreview, type CanvasNodeDragPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -392,8 +392,10 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         frame.style.height = `${height}px`;
 
         // 扩展区纹理洞（clip-path evenodd 双环）：洞 = 图片视觉矩形（未拖图时 = 节点 rect 相对 frame）。
+        // T2：洞走 frame-local（减去 containerRect），兼容 64px 工作区侧栏等容器原点偏移。
         // 拖图时洞由 pointermove 逐帧直写跟随 transform，updateFrame 冻结中不触碰。
-        writeClipHole(nodeRect.left - left, nodeRect.top - top, nodeRect.width, nodeRect.height);
+        const hole = resolveOutpaintClipHole({ nodeRect, containerRect, frameOffset: { left, top } });
+        writeClipHole(hole.x, hole.y, hole.width, hole.height);
         if (labelRef.current) {
             // 标注 = 实际提交目标（第十一轮）：档位锁定时显示 snap 后的档位精确像素（与提交同源），
             // 自由/未锁档时显示 scale 换算预览。同源后顶部标注不再是 2045×1534 这类换算余数。

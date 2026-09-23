@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
     describeOutpaintSize,
     relocateOutpaintPadding,
+    resolveOutpaintClipHole,
     snapOutpaintTargetSize,
     resolveOutpaintPadding,
     resolveOutpaintTargetPx,
@@ -429,5 +430,21 @@ describe("resolveOutpaintPaddingForRatio", () => {
     test("safe fallbacks for invalid input", () => {
         const padding = resolveOutpaintPaddingForRatio({ nodeWidth: 0, nodeHeight: 0, ratio: Number.NaN, basePadding: { left: 10, right: 10, top: 10, bottom: 10 } });
         expect(padding).toEqual({ left: 10, right: 10, top: 10, bottom: 10 });
+    });
+});
+
+describe("resolveOutpaintClipHole（T2: frame-local 洞坐标）", () => {
+    test("container 在屏幕原点时与旧公式等价（零原点布局）", () => {
+        const hole = resolveOutpaintClipHole({ nodeRect: { left: 100, top: 50, width: 400, height: 300 }, containerRect: { left: 0, top: 0 }, frameOffset: { left: 60, top: 20 } });
+        expect(hole).toEqual({ x: 40, y: 30, width: 400, height: 300 });
+    });
+
+    test("64px 工作区侧栏使容器原点偏移时洞保持 frame-local（-64 修正）", () => {
+        // 实测现场：container 原点 (64,0)，frame cssLeft=481.26 → frame 屏幕左 545.26，节点屏幕左 583.26 ⇒ 洞应为 38。
+        const hole = resolveOutpaintClipHole({ nodeRect: { left: 583.26, top: 75, width: 560, height: 312 }, containerRect: { left: 64, top: 0 }, frameOffset: { left: 481.26, top: 37.44 } });
+        expect(hole.x).toBeCloseTo(38, 5);
+        expect(hole.y).toBeCloseTo(37.56, 5);
+        expect(hole.width).toBe(560);
+        expect(hole.height).toBe(312);
     });
 });

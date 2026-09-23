@@ -430,6 +430,7 @@ export function ModelPicker({
                 <button
                     type="button"
                     role="option"
+                    data-model-picker-item="true"
                     aria-selected={selected}
                     aria-disabled={Boolean(disabledReason)}
                     disabled={Boolean(disabledReason)}

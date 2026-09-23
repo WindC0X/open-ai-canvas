@@ -483,6 +483,10 @@ export function removeCanvasNodes(nodes: CanvasNodeData[], requestedIds: Set<str
                 delete metadata.batchChildIds;
                 delete metadata.batchFailedCount;
                 delete metadata.batchExpanded;
+                delete metadata.errorDetails;
+                delete metadata.generationErrorCode;
+                delete metadata.resourceReloadAvailable;
+                delete metadata.failedPromptFingerprint;
                 metadata.status = "idle" as const;
                 return { ...videoBatchRoot, metadata };
             }
@@ -522,6 +526,10 @@ export function removeCanvasNodes(nodes: CanvasNodeData[], requestedIds: Set<str
             delete metadata.batchFailedCount;
             delete metadata.batchUsesReferenceImages;
             delete metadata.imageBatchExpanded;
+            delete metadata.errorDetails;
+            delete metadata.generationErrorCode;
+            delete metadata.resourceReloadAvailable;
+            delete metadata.failedPromptFingerprint;
             metadata.status = "idle" as const;
             return { ...batchRoot, metadata };
         }

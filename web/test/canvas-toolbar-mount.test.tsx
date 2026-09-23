@@ -83,3 +83,23 @@ test("angleNode 面板（独立块）仍可达：条件与渲染对象配对", (
     const match = pageSource.match(/\{angleNode\?\.metadata\?\.content \? \([\s\S]*?node=\{angleNode\}/);
     expect(match).toBeTruthy();
 });
+
+// 回归：F7（2026-09-24）——主工具栏「工作区」按钮接线；W4 区域恢复时丢失，
+// 组件侧 ?.() 可选调用使按钮成为静默死键。
+test("CanvasToolbar 挂载携带工作区开关接线（F7）", () => {
+    expect(pageSource).toContain("onOpenWorkspace={() => setWorkspaceOpen(value => !value)}");
+    const toolbarSource = readFileSync(new URL("../src/components/canvas/canvas-toolbar.tsx", import.meta.url), "utf8");
+    expect(toolbarSource).toContain("onOpenWorkspace");
+});
+
+// 回归：F8/F9（2026-09-24）——画布浮层双挂载清理：每个覆盖层组件全局只允许一处挂载。
+test("画布浮层唯一挂载（F8/F9：删除遗留第二实例）", () => {
+    const counts = {
+        searchModal: (pageSource.match(/<CanvasNodeSearchModal/g) || []).length,
+        connectionMenu: (pageSource.match(/<CanvasConnectionCreateMenu/g) || []).length,
+        selectionToolbar: (pageSource.match(/<CanvasProjectSelectionToolbar/g) || []).length,
+        minimap: (pageSource.match(/<Minimap/g) || []).length,
+        replaceHover: (pageSource.match(/connectionReplaceHover \? \(/g) || []).length,
+    };
+    expect(counts).toEqual({ searchModal: 1, connectionMenu: 1, selectionToolbar: 1, minimap: 1, replaceHover: 1 });
+});

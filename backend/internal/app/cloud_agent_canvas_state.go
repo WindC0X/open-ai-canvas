@@ -301,6 +301,7 @@ func cloudAgentCanvasState(repo *repository.Repository, userID, canvasID string,
 		included[id] = true
 	}
 	edges := []any{}
+	nextConnection := 0
 	for index, edge := range creationMaps(doc["connections"]) {
 		if index < connectionOffset {
 			continue
@@ -309,14 +310,15 @@ func cloudAgentCanvasState(repo *repository.Repository, userID, canvasID string,
 			item := map[string]any{"id": edge["id"], "fromNodeId": edge["fromNodeId"], "toNodeId": edge["toNodeId"]}
 			body, _ := json.Marshal(item)
 			if pageBytes+len(body) > cloudAgentReadPageBytes {
-				// W4：上游的 nextConnection 在本文件无消费方（我方 return 不含该字段），只保留分页截断语义。
+				// 连线超页必须返回游标：模型需感知截断并以 nextConnectionOffset 续读（W3/F10，2026-09-24 恢复）。
+				nextConnection = index
 				break
 			}
 			pageBytes += len(body)
 			edges = append(edges, item)
 		}
 	}
-	return map[string]any{"snapshotHash": cloudAgentContentHash(doc), "mediaSnapshotHash": cloudAgentMediaContentHash(doc), "nodes": nodes, "connections": edges, "totalNodes": len(all), "nextOffset": next, "hasMore": next > 0}, nil
+	return map[string]any{"snapshotHash": cloudAgentContentHash(doc), "mediaSnapshotHash": cloudAgentMediaContentHash(doc), "nodes": nodes, "connections": edges, "totalNodes": len(all), "nextOffset": next, "hasMore": next > 0, "nextConnectionOffset": nextConnection, "hasMoreConnections": nextConnection > 0, "pageByteBudget": cloudAgentReadPageBytes}, nil
 }
 
 func cloudAgentSafeNumber(value any) (any, bool) {

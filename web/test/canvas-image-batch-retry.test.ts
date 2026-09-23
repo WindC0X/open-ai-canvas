@@ -156,3 +156,32 @@ describe("canvas image batch retry", () => {
         expect(nextRoot?.metadata?.generationErrorCode).toBeUndefined();
     });
 });
+
+test("删除最后一个失败视频子节点后同步清除根节点失败态（H1: video 分支）", () => {
+    const videoRoot: CanvasNodeData = {
+        id: "vroot",
+        type: CanvasNodeType.Video,
+        title: "vroot",
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 240,
+        metadata: { status: "error", isBatchRoot: true, batchChildIds: ["vf"], batchFailedCount: 1, errorDetails: "生成失败", generationErrorCode: "upstream_unavailable" },
+    };
+    const failed: CanvasNodeData = {
+        id: "vf",
+        type: CanvasNodeType.Video,
+        title: "vf",
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 240,
+        metadata: { status: "error", batchRootId: "vroot", errorDetails: "上游失败" },
+    };
+    const result = removeCanvasNodes([videoRoot, failed], new Set([failed.id]));
+    const nextRoot = result.nodes.find((node) => node.id === "vroot");
+    expect(nextRoot?.metadata?.status).toBe("idle");
+    expect(nextRoot?.metadata?.isBatchRoot).toBeUndefined();
+    expect(nextRoot?.metadata?.errorDetails).toBeUndefined();
+    expect(nextRoot?.metadata?.generationErrorCode).toBeUndefined();
+    expect(nextRoot?.metadata?.failedPromptFingerprint).toBeUndefined();
+    expect(nextRoot?.metadata?.resourceReloadAvailable).toBeUndefined();
+});
