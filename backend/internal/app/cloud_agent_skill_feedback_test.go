@@ -100,6 +100,7 @@ func TestCloudAgentModelFailureRedactsProviderDetails(t *testing.T) {
 		{"connection reset by peer", "model_connection_reset"},
 		{"context deadline exceeded", "model_request_timeout"},
 		{"connection refused", "model_connection_refused"},
+		{"不允许访问本机或内网地址", "upstream_address_blocked"},
 		{"unknown provider error", "model_task_failed"},
 	} {
 		text, reason := cloudAgentModelFailure(&model.Task{ID: "task-id", Error: `Post "https://private.example?key=secret": ` + test.raw})

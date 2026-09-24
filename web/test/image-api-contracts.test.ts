@@ -12,7 +12,8 @@ describe("image api contracts", () => {
         expect(resolveRequestSize("medium", "9:16")).toMatch(/^\d+x\d+$/);
         expect(() => validateImageSize(1025, 1024)).toThrow("16 的倍数");
         expect(() => validateImageSize(3072, 1008)).toThrow("宽高比");
-        expect(() => validateImageSize(3840, 2176)).toThrow("总像素");
+        expect(() => validateImageSize(3840, 2176)).toThrow("图片太大");
+        expect(() => validateImageSize(640, 640)).toThrow("图片太小");
     });
 
     test("解包 b64_json、url 和业务错误", () => {

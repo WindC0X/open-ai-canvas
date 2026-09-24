@@ -429,7 +429,7 @@ func (s *Service) resolveSystemChannelModelSelection(input map[string]any, taskT
 
 	intent := ModelRequestIntentFromTaskInput(input, taskType, operation)
 	if normalizeCapability(intent.Capability) != normalizeCapability(channelModel.Capability) {
-		return input, ModelCapabilityNotSupported("所选模型与任务能力不匹配")
+		return input, ModelCapabilityNotSupported("所选模型不支持该操作，请在模型选择器中更换后重试")
 	}
 	if normalizeCapability(channelModel.Capability) != "audio" {
 		if capabilitySpec == nil {

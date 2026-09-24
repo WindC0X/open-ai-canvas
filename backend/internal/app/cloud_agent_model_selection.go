@@ -33,7 +33,7 @@ func validateCloudAgentModelSelection(raw string, a cloudAgentMediaArgs) error {
 	case a.LogicalModelID != "":
 		return nil
 	case a.ChannelID == "" && a.ChannelModelKey == "":
-		return cloudAgentFieldError("logicalModelId", "required", "缺少模型选择：必须复制 model_list 的 logicalModelId 或完整的 channelId/channelModelKey，不会自动选择模型")
+		return cloudAgentFieldError("logicalModelId", "required", "未指定生成模型：请指定要使用的模型（从模型列表复制 logicalModelId，或完整提供 channelId 与 channelModelKey）；系统不会自动选择模型")
 	case a.ChannelID == "":
 		return cloudAgentFieldError("channelId", "required", "系统渠道模型选择不完整：缺少 channelId，请复制 model_list 的完整 selection")
 	case a.ChannelModelKey == "":

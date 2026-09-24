@@ -83,7 +83,8 @@ export function validateImageSize(width: number, height: number, requireStepAlig
     if (Math.max(width, height) > IMAGE_MAX_EDGE) throw new Error("图像尺寸最长边不能超过 3840px，请调整尺寸");
     if (Math.max(width, height) / Math.min(width, height) > IMAGE_MAX_RATIO) throw new Error("图像宽高比不能超过 3:1，请调整尺寸");
     const pixels = width * height;
-    if (pixels < IMAGE_MIN_PIXELS || pixels > IMAGE_MAX_PIXELS) throw new Error("图像总像素需在 655360 到 8294400 之间，请调整尺寸");
+    if (pixels < IMAGE_MIN_PIXELS) throw new Error(`图片太小：至少需要约 810×810 像素（当前 ${width}×${height}）`);
+    if (pixels > IMAGE_MAX_PIXELS) throw new Error(`图片太大：最大约 2880×2880 像素（当前 ${width}×${height}）`);
 }
 
 export function resolveRequestSize(quality: string | undefined, size: string) {

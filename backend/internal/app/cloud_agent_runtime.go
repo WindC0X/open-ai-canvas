@@ -871,6 +871,8 @@ func cloudAgentModelFailure(task *model.Task) (string, string) {
 		detail, reason = "模型请求超时", "model_request_timeout"
 	case strings.Contains(raw, "connection refused"):
 		detail, reason = "无法连接模型服务（连接被拒绝）", "model_connection_refused"
+	case strings.Contains(raw, "不允许访问"):
+		detail, reason = "模型地址被安全策略拦截（不允许访问本机、内网或保留地址）", "upstream_address_blocked"
 	}
 	return detail + "；本轮已停止。请在任务中心检查模型任务 " + task.ID, reason
 }

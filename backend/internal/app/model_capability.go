@@ -990,8 +990,11 @@ func validateGPTImage2CustomSize(value string) error {
 		return errors.New("图片宽高比不能超过 3:1")
 	}
 	pixels := int64(width) * int64(height)
-	if pixels < 655360 || pixels > 8294400 {
-		return errors.New("图片总像素需在 655360 到 8294400 之间")
+	if pixels < 655360 {
+		return fmt.Errorf("图片太小：至少需要约 810×810 像素（当前 %d×%d）", width, height)
+	}
+	if pixels > 8294400 {
+		return fmt.Errorf("图片太大：最大约 2880×2880 像素（当前 %d×%d）", width, height)
 	}
 	return nil
 }

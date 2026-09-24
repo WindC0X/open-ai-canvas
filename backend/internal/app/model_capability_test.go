@@ -111,7 +111,8 @@ func TestValidateImageTaskEnforcesGPTImage2CustomSizeLimits(t *testing.T) {
 		"4096x2048": "最长边",
 		"3840x2161": "16 的倍数",
 		"3840x1024": "宽高比",
-		"640x640":   "总像素",
+		"3840x2304": "图片太大",
+		"640x640":   "图片太小",
 	}
 	for size, want := range tests {
 		t.Run(size, func(t *testing.T) {
