@@ -776,8 +776,7 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     padding: 10px !important;
 }
 .creation-model-picker-surface .canvas-model-picker-brands { display: grid; gap: 5px; }
-.creation-model-picker-surface .canvas-model-picker-subheading { display: flex; align-items: baseline; justify-content: space-between; padding: 3px 5px 8px; color: var(--foreground); font-size: 12px; font-weight: 650; }
-.creation-model-picker-surface .canvas-model-picker-subheading small { color: color-mix(in srgb, var(--foreground) 52%, transparent); font-size: 10px; font-weight: 500; }
+/* [2026-09-24 复发修复·重放 c86b1bc8] subheading 块在我们 JSX 零命中(死), 清删。 */
 .creation-model-picker-surface .canvas-model-picker-brand { display: flex; min-height: 58px; align-items: center; gap: 10px; border: 1px solid transparent; border-radius: 13px; padding: 8px 10px; background: transparent; color: var(--foreground); text-align: left; transition: background-color 160ms ease, border-color 160ms ease; }
 .creation-model-picker-surface .canvas-model-picker-brand-icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 11px; background: var(--workspace-surface-hover); color: var(--foreground); }
 .creation-model-picker-surface .canvas-model-picker-brand-copy { display: grid; min-width: 0; flex: 1; gap: 4px; }
@@ -790,9 +789,9 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 .creation-model-picker-surface .canvas-model-picker-secondary-head > span { display: grid; gap: 2px; }
 .creation-model-picker-surface .canvas-model-picker-secondary-head strong { color: var(--foreground); font-size: 13px; }
 .creation-model-picker-surface .canvas-model-picker-secondary-head small { color: color-mix(in srgb, var(--foreground) 52%, transparent); font-size: 10px; }
-.creation-model-picker-surface .canvas-model-picker-option { min-height: 55px; border-radius: 12px; padding: 8px 9px; }
-.creation-model-picker-surface .canvas-model-picker-option > span:first-child > span:first-child { width: 32px; height: 32px; border-radius: 10px; background: color-mix(in srgb, var(--workspace-accent) 10%, var(--workspace-surface-strong)) !important; color: var(--workspace-accent); }
-.creation-model-picker-surface .canvas-model-picker-option > span:first-child > span:first-child svg { color: currentColor !important; opacity: 1 !important; }
-.creation-model-picker-surface .canvas-model-picker-option:nth-child(3n) > span:first-child > span:first-child { color: #d57b16; }
-.creation-model-picker-surface .canvas-model-picker-option:nth-child(4n) > span:first-child > span:first-child { color: #25845d; }
+/* [2026-09-24 复发修复·重放 c86b1bc8] 清删合并再次带入的错位块:
+   上游 DOM 里 option > span:first-child > span:first-child 是 32×32 图标方块, 我们结构同位置是
+   ModelLabel 根(整行内容容器) —— 其 bg !important + 10px 圆角会把整行内容涂成深灰胶囊(用户截图实证),
+   svg/nth-child 换色同样错位; option 55px 覆盖我们 surface 域 53px 引起行高跳变。
+   行外观回归 .canvas-model-picker-menu / .creation-model-picker-menu(~3598) 的我们侧规则。 */
 .creation-model-picker-surface .canvas-model-picker-option .model-picker-price { font-size: var(--fs-tiny); }
