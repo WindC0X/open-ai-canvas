@@ -358,6 +358,9 @@ status 取值：queued / running / succeeded / failed / cancelled。
           "taskId": {
             "$coalesce": [
               {
+                "$ref": "response.task.id"
+              },
+              {
                 "$ref": "response.task_id"
               },
               {
@@ -365,6 +368,9 @@ status 取值：queued / running / succeeded / failed / cancelled。
               },
               {
                 "$ref": "response.data.task_id"
+              },
+              {
+                "$ref": "taskId"
               }
             ]
           },
