@@ -302,7 +302,11 @@ function InfiniteCanvasPage() {
     const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
     const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-    const [agentPrefillPrompt, setAgentPrefillPrompt] = useState("");
+    // 发送到 Agent 以「自增 id + 文本」的命令语义交付（2026-09-25 用户实测「有时候没反应」）：
+    // 旧实现只存字符串，同一节点重复发送时值相同 → React 状态不变 + 面板侧按值去重，
+    // 命令被静默吞掉；自增 id 保证每次点击都是一条新命令。
+    const [agentPrefill, setAgentPrefill] = useState<{ id: number; prompt: string }>({ id: 0, prompt: "" });
+    const agentPrefillIdRef = useRef(0);
     const [isMiniMapOpen, setIsMiniMapOpen] = useState(false);
     const [canvasAppearance, setCanvasAppearance] = useState<CanvasAppearance>(() => canvasAppearanceForTheme(colorTheme));
     const [backgroundMode, setBackgroundMode] = useState<CanvasBackgroundMode>(DEFAULT_CANVAS_BACKGROUND_MODE);
@@ -528,7 +532,8 @@ function InfiniteCanvasPage() {
         const ids = nodeId ? [nodeId] : Array.from(selectedNodeIdsRef.current);
         const references = ids.map((id) => agentMentionReferences.find((reference) => reference.nodeId === id)).filter((reference): reference is CanvasResourceReference => Boolean(reference));
         if (!references.length) return;
-        setAgentPrefillPrompt(`${references.map(canvasResourceMentionToken).join(" ")} `);
+        agentPrefillIdRef.current += 1;
+        setAgentPrefill({ id: agentPrefillIdRef.current, prompt: `${references.map(canvasResourceMentionToken).join(" ")} ` });
         openAgent();
         setContextMenu(null);
     }, [agentMentionReferences, openAgent]);
@@ -2984,7 +2989,8 @@ function InfiniteCanvasPage() {
                                 domainProjectId={currentProject?.projectId}
                                 nodeCount={nodes.length}
                                 references={agentMentionReferences}
-                                prefillPrompt={agentPrefillPrompt}
+                                prefillPrompt={agentPrefill.prompt}
+                                prefillPromptId={agentPrefill.id}
                                 panelLayout={agentPanelLayout}
                                 open={assistantOpen}
                                 onOpen={openAgent}

@@ -41,11 +41,11 @@ import { live2DModelURL } from "@/services/api/appearance";
 import { Live2DAvatar } from "./live2d-avatar";
 import "./canvas-cloud-agent.css";
 
-type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void; panelLayout: ReturnType<typeof useAgentPanelLayout> };
+type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; prefillPromptId?: number; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void; panelLayout: ReturnType<typeof useAgentPanelLayout> };
 type ApprovalState = { approvalId: string; detail: Record<string, unknown>; reason: string };
 type AgentPanelView = "chat" | "history" | "settings";
 
-export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, references, open, prefillPrompt, onOpen, onCollapse, onFocusNode, panelLayout }: CloudAgentPanelProps) {
+export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, references, open, prefillPrompt, prefillPromptId, onOpen, onCollapse, onFocusNode, panelLayout }: CloudAgentPanelProps) {
     // Agent 浮窗与节点面板等同属"最后交互置顶"的画布浮层体系: 点击/聚焦面板即 bringToFront,
     // 否则固定 z-modal-overlay(110) 的 Agent 会被交互后置顶(150)的节点面板永久压住(用户实测层级问题)。
     const { bringToFront: bringAgentToFront, zIndex: agentZIndex } = useCanvasOverlayLayer("agent-panel", "var(--z-modal-overlay)");
@@ -67,7 +67,10 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
     const [connectionEpoch, setConnectionEpoch] = useState(0);
     const [messages, setMessages] = useState<CloudAgentChatMessage[]>([]);
     const [prompt, setPrompt] = useState("");
-    const lastPrefillPromptRef = useRef("");
+    // 按命令 id（而非文本值）去重（2026-09-25 「发送到 Agent 有时候没反应」修复）：
+    // 旧实现按值去重，同一节点重复发送（文本相同）的第二条命令被静默吞掉；
+    // 自增 id 下每条新命令都会重新落进输入框（含原本就在 chat 视图时切回 chat）。
+    const lastPrefillIdRef = useRef(0);
     const [reasoningMode, setReasoningMode] = useState<AgentReasoningMode>("off");
     const [profileView, setProfileView] = useState<AgentProfileView | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
@@ -145,11 +148,12 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
 
     useEffect(() => {
         const value = prefillPrompt?.trim();
-        if (!value || value === lastPrefillPromptRef.current) return;
-        lastPrefillPromptRef.current = value;
+        const prefillId = prefillPromptId ?? 0;
+        if (!value || prefillId === lastPrefillIdRef.current) return;
+        lastPrefillIdRef.current = prefillId;
         setPrompt(value);
         setView("chat");
-    }, [prefillPrompt]);
+    }, [prefillPrompt, prefillPromptId]);
 
     useEffect(() => {
         if (!open || view !== "chat") setSkillsOpen(false);
