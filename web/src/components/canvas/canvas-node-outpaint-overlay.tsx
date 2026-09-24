@@ -1,4 +1,4 @@
-import { Button, Dropdown, Input, Select } from "antd";
+import { App, Button, Dropdown, Input, Select } from "antd";
 import { ArrowUp, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 
@@ -161,6 +161,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const [count, setCount] = useState(1);
     const [prompt, setPrompt] = useState("");
     const [visible, setVisible] = useState(false);
+    const { message } = App.useApp();
 
     paddingRef.current = padding;
 
@@ -219,11 +220,26 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
             : null;
     const resolutionOptions = resolutionMode === "size" ? tierChoices : resolutionMode === "quality" ? qualityOptions : [];
 
-    // 模型切换时把比例/档位选择重置进新模型的能力域。
+    // 模型切换时把比例/档位选择收敛进新模型的能力域（批10 A2，用户裁定 2026-09-24）：
+    // 新模型仍支持的选择保留；确实不支持时才重置并说明原因（此前为无条件静默重置）。
     useEffect(() => {
-        setRatioKey(ORIGINAL_RATIO_KEY);
-        setSizeValue("");
-        setQualityValue("");
+        const notices: string[] = [];
+        if (ratioKey !== ORIGINAL_RATIO_KEY) {
+            const supported = ratioKey === FREE_RATIO_KEY ? Boolean(imageProfile?.size.allowCustom) : ratioOptions.includes(ratioKey);
+            if (!supported) {
+                notices.push(`比例「${ratioOptionLabel(ratioKey)}」`);
+                setRatioKey(ORIGINAL_RATIO_KEY);
+            }
+        }
+        if (sizeValue && !(tierChoices as string[]).includes(sizeValue)) {
+            notices.push(`分辨率「${sizeValue}」`);
+            setSizeValue("");
+        }
+        if (qualityValue && !qualityOptions.includes(qualityValue)) {
+            notices.push(`画质「${qualityValue}」`);
+            setQualityValue("");
+        }
+        if (notices.length) message.info(`新模型不支持${notices.join("、")}，已重置为默认值`);
     }, [model]);
 
     // size 制的分辨率档（sizeValue 语义 = tier）；默认 auto = 模型自选。

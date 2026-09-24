@@ -367,6 +367,10 @@ export type CanvasNodeMetadata = {
     actionBoardRows?: number;
     actionBoardColumns?: number;
     taskId?: string;
+    /** Agent 媒体草稿归属运行（未提交生成时存在；提交任务时后端删除该键，批10 A6 草稿角标依据）。 */
+    agentDraftRunId?: string;
+    /** 生成任务 ID 别名（部分链路与 taskId 并存；草稿判定需一并排除）。 */
+    generationTaskId?: string;
     taskClientOperationId?: string;
     taskBilling?: { amountMicrocredits: number; status: string };
     retryOf?: string;

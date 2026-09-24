@@ -432,6 +432,11 @@ export const CanvasNode = React.memo(function CanvasNode({
                     {data.metadata?.status && data.metadata.status !== "idle" && data.type !== CanvasNodeType.Frame ? (
                         <NodeStatusBadge status={data.metadata.status} />
                     ) : null}
+                    {/* Agent 未生成草稿角标（批10 A6）：拒绝/未提交的草稿节点在画布上无任何信号。
+                        草稿判定 = 带 agentDraftRunId 且未提交任务（后端提交时删除该键，见 cloud_agent_media.go）。*/}
+                    {data.metadata?.agentDraftRunId && !data.metadata?.taskId && !data.metadata?.generationTaskId && (!data.metadata?.status || data.metadata.status === "idle") && data.type !== CanvasNodeType.Frame ? (
+                        <NodeStatusBadge status="draft" muted={theme.node.muted} />
+                    ) : null}
                     <CanvasNodeContent
                         node={data}
                         theme={theme}
@@ -822,7 +827,20 @@ function nodeTypeIcon(type: CanvasNodeTypeId) {
 }
 
 // 节点状态徽章（对应 #97 决策2：左上角状态指示，loading/success/error）
-function NodeStatusBadge({ status }: { status: "loading" | "success" | "error" }) {
+function NodeStatusBadge({ status, muted }: { status: "loading" | "success" | "error" | "draft"; muted?: string }) {
+    if (status === "draft") {
+        const tone = muted || "#a3a3a3";
+        return (
+            <div
+                className="pointer-events-none absolute left-2 top-2 z-20 flex items-center gap-1 rounded-full px-2 py-0.5 backdrop-blur-sm"
+                style={{ background: `color-mix(in oklch, ${tone} 22%, transparent)`, color: tone }}
+                aria-label="未生成的 Agent 草稿"
+            >
+                <span className="size-1.5 rounded-full border border-current" />
+                <span className="text-[var(--fs-micro)] font-medium leading-none">未生成</span>
+            </div>
+        );
+    }
     if (status === "loading") {
         return (
             <div
