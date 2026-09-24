@@ -524,15 +524,17 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     <span aria-hidden className="canvas-node-composer-divider" />
                     {mode === "text" ? (
                         <>
-                            <div className="flex h-7 items-center overflow-hidden rounded-md border" style={{ borderColor: theme.node.stroke }}>
+                            <div className="flex h-7 items-center overflow-hidden rounded-md border [&>span]:h-full" style={{ borderColor: theme.node.stroke }}>
                                 <button type="button" aria-pressed={!node.metadata?.listMode} onClick={() => onConfigChange(node.id, { listMode: false })} className={`flex h-full items-center gap-1 px-2 text-[var(--fs-tiny)] transition-colors focus-visible:outline ${!node.metadata?.listMode ? "font-medium" : ""}`} style={!node.metadata?.listMode ? { background: theme.toolbar.activeBg, color: theme.toolbar.activeText } : { color: theme.node.muted }}>
                                     <FileText className="size-3" />
                                     文本
                                 </button>
-                                <button type="button" aria-pressed={Boolean(node.metadata?.listMode)} onClick={() => onConfigChange(node.id, { listMode: true })} className={`flex h-full items-center gap-1 px-2 text-[var(--fs-tiny)] transition-colors focus-visible:outline ${node.metadata?.listMode ? "font-medium" : ""}`} style={node.metadata?.listMode ? { background: theme.toolbar.activeBg, color: theme.toolbar.activeText } : { color: theme.node.muted }}>
-                                    <LayoutList className="size-3" />
-                                    列表
-                                </button>
+                                <Tooltip title="行数和列结构由模型判断">
+                                    <button type="button" aria-pressed={Boolean(node.metadata?.listMode)} onClick={() => onConfigChange(node.id, { listMode: true })} className={`flex h-full items-center gap-1 px-2 text-[var(--fs-tiny)] transition-colors focus-visible:outline ${node.metadata?.listMode ? "font-medium" : ""}`} style={node.metadata?.listMode ? { background: theme.toolbar.activeBg, color: theme.toolbar.activeText } : { color: theme.node.muted }}>
+                                        <LayoutList className="size-3" />
+                                        列表
+                                    </button>
+                                </Tooltip>
                             </div>
                             {!node.metadata?.listMode ? (
                                 <CanvasTextSettingsPopover
@@ -542,7 +544,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                                 placement={expanded ? "topRight" : "topLeft"}
                                 buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
                                 />
-                                ) : <span className="text-[10px]" style={{ color: theme.node.muted }}>行数和列结构由模型判断</span>}
+                                ) : null}
                         </>
                         ) : mode === "image" ? (
                         // 份数入口恒显示: maxOutputs=1 的模型(如 Grok)列表只有 1 行, 入口消失会让用户找不到份数设置。
