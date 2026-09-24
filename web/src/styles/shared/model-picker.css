@@ -80,10 +80,8 @@
         color: #f2f4f6 !important;
     }
 
-    .creation-model-picker-menu .canvas-model-picker-group-label {
-        padding: 7px 8px 6px;
-        font-size: 11px;
-    }
+    /* [收口A2 2026-09-24] 上游重复块删除: 分组标签样式保 globals fork 权威(12px)。
+       行/标签 compact 族清理详见合并台账 §十五; G7 批做全家族对表。 */
 
     .creation-model-picker-heading {
         display: flex;
@@ -112,39 +110,9 @@
         color: #f2f4f6;
     }
 
-    .creation-model-picker-menu .canvas-model-picker-option {
-        min-height: 52px;
-        border-radius: 9px;
-        padding: 7px 9px;
-        transition: background-color 150ms ease, transform 120ms ease;
-    }
-
-
-    .creation-model-picker-menu .canvas-model-picker-option > span:first-child {
-        gap: 12px;
-    }
-
-    .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child {
-        width: 34px;
-        height: 34px;
-        border: 1px solid #e6e8eb;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, .66) !important;
-    }
-
-    .dark .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child {
-        border-color: #30343b;
-        background: rgba(35, 38, 44, .72) !important;
-    }
-
-    .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:first-child {
-        font-size: 13px;
-    }
-
-    .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:nth-child(2) {
-        margin-top: 5px;
-        font-size: 10px;
-    }
+    /* [收口A2 2026-09-24] 上游创建菜单 compact 重复族删除(52px/root34/gap12/标题/副标):
+       与 globals fork 权威重叠(53px/r12/gap10/副标 12px); 深层 nth-child 选择器与本仓
+       DOM 不匹配。详见合并台账 §十五。 */
 
 .creation-model-picker.canvas-composer-model-picker {
         display: inline-flex;
@@ -327,34 +295,8 @@ html:not(.dark) .creation-model-picker.canvas-composer-model-picker[aria-expande
         padding-top: 5px;
     }
 
-    .canvas-model-picker-group-label {
-        align-items: center;
-        display: flex;
-        font-size: 10px;
-        font-weight: 600;
-        gap: 6px;
-        letter-spacing: 0.02em;
-        min-width: 0;
-        padding: 5px 7px 4px;
-    }
-
-    .canvas-model-picker-option {
-        align-items: center;
-        border: 0;
-        border-radius: 7px;
-        cursor: pointer;
-        display: flex;
-        gap: 8px;
-        max-width: 100%;
-        min-height: 40px;
-        min-width: 0;
-        outline: none;
-        overflow: hidden;
-        padding: 6px 7px;
-        text-align: left;
-        transition: background-color var(--motion-instant) ease-out;
-        width: 100%;
-    }
+    /* [收口A2 2026-09-24] 上游 generic 重复删除(10px 标签 / 40px 行):
+       保 globals fork 权威 full 属性集; unlayered 曾整体压过分层规则。 */
 
 
     .canvas-model-picker-option[aria-selected="true"] {
@@ -544,17 +486,12 @@ html:not(.dark) .creation-chat-composer .creation-model-picker.canvas-composer-m
 .creation-model-picker-menu { width: min(332px, calc(100vw - 24px)) !important; max-height: min(420px, calc(100vh - 24px)); padding: 7px !important; background: transparent !important; color: #f0f1f2 !important; }
 .creation-model-picker-heading { display: flex; align-items: center; gap: 6px; padding: 4px 7px 7px; color: #8e949d; font-size: 10px; }
 .creation-model-picker-heading strong { color: #e6e8eb; font-weight: 500; }
-.creation-model-picker-menu .canvas-model-picker-group-label { padding: 6px 7px 5px; font-size: 10px; }
-.creation-model-picker-menu .canvas-model-picker-option { min-height: 43px; border-radius: 6px; padding: 5px 7px; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child { gap: 8px; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child { width: 26px; height: 26px; border: 0; border-radius: 5px; background: rgba(255, 255, 255, .07) !important; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:first-child { font-size: 11px; }
-.creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:nth-child(2) > span:nth-child(2) { margin-top: 3px; font-size: 9px; }
+/* [收口A2 2026-09-24] 上游未分层 compact 覆盖删除(43px 族): 曾以 unlayered 压过 fork
+   53px 族(与导入序无关); 行/标签保 globals 权威。详见合并台账 §十五。 */
 
 html:not(.dark) .creation-model-picker-surface { background: rgba(255, 255, 255, .94) !important; box-shadow: 0 16px 38px rgba(28, 32, 37, .12) !important; }
 html:not(.dark) .creation-model-picker-menu { color: #727980 !important; }
 html:not(.dark) .creation-model-picker-heading strong { color: #20242a; }
-html:not(.dark) .creation-model-picker-menu .canvas-model-picker-option > span:first-child > span:first-child { background: rgba(28, 32, 37, .06) !important; }
 @media (max-width: 680px) {
 .creation-chat-composer .creation-model-picker.canvas-composer-model-picker { height: 29px; padding: 0 6px; font-size: 10px; }
 .creation-chat-composer .creation-model-picker.canvas-composer-model-picker { width: min(136px, 42vw); }
