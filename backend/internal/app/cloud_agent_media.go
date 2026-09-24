@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -552,6 +554,56 @@ func (s *Service) fillCloudAgentMediaSnapshotHash(userID, canvasID string, a *cl
 	return nil
 }
 
+// cloudAgentMediaDraftSize 返回媒体草稿节点的标准占位尺寸（2026-09-25 用户实测「Agent 创建的
+// 节点比手动链路小」修正：9:16 曾硬编码 360×640，比媒体标准盒小一圈；同类修正在 2026-09-19
+// 已对文本节点做过一轮 384×384）。与 web 端 nodeSizeFromRatio + fitNodeSize 同口径：
+// 比例串（"9:16" / "1024x1824"）先填入基准盒，再按 420×236 下限上浮、基准盒上限收缩；
+// 图片链基准盒 = MEDIA_NODE_MAX_SIZE 720×520（2026-09-21 收敛值），视频链 = 类型默认 720×405；
+// 空 / auto / 不可解析 / 越界比例（<0.25 或 >4）回退类型默认尺寸。非媒体类型不换算。
+func cloudAgentMediaDraftSize(nodeType string, size string) (float64, float64) {
+	defaultWidth, defaultHeight := cloudAgentNodeDefaultWidth(nodeType), cloudAgentNodeDefaultHeight(nodeType)
+	if nodeType != "image" && nodeType != "video" {
+		return defaultWidth, defaultHeight
+	}
+	raw := strings.TrimSpace(strings.ToLower(size))
+	if raw == "" || raw == "auto" {
+		return defaultWidth, defaultHeight
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool { return r == 'x' || r == ':' })
+	if len(parts) != 2 {
+		return defaultWidth, defaultHeight
+	}
+	widthRatio, widthErr := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+	heightRatio, heightErr := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	if widthErr != nil || heightErr != nil || widthRatio <= 0 || heightRatio <= 0 {
+		return defaultWidth, defaultHeight
+	}
+	ratio := widthRatio / heightRatio
+	if ratio < 0.25 || ratio > 4 {
+		return defaultWidth, defaultHeight
+	}
+	baseWidth, baseHeight := defaultWidth, defaultHeight
+	if nodeType == "image" {
+		baseWidth, baseHeight = cloudAgentMediaBoxMaxWidth, cloudAgentMediaBoxMaxHeight
+	}
+	candidateWidth, candidateHeight := baseHeight*ratio, baseHeight
+	if ratio >= baseWidth/baseHeight {
+		candidateWidth, candidateHeight = baseWidth, baseWidth/ratio
+	}
+	preferredScale := math.Min(1, math.Min(baseWidth/candidateWidth, baseHeight/candidateHeight))
+	minimumScale := math.Max(cloudAgentMediaBoxMinWidth/candidateWidth, cloudAgentMediaBoxMinHeight/candidateHeight)
+	scale := math.Max(preferredScale, minimumScale)
+	return candidateWidth * scale, candidateHeight * scale
+}
+
+// 媒体标准盒常量（与 web shared/canvas-node-size.ts 同源；改一处必须对表）。
+const (
+	cloudAgentMediaBoxMaxWidth  = 720.0 // MEDIA_NODE_MAX_SIZE.width
+	cloudAgentMediaBoxMaxHeight = 520.0 // MEDIA_NODE_MAX_SIZE.height
+	cloudAgentMediaBoxMinWidth  = 420.0 // MEDIA_NODE_MIN_SIZE.width
+	cloudAgentMediaBoxMinHeight = 236.0 // MEDIA_NODE_MIN_SIZE.height
+)
+
 // cloudAgentOutpaintTitle 扩图节点标题：按最终提交画幅生成（用户裁定 2026-09-21）。
 // 单一源——prepare 写 args.Title，节点创建/审批预览都消费同一个字符串。
 func cloudAgentOutpaintTitle(width, height int) string {
@@ -777,9 +829,10 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 		delete(meta, "agentDraftRunId")
 	}
 	node := creationAddedNode(CreationCanvasOp{Type: "add_node", ID: a.NodeID, NodeType: descriptor.Type, Title: a.Title, X: &x, Y: &y, Metadata: meta})
-	if a.Size == "9:16" {
-		node["width"], node["height"] = float64(360), float64(640)
-	}
+	// 标准占位尺寸（2026-09-25 用户实测「Agent 创建的节点比手动链路小」）：9:16 曾硬编码
+	// 360×640，比媒体标准盒小一圈；改为与 web 端 nodeSizeFromRatio 同口径换算。
+	nodeWidth, nodeHeight := cloudAgentMediaDraftSize(descriptor.Type, a.Size)
+	node["width"], node["height"] = nodeWidth, nodeHeight
 	replaced := false
 	for _, existing := range nodes {
 		if stringValue(existing["id"]) == a.NodeID {
@@ -792,6 +845,9 @@ func createCloudAgentMediaNode(repo *repository.Repository, userID, canvasID str
 			// （契约见 agentMediaApprovalAllowsMovesButRejectsContentChanges 的 move 用例）。
 			if task == nil {
 				existing["position"] = map[string]any{"x": x, "y": y}
+				// 尺寸同步（2026-09-25）：与新建路径同口径——ops 骨架默认 720×405，若不复用标准盒，
+				// 结果回写按宽重算高会把 9:16 撑成 720×1290，与手动链路不一致。
+				existing["width"], existing["height"] = nodeWidth, nodeHeight
 			}
 			replaced = true
 			break

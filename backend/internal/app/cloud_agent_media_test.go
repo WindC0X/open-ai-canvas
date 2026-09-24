@@ -629,6 +629,14 @@ func TestCloudAgentAutoMediaDraftRequiresExplicitApproval(t *testing.T) {
 			if meta["status"] != "idle" || meta["taskId"] != nil || meta["size"] != "9:16" || meta["agentDraftRunId"] != run.ID || len(creationMaps(doc["connections"])) != 3 {
 				t.Fatalf("missing uncharged draft with references: %+v", meta)
 			}
+			// 9:16 草稿必须走媒体标准盒（2026-09-25 用户实测「Agent 节点比手动链路小」修复：
+			// 旧实现硬编码 360×640）。期望 420×746.67。
+			if w, _ := nodes[a.NodeID]["width"].(float64); w < 419.9 || w > 420.1 {
+				t.Fatalf("9:16 草稿宽度应为媒体标准盒 420，got %v", w)
+			}
+			if h, _ := nodes[a.NodeID]["height"].(float64); h < 746.5 || h > 746.9 {
+				t.Fatalf("9:16 草稿高度应随比例化为 746.67，got %v", h)
+			}
 			// Re-entering the tool while awaiting a decision must remain a no-op.
 			if err := s.advanceCloudAgentTool(run, &state); err != nil {
 				t.Fatal(err)
@@ -1061,5 +1069,39 @@ func TestCloudAgentMediaNodeRepositionsReusedDraftFromCanvasOps(t *testing.T) {
 	x, y = read()
 	if x != -7224 || y != 15644 {
 		t.Fatalf("重复复用应保持落位，got x=%v y=%v", x, y)
+	}
+}
+
+// 媒体草稿尺寸标准盒（2026-09-25 用户实测「Agent 创建的节点比手动链路小」）：
+// 必须与 web nodeSizeFromRatio 同口径，9:16 → 420×746.67、1:1 → 520×520、16:9 → 720×405。
+func TestCloudAgentMediaDraftSizeUsesStandardBox(t *testing.T) {
+	cases := []struct {
+		nodeType string
+		size     string
+		wantW    float64
+		wantH    float64
+	}{
+		{"image", "9:16", 420, 746.6666666667},
+		{"image", "1:1", 520, 520},
+		{"image", "16:9", 720, 405},
+		{"image", "3:4", 420, 560},
+		{"image", "1024x1824", 420, 748.125},
+		{"image", "auto", 720, 405},
+		{"image", "", 720, 405},
+		{"image", "5:1", 720, 405},
+		{"video", "9:16", 420, 746.6666666667},
+		{"video", "16:9", 720, 405},
+		{"video", "1:1", 420, 420},
+		{"video", "auto", 720, 405},
+		{"audio", "9:16", 340, 120},
+	}
+	for _, tc := range cases {
+		gotW, gotH := cloudAgentMediaDraftSize(tc.nodeType, tc.size)
+		if diff := gotW - tc.wantW; diff > 0.001 || diff < -0.001 {
+			t.Fatalf("%s %q width = %v, want %v", tc.nodeType, tc.size, gotW, tc.wantW)
+		}
+		if diff := gotH - tc.wantH; diff > 0.001 || diff < -0.001 {
+			t.Fatalf("%s %q height = %v, want %v", tc.nodeType, tc.size, gotH, tc.wantH)
+		}
 	}
 }
