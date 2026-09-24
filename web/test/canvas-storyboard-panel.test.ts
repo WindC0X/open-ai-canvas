@@ -24,7 +24,9 @@ describe("storyboard prompt panel boundaries", () => {
     test("click and overlay guards remain while the storyboard editor stays available", () => {
         const project = source("project.tsx");
         expect(project).toMatch(/else if \(node.type === CanvasNodeType.Script\) \{\s*setDialogNodeId\(null\)/);
-        expect(project).toContain("dialogNode.type !== CanvasNodeType.Script");
+        // 2026-09-17 P0 双挂载根修后，Script 排除并入 isPanelCarrier（dialog 挂载判定的唯一载体，旧裸挂载点已删除）。
+        expect(project).toContain("isPanelCarrier(dialogNode)");
+        expect(project).toContain("node.type !== CanvasNodeType.Script");
         expect(project).toContain("onOpen={() => setScriptEditorNodeId(contentNode.id)}");
         expect(project).toContain("onGenerateScript={(prompt) => void generateScriptRows(contentNode.id, prompt)}");
     });

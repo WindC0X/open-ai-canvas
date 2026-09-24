@@ -80,8 +80,11 @@ test("普通节点 toggleDialog 后 composer 面板必须可渲染（无 angleNo
 test("angleNode 面板（独立块）仍可达：条件与渲染对象配对", () => {
     const conditionCount = (pageSource.match(/angleNode\?\.metadata\?\.content \? \(/g) || []).length;
     expect(conditionCount).toBe(1);
-    const match = pageSource.match(/\{angleNode\?\.metadata\?\.content \? \([\s\S]*?node=\{angleNode\}/);
+    // 形态跟随 fork 产品线：多角度编辑器为居中的可关闭弹窗（2247c7c1 引入；W1-a 合并曾再度丢失，
+    // 2e4a31c5 在 fork 线修复过一次，此处以全量套件口径锁定：条件块内渲染 CanvasNodeAnglePanel 自身，不指向 selectedPanelNode）。
+    const match = pageSource.match(/\{angleNode\?\.metadata\?\.content \? \([\s\S]*?<CanvasNodeAnglePanel/);
     expect(match).toBeTruthy();
+    expect(match![0]).not.toContain("selectedPanelNode");
 });
 
 // 回归：F7（2026-09-24）——主工具栏「工作区」按钮接线；W4 区域恢复时丢失，

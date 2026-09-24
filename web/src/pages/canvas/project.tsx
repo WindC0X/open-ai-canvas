@@ -6,7 +6,7 @@ import type { Dispatch, MouseEvent as ReactMouseEvent, SetStateAction } from "re
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router";
 import { loadAssetsForUse } from "@/services/user-data-sync";
-import { canvasAssetHandoffIds, canvasAssetHandoffAttempt, finalizeCanvasAssetHandoff, uninsertedCanvasAssetHandoffPayloads } from "@/lib/canvas/canvas-asset-handoff";
+import { canvasAssetHandoffIds } from "@/lib/canvas/canvas-asset-handoff";
 import { Brush, Scissors, SquareSplitHorizontal, ZoomIn, ArrowLeftRight } from "lucide-react";
 import { useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { uploadMediaFile } from "@/services/file-storage";
@@ -105,6 +105,7 @@ import { failedImageBatchChildren, markImageBatchRetrying, reconcileImageBatchRo
 import { batchRootExpanded, cinematicStoryboardColumns, createCanvasNode, getInputSummary, isHiddenBatchChild } from "@/lib/canvas/canvas-project-domain";
 import { bindStoryboardKeyframes, storyboardKeyframeTime, storyboardRowsFromBatchTable } from "@/lib/canvas/canvas-batch-storyboard";
 import { stampCanvasNodeChanges, updateCanvasNode, updateCanvasNodes } from "@/lib/canvas/canvas-node-timestamps";
+import { canvasAssetHandoffAttempt, finalizeCanvasAssetHandoff, uninsertedCanvasAssetHandoffPayloads } from "@/lib/canvas/canvas-asset-handoff";
 import { batchSourceRestriction } from "@/lib/canvas/canvas-batch-connection";
 import { deriveStoryboardPipelineProgress } from "@/lib/canvas/canvas-storyboard-progress";
 import { CanvasOperationChangeToast, CanvasMergeStatusToast, CanvasUploadStatusToast } from "./canvas-project-feedback";
@@ -3182,15 +3183,14 @@ function InfiniteCanvasPage() {
                     {isMiniMapOpen && !focusMode ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} canvasContainerRef={containerRef} onViewportPreviewChange={previewViewport} onViewportChange={handleViewportChange} /> : null}
 
                     {angleNode?.metadata?.content ? (
-                        <CanvasNodePanelOverlay
-                            node={angleNode}
-                            viewport={viewport}
-                            containerRef={containerRef}
-                            panelWidth={640}
-                            panelHeight={540}
-                            allowOverflow
-                            dragOffset={dragPreview?.nodeIds.has(angleNode.id) ? { x: dragPreview.x, y: dragPreview.y } : null}
-                            isDragging={isNodeDragging && Boolean(dragPreview?.nodeIds.has(angleNode.id))}
+                        <AppModal
+                            flush
+                            open
+                            centered
+                            title="多角度编辑器"
+                            footer={null}
+                            width={620}
+                            onCancel={() => setAngleNodeId(null)}
                         >
                             <CanvasNodeAnglePanel
                                 dataUrl={angleNode.metadata.content}
@@ -3199,7 +3199,7 @@ function InfiniteCanvasPage() {
                                     void generateAngleNode(angleNode, params);
                                 }}
                             />
-                        </CanvasNodePanelOverlay>
+                        </AppModal>
                     ) : null}
 
                         {lightingNode?.metadata?.content ? (

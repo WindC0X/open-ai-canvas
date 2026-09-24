@@ -38,9 +38,10 @@ void mock.module("@/lib/canvas/canvas-generation-submission", () => ({
     ...actualSubmission,
 }));
 
-void mock.module("@/stores/canvas/use-canvas-store", () => ({
-    useCanvasStore: { getState: () => ({ updateProject: () => {} }) },
-}));
+// 注意：本文件不得 mock.module 画布 store。bun 的模块 mock 是进程级且顶层 await 会与后续
+// 测试文件的加载交错绑定，桩会在本文件结束后继续汄漏给别的文件（历史现象：全量跑中
+// creative-agent-controller 拿到桩 store → getState().projects 为 undefined）。
+// 本文件执行上下文 projectId 恒为 undefined，executor 的 store 写回路径不会触达，无需桩。
 
 const { executeVideoGeneration, stripNonVideoBatchFields } = await import("@/pages/canvas/canvas-media-generation-executors");
 
