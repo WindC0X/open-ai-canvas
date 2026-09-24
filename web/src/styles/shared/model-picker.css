@@ -283,7 +283,8 @@ html:not(.dark) .creation-model-picker.canvas-composer-model-picker[aria-expande
         width: max-content !important;
         min-width: max(var(--canvas-model-picker-trigger-width, 0px), 260px);
         max-width: calc(100vw - 24px);
-        max-height: min(420px, calc(100vh - 32px));
+        /* [2026-09-24 G7] 420→480: 53px 行高下 8 行曾被 420 cap 裁底行。 */
+        max-height: min(480px, calc(100vh - 32px));
         overflow-x: hidden;
         overflow-y: auto;
         padding: 4px;
@@ -483,7 +484,7 @@ html:not(.dark) .creation-chat-composer .creation-model-picker.canvas-composer-m
 
 .creation-model-picker-surface .ant-popover-inner-content { padding: 0 !important; }
 
-.creation-model-picker-menu { width: min(332px, calc(100vw - 24px)) !important; max-height: min(420px, calc(100vh - 24px)); padding: 7px !important; background: transparent !important; color: #f0f1f2 !important; }
+/* [2026-09-24 G7] 上游 332 菜单副本删除: fork 权威 384/560 由菜单族承担(该副本曾以 TOP max-height:420 顶掉 560 上限)。 */
 .creation-model-picker-heading { display: flex; align-items: center; gap: 6px; padding: 4px 7px 7px; color: #8e949d; font-size: 10px; }
 .creation-model-picker-heading strong { color: #e6e8eb; font-weight: 500; }
 /* [收口A2 2026-09-24] 上游未分层 compact 覆盖删除(43px 族): 曾以 unlayered 压过 fork
@@ -660,19 +661,7 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     color: color-mix(in srgb, currentColor 52%, transparent);
     font-size: 10px;
 }
-.canvas-model-picker-description {
-    height: 16px;
-    line-height: 16px;
-    margin-top: 5px !important;
-    visibility: hidden;
-    opacity: 0;
-}
-
-.canvas-model-picker-description.is-visible {
-    visibility: visible;
-    opacity: 1;
-}
-
+/* [2026-09-24 G7] 描述显隐副本删除: 权威版随 fork 块并入文件末 G7 迁移区(含 transform 修正)。 */
 /* 积分独立于选中态，金黄色图标与紧凑标签保持常驻可读。 */
 .model-picker-price {
     --model-price-ink: #946900;
@@ -795,3 +784,526 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
    svg/nth-child 换色同样错位; option 55px 覆盖我们 surface 域 53px 引起行高跳变。
    行外观回归 .canvas-model-picker-menu / .creation-model-picker-menu(~3598) 的我们侧规则。 */
 .creation-model-picker-surface .canvas-model-picker-option .model-picker-price { font-size: var(--fs-tiny); }
+
+
+/* ==========================================================================
+ * G7 迁移区（2026-09-24）: fork 权威规则自 globals.css 全量迁入; 单一源收敛后
+ * globals 不再含该家族任何规则。分区保持原相对顺序以维持层叠结果。
+ * ========================================================================== */
+
+@layer utilities {
+
+    /* ---- G7 迁移: 菜单行补充规则(原 R1 块) ---- */
+    .creation-model-picker-menu .canvas-model-picker-group-label {
+        padding: 10px 10px 6px;
+        font-size: 12px;
+    }
+
+    /* creation-model-picker-heading 已删(2026-09-19): 触发按钮已显示当前模型, 标题冗余。 */
+
+    .creation-model-picker-menu .canvas-model-picker-option {
+        min-height: 53px;
+        border-radius: 12px;
+        padding: 8px 10px;
+        transition: background-color 150ms ease;
+    }
+
+    /* [2026-09-24 G7/D1 裁决] option 级 :hover 不上色(悬停唯一挂 rowgroup 整行); 原 globals 同族规则不随迁。 */
+
+    .creation-model-picker-menu .canvas-model-picker-option-body {
+        gap: 10px;
+    }
+
+    .creation-model-picker-menu .canvas-model-picker-title {
+        font-size: 14px;
+        font-weight: 350;
+    }
+
+    .creation-model-picker-menu .canvas-model-picker-subtitle {
+        margin-top: 2px;
+        font-size: 12px;
+        opacity: .72;
+    }
+
+    /* 模型菜单即时开合: 动画时长归零(0s transition 同步派发 transitionend, 不依赖 rAF/帧推进)。
+       根因: rc-motion leave 等 transitionend, 后台 tab 帧冻结时选行后菜单 DOM 残留直到下次外部点击
+       (2026-09-08 实测)。flora P51-030 模型菜单亦无开合动画证据。 */
+    .canvas-model-picker-popover.ant-zoom-big-appear,
+    .canvas-model-picker-popover.ant-zoom-big-enter,
+    .canvas-model-picker-popover.ant-zoom-big-leave {
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+    }
+
+    /* 模型菜单专用 surface: flora live 权威值(2026-09-07 flora 现场抓取)
+       bg rgba(32,32,32,.9) + backdrop blur16 + border 白.05 + radius16 + 无阴影。
+       (9263e82 曾误判"flora 实心"砍掉玻璃感, 与 corpus flora-canvas-analysis.md:233
+       "black/dark alpha panels with backdrop blur" 冲突, 本批以 live 值纠正) */
+    .canvas-model-picker-popover.canvas-composer-popover-surface,
+    .canvas-model-picker-popover .canvas-composer-popover-surface {
+        border-radius: 16px !important;
+        background: rgba(32, 32, 32, 0.9) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+        width: min(384px, calc(100vw - 24px)) !important;
+    }
+
+    .canvas-model-picker-popover .canvas-composer-popover-content,
+    .canvas-model-picker-popover.canvas-composer-popover-content {
+        width: min(384px, calc(100vw - 24px)) !important;
+    }
+
+    /* 外壳钉 384 后内层菜单必须同宽: 菜单默认 w-[var(--panel-width-compact)](320),
+      比外壳窄出 ~49px 玻璃空白列, flyout(锚定菜单右缘+8) 左缘落进空白列, 同色玻璃
+      视觉融合成 "L1 空白列压住 L2"(2026-09-19 用户实测截图)。菜单填满外壳后
+      menuRef 右缘 == 外壳右缘, flyout 锚点自动对齐。 */
+    .canvas-model-picker-popover .canvas-model-picker-menu {
+        width: min(384px, calc(100vw - 24px)) !important;
+    }
+
+    .canvas-model-picker-menu {
+        /* flora P51-030: 菜单根定宽 384(世界), 不随内容/触发器收缩。
+           高度上限 560(2026-09-09 十轮): 420 在 pinned≥2 时提前内部滚动裁切,
+           第二行拦腰半行 + 底部 provider 被挤出可视区(用户截图三连实锤);
+           560 可容纳 search+3pinned+4provider 全量不滚动, 视口不足仍滚动。 */
+        width: min(384px, calc(100vw - 24px)) !important;
+        max-height: min(560px, calc(100vh - 132px));
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 4px;
+        /* L1 在 composer 内继承 13px, L2 flyout portal 挂 body 继承 16px — 显式定 13px 根除继承差 */
+        font-size: 13px;
+    }
+
+    .canvas-model-picker-group + .canvas-model-picker-group {
+        border-top: 1px solid var(--workspace-border);
+        margin-top: 5px;
+        padding-top: 5px;
+    }
+
+    .canvas-model-picker-group-label {
+        align-items: center;
+        display: flex;
+        font-size: 12px;
+        font-weight: 500;
+        gap: 6px;
+        letter-spacing: -0.01em;
+        min-width: 0;
+        padding: 10px 10px 6px;
+    }
+
+    /* flora 模型菜单语法(P51-030 权威实测): 根 384 radius16 rgba(32,32,32,.9), 搜索行 h44 pl-4 pr-2 py-3, 组标题 12/500 #7b7b7b,
+       行 374x53 radius12 透明底+hover 中性 alpha, logo 24x24 radius8, 名 14/350, 徽章 18px pill 白.1 */
+    .canvas-model-picker-search {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 12px 8px 12px 16px;
+        border-bottom: 1px solid color-mix(in srgb, var(--workspace-border) 55%, transparent);
+    }
+
+    /* 徽章 chip: flora live(2026-09-07 现场抓取) bg 白.1 / fg #b4b4b4 / 12px 500 / h18 / pad 0 4px */
+    .canvas-model-picker-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 4px;
+        border-radius: 9999px;
+        background: var(--canvas-model-badge-bg, rgba(144, 144, 144, .14));
+        color: var(--canvas-model-badge-fg, color-mix(in srgb, var(--workspace-foreground) 72%, transparent));
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 18px;
+        white-space: nowrap;
+    }
+
+    .canvas-model-picker-search-icon {
+        width: 14px;
+        height: 14px;
+        flex: 0 0 auto;
+        opacity: 0.45;
+    }
+
+    .canvas-model-picker-search input {
+        min-width: 0;
+        flex: 1 1 auto;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font-size: var(--fs-body);
+        line-height: 24px;
+        outline: none;
+    }
+
+    .canvas-model-picker-search input::placeholder {
+        opacity: 0.4;
+    }
+
+    .canvas-model-picker-option {
+        align-items: center;
+        border: 0;
+        border-radius: 12px;
+        cursor: pointer;
+        display: flex;
+        gap: 8px;
+        max-width: 100%;
+        min-height: 40px;
+        min-width: 0;
+        outline: none;
+        overflow: hidden;
+        padding: 6px 8px;
+        text-align: left;
+        transition: background-color var(--motion-instant) ease-out;
+        width: 100%;
+    }
+
+    .canvas-model-picker-option[aria-selected="true"] {
+        background: color-mix(in srgb, var(--workspace-accent) 7%, transparent) !important;
+    }
+
+
+
+    .canvas-model-picker-group-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 12px 14px 6px;
+        font-size: var(--fs-tiny);
+        font-weight: 400;
+    }
+
+    /* flora 组标 ⓘ: 与标签同色系但更淡, hover 提示由 antd Tooltip 承担 */
+    .canvas-model-picker-group-label .canvas-model-picker-group-info {
+        width: 12px;
+        height: 12px;
+        flex: 0 0 auto;
+        opacity: 0.45;
+        cursor: help;
+    }
+
+    .canvas-model-picker-group-label .canvas-model-picker-group-scope {
+        opacity: 0.55;
+        font-weight: 400;
+    }
+
+    .canvas-model-picker-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        /* 高度唯一源归 :7301 的 560 上限(2026-09-09): 此处曾残留 min(420px,384px)
+           同 specificity 后者胜, 静默顶掉 :7301 的十轮修复 —— 删除以恢复 pinned≥2 全量可视。 */
+        overflow-y: auto;
+        /* flora 滚动语法(2026-09-09 用户三连截图): 滚动容器内容不压缩——flex column 子项
+           默认 shrink:1, 超高时各 group section 被压扁且自身 overflow-hidden 静默裁切,
+           scrollHeight 恒等于 clientHeight → 永不出滚动条(用户红框: pinned 第5行半行/
+           provider 第4行消失, 无滚动条)。禁 shrink 让内容保自然高度, 超出才整体滚动,
+           滚动条常显(flora 参考图右缘细滚动条)。 */
+        > * {
+            flex-shrink: 0;
+        }
+        /* L1/L2 字体栈唯一源(2026-09-09 实测): L1 经 antd Popover 拿 antd token 栈(-apple-system/Segoe UI),
+           flyout portal 挂 body 继承 body 内联 SF Pro 栈 —— 同一 font-weight 350 在两个栈下落到不同
+           真实字体(Windows: Segoe UI vs YaHei 拉丁字形), 行标题字重肉眼不一致。钉死同一栈,
+           取应用主排版(document.body 内联)为准, 与周围画布 UI 一致。 */
+        font-family: "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+        line-height: 1.615;
+    }
+
+    /* hover 背景唯一挂 rowgroup 整行容器(pin 同框)。
+       禁止 option 再自带上色: rowgroup 9% + option 9% 叠加会让行主体比 pin 区深一截,
+       视觉上高亮胶囊"止步于 pin 之外"(用户截图实锤的双色带根因)。 */
+    .canvas-model-picker-rowgroup:hover .canvas-model-picker-option,
+    .canvas-model-picker-rowgroup:has(.canvas-model-picker-option[aria-selected="true"]) .canvas-model-picker-option {
+        background: transparent !important;
+    }
+
+
+
+    /* 行文本显式字号: title/subtitle 不允许依赖继承——
+       flyout 是 createPortal(body) 挂载, 继承 body 16px; 主菜单继承 panel 14px,
+       两处 L2 行高差 2px 的根因。tailwind 任意值类(text-[var(--fs-body)])在该链路未生成规则。 */
+    .canvas-model-picker-title {
+        font-size: 14px;
+        line-height: 1.4;
+        font-weight: 350;
+    }
+
+    .canvas-model-picker-subtitle {
+        font-size: 12px;
+        line-height: 16px;
+    }
+
+    /* option-body: option 内唯一弹性主体(logo + 文本列 + ✓), 旧 nth-child 结构选择器已废 */
+    .canvas-model-picker-option-body {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+
+    /* ---- S08 模型列表 flora 结构批(溢出修复/pin/flyout/媒体徽章) ---- */
+    /* 溢出修复: 徽章行不换行不撑高; 行描述 truncate */
+    .canvas-model-picker-menu {
+        /* flora 参考图(用户三连 2026-09-09): 滚动条为暗背景上的深色细胶囊, 贴右缘。
+           互斥规则(2026-09-09 亮度批): Chromium 121+ 一旦元素带标准 scrollbar-color,
+           ::-webkit-scrollbar 伪元素定制整体失效, 且 Chrome 对标准 thumb 的 hover/press
+           内置提亮到 ≈85-90% 白(用户实现截图 #dcdcdc-#e8e8e8 的根因), 远超 flora
+           hover 实测 0.40-0.48。故标准属性仅限 Firefox(@supports 探测), Chromium
+           走下方 ::-webkit-scrollbar 全定制(含 hover 提亮)。 */
+    }
+
+    @supports selector(:-moz-full-screen) {
+        .canvas-model-picker-menu,
+        .canvas-settings-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+        }
+
+        :root:not(.dark) .canvas-model-picker-menu,
+        :root:not(.dark) .canvas-settings-scroll {
+            scrollbar-color: rgba(17, 24, 39, 0.28) transparent;
+        }
+    }
+
+    .canvas-model-picker-menu::-webkit-scrollbar,
+    .canvas-settings-scroll::-webkit-scrollbar {
+        /* flora 参考图实测滑块仅 2-3px 细条(2026-09-09 十三轮); 6px 轨道 - 2px×2 透明内边距 = 2px 可见 */
+        width: 6px;
+        background: transparent;
+    }
+
+    .canvas-model-picker-menu::-webkit-scrollbar-thumb,
+    .canvas-settings-scroll::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.22);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+
+    .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover,
+    .canvas-settings-scroll::-webkit-scrollbar-thumb:hover {
+        /* flora 滑块 hover/select 实测 ≈rgba(255,255,255,.40-.48)(用户 flora 参考图 2026-09-09) */
+        background: rgba(255, 255, 255, 0.44);
+    }
+
+    .canvas-model-picker-menu::-webkit-scrollbar-track,
+    .canvas-settings-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb,
+    :root:not(.dark) .canvas-settings-scroll::-webkit-scrollbar-thumb {
+        background: rgba(17, 24, 39, 0.28);
+        background-clip: padding-box;
+    }
+
+    :root:not(.dark) .canvas-model-picker-menu::-webkit-scrollbar-thumb:hover,
+    :root:not(.dark) .canvas-settings-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(17, 24, 39, 0.44);
+    }
+
+    .canvas-model-picker-menu .canvas-model-picker-option {
+        min-height: 53px;
+        border-radius: 12px;
+        padding: 8px;
+        width: 100%;
+        overflow: hidden;
+        background: transparent;
+    }
+
+    /* subtitle hover 溢出滚动(flora marquee 语法) */
+    .canvas-model-picker-subtitle {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .canvas-model-picker-subtitle.is-overflow .canvas-model-picker-subtitle-inner {
+        display: inline-block;
+        min-width: 100%;
+    }
+
+    .canvas-model-picker-subtitle.is-overflow:hover .canvas-model-picker-subtitle-inner {
+        animation: canvas-model-picker-subtitle-scroll 9s linear 0.6s infinite;
+    }
+
+    @keyframes canvas-model-picker-subtitle-scroll {
+        0% { transform: translateX(0); }
+        45% { transform: translateX(calc(-100% + 0px)); }
+        50% { transform: translateX(calc(-100% + 0px)); }
+        95% { transform: translateX(0); }
+        100% { transform: translateX(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-model-picker-subtitle.is-overflow:hover .canvas-model-picker-subtitle-inner {
+            animation: none;
+        }
+    }
+
+    /* 行组: 主行 + pin 兄弟(hover 整显, flora 渐进披露) */
+    .canvas-model-picker-rowgroup {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        min-width: 0;
+        border-radius: 12px;
+        padding: 0 2px 0 0;
+        transition: background-color var(--motion-instant) ease-out;
+    }
+
+    .canvas-model-picker-rowgroup:hover {
+        background: color-mix(in srgb, var(--workspace-accent) 9%, transparent);
+    }
+
+    .canvas-model-picker-rowgroup:has(.canvas-model-picker-option[aria-selected="true"]) {
+        background: color-mix(in srgb, var(--workspace-accent) 6%, transparent);
+    }
+
+    .canvas-model-picker-rowgroup .canvas-model-picker-pin {
+        width: 26px;
+        height: 26px;
+        margin-right: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        opacity: 0;
+        transition: opacity var(--motion-instant) ease-out, background-color var(--motion-instant) ease-out;
+    }
+
+    .canvas-model-picker-rowgroup:hover .canvas-model-picker-pin,
+    .canvas-model-picker-rowgroup .canvas-model-picker-pin.is-pinned,
+    .canvas-model-picker-rowgroup .canvas-model-picker-pin:focus-visible {
+        opacity: 1;
+    }
+
+    .canvas-model-picker-rowgroup .canvas-model-picker-pin:hover {
+        background: color-mix(in srgb, var(--workspace-foreground) 8%, transparent);
+    }
+
+    .canvas-model-picker-pinned-empty-hint {
+        padding: 2px 14px 8px;
+        font-size: var(--fs-tiny);
+    }
+    /* 旧空态卡片壳已废(与 Providers 同构化, 2026-09-09): pinned-empty 类仅存于历史 diff */
+
+    /* 渠道分组行(flyout 触发行, 单行 44px) */
+    .canvas-model-picker-provider-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        cursor: pointer;
+    }
+
+    .canvas-model-picker-provider-row:hover {
+        background: color-mix(in srgb, var(--workspace-foreground) 7%, transparent);
+    }
+
+    /* 悬浮展开面板(Providers flyout): 与主菜单同材质(flora live: .9 玻璃);
+       行结构/密度与 L1 一致: 容器同时挂 canvas-model-picker-menu 类(TSX), 共用行样式。
+       creation 变体下 flyout 同挂 creation-model-picker-menu(TSX); 其 background:transparent !important
+       会打掉 flyout 自身玻璃, 故此处背景也用 !important 且声明在其后(同权重后行胜)。 */
+    .canvas-model-picker-flyout {
+        position: fixed;
+        z-index: 1200;
+        /* 宽度跟随内容(单模型组不再渲染成 384px 孤立长条, 2026-09-19 用户实测), 上限仍 384。 */
+        width: max-content;
+        min-width: max(var(--canvas-model-picker-trigger-width, 0px), 260px);
+        max-width: 384px;
+        /* [2026-09-24 G7] 420→480: 53px 行高下 8 行(约440)曾被 420 cap 裁底行; 480 容纳整表, 更高仍滚动。 */
+        max-height: min(480px, calc(100vh - 32px));
+        overflow-y: auto;
+        /* L1/L2 一致: padding 同唯一源 .creation-model-picker-menu 8px; 玻璃与 canvas L1
+           surface 同源 = flora live 权威值 blur16 无 saturate(2026-09-09 审查: 此前 L2
+           blur18+saturate1.2 与 L1 blur16 分叉, 归一)。 */
+        padding: 8px !important;
+        border-radius: 16px;
+        background: rgba(32, 32, 32, 0.9) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: none;
+    }
+
+    :root:not(.dark) .canvas-model-picker-flyout {
+        background: rgba(255, 255, 255, 0.92) !important;
+        border-color: rgba(17, 24, 39, 0.06);
+    }
+
+    /* hover 桥(L2 缺陷修复的一半): flyout 定位在 L1 行右侧 +8px, 行与 flyout 之间的真空隙
+       在鼠标慢移(>旧关闭容差)时会先卸载 flyout → 点击落空 = "L2 行点击不选择"(非确定复现
+       的根因, 与鼠标速度相关)。桥向左延伸 12px 覆盖 gap, 鼠标穿过时仍在 flyout hover 域内
+       (onMouseEnter → cancelFlyoutClose), 视觉零变化。
+       定位用 absolute(flyout 自身是 fixed = containing block): fixed 在 Chromium 不受
+       backdrop-filter containing block 影响时相对视口, 桥会跑到视口左缘失效(CDP 实测)。 */
+    .canvas-model-picker-flyout::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -12px;
+        width: 12px;
+        height: 100%;
+    }
+
+    /* 媒体类型徽章: flora live = 18x18 透明底 + 1px 描边圆 + 图标 muted 灰(低对比, 非白亮);
+       flora 实测(2026-09-09 截图): 描边与图标都是暗灰、明显低于正文对比。
+       用长手属性: Tailwind preflight 的 * { border: 0 } 在 @layer base, shorthand+嵌套@supports
+       在部分构建管线会整体失效, 长手属性声明更稳。 */
+    .canvas-model-picker-chip-icon {
+        padding: 0;
+        min-width: 18px;
+        background-color: transparent;
+        border-width: 1px;
+        border-style: solid;
+        border-color: color-mix(in srgb, var(--workspace-foreground) 17%, transparent);
+        color: color-mix(in srgb, var(--workspace-foreground) 48%, transparent);
+        box-sizing: border-box;
+    }
+
+
+    /* [2026-09-24 G7] focus 底色唯一源(原 globals 双写合并); outline 由文件前部既有
+       .canvas-model-picker-option:focus-visible 2px 规则承担, 此处不再置 outline:none。 */
+    .canvas-model-picker-option:focus-visible {
+        background: color-mix(in srgb, var(--workspace-accent) 13%, transparent) !important;
+    }
+
+}
+
+/* ---- G7 迁移区 · 原 unlayered 段（保持 TOP 层叠位） ---- */
+
+/* 模型下拉：选中项与当前 hover/focus 项展示说明，其他项保持安静。 */
+.canvas-model-picker-option {
+    transition: background-color 160ms ease !important;
+}
+
+.canvas-model-picker-description {
+    height: 16px;
+    line-height: 16px;
+    margin-top: 5px !important;
+    visibility: hidden;
+    opacity: 0;
+}
+
+.canvas-model-picker-description.is-visible {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.creation-model-picker-menu .canvas-model-picker-option[aria-selected="true"] {
+    min-height: 58px;
+    border-radius: 12px;
+}

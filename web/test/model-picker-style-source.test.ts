@@ -56,7 +56,7 @@ test("选择模型按 fork 语义：mousedown 即选中并收起，落空点击�
     expect(component).toContain('window.addEventListener("pointerdown", closeOnOutsidePointer, true)');
 });
 
-test("ModelPicker 样式独立加载，并保留模型列表的视口边界（双源期）", async () => {
+test("ModelPicker 样式单一源收敛，并保留模型列表的视口边界（G7 完成期）", async () => {
     const [application, globals, pickerStyles] = await Promise.all([
         Bun.file(new URL("../src/application.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text(),
@@ -64,10 +64,11 @@ test("ModelPicker 样式独立加载，并保留模型列表的视口边界（�
     ]);
 
     expect(application).toContain('import "./styles/shared/model-picker.css";');
-    // 合并双源现状：globals 仍承载 fork 侧补充规则（G7/H4 去重为独立批次；完成后此处收紧为 not.toContain）。
-    expect(globals).toContain("canvas-model-picker");
+    // G7 完成（2026-09-24）：模型菜单家族已单一源收敛至 shared；globals 不得再含该家族任何规则。
+    expect(globals).not.toContain("canvas-model-picker");
     expect(pickerStyles).toContain(".canvas-model-picker-menu {");
-    expect(pickerStyles).toContain("max-height: min(420px, calc(100vh - 32px));");
+    // [2026-09-24 G7] 飞层高度上限 420→480：53px 行高下 8 行约 440，曾被 420 裁底行。
+    expect(pickerStyles).toContain("max-height: min(480px, calc(100vh - 32px));");
 
     const creationMenu = pickerStyles.match(/\.creation-model-picker-menu \{([\s\S]*?)\}/)?.[1] || "";
     expect(creationMenu).toContain("max-height: min(460px, calc(100vh - 24px));");

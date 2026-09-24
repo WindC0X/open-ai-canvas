@@ -13,6 +13,7 @@ test("模型菜单不得再有 surface 错位块（整行深灰胶囊复发锁�
         expect(css).not.toContain(".creation-model-picker-surface .canvas-model-picker-option > span:first-child");
         expect(css).not.toContain(".creation-model-picker-surface .canvas-model-picker-option { min-height: 55px");
     }
-    // 我们侧权威行高仍在（source of truth 未被打断）
-    expect(globals).toContain("min-height: 53px;");
+    // 我们侧权威行高仍在单一源（source of truth, G7 后收敛至 shared）
+    expect(shared).toContain("min-height: 53px;");
+    expect(globals).not.toContain("canvas-model-picker");
 });
