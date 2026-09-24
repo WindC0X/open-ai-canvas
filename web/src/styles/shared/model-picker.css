@@ -850,6 +850,17 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         width: min(384px, calc(100vw - 24px)) !important;
     }
 
+    /* 浅色画布界面的 L1 玻璃(2026-09-25 用户实测「切浅色后模型列表半深半浅」):
+       L1 surface 此前只有暗玻璃, 无浅色变体——画布页 body 无 app-spatial-overlays,
+       吃不到 :7785 的白光兜底, 而 L2 flyout 已有 :1241 白变体, 两级割裂。
+       与 flyout 同款白玻璃值(.92/6% 边); 必须留在本 @layer utilities 内(分层 important
+       反序压过本文件 unlayered 覆盖, 亦与外层注入互不影响), dark 分支不变。 */
+    :root:not(.dark) .canvas-model-picker-popover.canvas-composer-popover-surface,
+    :root:not(.dark) .canvas-model-picker-popover .canvas-composer-popover-surface {
+        background: rgba(255, 255, 255, 0.92) !important;
+        border-color: rgba(17, 24, 39, 0.06) !important;
+    }
+
     .canvas-model-picker-popover .canvas-composer-popover-content,
     .canvas-model-picker-popover.canvas-composer-popover-content {
         width: min(384px, calc(100vw - 24px)) !important;

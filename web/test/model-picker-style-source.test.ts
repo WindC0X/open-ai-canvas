@@ -83,3 +83,15 @@ test("ModelPicker 样式单一源收敛，并保留模型列表的视口边界�
     expect(pickerStyles).not.toContain(".app-user-workspace .creation-model-picker-menu {");
     expect(pickerStyles).not.toContain(".creation-model-picker-surface .creation-model-picker-menu {");
 });
+
+// 2026-09-25 用户实测「切浅色后模型列表半深半浅」：画布页 body 无 app-spatial-overlays，
+// L1 surface 曾只有暗玻璃、无浅色变体，与已有浅色变体的 flyout(L2) 割裂。
+test("L1 弹层玻璃保留暗玻璃并具浅色变体（浅色割裂回归）", async () => {
+    const styles = await Bun.file(new URL("../src/styles/shared/model-picker.css", import.meta.url)).text();
+    expect(styles).toContain("background: rgba(32, 32, 32, 0.9) !important;");
+    const lightBlock = styles.match(/:root:not\(\.dark\) \.canvas-model-picker-popover\.canvas-composer-popover-surface,\n    :root:not\(\.dark\) \.canvas-model-picker-popover \.canvas-composer-popover-surface \{([\s\S]*?)\}/)?.[1] || "";
+    expect(lightBlock).toContain("background: rgba(255, 255, 255, 0.92) !important;");
+    expect(lightBlock).toContain("border-color: rgba(17, 24, 39, 0.06) !important;");
+    // flyout 既有浅色变体保持
+    expect(styles).toContain(":root:not(.dark) .canvas-model-picker-flyout {");
+});
