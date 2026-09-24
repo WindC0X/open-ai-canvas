@@ -478,6 +478,7 @@ function NodeDockMenuButton({ menuId, label, icon, tools, openMenuId, onOpenChan
                     </div>
                     {splitPanelOpen && split ? (
                         <CanvasGridSplitPicker
+                            anchorSelector=".canvas-grid-split-menu-item"
                             onPick={(params) => {
                                 setSplitPanelOpen(false);
                                 onOpenChange(menuId, false);

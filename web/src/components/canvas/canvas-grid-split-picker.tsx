@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { CANVAS_GRID_SPLIT_MAX, CANVAS_GRID_SPLIT_PRESETS, clampGridSplitSize, isValidGridSplit } from "@/lib/canvas/canvas-grid-split";
@@ -14,10 +14,40 @@ function MiniGridIcon({ n }: { n: number }) {
     );
 }
 
-export function CanvasGridSplitPicker({ onPick }: { onPick: (params: ImageSplitParams) => void }) {
+export function CanvasGridSplitPicker({ onPick, anchorSelector }: { onPick: (params: ImageSplitParams) => void; anchorSelector?: string }) {
     const [customOpen, setCustomOpen] = useState(false);
     const [hoverRows, setHoverRows] = useState(2);
     const [hoverCols, setHoverCols] = useState(2);
+    const rootRef = useRef<HTMLDivElement | null>(null);
+
+    // [2026-09-24] 顶部对齐触发行 + 贴菜单右缘 2px：rc-trigger 重测会使弹层宽度抖动，
+    // 故打开后用实测 rect 差值写 inline top/left（与模型菜单 flyout 的锚定同思路）；
+    // 锚点/栈缺失时保留 CSS 兑底值（top:0 / 100%+2px）。
+    useLayoutEffect(() => {
+        const el = rootRef.current;
+        const wrap = el?.parentElement;
+        if (!el || !wrap) return;
+        const apply = () => {
+            const wrapRect = wrap.getBoundingClientRect();
+            const btn = parseFloat(getComputedStyle(wrap).borderTopWidth) || 0;
+            const bleft = parseFloat(getComputedStyle(wrap).borderLeftWidth) || 0;
+            const anchor = anchorSelector ? wrap.querySelector<HTMLElement>(anchorSelector) : null;
+            if (anchor) {
+                const rowRect = anchor.getBoundingClientRect();
+                el.style.top = `${Math.round(rowRect.top - wrapRect.top - btn)}px`;
+            }
+            const stack = wrap.querySelector<HTMLElement>(".canvas-node-toolbar-menu-stack");
+            if (stack) {
+                el.style.left = `${Math.round(stack.getBoundingClientRect().right - wrapRect.left - bleft + 2)}px`;
+            }
+        };
+        apply();
+        const raf = requestAnimationFrame(() => {
+            apply();
+            requestAnimationFrame(apply);
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [anchorSelector]);
 
     const pick = (rows: number, columns: number) => {
         const params = { rows: clampGridSplitSize(rows), columns: clampGridSplitSize(columns) };
@@ -27,6 +57,7 @@ export function CanvasGridSplitPicker({ onPick }: { onPick: (params: ImageSplitP
 
     return (
         <div
+            ref={rootRef}
             className="canvas-grid-split-picker"
             data-canvas-no-zoom
             role="dialog"
