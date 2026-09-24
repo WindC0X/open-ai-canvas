@@ -14,7 +14,7 @@ function MiniGridIcon({ n }: { n: number }) {
     );
 }
 
-export function CanvasGridSplitPicker({ onPick, anchorSelector }: { onPick: (params: ImageSplitParams) => void; anchorSelector?: string }) {
+export function CanvasGridSplitPicker({ onPick, anchorSelector, supplyNodeId }: { onPick: (params: ImageSplitParams) => void; anchorSelector?: string; supplyNodeId?: string }) {
     const [customOpen, setCustomOpen] = useState(false);
     const [hoverRows, setHoverRows] = useState(2);
     const [hoverCols, setHoverCols] = useState(2);
@@ -59,6 +59,8 @@ export function CanvasGridSplitPicker({ onPick, anchorSelector }: { onPick: (par
         <div
             ref={rootRef}
             className="canvas-grid-split-picker"
+            data-supply-node={supplyNodeId}
+            data-affordance="full"
             data-canvas-no-zoom
             role="dialog"
             aria-label="宫格切分"

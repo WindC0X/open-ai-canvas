@@ -344,17 +344,17 @@ export function CanvasNodeToolbar({
                     style={{ color: theme.node.text }}
                 >
                 {primaryTools.map((tool) => <NodeDockToolButton key={tool.id} tool={tool} />)}
-                {nineGridTools.length ? <NodeDockMenuButton menuId="nine-grid" label="九宫格" icon={<Grid3x3 className="size-3.5" />} tools={nineGridTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}
+                {nineGridTools.length ? <NodeDockMenuButton menuId="nine-grid" nodeId={node.id} label="九宫格" icon={<Grid3x3 className="size-3.5" />} tools={nineGridTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}
                 {panoramaTools.map((tool) => <NodeDockToolButton key={tool.id} tool={tool} />)}
-                {portraitTools.length ? <NodeDockMenuButton menuId="portrait" label="人像调整" icon={<UserRound className="size-3.5" />} tools={portraitTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}
-                {viewpointLightingTools.length ? <NodeDockMenuButton menuId="viewpoint-lighting" label="视角" icon={<Camera className="size-3.5" />} tools={viewpointLightingTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}
-                {processTools.length ? <NodeDockMenuButton menuId="process" label={processMenuLabel} icon={isVideo ? <Images className="size-3.5" /> : <SlidersHorizontal className="size-3.5" />} tools={processTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} split={hasImage && !simpleMode ? { node, onSplit } : undefined} /> : null}
+                {portraitTools.length ? <NodeDockMenuButton menuId="portrait" nodeId={node.id} label="人像调整" icon={<UserRound className="size-3.5" />} tools={portraitTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}
+                {viewpointLightingTools.length ? <NodeDockMenuButton menuId="viewpoint-lighting" nodeId={node.id} label="视角" icon={<Camera className="size-3.5" />} tools={viewpointLightingTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} /> : null}
+                {processTools.length ? <NodeDockMenuButton menuId="process" nodeId={node.id} label={processMenuLabel} icon={isVideo ? <Images className="size-3.5" /> : <SlidersHorizontal className="size-3.5" />} tools={processTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} split={hasImage && !simpleMode ? { node, onSplit } : undefined} /> : null}
                 {workspaceTools.length ? <span aria-hidden className="aceternity-dock-separator mx-1 h-5 w-px shrink-0" /> : null}
                 {workspaceTools.map((tool) => <NodeDockToolButton key={tool.id} tool={tool} />)}
                 {utilityTools.length || moreTools.length ? <span aria-hidden className="aceternity-dock-separator mx-1 h-5 w-px shrink-0" /> : null}
                 {utilityTools.map((tool) => <NodeDockToolButton key={tool.id} tool={tool} iconOnly />)}
                 {moreTools.length ? (
-                    <NodeDockMenuButton menuId="more" label="更多" icon={<Ellipsis className="size-3.5" />} tools={moreTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} placement="bottomRight" iconOnly />
+                    <NodeDockMenuButton menuId="more" nodeId={node.id} label="更多" icon={<Ellipsis className="size-3.5" />} tools={moreTools} openMenuId={openMenuId} onOpenChange={handleMenuOpenChange} placement="bottomRight" iconOnly />
                 ) : null}
                 </div>
             </div>
@@ -385,7 +385,7 @@ function compareToolbarTools(left: ToolbarTool, right: ToolbarTool) {
     return left.order - right.order;
 }
 
-function NodeDockMenuButton({ menuId, label, icon, tools, openMenuId, onOpenChange, placement = "bottom", iconOnly = false, split }: { menuId: string; label: string; icon: ReactNode; tools: ToolbarTool[]; openMenuId: string | null; onOpenChange: (menuId: string, open: boolean) => void; placement?: "bottom" | "bottomRight"; iconOnly?: boolean; split?: { node: CanvasNodeData; onSplit: (node: CanvasNodeData, params: ImageSplitParams) => void } }) {
+function NodeDockMenuButton({ menuId, nodeId, label, icon, tools, openMenuId, onOpenChange, placement = "bottom", iconOnly = false, split }: { menuId: string; nodeId: string; label: string; icon: ReactNode; tools: ToolbarTool[]; openMenuId: string | null; onOpenChange: (menuId: string, open: boolean) => void; placement?: "bottom" | "bottomRight"; iconOnly?: boolean; split?: { node: CanvasNodeData; onSplit: (node: CanvasNodeData, params: ImageSplitParams) => void } }) {
     const open = openMenuId === menuId;
     const triggerRef = useRef<HTMLButtonElement>(null);
     const [splitPanelOpen, setSplitPanelOpen] = useState(false);
@@ -458,6 +458,8 @@ function NodeDockMenuButton({ menuId, label, icon, tools, openMenuId, onOpenChan
             popupRender={(menu) => (
                 <div
                     className={`canvas-node-toolbar-menu${splitEntry && split ? " canvas-node-toolbar-menu-split" : ""}`}
+                    data-supply-node={nodeId}
+                    data-affordance="full"
                     data-canvas-no-zoom
                     data-canvas-wheel-scroll
                     onPointerDown={(event) => event.stopPropagation()}
@@ -479,6 +481,7 @@ function NodeDockMenuButton({ menuId, label, icon, tools, openMenuId, onOpenChan
                     {splitPanelOpen && split ? (
                         <CanvasGridSplitPicker
                             anchorSelector=".canvas-grid-split-menu-item"
+                            supplyNodeId={nodeId}
                             onPick={(params) => {
                                 setSplitPanelOpen(false);
                                 onOpenChange(menuId, false);

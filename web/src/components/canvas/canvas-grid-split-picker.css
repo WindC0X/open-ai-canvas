@@ -180,6 +180,13 @@
     cursor: pointer;
 }
 
+/* [2026-09-25] 用户截图指摘：「自定义」下 43px 空槽。自定义面板展开后其高(179)高于左列
+   自然高(140)，stretch 把差值留成空白。让左列条目平分余高填满列（面板关闭时无余高，
+   行高保持原值）。 */
+.canvas-grid-split-presets > .canvas-grid-split-item {
+    flex: 1 1 auto;
+}
+
 .canvas-grid-split-item:hover,
 .canvas-grid-split-item.is-active {
     background: color-mix(in srgb, var(--fg) 12%, transparent);
