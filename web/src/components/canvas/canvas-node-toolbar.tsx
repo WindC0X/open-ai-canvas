@@ -176,6 +176,14 @@ export function CanvasNodeToolbar({
             const nodeRect = element.getBoundingClientRect();
             // 节点宽下发给间隙桥: 桥宽度 clamp 到节点宽, 防横向越界劫持邻居 hover
             element.style.setProperty("--bridge-node-width", nodeRect.width + "px");
+            // [2026-09-25 用户检验] 节点中心移出视口(过半身在显示区外)时隐藏工具栏:
+            // 此前 clamp 会把工具栏钉在容器边缘, 与已移出显示的节点脱节“挤在可视区”。
+            const centerX = nodeRect.left + nodeRect.width / 2;
+            const centerY = nodeRect.top + nodeRect.height / 2;
+            if (centerX < containerRect.left || centerX > containerRect.right || centerY < containerRect.top || centerY > containerRect.bottom) {
+                setAnchor(null);
+                return;
+            }
             const preferredLeft = nodeRect.left - containerRect.left + nodeRect.width / 2;
             const halfToolbar = toolbarWidth / 2;
             const canClamp = toolbarWidth > 0 && toolbarWidth <= containerRect.width - 20;
@@ -389,15 +397,52 @@ function NodeDockMenuButton({ menuId, nodeId, label, icon, tools, openMenuId, on
     const open = openMenuId === menuId;
     const triggerRef = useRef<HTMLButtonElement>(null);
     const [splitPanelOpen, setSplitPanelOpen] = useState(false);
+    const keepSplitMenuOpenRef = useRef(false);
+    // [2026-09-25 用户拍板] L2「宫格切分」悬停展开: 150ms 意图延迟; 离开行/面板(仍在菜单内也算)收起,
+    // 140ms 宽限供行→面板 2px 缝穿越; 点击切换保留。
+    const splitOpenTimerRef = useRef<number | null>(null);
+    const splitCloseTimerRef = useRef<number | null>(null);
+    const cancelSplitTimers = () => {
+        if (splitOpenTimerRef.current !== null) {
+            window.clearTimeout(splitOpenTimerRef.current);
+            splitOpenTimerRef.current = null;
+        }
+        if (splitCloseTimerRef.current !== null) {
+            window.clearTimeout(splitCloseTimerRef.current);
+            splitCloseTimerRef.current = null;
+        }
+    };
+    const scheduleSplitPanelOpen = () => {
+        cancelSplitTimers();
+        if (!split || !open || splitPanelOpen) return;
+        splitOpenTimerRef.current = window.setTimeout(() => {
+            splitOpenTimerRef.current = null;
+            keepSplitMenuOpenRef.current = true;
+            setSplitPanelOpen(true);
+        }, 150);
+    };
+    const scheduleSplitPanelClose = () => {
+        if (splitOpenTimerRef.current !== null) {
+            window.clearTimeout(splitOpenTimerRef.current);
+            splitOpenTimerRef.current = null;
+        }
+        if (splitCloseTimerRef.current !== null) return;
+        splitCloseTimerRef.current = window.setTimeout(() => {
+            splitCloseTimerRef.current = null;
+            // :hover 判定与 onOpenChange 否决同源; 指针仍在行/面板上则不收
+            if (document.querySelector(".canvas-grid-split-menu-item:hover, .canvas-grid-split-picker:hover")) return;
+            setSplitPanelOpen(false);
+        }, 140);
+    };
     useEffect(() => {
         if (!open) {
             setSplitPanelOpen(false);
+            cancelSplitTimers();
             return;
         }
         const frame = requestAnimationFrame(() => triggerRef.current?.focus());
         return () => cancelAnimationFrame(frame);
     }, [open]);
-    const keepSplitMenuOpenRef = useRef(false);
     const splitEntry = split ? tools.find((tool) => tool.id === "split") : undefined;
     const sections = new Map<string, ToolbarTool[]>();
     for (const tool of tools) {
@@ -416,6 +461,8 @@ function NodeDockMenuButton({ menuId, nodeId, label, icon, tools, openMenuId, on
                     <div
                         className={isSplit ? "canvas-grid-split-menu-label" : undefined}
                         onMouseDown={isSplit ? () => { keepSplitMenuOpenRef.current = true; } : undefined}
+                        onMouseEnter={isSplit ? scheduleSplitPanelOpen : undefined}
+                        onMouseLeave={isSplit ? scheduleSplitPanelClose : undefined}
                     >
                         <div>
                             <span className="inline-flex items-center gap-2">{tool.label}{tool.active ? <Check className="size-3.5" /> : null}</span>
@@ -431,6 +478,7 @@ function NodeDockMenuButton({ menuId, nodeId, label, icon, tools, openMenuId, on
                         info.domEvent.preventDefault();
                         info.domEvent.stopPropagation();
                         keepSplitMenuOpenRef.current = true;
+                        cancelSplitTimers();
                         setSplitPanelOpen((current) => !current);
                         return;
                     }
@@ -482,6 +530,7 @@ function NodeDockMenuButton({ menuId, nodeId, label, icon, tools, openMenuId, on
                         <CanvasGridSplitPicker
                             anchorSelector=".canvas-grid-split-menu-item"
                             supplyNodeId={nodeId}
+                            onHoverLeave={scheduleSplitPanelClose}
                             onPick={(params) => {
                                 setSplitPanelOpen(false);
                                 onOpenChange(menuId, false);

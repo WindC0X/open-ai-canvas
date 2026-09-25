@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { CANVAS_GRID_SPLIT_MAX, CANVAS_GRID_SPLIT_PRESETS, clampGridSplitSize, isValidGridSplit } from "@/lib/canvas/canvas-grid-split";
@@ -14,11 +14,53 @@ function MiniGridIcon({ n }: { n: number }) {
     );
 }
 
-export function CanvasGridSplitPicker({ onPick, anchorSelector, supplyNodeId }: { onPick: (params: ImageSplitParams) => void; anchorSelector?: string; supplyNodeId?: string }) {
+export function CanvasGridSplitPicker({ onPick, anchorSelector, supplyNodeId, onHoverLeave }: { onPick: (params: ImageSplitParams) => void; anchorSelector?: string; supplyNodeId?: string; onHoverLeave?: () => void }) {
     const [customOpen, setCustomOpen] = useState(false);
     const [hoverRows, setHoverRows] = useState(2);
     const [hoverCols, setHoverCols] = useState(2);
     const rootRef = useRef<HTMLDivElement | null>(null);
+    // [2026-09-25 用户拍板] L3「自定义」悬停展开: 与 L2 同款 150ms 意图延迟, 点击仍可切换;
+    // 指针离开行/棋盘时收起(140ms 宽限供行→棋盘 1px 缝穿越); 指针仍在棋盘上则不收。
+    const customOpenTimerRef = useRef<number | null>(null);
+    const customCloseTimerRef = useRef<number | null>(null);
+    const cancelCustomTimers = () => {
+        if (customOpenTimerRef.current !== null) {
+            window.clearTimeout(customOpenTimerRef.current);
+            customOpenTimerRef.current = null;
+        }
+        if (customCloseTimerRef.current !== null) {
+            window.clearTimeout(customCloseTimerRef.current);
+            customCloseTimerRef.current = null;
+        }
+    };
+    const cancelCustomClose = () => {
+        if (customCloseTimerRef.current !== null) {
+            window.clearTimeout(customCloseTimerRef.current);
+            customCloseTimerRef.current = null;
+        }
+    };
+    const scheduleCustomOpen = () => {
+        cancelCustomTimers();
+        if (customOpen) return;
+        customOpenTimerRef.current = window.setTimeout(() => {
+            customOpenTimerRef.current = null;
+            setCustomOpen(true);
+        }, 150);
+    };
+    const scheduleCustomClose = () => {
+        if (customOpenTimerRef.current !== null) {
+            window.clearTimeout(customOpenTimerRef.current);
+            customOpenTimerRef.current = null;
+        }
+        if (customCloseTimerRef.current !== null) return;
+        customCloseTimerRef.current = window.setTimeout(() => {
+            customCloseTimerRef.current = null;
+            // :hover 在 querySelector 中可用(与工具栏菜单同款判定); 指针仍在棋盘上则不收
+            if (document.querySelector(".canvas-grid-split-custom:hover")) return;
+            setCustomOpen(false);
+        }, 140);
+    };
+    useEffect(() => cancelCustomTimers, []);
 
     // [2026-09-24] 顶部对齐触发行 + 贴菜单右缘 2px：rc-trigger 重测会使弹层宽度抖动，
     // 故打开后用实测 rect 差值写 inline top/left（与模型菜单 flyout 的锚定同思路）；
@@ -67,6 +109,7 @@ export function CanvasGridSplitPicker({ onPick, anchorSelector, supplyNodeId }: 
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
+            onMouseLeave={onHoverLeave}
         >
             <div className="canvas-grid-split-presets">
                 {CANVAS_GRID_SPLIT_PRESETS.map((preset) => (
@@ -80,6 +123,8 @@ export function CanvasGridSplitPicker({ onPick, anchorSelector, supplyNodeId }: 
                     className={`canvas-grid-split-item${customOpen ? " is-active" : ""}`}
                     aria-expanded={customOpen}
                     onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={scheduleCustomOpen}
+                    onMouseLeave={scheduleCustomClose}
                     onClick={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
@@ -92,7 +137,7 @@ export function CanvasGridSplitPicker({ onPick, anchorSelector, supplyNodeId }: 
                 </button>
             </div>
             {customOpen ? (
-                <div className="canvas-grid-split-custom">
+                <div className="canvas-grid-split-custom" onMouseEnter={cancelCustomClose} onMouseLeave={scheduleCustomClose}>
                     <div className="canvas-grid-split-custom-head">
                         <span>自定义宫格</span>
                         <span className="canvas-grid-split-custom-size">{hoverCols} × {hoverRows}</span>

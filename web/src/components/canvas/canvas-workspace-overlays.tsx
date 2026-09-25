@@ -190,6 +190,34 @@ export function CanvasNodePanelOverlay({
             const position = nodeElement
                 ? getAttachedNodePanelPosition(nodeElement, container, nextWidth)
                 : getNodePanelPosition(node, nextViewport, viewportSize, nextWidth, panelHeight, liveDragOffset);
+            // [2026-09-25 用户检验] 节点中心移出视口(过半身在显示区外)时隐藏挂件——此前水平 clamp 会把
+            // 它钉在容器边缘, 与已移出显示的节点脱节。用 visibility 不卸载, 避免入场动画重播。
+            {
+                const containerRect = container.getBoundingClientRect();
+                let centerX: number;
+                let centerY: number;
+                let boundWidth: number = containerRect.width;
+                let boundHeight: number = containerRect.height;
+                if (nodeElement) {
+                    const nodeRect = nodeElement.getBoundingClientRect();
+                    centerX = nodeRect.left - containerRect.left + nodeRect.width / 2;
+                    centerY = nodeRect.top - containerRect.top + nodeRect.height / 2;
+                } else {
+                    const offsetX = liveDragOffset?.x || 0;
+                    const offsetY = liveDragOffset?.y || 0;
+                    centerX = nextViewport.x + (node.position.x + offsetX + node.width / 2) * nextViewport.k;
+                    centerY = nextViewport.y + (node.position.y + offsetY + node.height / 2) * nextViewport.k;
+                    boundWidth = viewportSize.width;
+                    boundHeight = viewportSize.height;
+                }
+                if (centerX >= 0 && centerX <= boundWidth && centerY >= 0 && centerY <= boundHeight) {
+                    panel.style.removeProperty("visibility");
+                    panel.style.removeProperty("pointer-events");
+                } else {
+                    panel.style.visibility = "hidden";
+                    panel.style.pointerEvents = "none";
+                }
+            }
             // position.left 是中心锚点(getAttached/getNode 均返回 centerX): translateX(-50%) 让宽度变化对称展开,
             // 与挂件宽度入场动画(节点宽→挂件宽)配合形成"向外展开"。
             // enterPhase 非 settle 时跳过 transform: fall/expand 拍的 inline transition 正在驱动同一属性,

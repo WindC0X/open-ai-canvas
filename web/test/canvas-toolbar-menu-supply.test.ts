@@ -16,8 +16,9 @@ describe("node toolbar menu hover supply", () => {
         expect(picker).toContain("data-supply-node={supplyNodeId}");
     });
 
-    test("切分左列条目平分余高（防「自定义」展开后 43px 空槽回归）", () => {
+    test("切分两列天然等高（防「自定义」展开后的空槽与左列拉长回归）", () => {
         expect(pickerCss).toContain(".canvas-grid-split-presets > .canvas-grid-split-item");
         expect(pickerCss).toContain("flex: 1 1 auto");
+        expect(pickerCss).toContain("width: 7.3125rem");
     });
 });

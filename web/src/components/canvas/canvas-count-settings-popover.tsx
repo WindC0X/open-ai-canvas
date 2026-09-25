@@ -5,7 +5,7 @@ import { Button } from "antd";
 import { usePopoverExit } from "./use-popover-exit";
 import { useExclusiveSettings } from "./use-exclusive-settings";
 import { canvasThemes } from "@/lib/canvas-theme";
-import { useThemeStore } from "@/stores/use-theme-store";
+import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import type { CanvasTheme } from "@/lib/canvas-theme";
 
 export const COUNT_MAX = 15;
@@ -35,7 +35,9 @@ type CanvasCountSettingsPopoverProps = {
  * 快捷档行与自定义行均已删(重复/冗余)。文本/图像/视频/音频模式共用,量词随调用方(张/个/份)。
  */
 export function CanvasCountSettingsPopover({ supplyNodeId, value, onChange, max = COUNT_MAX, label = "份", placement = "topLeft", buttonClassName }: CanvasCountSettingsPopoverProps) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    // [2026-09-25 用户检验] 原直连工作台 useThemeStore: 亮色画布下拿错主题(触发器/面板落到暗色值);
+    // 与其他画布浮层一致改走 useActiveTheme(画布外观优先, 离开画布回落工作台主题)。
+    const theme = canvasThemes[useActiveTheme()];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);

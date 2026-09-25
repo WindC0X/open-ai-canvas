@@ -10197,6 +10197,21 @@ html:not(.dark) .canvas-generation-settings-trigger.ant-btn[aria-expanded="true"
         max-width: calc(100vw - 24px) !important;
     }
 
+    /* [2026-09-25 用户检验] 智能引用气泡此前直用 antd 皮肤(实底 #1f1f20/白、圆角 8、无玻璃),
+       与同栏设置族(白 .94 / 暗 rgba(32,32,32,.9), blur16, radius16, 白 5% 描边)不一致 — 收口同族。 */
+    .canvas-reference-tools-popover .ant-popover-container {
+        border-radius: 16px !important;
+        background: rgba(255, 255, 255, 0.94) !important;
+        border: 1px solid rgba(15, 23, 42, 0.08) !important;
+        box-shadow: none !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+    .dark .canvas-reference-tools-popover .ant-popover-container {
+        background: rgba(32, 32, 32, 0.9) !important;
+        border-color: rgba(255, 255, 255, 0.05) !important;
+    }
+
     /* composer 底部模型按钮(2026-09-11 用户参考 flora): ghost 融合报纸色 + 内容自适应宽度。
        作用域限 canvas composer 容器, 不影响 create 页共用 .creation-model-picker 规则。 */
     .canvas-node-composer-model .canvas-composer-model-picker,
@@ -10229,6 +10244,25 @@ html:not(.dark) .canvas-generation-settings-trigger.ant-btn[aria-expanded="true"
     .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger[aria-expanded="true"],
     .dark .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger:hover,
     .dark .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger[aria-expanded="true"] {
+        background: var(--canvas-composer-control-hover) !important;
+    }
+
+    /* [2026-09-25 用户实测] 浅色画布底栏 ghost 补齐: creation 系浅色规则
+       (model-picker.css `.canvas-composer-model-picker` / globals `.canvas-generation-settings-trigger.ant-btn`)
+       以更高 specificity 压过上方 transparent 覆写, 浅色下三枚触发按钮带 4.5% 灰底; 这里加一档 specificity 收回。 */
+    html:not(.dark) .canvas-node-composer-model .canvas-composer-model-picker.canvas-composer-model-picker {
+        background: transparent !important;
+    }
+    html:not(.dark) .canvas-node-composer-model .canvas-composer-model-picker.canvas-composer-model-picker:hover,
+    html:not(.dark) .canvas-node-composer-model .canvas-composer-model-picker.canvas-composer-model-picker[aria-expanded="true"] {
+        background: var(--canvas-composer-control-hover) !important;
+    }
+    html:not(.dark) .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger.ant-btn {
+        background: transparent !important;
+    }
+    html:not(.dark) .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger.ant-btn:hover,
+    html:not(.dark) .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger.ant-btn:focus-visible,
+    html:not(.dark) .canvas-node-composer-settings-trigger.canvas-generation-settings-trigger.ant-btn[aria-expanded="true"] {
         background: var(--canvas-composer-control-hover) !important;
     }
 

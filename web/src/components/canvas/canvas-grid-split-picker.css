@@ -180,9 +180,9 @@
     cursor: pointer;
 }
 
-/* [2026-09-25] 用户截图指摘：「自定义」下 43px 空槽。自定义面板展开后其高(179)高于左列
-   自然高(140)，stretch 把差值留成空白。让左列条目平分余高填满列（面板关闭时无余高，
-   行高保持原值）。 */
+/* [2026-09-25 二改·用户拍板] 「自定义」展开不应改变左列行高（也不留空槽）: 右板按左列自然高
+   (≈138px = 5×26 + 上下 4px) 反算收缩至同高（格点 23→17px, 面板宽 156→117px）, 两列天然等高;
+   保留 flex:1 仅吸收亚像素/字体渲染差（不再承担齐高职责）。 */
 .canvas-grid-split-presets > .canvas-grid-split-item {
     flex: 1 1 auto;
 }
@@ -210,13 +210,15 @@
     opacity: 0.72;
 }
 
+/* [2026-09-25 二改] 高度反算: padding 12→8 + gap 8→6 + 棋盘 131→101（格点 17）≈ 左列自然高 138,
+   展开/收起时左列行高不再变化。 */
 .canvas-grid-split-custom {
     display: flex;
-    width: 9.75rem;
+    width: 7.3125rem;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1-half);
     border-left: 1px solid rgba(255, 255, 255, 0.05);
-    padding: var(--space-3);
+    padding: var(--space-2);
     background: color-mix(in srgb, var(--fg) 4%, transparent);
 }
 
