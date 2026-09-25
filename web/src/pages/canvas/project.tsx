@@ -2558,7 +2558,7 @@ function InfiniteCanvasPage() {
     // [2026-09-26 用户拍板「拖动时关闭/展开与工具栏对齐」] 移除了 !isCanvasNodeMoving 直接卸载：
     // 拖拽期改为 level=hidden（deriveComposerAffordance 的 nodeDragging guard）——挂件保持挂载，
     // 走与工具栏同参的 160ms 朝节点退场；松手后 180ms 回位。否则拖拽一发生挂件就瞬间消失（无退场），
-    // 松手又走完整隆落编排（wait 180+渐显 200+展开 420），与工具栏的 160/180ms 节奏永不同步。
+    // 松手又走完整坠落编排（wait 180+渐显 200+展开 420），与工具栏的 160/180ms 节奏永不同步。
     const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && dialogNode.id !== outpaintNodeId && !selectionBox ? dialogNode : null;
     // hover 实例已退役(S2): hover 微态由节点内信息态 composer 承担; hoverSupplyTarget 仍供工具栏双槽位使用
     const hoverSupplyTarget = hoveredNode ?? exitingNode;

@@ -100,3 +100,17 @@ test("antd 弹层根常驻 filter(drop-shadow) 已清（静止态玻璃存活，
     expect(n).toBeTruthy();
     expect(n![0]).toContain(".ant-popover.creation-model-picker-popover");
 });
+
+test("降级动效: composer 退场过渡亦被 reduced-motion / no-motion 关断（2026-09-26 复查修复）", async () => {
+    const css = await Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text();
+    // 区域: 2026-09-12 降级契约块 → .no-motion 变量声明前
+    const start = css.indexOf("/* 微供给容器:reduced-motion / no-motion 下直接切换");
+    const end = css.indexOf(".no-motion {", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const region = css.slice(start, end);
+    // reduced-motion: 25b53569 后 enter 层为 transition 驱动, 原 animation:none 盖不到 → 须显式关断
+    expect(region).toMatch(/\.canvas-node-panel-affordance \.canvas-node-panel-enter \{\s*transition: none !important;\s*\}/);
+    // no-motion: [data-affordance] 关断之外, enter 内层同样关断
+    expect(region).toMatch(/\.no-motion \.canvas-node-panel-affordance \.canvas-node-panel-enter \{\s*transition: none !important;\s*\}/);
+});

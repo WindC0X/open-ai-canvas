@@ -341,8 +341,16 @@
     .canvas-node-panel-affordance .canvas-node-panel-enter {
         animation: none !important;
     }
+    /* [2026-09-26 复查修复] 挂件退场改级别驱动 transition 后(25b53569), 本层输出已不只有 animation——
+       "直接切换"契约须连同 transition 一并关断(该层不带 [data-affordance], 上面那条盖不到)。 */
+    .canvas-node-panel-affordance .canvas-node-panel-enter {
+        transition: none !important;
+    }
 }
 .no-motion [data-affordance] {
+    transition: none !important;
+}
+.no-motion .canvas-node-panel-affordance .canvas-node-panel-enter {
     transition: none !important;
 }
 
