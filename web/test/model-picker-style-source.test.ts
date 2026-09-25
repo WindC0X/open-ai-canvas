@@ -95,3 +95,18 @@ test("L1 弹层玻璃保留暗玻璃并具浅色变体（浅色割裂回归）",
     // flyout 既有浅色变体保持
     expect(styles).toContain(":root:not(.dark) .canvas-model-picker-flyout {");
 });
+
+// 2026-09-25 用户复查「六个弹层质感依旧不一致」：creation 泄漏层归一
+// （L1 菜单透明透出玻璃 / L2 flyout 恢复 .9 声明值 / blur 18→16 归一）。
+test("模型弹层去 creation 泄漏层（L1 菜单不再叠暗、L2 恢复玻璃、blur 归 16）", async () => {
+    const styles = await Bun.file(new URL("../src/styles/shared/model-picker.css", import.meta.url)).text();
+    const l1MenuFix = styles.match(/\.canvas-model-picker-popover \.canvas-model-picker-menu\.creation-model-picker-menu \{([\s\S]*?)\}/)?.[1] || "";
+    expect(l1MenuFix).toContain("background: transparent !important;");
+    const flyoutFix = styles.match(/\.dark \.canvas-model-picker-flyout\.creation-model-picker-menu \{([\s\S]*?)\}/)?.[1] || "";
+    expect(flyoutFix).toContain("rgba(32, 32, 32, 0.9) !important");
+    const blurBlocks = [...styles.matchAll(/\.canvas-model-picker-popover \.canvas-composer-popover-surface \{([\s\S]*?)\}/g)].map((m) => m[1]);
+    expect(blurBlocks.length).toBeGreaterThan(1);
+    expect(blurBlocks[blurBlocks.length - 1]).toContain("backdrop-filter: blur(16px) !important;");
+    // 泄漏源（工作台层 .7 暗蓝）仍在原处——覆盖依赖其存在，若上游移除本测试提示清理覆盖。
+    expect(styles).toContain("background: rgba(25, 27, 32, .7) !important;");
+});
