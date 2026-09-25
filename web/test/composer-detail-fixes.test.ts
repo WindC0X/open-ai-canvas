@@ -72,3 +72,17 @@ test("拖拽关闭/显场对齐：composer 与工具栏同走 hidden 级别，�
     expect(globals).toContain('.canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter');
     expect(globals).toContain("translateY(-12px) scale(0.97)");
 });
+
+test("弹层玻璃不再被 canvas-panel-in 的 filter 灭活（backdrop root 根修，2026-09-26 智能引用透字）", async () => {
+    const css = await Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text();
+    // canvas-panel-in 挂 .ant-popover/.ant-dropdown 根元素(fill both)：根上任何 filter(含 saturate(1))
+    // 都会把子树变成 backdrop root，令玻璃子级 backdrop-filter 只能模糊空背景 → 清晰透底。
+    // 像素判据: 修前 slope 0.110(有效 0.89), 修后 0.024(有效 0.976, 与设置族 0.028 同档)。
+    const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "");
+    const block = css.match(/@keyframes canvas-panel-in \{[\s\S]*?\n    \}/);
+    expect(block).toBeTruthy();
+    expect(strip(block![0])).not.toContain("filter:");
+    const out = css.match(/@keyframes canvas-panel-out \{[\s\S]*?\n    \}/);
+    expect(out).toBeTruthy();
+    expect(strip(out![0])).not.toContain("filter:");
+});

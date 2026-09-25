@@ -10836,15 +10836,20 @@ html:not(.dark) .canvas-generation-settings-trigger.ant-btn[aria-expanded="true"
        不可产生偏移。origin: antd 浮层由 dom-align 原生设置(触发器方向); 自建气泡按
        placement 传 transformOrigin。 */
     @keyframes canvas-panel-in {
+        /* [2026-09-26 智能引用玻璃糊失效根修] 原 from 写 filter:saturate(0.92)/to 写 saturate(1)。
+           这组 keyframes 经 .ant-popover.ant-zoom-big-*-active 规则挂在 antd 弹层根元素(含 fill both)上——
+           根上一旦存在任意 filter(哪怕 saturate(1) 恒等值；动画运行期必在、后台帧冻结/类未清理时残留),
+           整个子树即成新 backdrop root：.ant-popover-container 的 backdrop-filter:blur(16px)
+           只能模糊空背景 → 玻璃失效，只剩 0.9 alpha 清晰透底(用户实测「composer 框内的字都透出来了」；
+           像素对照：带 filter slope 0.110 vs 剥除后 0.024，修后与自建设置族 0.028 同档)。
+           该去饱和弧本不可感知(150ms 内 0.92→1)，直换移除，玻璃全程生效。 */
         from {
             opacity: 0;
-            filter: saturate(0.92);
             transform: scale(0.96);
         }
 
         to {
             opacity: 1;
-            filter: saturate(1);
             transform: scale(1);
         }
     }
