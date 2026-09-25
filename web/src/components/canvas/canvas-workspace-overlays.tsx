@@ -190,34 +190,8 @@ export function CanvasNodePanelOverlay({
             const position = nodeElement
                 ? getAttachedNodePanelPosition(nodeElement, container, nextWidth)
                 : getNodePanelPosition(node, nextViewport, viewportSize, nextWidth, panelHeight, liveDragOffset);
-            // [2026-09-25 用户检验] 节点中心移出视口(过半身在显示区外)时隐藏挂件——此前水平 clamp 会把
-            // 它钉在容器边缘, 与已移出显示的节点脱节。用 visibility 不卸载, 避免入场动画重播。
-            {
-                const containerRect = container.getBoundingClientRect();
-                let centerX: number;
-                let centerY: number;
-                let boundWidth: number = containerRect.width;
-                let boundHeight: number = containerRect.height;
-                if (nodeElement) {
-                    const nodeRect = nodeElement.getBoundingClientRect();
-                    centerX = nodeRect.left - containerRect.left + nodeRect.width / 2;
-                    centerY = nodeRect.top - containerRect.top + nodeRect.height / 2;
-                } else {
-                    const offsetX = liveDragOffset?.x || 0;
-                    const offsetY = liveDragOffset?.y || 0;
-                    centerX = nextViewport.x + (node.position.x + offsetX + node.width / 2) * nextViewport.k;
-                    centerY = nextViewport.y + (node.position.y + offsetY + node.height / 2) * nextViewport.k;
-                    boundWidth = viewportSize.width;
-                    boundHeight = viewportSize.height;
-                }
-                if (centerX >= 0 && centerX <= boundWidth && centerY >= 0 && centerY <= boundHeight) {
-                    panel.style.removeProperty("visibility");
-                    panel.style.removeProperty("pointer-events");
-                } else {
-                    panel.style.visibility = "hidden";
-                    panel.style.pointerEvents = "none";
-                }
-            }
+            // [2026-09-25 用户对照商业参考(LibTV/TapNow/上游)拍板] 纯贴附: 挂件不夹回视口、不因
+            // 中心出界隐藏——节点移出时随节点滑出、被画布容器自然裁切(clamp+隐藏方案整体退役)。
             // position.left 是中心锚点(getAttached/getNode 均返回 centerX): translateX(-50%) 让宽度变化对称展开,
             // 与挂件宽度入场动画(节点宽→挂件宽)配合形成"向外展开"。
             // enterPhase 非 settle 时跳过 transform: fall/expand 拍的 inline transition 正在驱动同一属性,
@@ -529,42 +503,37 @@ function getConnectionMenuPosition(position: Position, viewport: ViewportTransfo
     };
 }
 
-function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLElement, panelWidth: number) {
+function getAttachedNodePanelPosition(nodeElement: HTMLElement, container: HTMLElement, _panelWidth: number) {
     // 挂件几何(2026-09-18 用户对照上游原版定稿): 顶缘距节点底缘 12px、水平居中。
     // 两轮调参(8/10px)均报「贴」的真正根因是 S2 的顶角取直(已删, 见 globals.css),
     // 间距按上游原版识图中值 12px 对齐。
 
     // 返回 centerX(中心锚点)而非 left: 挂件宽度有入场展开动画(节点宽→挂件宽),
     // 配合外层 translateX(-50%) 让宽度变化时保持对称居中展开(用户 2026-09-17: 展开过程不明显)。
-    // clamp 沿用 12px 边距, 防节点贴视口缘时挂件出屏。
+    // [2026-09-25 用户对照商业参考(LibTV/TapNow/上游)拍板] 去 12px 边距 clamp: 纯贴附对称居中,
+    // 节点贴视口缘时随节点一起被容器自然裁切(旧 clamp 的「钉在边缘/脱节」即用户检验所指)。
     const gap = 12;
-    const margin = 12;
     const nodeRect = nodeElement.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
-    const minCenter = margin + panelWidth / 2;
-    const maxCenter = Math.max(minCenter, containerRect.width - margin - panelWidth / 2);
     return {
-        left: clamp(nodeRect.left - containerRect.left + nodeRect.width / 2, minCenter, maxCenter),
+        left: nodeRect.left - containerRect.left + nodeRect.width / 2,
         top: nodeRect.bottom - containerRect.top + gap,
         placement: "below" as const,
     };
 }
 
-export function getNodePanelPosition(node: CanvasNodeData, viewport: ViewportTransform, viewportSize: { width: number; height: number }, panelWidth: number, _panelHeight: number, dragOffset?: Position | null) {
+export function getNodePanelPosition(node: CanvasNodeData, viewport: ViewportTransform, _viewportSize: { width: number; height: number }, _panelWidth: number, _panelHeight: number, dragOffset?: Position | null) {
     // 挂件化(S2 修订 + 2026-09-18 对照上游定稿): 面板顶缘距节点底缘 12px、水平居中于节点(挂件可略宽于节点,
     // 对称微展不破坏重心); 之前的居中+10px gap 是外浮面板几何(压住下方邻居误触的根源)。
     // 返回 centerX(中心锚点): 挂件宽度有入场展开动画, 配合 translateX(-50%) 对称展开。
+    // [2026-09-25 用户对照商业参考(LibTV/TapNow/上游)拍板] 去 12px 边距 clamp: 纯贴附对称居中。
     const gap = 12;
-    const margin = 12;
     const offsetX = dragOffset?.x || 0;
     const offsetY = dragOffset?.y || 0;
     const nodeCenterX = viewport.x + (node.position.x + offsetX + node.width / 2) * viewport.k;
     const nodeBottom = viewport.y + (node.position.y + offsetY + node.height) * viewport.k;
-    const minCenter = margin + panelWidth / 2;
-    const maxCenter = Math.max(minCenter, viewportSize.width - margin - panelWidth / 2);
-    const left = clamp(nodeCenterX, minCenter, maxCenter);
     return {
-        left,
+        left: nodeCenterX,
         top: nodeBottom + gap,
         placement: "below" as const,
     };

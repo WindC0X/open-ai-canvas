@@ -24,12 +24,18 @@ test("份数气泡跟随画布外观主题（不再直连工作台主题源）",
     expect(src).not.toContain("useThemeStore((state)");
 });
 
-test("节点移出视口时工具栏/挂件隐藏（不再被挤在可视区）", async () => {
+test("工具栏/挂件纯贴附：不夹回视口、中心出界不隐藏（用户对照商业参考拍板）", async () => {
     const [toolbar, overlays] = await Promise.all([
         Bun.file(new URL("../src/components/canvas/canvas-node-toolbar.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/components/canvas/canvas-workspace-overlays.tsx", import.meta.url)).text(),
     ]);
-    expect(toolbar).toContain("centerX < containerRect.left");
-    expect(toolbar).toContain("setAnchor(null);\n                return;");
-    expect(overlays).toContain('panel.style.visibility = "hidden"');
+    // 旧方案(视口夹回/中心出界隐藏)整体退役
+    expect(toolbar).not.toContain("centerX < containerRect.left");
+    expect(toolbar).not.toContain("halfToolbar + 10");
+    expect(overlays).not.toContain('panel.style.visibility = "hidden"');
+    // 纯贴附: 工具条居中锚点直取; 挂件中心锚点直取(不再 clamp)
+    expect(toolbar).toContain("let left = preferredLeft;");
+    expect(toolbar).toContain("let top = above;");
+    expect(overlays).toContain("left: nodeRect.left - containerRect.left + nodeRect.width / 2,");
+    expect(overlays).toContain("left: nodeCenterX,");
 });

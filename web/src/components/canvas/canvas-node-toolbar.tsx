@@ -176,20 +176,14 @@ export function CanvasNodeToolbar({
             const nodeRect = element.getBoundingClientRect();
             // 节点宽下发给间隙桥: 桥宽度 clamp 到节点宽, 防横向越界劫持邻居 hover
             element.style.setProperty("--bridge-node-width", nodeRect.width + "px");
-            // [2026-09-25 用户检验] 节点中心移出视口(过半身在显示区外)时隐藏工具栏:
-            // 此前 clamp 会把工具栏钉在容器边缘, 与已移出显示的节点脱节“挤在可视区”。
-            const centerX = nodeRect.left + nodeRect.width / 2;
-            const centerY = nodeRect.top + nodeRect.height / 2;
-            if (centerX < containerRect.left || centerX > containerRect.right || centerY < containerRect.top || centerY > containerRect.bottom) {
-                setAnchor(null);
-                return;
-            }
+            // [2026-09-25 用户对照商业参考(LibTV/TapNow/上游)拍板] 纯贴附: 工具条居中贴节点上方,
+            // 不做视口夹回、不因中心出界隐藏——节点移出时随节点滑出、被画布容器自然裁切
+            // (参考实测: LibTV 工具条 [-502..592] 居中于半出屏节点, 无夹回无隐藏)。
             const preferredLeft = nodeRect.left - containerRect.left + nodeRect.width / 2;
             const halfToolbar = toolbarWidth / 2;
-            const canClamp = toolbarWidth > 0 && toolbarWidth <= containerRect.width - 20;
-            let left = canClamp ? Math.min(Math.max(preferredLeft, halfToolbar + 10), containerRect.width - halfToolbar - 10) : preferredLeft;
+            let left = preferredLeft;
             const above = nodeRect.top - containerRect.top - CANVAS_NODE_TOOLBAR_ANCHOR_GAP_PX;
-            let top = Math.max(toolbarHeight + 8, Math.min(above, containerRect.height - 8));
+            let top = above;
             for (const panel of container.querySelectorAll<HTMLElement>("[data-canvas-node-panel]")) {
                 const panelRect = panel.getBoundingClientRect();
                 const panelLeft = panelRect.left - containerRect.left;
