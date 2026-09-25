@@ -230,8 +230,11 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
         setExpandedPromptOpen(false);
         setExpandedPresetOpen(false);
         setExpandedModalSize(null);
-        setPromptContentHeight(estimatePromptContentHeight(normalizedSavedPrompt, false));
-        setExpandedPromptContentHeight(estimatePromptContentHeight(normalizedSavedPrompt, true));
+        // [2026-09-26 修复「关闭创作面板再打开后输入框底部多出空占位」] 这里原来把两个内容高度重置为
+        // 估值——本组件按节点 key 强重建(project.tsx key={panelNode.id})，useState 初始化已给估值；
+        // 而子级编辑器的挂载实测(useLayoutEffect)先于本 passive effect 落值，旧代码会把刚测到的真实
+        // 高度覆写回估值，之后又没有 value/宽度变化再触发重测 → 高度卡死在估值（实测 172px，真值 138px）。
+        // 真实高度以子级 onContentSizeChange 实测为准，此处不再写这两个高度。
         setManualPromptHeight(null);
     }, [node.id]);
 

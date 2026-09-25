@@ -8081,10 +8081,10 @@ html:not(.dark) .canvas-generation-settings-trigger.ant-btn[aria-expanded="true"
         animation: affordance-expand-in 180ms var(--motion-ease-out) backwards;
     }
     .canvas-node-panel-affordance .canvas-node-panel-enter {
-        /* 坠落/展开两拍已迁至 CanvasNodePanelOverlay inline transition(2026-09-17 感知定稿):
-           此处保留 --affordance-enter-offset 供退场 affordance-drop-out 引用, 不再对 enter 层应用 animation —
-           避免与 inline transition 双驱动叠加(enter 层现在只承担 layout 定位)。 */
-        --affordance-enter-offset: -160px;
+        /* 坠落/展开两拍已迁至 CanvasNodePanelOverlay inline transition(2026-09-17 感知定稿),
+           enter 层现在只承担 layout 定位; [2026-09-26 拖动对齐] 隐藏/显场改级别驱动 transition，
+           与工具栏同参：显场 180ms ease-out 回位，隐藏 160ms ease-in 朝节点收拢（见下条 hidden 规则）。 */
+        transition: opacity 180ms var(--motion-ease-out), transform 180ms var(--motion-ease-out);
     }
     /* 挂件入场动画已改为 CanvasNodePanelOverlay 内 inline transition(2026-09-17):
        CSS animation 六轮在用户浏览器全部表现为闪现而 inline transition 可见,
@@ -8093,19 +8093,18 @@ html:not(.dark) .canvas-generation-settings-trigger.ant-btn[aria-expanded="true"
     /* 挂件外形(2026-09-18 用户对照上游原版拍板): 删除 S2 的顶角取直设计,
        composer 回归四角全圆(var(--canvas-composer-radius))的独立悬浮卡形态 —
        直角顶角让面板视觉上焊死在节点下, 正是「贴合感」的真正来源(两轮调间距无感的原因)。 */
-    /* 退场(hidden 期, 与卸载延迟 160ms 匹配): 向节点方向收拢渐隐;
-       挂件退场收回节点内(translateY 负向)无 scale。 */
+    /* 退场(hidden 期): 工具条向节点方向收拢渐隐（keyframe，保持原语义）。 */
     .canvas-node-toolbar[data-affordance="hidden"] .canvas-node-toolbar-surface {
         animation: affordance-expand-out 160ms var(--motion-ease-in) forwards;
     }
+    /* [2026-09-26 用户拍板「拖拽关闭/展开与工具栏对齐」] composer 退场由 keyframe 改级别驱动 transition：
+       隐藏 = 160ms 向上（朝节点）12px + scale .97 收拢渐隐（镜像工具栏 +12px 向下），
+       显场 = 基条目的 180ms 回位（与工具栏 affordance-expand-in 同参）；
+       原 affordance-drop-out(-160px) keyframes 随之删除，拖拽期挂件不再直接卸载。 */
     .canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter {
-        animation: affordance-drop-out 160ms var(--motion-ease-in) forwards;
-    }
-    @keyframes affordance-drop-out {
-        to {
-            opacity: 0;
-            transform: translateY(var(--affordance-enter-offset, -160px));
-        }
+        opacity: 0;
+        transform: translateY(-12px) scale(0.97);
+        transition: opacity 160ms var(--motion-ease-in), transform 160ms var(--motion-ease-in);
     }
     /* 供给本体(canvas-node-toolbar / canvas-node-panel-affordance)的进场渐显。
        不用裸 [data-affordance] 属性选择器: 归属域标注(设置气泡面板也带该属性以进 hover

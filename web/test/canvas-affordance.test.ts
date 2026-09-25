@@ -62,8 +62,11 @@ describe("deriveComposerAffordance", () => {
         expect(deriveComposerAffordance({ ...base, dialogNodeId: NODE }, cmGuards)).toBe("full");
     });
 
-    test("拖拽不抑制 composer(拖拽替换引用需要可投放)", () => {
-        expect(deriveComposerAffordance({ ...base, dialogNodeId: NODE }, { ...cmGuards, nodeDragging: true })).toBe("full");
+    test("节点拖拽 → composer 同工具栏 hidden（2026-09-26 拖动关闭/显场对齐拍板）", () => {
+        // 旧契约「拖拽不抑制」的初衷是「拖拽连线替换引用」需投放——该流程是连接拖拽, 不置 nodeDragging,
+        // 不受本 guard 影响; 节点拖拽此前靠 selectedPanelNode 卸载直接消失(无退场), 现统一走 hidden
+        // 级别, 与工具栏同参过渡(160ms 朝节点收拢 / 180ms 回位), 见 globals.css 与 project.tsx 注释。
+        expect(deriveComposerAffordance({ ...base, dialogNodeId: NODE }, { ...cmGuards, nodeDragging: true })).toBe("hidden");
     });
 
     test("框选 → hidden; 设置气泡开启不影响 composer", () => {

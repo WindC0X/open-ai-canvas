@@ -103,6 +103,10 @@ export function ObjectHudPanel({ node, config, topInset = 88, actions = [], onVi
         width: 288,
         maxHeight: "calc(100vh - 176px)",
         overflowY: "auto",
+        // [2026-09-26 用户截图「点击节点时 HUD 展开过程中出现很粗的滚动条」] 行/动作栏的进入位移
+        // translateY(4px) 会让末位元素超出内容盒 4px，overflow:auto 在动画窗口期闪现原生粗滚动条。
+        // 底部留 4px 跑道吸收位移 → 动画期间零溢出；真超长内容仍可滚动（配 thin-scrollbar 细条）。
+        paddingBottom: 4,
         background: theme.toolbar.panel,
         border: `1px solid ${theme.toolbar.border}`,
         borderRadius: 14,
@@ -122,7 +126,7 @@ export function ObjectHudPanel({ node, config, topInset = 88, actions = [], onVi
     });
 
     return (
-        <aside className={className} style={shellStyle} data-object-hud-panel="" aria-label="对象信息面板" onKeyDown={(event) => { if (event.key === "Escape") onClose?.(); }}>
+        <aside className={className ? `${className} thin-scrollbar` : "thin-scrollbar"} style={shellStyle} data-object-hud-panel="" aria-label="对象信息面板" onKeyDown={(event) => { if (event.key === "Escape") onClose?.(); }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 14px 10px" }}>
                 <span style={{ color: theme.node.text, fontSize: 14, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{node.title}</span>
                 {hasContent(node) && node.type === CanvasNodeType.Image && onViewImage ? (

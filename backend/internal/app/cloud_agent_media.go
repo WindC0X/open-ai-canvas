@@ -559,7 +559,7 @@ func (s *Service) fillCloudAgentMediaSnapshotHash(userID, canvasID string, a *cl
 // 已对文本节点做过一轮 384×384）。与 web 端 nodeSizeFromRatio + fitNodeSize 同口径：
 // 比例串（"9:16" / "1024x1824"）先填入基准盒，再按 420×236 下限上浮、基准盒上限收缩；
 // 图片链基准盒 = MEDIA_NODE_MAX_SIZE 720×520（2026-09-21 收敛值），视频链 = 类型默认 720×405；
-// 空 / auto / 不可解析 / 越界比例（<0.25 或 >4）回退类型默认尺寸。非媒体类型不换算。
+// 空 / auto / 不可解析回退类型默认尺寸，越界比例（<0.25 或 >4）回退基准盒（与 web 对齐）。非媒体类型不换算。
 func cloudAgentMediaDraftSize(nodeType string, size string) (float64, float64) {
 	defaultWidth, defaultHeight := cloudAgentNodeDefaultWidth(nodeType), cloudAgentNodeDefaultHeight(nodeType)
 	if nodeType != "image" && nodeType != "video" {
@@ -578,13 +578,15 @@ func cloudAgentMediaDraftSize(nodeType string, size string) (float64, float64) {
 	if widthErr != nil || heightErr != nil || widthRatio <= 0 || heightRatio <= 0 {
 		return defaultWidth, defaultHeight
 	}
-	ratio := widthRatio / heightRatio
-	if ratio < 0.25 || ratio > 4 {
-		return defaultWidth, defaultHeight
-	}
 	baseWidth, baseHeight := defaultWidth, defaultHeight
 	if nodeType == "image" {
 		baseWidth, baseHeight = cloudAgentMediaBoxMaxWidth, cloudAgentMediaBoxMaxHeight
+	}
+	ratio := widthRatio / heightRatio
+	if ratio < 0.25 || ratio > 4 {
+		// [review 2026-09-26 P3②] 越界比例回退「基准盒」而非类型默认：与 web nodeSizeFromRatio 的
+		// return { baseWidth, baseHeight } 逐字对齐（图链 720×520 / 视频链 720×405）。
+		return baseWidth, baseHeight
 	}
 	candidateWidth, candidateHeight := baseHeight*ratio, baseHeight
 	if ratio >= baseWidth/baseHeight {

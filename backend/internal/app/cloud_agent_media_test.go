@@ -1033,14 +1033,16 @@ func TestCloudAgentMediaNodeRepositionsReusedDraftFromCanvasOps(t *testing.T) {
 			t.Fatal(err)
 		}
 		return &cloudAgentMediaPlan{
-			Args:           cloudAgentMediaArgs{ChannelID: "channel", ChannelModelKey: "grok-image", Mode: "image", Prompt: "向外延展", Title: cloudAgentOutpaintTitle(1536, 864), SnapshotHash: cloudAgentContentHash(updated), NodeID: "draft-1", ReferenceNodeIDs: []string{"src"}, OutpaintRatio: "16:9", DraftRunID: "run-1"},
+			// Size 9:16：同时锁定「复用路径尺寸同步」（2026-09-25 草稿标准盒修复；先前本测试只断言落位，
+			// 尺寸同步无直测——review 2026-09-26 P3① 补齐）。
+			Args:           cloudAgentMediaArgs{ChannelID: "channel", ChannelModelKey: "grok-image", Mode: "image", Prompt: "向外延展", Size: "9:16", Title: cloudAgentOutpaintTitle(1536, 864), SnapshotHash: cloudAgentContentHash(updated), NodeID: "draft-1", ReferenceNodeIDs: []string{"src"}, OutpaintRatio: "16:9", DraftRunID: "run-1"},
 			OutpaintFrameW: 1536, OutpaintFrameH: 864,
 		}
 	}
 	if err := createCloudAgentMediaNode(s.repo, "user", "agent-canvas", plan(), nil, policy); err != nil {
 		t.Fatal(err)
 	}
-	read := func() (float64, float64) {
+	read := func() (float64, float64, float64, float64) {
 		canvas, err := s.repo.CanvasProjectForUser("user", "agent-canvas")
 		if err != nil {
 			t.Fatal(err)
@@ -1056,19 +1058,33 @@ func TestCloudAgentMediaNodeRepositionsReusedDraftFromCanvasOps(t *testing.T) {
 		position, _ := nodes["draft-1"]["position"].(map[string]any)
 		x, _ := position["x"].(float64)
 		y, _ := position["y"].(float64)
-		return x, y
+		w, _ := nodes["draft-1"]["width"].(float64)
+		h, _ := nodes["draft-1"]["height"].(float64)
+		return x, y, w, h
 	}
-	x, y := read()
+	x, y, w, h := read()
 	if x != -7224 || y != 15644 {
 		t.Fatalf("复用 LLM 自建草稿时必须拉回引用源旁边，got x=%v y=%v", x, y)
 	}
-	// 再次复用（结果回写）不得因“自己被当成占位节点”而下移。
+	if diff := w - 420; diff > 0.001 || diff < -0.001 {
+		t.Fatalf("复用路径应同步媒体标准盒宽度 420（9:16），got %v", w)
+	}
+	if diff := h - 746.6666666667; diff > 0.001 || diff < -0.001 {
+		t.Fatalf("复用路径应同步 9:16 高度 746.67，got %v", h)
+	}
+	// 再次复用（结果回写）不得因“自己被当成占位节点”而下移（尺寸同步幂等）。
 	if err := createCloudAgentMediaNode(s.repo, "user", "agent-canvas", plan(), nil, policy); err != nil {
 		t.Fatal(err)
 	}
-	x, y = read()
+	x, y, w, h = read()
 	if x != -7224 || y != 15644 {
 		t.Fatalf("重复复用应保持落位，got x=%v y=%v", x, y)
+	}
+	if diff := w - 420; diff > 0.001 || diff < -0.001 {
+		t.Fatalf("重复复用应保持标准盒宽度 420，got %v", w)
+	}
+	if diff := h - 746.6666666667; diff > 0.001 || diff < -0.001 {
+		t.Fatalf("重复复用应保持高度 746.67，got %v", h)
 	}
 }
 
@@ -1088,10 +1104,12 @@ func TestCloudAgentMediaDraftSizeUsesStandardBox(t *testing.T) {
 		{"image", "1024x1824", 420, 748.125},
 		{"image", "auto", 720, 405},
 		{"image", "", 720, 405},
-		{"image", "5:1", 720, 405},
+		{"image", "5:1", 720, 520}, // review 2026-09-26 P3②：越界比例回退基准盒（与 web nodeSizeFromRatio 对齐）
+		{"image", "1:5", 720, 520},
 		{"video", "9:16", 420, 746.6666666667},
 		{"video", "16:9", 720, 405},
 		{"video", "1:1", 420, 420},
+		{"video", "5:1", 720, 405},
 		{"video", "auto", 720, 405},
 		{"audio", "9:16", 340, 120},
 	}

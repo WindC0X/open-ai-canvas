@@ -61,8 +61,11 @@ export function deriveToolbarAffordance(input: AffordanceInput, guards: ToolbarG
     return deriveLevel(input, guards.nodeDragging || guards.selectionBoxActive || Boolean(guards.settingsOpen));
 }
 
-/** composer 存在感:拖拽不抑制(拖拽替换引用 96e0051a 需要 composer 可接受投放),设置气泡是其自身一部分不抑制。
- * 挂件化后(09-15 任务)仅 selected 槽位挂载(selected→full); hover 微态由节点内信息态 composer 承担, 不再走本派生的 micro 层。 */
+/** composer 存在感: 节点拖拽/框选时隐藏。
+ * [2026-09-26 用户拍板「拖动时工具栏/composer 的关闭与展开必须对齐」] 此前拖拽靠
+ * selectedPanelNode 直接卸载(无退场)；现与工具栏同走 hidden 级别——同一套 160ms 朝节点收拢
+ * 退场 + 180ms 回位显场（见 globals.css .canvas-node-panel-affordance 规则）。
+ * 设置气泡是其自身一部分不抑制。挂件化后仅 selected 槽位挂载(selected→full)。 */
 export function deriveComposerAffordance(input: AffordanceInput, guards: ComposerGuardInput): AffordanceLevel {
-    return deriveLevel(input, guards.selectionBoxActive);
+    return deriveLevel(input, guards.nodeDragging || guards.selectionBoxActive);
 }

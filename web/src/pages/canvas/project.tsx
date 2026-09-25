@@ -2555,7 +2555,11 @@ function InfiniteCanvasPage() {
     // BatchTable 编辑全内联在节点 body(CanvasBatchTableNodeContent 的 onPatchTable 直改), 无独立面板;
     // P0 双挂载根修删除的旧裸挂载点同样排除它 —— 注释曾误写为"并入", 2026-09-17 review 更正。
     // 扩图激活时隐藏目标节点的 composer（用户反馈 2026-09-19：扩图模式不应同时弹出图片生成面板）；✕ 退出后恢复。
-    const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && dialogNode.id !== outpaintNodeId && !selectionBox && !isCanvasNodeMoving ? dialogNode : null;
+    // [2026-09-26 用户拍板「拖动时关闭/展开与工具栏对齐」] 移除了 !isCanvasNodeMoving 直接卸载：
+    // 拖拽期改为 level=hidden（deriveComposerAffordance 的 nodeDragging guard）——挂件保持挂载，
+    // 走与工具栏同参的 160ms 朝节点退场；松手后 180ms 回位。否则拖拽一发生挂件就瞬间消失（无退场），
+    // 松手又走完整隆落编排（wait 180+渐显 200+展开 420），与工具栏的 160/180ms 节奏永不同步。
+    const selectedPanelNode = dialogNode && isPanelCarrier(dialogNode) && dialogNode.id !== outpaintNodeId && !selectionBox ? dialogNode : null;
     // hover 实例已退役(S2): hover 微态由节点内信息态 composer 承担; hoverSupplyTarget 仍供工具栏双槽位使用
     const hoverSupplyTarget = hoveredNode ?? exitingNode;
     // toolbarNode?.id 排除即双槽位去重(与 composer 转换帧 duplicate-key 防御同语义, 在派生层完成;

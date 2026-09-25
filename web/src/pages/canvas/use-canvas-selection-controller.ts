@@ -278,7 +278,12 @@ export function useCanvasSelectionController({
         if (dragRef.current.hasMoved && !visualDraggingRef.current) {
             visualDraggingRef.current = true;
             setIsNodeDragging(true);
-            setDragPreview({ x: pendingNodeDragRef.current.x, y: pendingNodeDragRef.current.y, nodeIds: dragRef.current.draggedRenderNodeIdSet });
+            // [2026-09-26 修复「拖动结束回扯一点点」] x/y 必须为 0：节点跟手位移由
+            // applyCanvasNodeDragPreview 逐帧直写 CSS translate 属性承担；本对象同时会作
+            // CanvasNode 的 dragOffset 进入 transform(position + offset)，与直写 translate
+            // 叠加（实测两通路相加，k≈0.28 缩放后逐像素吸合），而本值只在越阈时刻设一次
+            // （常量≈3-8px）→ 松手回收 = 回扯。zero 化后两条通路不再叠加，release 无缝。
+            setDragPreview({ x: 0, y: 0, nodeIds: dragRef.current.draggedRenderNodeIdSet });
         }
         if (dragFrameRef.current) return;
         dragFrameRef.current = requestAnimationFrame(() => {
