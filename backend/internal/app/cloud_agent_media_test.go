@@ -155,7 +155,7 @@ func TestCloudAgentMediaApprovalCreatesNodeReferencesAndResult(t *testing.T) {
 	if count != 1 {
 		t.Fatal("replay duplicated task")
 	}
-	if err = db.Create(&model.Resource{ID: "output", UserID: "user", Kind: "video", Status: "ready", MimeType: "video/mp4", Width: 720, Height: 1280}).Error; err != nil {
+	if err = db.Create(&model.Resource{ID: "output", UserID: "user", Kind: "video", Status: "ready", MimeType: "video/mp4", Width: 720, Height: 1280, Size: 3145728}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err = db.Model(&model.Task{}).Where("id = ?", task.ID).Updates(map[string]any{"status": model.TaskStatusSucceeded, "result_json": `{"mode":"video","video":{"storageKey":"resource:output"}}`}).Error; err != nil {
@@ -168,8 +168,8 @@ func TestCloudAgentMediaApprovalCreatesNodeReferencesAndResult(t *testing.T) {
 	doc, _ = creationDocument(canvas.PayloadJSON)
 	nodes, _ = creationObjects(doc["nodes"])
 	meta := nodes[a.NodeID]["metadata"].(map[string]any)
-	if meta["status"] != "success" || meta["storageKey"] != "resource:output" {
-		t.Fatalf("result not persisted: %+v", meta)
+	if meta["status"] != "success" || meta["storageKey"] != "resource:output" || meta["bytes"] != float64(3145728) {
+		t.Fatalf("result not persisted (want status/storageKey/bytes=3145728): %+v", meta)
 	}
 	run, _ = s.repo.CloudAgent("user", run.ID)
 	state, _ = cloudAgentDecode(run)

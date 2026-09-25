@@ -949,6 +949,10 @@ func completeCloudAgentMediaNode(repo *repository.Repository, userID, canvasID, 
 			}
 			meta["content"], meta["storageKey"], meta["status"] = resourceFileURL(id), "resource:"+id, "success"
 			meta["naturalWidth"], meta["naturalHeight"] = resource.Width, resource.Height
+			// 文件大小与手动链路（前端任务同步写入 metadata.bytes）保持同字段，供 HUD「大小」等事实面板消费。
+			if resource.Size > 0 {
+				meta["bytes"] = resource.Size
+			}
 			if resource.Width > 0 && resource.Height > 0 {
 				if width, ok := node["width"].(float64); ok && width > 0 {
 					node["height"] = width * float64(resource.Height) / float64(resource.Width)
