@@ -86,3 +86,17 @@ test("弹层玻璃不再被 canvas-panel-in 的 filter 灭活（backdrop root �
     expect(out).toBeTruthy();
     expect(strip(out![0])).not.toContain("filter:");
 });
+
+test("antd 弹层根常驻 filter(drop-shadow) 已清（静止态玻璃存活，2026-09-26 复验根修）", async () => {
+    const [css, picker] = await Promise.all([
+        Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text(),
+        Bun.file(new URL("../src/styles/shared/model-picker.css", import.meta.url)).text(),
+    ]);
+    // 智能引用: globals 内清根（antd 根样式 filter: var(--ant-drop-shadow-popover) 常驻灭活 backdrop-filter）
+    const m = css.match(/\.ant-popover\.canvas-reference-tools-popover \{[\s\S]*?filter: none !important;/);
+    expect(m).toBeTruthy();
+    // 模型族: model-picker.css 单一源（G7 纪律: globals 不得含该族字串）
+    const n = picker.match(/\.ant-popover\.canvas-model-picker-popover,[\s\S]*?filter: none !important;/);
+    expect(n).toBeTruthy();
+    expect(n![0]).toContain(".ant-popover.creation-model-picker-popover");
+});

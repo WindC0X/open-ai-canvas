@@ -882,6 +882,15 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         -webkit-backdrop-filter: blur(16px) !important;
     }
 
+    /* [2026-09-26 根修·最终] antd v6 把弹层阴影实现为根元素常驻样式 filter: var(--ant-drop-shadow-popover)
+       (drop-shadow 链——非动画、静止态也在); backdrop root 语义下祖先任意 filter 使后代 backdrop-filter
+       只能模糊空背景 → L1 玻璃永久失效、只剩 0.9 alpha 清晰透底。清根 filter：阴影本就按设计契约
+       为 none；本文件为模型族单一源(G7)，globals 侧同规则仅留智能引用(.canvas-reference-tools-popover)。 */
+    .ant-popover.canvas-model-picker-popover,
+    .ant-popover.creation-model-picker-popover {
+        filter: none !important;
+    }
+
     .canvas-model-picker-popover .canvas-composer-popover-content,
     .canvas-model-picker-popover.canvas-composer-popover-content {
         width: min(384px, calc(100vw - 24px)) !important;

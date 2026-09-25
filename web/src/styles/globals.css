@@ -10211,6 +10211,16 @@ html:not(.dark) .canvas-generation-settings-trigger.ant-btn[aria-expanded="true"
         border-color: rgba(255, 255, 255, 0.05) !important;
     }
 
+    /* [2026-09-26 根修·最终] antd v6 将弹层阴影实现为根元素常驻样式: filter: var(--ant-drop-shadow-popover)
+       (drop-shadow 链——非动画、静止态也在)。backdrop root 语义：祖先任意 filter 都会使后代 backdrop-filter
+       只能模糊空背景 → 上方容器玻璃永久失效、只剩 0.9 alpha 清晰透底（用户复验「还是透」的最终机制）。
+       清根 filter：阴影本就按设计契约为 none，且清根后玻璃全程真实生效（条纹板判据：细节抹平 99.5%）。
+       模型选单两族的同规则在 model-picker.css（G7 单一源纪律: globals 不得含该族字串）；
+       .ant-dropdown 根实测无 filter，工具条菜单不受影响。 */
+    .ant-popover.canvas-reference-tools-popover {
+        filter: none !important;
+    }
+
     /* composer 底部模型按钮(2026-09-11 用户参考 flora): ghost 融合报纸色 + 内容自适应宽度。
        作用域限 canvas composer 容器, 不影响 create 页共用 .creation-model-picker 规则。 */
     .canvas-node-composer-model .canvas-composer-model-picker,
