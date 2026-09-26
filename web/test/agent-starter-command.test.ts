@@ -21,4 +21,9 @@ test("starter 卡走自增 id prefill 命令通道并复用 submit 发送路径"
     // 卡面：电商分组由数据驱动渲染，点击走 onRunStarter
     expect(welcome).toContain("ECOM_STARTER_CARDS");
     expect(welcome).toContain("onRunStarter");
+    // 重构（控制线 2026-09-27 退回裁决 2.2）：面板按浮窗高度分级；技能胶囊同态折叠；卡面含「更多开始方式」
+    expect(panel).toContain("resolveAgentWelcomeTier(panelLayout.compact");
+    expect(panel).toContain('(welcomeTier === "expanded" || welcomeMoreOpen)');
+    expect(welcome).toContain("agent-welcome--${tier}");
+    expect(welcome).toContain("更多开始方式");
 });

@@ -533,6 +533,84 @@
     margin-top: 0;
 }
 
+/* S1 重构（控制线 2026-09-27 退回裁决 2.2）：按 Agent 浮窗高度三级内容分级。
+   compact=默认窗：单行欢迎语 + 卡紧凑行 + 「更多开始方式」折叠；standard：卡带副标题 + 通用三卡；expanded：全量。 */
+.agent-welcome--compact {
+    justify-content: flex-start;
+    padding-block: var(--space-4);
+}
+
+.agent-welcome--compact .agent-welcome-orb,
+.agent-welcome--compact .agent-welcome-intro p,
+.agent-welcome--compact .agent-welcome-footnote {
+    display: none;
+}
+
+.agent-welcome--compact .agent-welcome-ecom {
+    margin-top: var(--space-4);
+}
+
+.agent-welcome--compact .agent-welcome-ecom-title {
+    margin-bottom: var(--space-1);
+}
+
+.agent-welcome--compact .agent-welcome-actions {
+    margin-top: var(--space-2);
+}
+
+.agent-welcome--compact .agent-welcome-ecom button {
+    padding-block: var(--space-2);
+}
+
+.agent-welcome--compact .agent-welcome-ecom small {
+    display: none;
+}
+
+.agent-welcome-more {
+    display: flex;
+    width: 100%;
+    max-width: 360px;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    border: 0;
+    border-radius: var(--space-4);
+    background: transparent;
+    color: var(--agent-caption);
+    font-size: var(--fs-label);
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.agent-welcome-more:hover {
+    background: var(--agent-surface-soft);
+    color: var(--agent-ink);
+}
+
+.agent-welcome-more:focus-visible {
+    outline: 2px solid var(--agent-focus-ring);
+    outline-offset: 2px;
+}
+
+.agent-welcome-more svg {
+    width: var(--space-4);
+    height: var(--space-4);
+    transition: transform 160ms ease;
+}
+
+.agent-welcome-more[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-welcome-more,
+    .agent-welcome-more svg {
+        transition: none;
+    }
+}
+
 .agent-welcome-footnote {
     margin: var(--space-6) 0 0;
     color: var(--agent-caption);

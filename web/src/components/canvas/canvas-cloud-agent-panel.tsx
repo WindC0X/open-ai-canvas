@@ -37,6 +37,7 @@ import { AgentChatComposer, AgentChatMessage, AgentPlanBar, AgentQuestionBar, Ag
 import { CanvasAgentSkillLibraryModal } from "./canvas-agent-skill-library-modal";
 import { CanvasCloudAgentSettings, agentPermissionLabel, agentPermissionMenuItems, agentPermissionVisual, type AgentContextKey } from "./canvas-cloud-agent-settings";
 import { useAgentPanelLayout } from "./use-agent-panel-layout";
+import { resolveAgentWelcomeTier, type AgentWelcomeTier } from "@/lib/canvas/agent-panel-layout";
 import { useCanvasOverlayLayer } from "./canvas-overlay-layer";
 import { useAgentLauncherPosition } from "./use-agent-launcher-position";
 import { AgentWelcome } from "./canvas-agent-welcome";
@@ -80,6 +81,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     const lastPrefillIdRef = useRef(0);
     // prefill 效应定义在 submit 之前，用 ref 桥接最新 submit（发送路径唯一，不另造）。
     const submitRef = useRef<((override?: string) => Promise<void>) | null>(null);
+    // S1 重构（控制线 2026-09-27 退回裁决 2.2）：「更多开始方式」展开态（compact/standard 下折叠其余入口；技能组合推荐同态渲染）。
+    const [welcomeMoreOpen, setWelcomeMoreOpen] = useState(false);
     const [reasoningMode, setReasoningMode] = useState<AgentReasoningMode>("off");
     const [profileView, setProfileView] = useState<AgentProfileView | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
@@ -153,6 +156,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     }, [config]);
     // S1 免费体验标注：默认文本模型解析到全零价渠道（如测试通道）时，卡面成本段显示「免费体验」。
     const starterFree = useMemo(() => (onStarterPrompt ? isFreeExperienceModel(config, selectedModel) : false), [config, onStarterPrompt, selectedModel]);
+    // S1 重构：新对话态内容分级按 Agent 浮窗高度三级（复用 panelLayout 既有窗高状态；默认 640=compact，阈值见 resolveAgentWelcomeTier）。
+    const welcomeTier = resolveAgentWelcomeTier(panelLayout.compact ? Math.max(420, window.innerHeight - 8) : panelLayout.layout.height);
     const reasoningSupported = Boolean(modelCapabilityConfigFor(config, selectedModel).text?.thinking);
     useEffect(() => { if (!reasoningSupported && reasoningMode !== "off") setReasoningMode("off"); }, [reasoningSupported, reasoningMode]);
     const installedSkills = useMemo(() => skills.filter((skill) => skill.isAdded), [skills]);
@@ -826,6 +831,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         setPrompt("");
         setApproval(null);
         lastSeqRef.current = 0;
+        setWelcomeMoreOpen(false);
         setView("chat");
     };
 
@@ -999,6 +1005,9 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                         onDraftPrompt={(draft) => setPrompt((current) => current.trim() ? `${current}\n\n${draft}` : draft)}
                                         onStarterPrompt={onStarterPrompt}
                                         starterFree={starterFree}
+                                        welcomeTier={welcomeTier}
+                                        welcomeMoreOpen={welcomeMoreOpen}
+                                        onWelcomeMoreOpenChange={setWelcomeMoreOpen}
                                         onApprovalReasonChange={(reason) => setApproval((current) => (current ? { ...current, reason } : current))}
                                         onApprove={(settings) => void submitApproval("approve", settings)}
                                         onReject={() => void submitApproval("reject")}
@@ -1015,7 +1024,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                             onDismiss={() => setUndoDismissed(true)}
                                         />
                                     ) : null}
-                                    {historyHydrated && !messages.some((message) => message.role === "user" || message.role === "assistant") && !run ? (
+                                    {(welcomeTier === "expanded" || welcomeMoreOpen) && historyHydrated && !messages.some((message) => message.role === "user" || message.role === "assistant") && !run ? (
                                         <AgentSceneCapsules
                                             buckets={sceneBuckets}
                                             installedIds={installedSkillIds}
@@ -1362,6 +1371,9 @@ function AgentConversation({
     onDraftPrompt,
     onStarterPrompt,
     starterFree,
+    welcomeTier,
+    welcomeMoreOpen,
+    onWelcomeMoreOpenChange,
     onFocusNode,
     onApprovalReasonChange,
     onApprove,
@@ -1378,6 +1390,9 @@ function AgentConversation({
     onDraftPrompt: (prompt: string) => void;
     onStarterPrompt?: (prompt: string) => void;
     starterFree?: boolean;
+    welcomeTier: AgentWelcomeTier;
+    welcomeMoreOpen: boolean;
+    onWelcomeMoreOpenChange: (open: boolean) => void;
     onFocusNode?: (nodeId: string) => void;
     onApprovalReasonChange: (reason: string) => void;
     onApprove: (settings?: AgentMediaSettings) => void;
@@ -1414,7 +1429,7 @@ function AgentConversation({
             const element = event.currentTarget;
             followRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
         }}>
-            {!messages.length ? <AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} onRunStarter={onStarterPrompt} freeExperience={starterFree} /> : null}
+            {!messages.length ? <AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} onRunStarter={onStarterPrompt} freeExperience={starterFree} tier={welcomeTier} moreOpen={welcomeMoreOpen} onMoreOpenChange={onWelcomeMoreOpenChange} /> : null}
             <div ref={contentRef} className="agent-conversation-messages">
                 {messages.map((item) => (
                     <AgentChatMessage key={item.id} item={item} theme={theme} references={references} onFocusNode={onFocusNode} isStreaming={busy && !approval && item.streaming === true && item === messages.at(-1)} />

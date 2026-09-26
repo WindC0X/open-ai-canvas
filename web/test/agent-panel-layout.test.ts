@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { changeAgentPanelLayout, clampAgentPanelLayout, defaultAgentPanelLayout, restoreAgentPanelLayout } from "@/lib/canvas/agent-panel-layout";
+import { changeAgentPanelLayout, clampAgentPanelLayout, defaultAgentPanelLayout, resolveAgentWelcomeTier, restoreAgentPanelLayout } from "@/lib/canvas/agent-panel-layout";
 import { agentErrorPresentation, agentSubmissionErrorTitle } from "@/lib/canvas/agent-error-presentation";
 import { ApiError } from "@/services/api/request";
 
@@ -47,6 +47,17 @@ describe("Agent window layout", () => {
         for (const raw of ["invalid json", "null", "{}", '{"width":"448"}', '{"left":12,"top":12,"width":1e999,"height":720}']) {
             expect(restoreAgentPanelLayout(raw, viewport)).toEqual(restoreAgentPanelLayout(null, viewport));
         }
+    });
+});
+
+describe("Agent welcome tier（控制线 2026-09-27 退回裁决 2.2）", () => {
+    it("默认窗 640 = compact；1000+ 升 standard；1160+ 全量展开", () => {
+        expect(resolveAgentWelcomeTier(640)).toBe("compact");
+        expect(resolveAgentWelcomeTier(999)).toBe("compact");
+        expect(resolveAgentWelcomeTier(1000)).toBe("standard");
+        expect(resolveAgentWelcomeTier(1159)).toBe("standard");
+        expect(resolveAgentWelcomeTier(1160)).toBe("expanded");
+        expect(resolveAgentWelcomeTier(1308)).toBe("expanded");
     });
 });
 
