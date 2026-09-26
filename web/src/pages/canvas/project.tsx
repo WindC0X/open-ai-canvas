@@ -311,7 +311,7 @@ function InfiniteCanvasPage() {
     // 发送到 Agent 以「自增 id + 文本」的命令语义交付（2026-09-25 用户实测「有时候没反应」）：
     // 旧实现只存字符串，同一节点重复发送时值相同 → React 状态不变 + 面板侧按值去重，
     // 命令被静默吞掉；自增 id 保证每次点击都是一条新命令。
-    const [agentPrefill, setAgentPrefill] = useState<{ id: number; prompt: string }>({ id: 0, prompt: "" });
+    const [agentPrefill, setAgentPrefill] = useState<{ id: number; prompt: string; submit?: boolean }>({ id: 0, prompt: "" });
     const agentPrefillIdRef = useRef(0);
     const [isMiniMapOpen, setIsMiniMapOpen] = useState(false);
     const [canvasAppearance, setCanvasAppearance] = useState<CanvasAppearance>(() => canvasAppearanceForTheme(colorTheme));
@@ -549,6 +549,13 @@ function InfiniteCanvasPage() {
         openAgent();
         setContextMenu(null);
     }, [agentMentionReferences, openAgent]);
+
+    // S1 电商 starter 卡：点击 = 自增 id 新命令 + submit 标记（立即执行），沿用 3b3fe456 命令通道。
+    const runAgentStarter = useCallback((prompt: string) => {
+        agentPrefillIdRef.current += 1;
+        setAgentPrefill({ id: agentPrefillIdRef.current, prompt, submit: true });
+        openAgent();
+    }, [openAgent]);
     // 修复素材关联仍遵守当前画布版本，不能替用户确认覆盖云端的新内容。
     const confirmForceSaveCanvas = useCallback(() => {
         modal.confirm({
@@ -3034,10 +3041,12 @@ function InfiniteCanvasPage() {
                                 references={agentMentionReferences}
                                 prefillPrompt={agentPrefill.prompt}
                                 prefillPromptId={agentPrefill.id}
+                                prefillSubmit={agentPrefill.submit}
                                 panelLayout={agentPanelLayout}
                                 open={assistantOpen}
                                 onOpen={openAgent}
                                 onCollapse={closeAgent}
+                                onStarterPrompt={runAgentStarter}
                                 onFocusNode={(nodeId) => {
                                     if (!nodesRef.current.some((node) => node.id === nodeId)) { message.info("该节点已删除或尚未同步到画布"); return; }
                                     focusCanvasNode(nodeId);

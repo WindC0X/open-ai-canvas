@@ -1,14 +1,26 @@
-import { ArrowUpRight, Clapperboard, Layers3, Sparkles } from "lucide-react";
+import { ArrowUpRight, Clapperboard, Image, Layers3, LayoutPanelTop, ListChecks, Mountain, Sparkles, type LucideIcon } from "lucide-react";
 import { agentCopy, type CanvasAppearance } from "@/lib/canvas/agent-appearance";
+import { ECOM_STARTER_CARDS, ecomStarterSubtitle, type EcomStarterIcon } from "@/lib/canvas/canvas-ecom-starters";
 
 type AgentWelcomeProps = {
     appearance: CanvasAppearance;
     nodeCount: number;
     onChooseSkill: () => void;
     onDraftPrompt: (prompt: string) => void;
+    /** 电商 starter 卡（S1）：点击 = 新命令立即执行；未接线时分组不渲染。 */
+    onRunStarter?: (prompt: string) => void;
+    /** 免费通道（运行时判定）：副标题成本段显示「免费体验」。 */
+    freeExperience?: boolean;
 };
 
-export function AgentWelcome({ appearance, nodeCount, onChooseSkill, onDraftPrompt }: AgentWelcomeProps) {
+const ECOM_STARTER_ICONS: Record<EcomStarterIcon, LucideIcon> = {
+    image: Image,
+    detail: LayoutPanelTop,
+    batch: ListChecks,
+    scene: Mountain,
+};
+
+export function AgentWelcome({ appearance, nodeCount, onChooseSkill, onDraftPrompt, onRunStarter, freeExperience }: AgentWelcomeProps) {
     return (
         <section className="agent-welcome" aria-label="开始 Agent 创作">
             <div className="agent-welcome-intro">
@@ -42,6 +54,26 @@ export function AgentWelcome({ appearance, nodeCount, onChooseSkill, onDraftProm
                     <ArrowUpRight className="agent-welcome-arrow" aria-hidden="true" />
                 </button>
             </div>
+            {onRunStarter ? (
+                <div className="agent-welcome-ecom" aria-label="电商快捷开始">
+                    <p className="agent-welcome-ecom-title">电商快捷开始</p>
+                    <div className="agent-welcome-actions">
+                        {ECOM_STARTER_CARDS.map((card) => {
+                            const Icon = ECOM_STARTER_ICONS[card.icon];
+                            return (
+                                <button key={card.id} type="button" onClick={() => onRunStarter(card.prompt)}>
+                                    <Icon aria-hidden="true" />
+                                    <span>
+                                        <strong>{card.title}</strong>
+                                        <small>{ecomStarterSubtitle(card, freeExperience)}</small>
+                                    </span>
+                                    <ArrowUpRight className="agent-welcome-arrow" aria-hidden="true" />
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : null}
             <p className="agent-welcome-footnote">先聊想法，再决定下一步</p>
         </section>
     );

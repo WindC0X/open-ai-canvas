@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
-import { Button, Dropdown, Input, Popover } from "antd";
+import { App, Button, Dropdown, Input, Popover } from "antd";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, Check, ChevronRight, CircleDot, Clock3, Download, History, LoaderCircle, MessageSquarePlus, MoveDiagonal2, RotateCcw, Settings2, ShieldCheck, Trash2, Sparkles, X } from "lucide-react";
 import { saveAs } from "file-saver";
@@ -7,6 +7,7 @@ import { buildAgentDebugExport } from "@/lib/canvas/agent-debug-export";
 import { markdownPlainText } from "@/lib/markdown-plain-text";
 import { agentToolRetry, mergeAgentToolRetry } from "@/lib/canvas/agent-tool-retry";
 import { agentPlanVisible, latestAgentPlanItems, latestAgentPlanTerminal, pendingAgentQuestion } from "@/lib/canvas/cloud-agent-plan";
+import { isFreeExperienceModel, resolveStarterRunDecision } from "@/lib/canvas/canvas-ecom-starters";
 import { emptyAgentContextUsage, presentAgentContextUsage, reduceAgentContextUsage, type AgentContextPhase, type AgentContextUsage, type AgentContextUsageView } from "@/lib/canvas/agent-context-usage";
 import { nanoid } from "nanoid";
 
@@ -44,11 +45,11 @@ import { live2DModelURL } from "@/services/api/appearance";
 import { Live2DAvatar } from "./live2d-avatar";
 import "./canvas-cloud-agent.css";
 
-type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; selectedNodeIds: string[]; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; prefillPromptId?: number; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void; panelLayout: ReturnType<typeof useAgentPanelLayout> };
+type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; selectedNodeIds: string[]; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; prefillPromptId?: number; prefillSubmit?: boolean; onStarterPrompt?: (prompt: string) => void; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void; panelLayout: ReturnType<typeof useAgentPanelLayout> };
 type ApprovalState = { approvalId: string; detail: Record<string, unknown>; reason: string };
 type AgentPanelView = "chat" | "history" | "settings";
 
-export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, selectedNodeIds, references, open, prefillPrompt, prefillPromptId, onOpen, onCollapse, onFocusNode, panelLayout }: CloudAgentPanelProps) {
+export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, selectedNodeIds, references, open, prefillPrompt, prefillPromptId, prefillSubmit, onStarterPrompt, onOpen, onCollapse, onFocusNode, panelLayout }: CloudAgentPanelProps) {
     const userId = useUserStore((state) => state.user?.id);
     // Agent 浮窗与节点面板等同属"最后交互置顶"的画布浮层体系: 点击/聚焦面板即 bringToFront,
     // 否则固定 z-modal-overlay(110) 的 Agent 会被交互后置顶(150)的节点面板永久压住(用户实测层级问题)。
@@ -64,6 +65,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     const theme = canvasThemes[useActiveTheme()];
     const config = useEffectiveConfig();
     const updateConfig = useConfigStore((state) => state.updateConfig);
+    const { message } = App.useApp();
     const reducedMotion = useReducedMotion();
     const [view, setView] = useState<AgentPanelView>("chat");
     const [run, setRun] = useState<AgentRun | null>(null);
@@ -76,6 +78,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     // 旧实现按值去重，同一节点重复发送（文本相同）的第二条命令被静默吞掉；
     // 自增 id 下每条新命令都会重新落进输入框（含原本就在 chat 视图时切回 chat）。
     const lastPrefillIdRef = useRef(0);
+    // prefill 效应定义在 submit 之前，用 ref 桥接最新 submit（发送路径唯一，不另造）。
+    const submitRef = useRef<((override?: string) => Promise<void>) | null>(null);
     const [reasoningMode, setReasoningMode] = useState<AgentReasoningMode>("off");
     const [profileView, setProfileView] = useState<AgentProfileView | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
@@ -147,6 +151,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         const preferred = config.textModel || config.model || "";
         return textModels.includes(preferred) ? preferred : (textModels[0] || "");
     }, [config]);
+    // S1 免费体验标注：默认文本模型解析到全零价渠道（如测试通道）时，卡面成本段显示「免费体验」。
+    const starterFree = useMemo(() => (onStarterPrompt ? isFreeExperienceModel(config, selectedModel) : false), [config, onStarterPrompt, selectedModel]);
     const reasoningSupported = Boolean(modelCapabilityConfigFor(config, selectedModel).text?.thinking);
     useEffect(() => { if (!reasoningSupported && reasoningMode !== "off") setReasoningMode("off"); }, [reasoningSupported, reasoningMode]);
     const installedSkills = useMemo(() => skills.filter((skill) => skill.isAdded), [skills]);
@@ -280,7 +286,14 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         lastPrefillIdRef.current = prefillId;
         setPrompt(value);
         setView("chat");
-    }, [prefillPrompt, prefillPromptId]);
+        if (!prefillSubmit) return;
+        const decision = resolveStarterRunDecision({ value, busy, running, pending: submissionRequestRef.current });
+        if (decision === "submit") {
+            void submitRef.current?.(value);
+        } else if (decision === "busy-toast") {
+            message.info("正在创作中，请稍候");
+        }
+    }, [prefillPrompt, prefillPromptId, prefillSubmit, busy, message, running]);
 
     useEffect(() => {
         if (!open || view !== "chat") setSkillsOpen(false);
@@ -631,6 +644,11 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         }
     };
 
+    // 每次 render 后同步最新 submit，供 prefill 效应/未来入口复用同一发送路径。
+    useEffect(() => {
+        submitRef.current = submit;
+    });
+
     // 撤销预检时机: run 进入终态(completed/failed/cancelled/rejected)后拉一次;
     // canvas_undone 事件会触发画布刷新, 这里再本地把 preview 失效为"已撤销"提示态。
     useEffect(() => {
@@ -979,6 +997,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                         approvalSubmitting={approvalSubmitting || connectionStatus !== "connected"}
                                         onChooseSkill={() => setSkillsOpen(true)}
                                         onDraftPrompt={(draft) => setPrompt((current) => current.trim() ? `${current}\n\n${draft}` : draft)}
+                                        onStarterPrompt={onStarterPrompt}
+                                        starterFree={starterFree}
                                         onApprovalReasonChange={(reason) => setApproval((current) => (current ? { ...current, reason } : current))}
                                         onApprove={(settings) => void submitApproval("approve", settings)}
                                         onReject={() => void submitApproval("reject")}
@@ -1340,6 +1360,8 @@ function AgentConversation({
     nodeCount,
     onChooseSkill,
     onDraftPrompt,
+    onStarterPrompt,
+    starterFree,
     onFocusNode,
     onApprovalReasonChange,
     onApprove,
@@ -1354,6 +1376,8 @@ function AgentConversation({
     nodeCount: number;
     onChooseSkill: () => void;
     onDraftPrompt: (prompt: string) => void;
+    onStarterPrompt?: (prompt: string) => void;
+    starterFree?: boolean;
     onFocusNode?: (nodeId: string) => void;
     onApprovalReasonChange: (reason: string) => void;
     onApprove: (settings?: AgentMediaSettings) => void;
@@ -1390,7 +1414,7 @@ function AgentConversation({
             const element = event.currentTarget;
             followRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
         }}>
-            {!messages.length ? <AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} /> : null}
+            {!messages.length ? <AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} onRunStarter={onStarterPrompt} freeExperience={starterFree} /> : null}
             <div ref={contentRef} className="agent-conversation-messages">
                 {messages.map((item) => (
                     <AgentChatMessage key={item.id} item={item} theme={theme} references={references} onFocusNode={onFocusNode} isStreaming={busy && !approval && item.streaming === true && item === messages.at(-1)} />
