@@ -1,0 +1,88 @@
+/* ============================================================================
+   flora-tokens.css — fork 皮肤层（flora 化 · W3 · 2026-09-27 · feat/flora-tokens）
+   ----------------------------------------------------------------------------
+   加载序：application.tsx 样式链末端（globals.css 与 shared/* 全部之后）。
+   机制：同名变量值后加载覆盖（级联后胜）。globals.css 回归上游值、只留结构底座，
+        本文件持有 fork 皮肤值——上游同步时热文件冲突面从「组件规则交错」降为「令牌值并列」。
+
+   外置自 globals.css 的皮肤变量值（8 组）：
+     ① --elevation-overlay（亮/暗）   ② --affordance-micro-opacity/saturate
+     ③ --workspace-foreground（亮/暗）④ .dark 权威值组（--background/--foreground/--border）
+     ⑤ --node-radius                 ⑥ 模型徽章 bg/fg（亮/暗）
+     ⑦ --canvas-composer-settings-max-width
+   取值对齐依据：flora 暗色系参考（flora 语料 .flora-capture/flora-css-vars.json +
+   用户实拍对照 docs/artifacts/flora-tokens/），token 化对齐、不做像素级拷贝。
+
+   flora 暗色系参考族 → 现皮肤映射（登记，非变更）：
+   · 近黑底 #0c0c0c-#121212  →  --background: oklch(0.145 0 0)（≈#0a0a0a，在族内）
+   · 深灰容器 #181818-#222   →  --card #181818 / 徽章白 10%（r0.9 玻璃族沿用）
+   · 绿 accent #57c957 族    →  现皮肤未启用纯绿；近亲 = checkin/成功态 #12c8a0 / #33d17a
+                                （本轮不做着色决策，留待后续皮肤工作按需引入）
+
+   纪律：皮肤值改动一律进本文件；globals.css 不回流加值。
+   ============================================================================ */
+
+/* ── 1. Primitive / 语义值（亮色基线 + 双主题通用）────────────────────────── */
+:root {
+    /* 抬升：安静化（DESIGN.md 表面补录）——弹层/浮层低模糊克制阴影，与 AntD boxShadowSecondary
+       同向。暗色同向收敛见 §3。 */
+    --elevation-overlay: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+
+    /* 微供给存在感（2026-09-12 契约）：hover 节点时工具栏/composer 的低存在感级别。 */
+    --affordance-micro-opacity: 0.45;
+    --affordance-micro-saturate: 0.8;
+
+    /* 画布/工作区弹层文本基色：此前全仓无定义，所有 color-mix 在计算时失效退化为不透明继承色
+       （2026-09-09 实测 chip 描边/图标变 rgb(237,237,237) 根因）。 */
+    --workspace-foreground: var(--foreground);
+
+    /* 模型徽章（亮色值）；暗色值见 §3——顺序敏感：本层内 .dark 声明在其后覆盖。 */
+    --canvas-model-badge-bg: rgba(17, 24, 39, .06);
+    --canvas-model-badge-fg: rgba(17, 24, 39, .62);
+
+    /* 节点圆角：flora P51-030 rounded-3xl(24@384 世界) 等比适配影策 420 世界。 */
+    --node-radius: 20px;
+
+    /* composer 设置按钮宽度封顶（自适应宽度：内容撑开，超限截断）。 */
+    --canvas-composer-settings-max-width: 168px;
+
+    /* 焦点环（Rider①）：全局 :focus-visible 可见性兜底。
+       batch-11 实测焦点指示覆盖不全（composer 拖柄仅微亮、后续 Tab 不可见），本值 + §2 规则补齐。 */
+    --focus-ring-visible: 2px solid var(--ring);
+}
+
+/* ── 2. Rider① 焦点环规则 ──────────────────────────────────────────────────
+   ① 兜底：零特异性 :where()，仅对「没有任何焦点样式」的交互元素补环；已有焦点样式者不受影响。
+   ② 上游原生杀点消解：resize-handle / camera-tools-trigger 在 globals 侧有 :focus-visible
+      outline:none（上游原生），本层以同特异性后置覆盖回可见环（globals 零改动）。
+   ③ folder-node / create-card 的 outline:none 系「设计替代表达」（::after 描边 / 位移反馈），不动。 */
+:where(a[href], button, [role="button"], [role="separator"], [role="slider"], [role="tab"], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: var(--focus-ring-visible);
+    outline-offset: 2px;
+}
+
+.canvas-node-composer-resize-handle:focus-visible {
+    outline: var(--focus-ring-visible);
+    outline-offset: 2px;
+}
+
+.canvas-node-composer-camera-tools-trigger:focus-visible {
+    outline: var(--focus-ring-visible);
+    outline-offset: 2px;
+}
+
+/* ── 3. Semantic 覆盖（暗色）─────────────────────────────────────────────── */
+.dark {
+    /* .dark 块 fork 权威值（oklch 系）：近黑底 / 近白字 / 白 10% 边框。 */
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --workspace-foreground: var(--foreground);
+    --border: oklch(1 0 0 / 10%);
+
+    /* 模型徽章暗色值（在亮色值之后声明，覆盖生效）。 */
+    --canvas-model-badge-bg: rgba(255, 255, 255, .10);
+    --canvas-model-badge-fg: rgba(255, 255, 255, .72);
+
+    /* 抬升：暗色安静化收敛（与亮侧同向）。 */
+    --elevation-overlay: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.28);
+}

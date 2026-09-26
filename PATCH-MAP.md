@@ -8,6 +8,27 @@
 > - **C 保留直改** — 同步卫生类（死 CSS 清删、上游错位规则清退）或上游已对齐后可随删的规则，不进外置。
 > 覆盖范围：fork 独有提交（origin/main..HEAD）触及 `web/src/styles/globals.css` 共 **75 条**（2026-09-18 实测；canvas 规划记 69 系 W2 之前口径）。本表先登记热区权重 Top20，其余 55 条后续回填，不阻塞族 3。
 
+## 外置枝登记：flora-tokens.css（2026-09-27 · feat/flora-tokens · 控制线「修-1」）
+
+**外置完成（纯值组，从 globals.css 迁出 → `web/src/styles/flora-tokens.css`，加载序=application.tsx 样式链末端）**：
+1. `--elevation-overlay`（亮 `0 8px 24px …0.14` / 暗 `0 8px 24px …0.4`）——500a16ca 安静化令牌代表项；
+2. `--affordance-micro-opacity: 0.45` / `--affordance-micro-saturate: 0.8`；
+3. `--workspace-foreground: var(--foreground)`（亮/暗两处）；
+4. `.dark` 权威值组：`--background: oklch(0.145 0 0)` / `--foreground: oklch(0.985 0 0)` / `--border: oklch(1 0 0 / 10%)`；
+5. 模型徽章 `--canvas-model-badge-bg/fg`（亮/暗成对，顺序敏感语义随迁）；
+6. `--node-radius: 20px`（flora P51-030 等比适配）；
+7. `--canvas-composer-settings-max-width: 168px`。
+
+**globals.css 值面回归上游**：以上 7 组在 globals.css 全部恢复上游原文/删除 fork 增行；消费点（var() 引用）原地未动。
+**diff 面收窄**：globals.css vs 上游 2cedc4c6 由 **+874/−45 · 48 hunks → +850/−41 · 41 hunks（−28 行 / −7 hunks）**；余量 = 结构类（B/C，归 W4 flora-overrides 域）。
+
+**Riders（随枝）**：
+- ① 全局 `:focus-visible` 环：`--focus-ring-visible`（flora 层）+ 零特异性 `:where()` 凭底 + 上游原生杀点消解（`canvas-node-composer-resize-handle` / `canvas-node-composer-camera-tools-trigger`，flora 层同特异性后置覆盖，globals 零改动）；folder-node / create-card 系设计替代表达，不动。
+- ② 侧栏 `app-workspace-sidebar-checkin` offer 截断（72→82 ≥ 81）：gap 8→6、padding 10px 8px 10px 12px、claim padding 12→10（globals 直改 2 处，下游同步注意保留）。
+
+**新增文件**：`web/src/styles/flora-tokens.css`（皮肤层唯一落点）；`web/test/flora-tokens-coverage.test.ts`（加载序 + 外置完成态 + riders 契约）。
+**上游结构位移（供下次 merge 登记）**：globals.css 值面 7 组 + checkin 布局 2 处；application.tsx +1 import；flora-tokens.css 新文件；测试 +1 文件。
+
 ## Top20（热区权重序：挂件/composer > 模型菜单 > 微供给 > 参数面板 > S04 > 同步卫生）
 
 | # | commit | 语义（改了什么/为什么） | 分类 | 外置化归宿 |
@@ -40,5 +61,5 @@
 - 挂件动画中间态 ~8 条（be90fb3b/75b8af9d/5ea75579/b5a79fa8/91486e28/c635e3bb/865017d0/e1f3945a/934e901d，中间态已被 #1-#6 终态覆盖）;
 - 参数面板长尾 ~8 条（ca446eb1/7da29c2b/eb16be42/8f2c9103/55a33bc8/4d14a565/da3f3260/442539ef 等）;
 - W1/W2 同步卫生 3 条（2cc4f313/76e28952/065ecf13 的 globals 裁决段，C 类）;
-- 其余杂项（500a16ca 安静化令牌=A 类代表、852d8e3d 字号、b8f50813/composer 底栏批等）。
+- 其余杂项（500a16ca 安静化令牌=A 类代表〔已 2026-09-27 外置至 flora-tokens.css〕、852d8e3d 字号、b8f50813/composer 底栏批等）。
 - 回填排期：不阻塞族 3；在下次上游同步仪式（双周/事件触发）前完成二分登记，外置重构（W3 起）动工前必须全量回填。
