@@ -179,12 +179,16 @@ export function reconcileImageBatchRoot(root: CanvasNodeData, nodes: CanvasNodeD
         } else {
             metadata.primaryImageId = primary.id;
         }
+        // 产出模型随 primary 提升（上游 2cedc4c6 增量）；无记录时清残留。
+        if (primary.metadata?.producedModel) metadata.producedModel = primary.metadata.producedModel;
+        else delete metadata.producedModel;
         metadata.status = "success";
         delete metadata.errorDetails;
         delete metadata.generationErrorCode;
         delete metadata.failedPromptFingerprint;
     } else {
         delete metadata.content;
+        delete metadata.producedModel;
         delete metadata.storageKey;
         delete metadata.assetId;
         delete metadata.mimeType;

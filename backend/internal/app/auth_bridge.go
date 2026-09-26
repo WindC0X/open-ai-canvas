@@ -118,7 +118,9 @@ func (s *Service) authDomain() *auth.Service {
 	if s.auth != nil {
 		return s.auth
 	}
-	return auth.New(s.repo, authHost{svc: s}, nil)
+	domain := auth.New(s.repo, authHost{svc: s}, nil)
+	domain.SetSMSDelivery(s.smsDomain())
+	return domain
 }
 
 func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
@@ -197,8 +199,8 @@ func (s *Service) LinuxDOEnabled() bool {
 	return s.authDomain().LinuxDOEnabled()
 }
 
-func (s *Service) BeginLinuxDOLogin(nextPath string) (string, error) {
-	return s.authDomain().BeginLinuxDOLogin(nextPath)
+func (s *Service) BeginLinuxDOLogin(nextPath string, acceptedTerms bool) (string, error) {
+	return s.authDomain().BeginLinuxDOLogin(nextPath, acceptedTerms)
 }
 
 func (s *Service) CompleteLinuxDOLogin(stateValue string, code string) (*LinuxDOCallbackResult, error) {

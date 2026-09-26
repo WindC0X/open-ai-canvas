@@ -225,10 +225,13 @@ function drawResizeCanvas(source: CanvasImageSource, sourceWidth: number, source
 function loadImage(dataUrl: string) {
     return new Promise<HTMLImageElement>((resolve, reject) => {
         const image = new Image();
-        // onerror 必须拒绝：原先只挂 onload，畸形 dataURL / 解码失败会让 promise 永久挂起，
-        // 扩图提交链卡死在无提示的 await 上（review 2026-09-21 P2）。
+        // 跨源 HTTP(S) 地址才需要声明匿名跨域；同源的 /api 资源不能强制走 CORS，
+        // 否则缺少 ACAO 响应头时反而会加载失败。
+        if (isCrossOriginHttpUrl(dataUrl)) image.crossOrigin = "anonymous";
+        // onerror 必须拒绝：缺省时畸形 dataURL / 解码失败会让 Promise 永久挂起，
+        // 调用方 await 后表现为「点击无反应」/ 扩图提交卡死（review 2026-09-21 P2）。
         image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error("图片解码失败，无法合成扩图底图"));
+        image.onerror = () => reject(new Error("图片加载失败，无法处理该图片"));
         image.src = dataUrl;
     });
 }
@@ -255,4 +258,14 @@ export async function buildOutpaintSubmitVariants(
     const source = await padImageToDataUrl(contentDataUrl, paddingPx, "#FFFFFF", submitOptions);
     const mask = maskSupported ? await padImageToDataUrl(contentDataUrl, paddingPx, "transparent", maskOptions) : undefined;
     return { source, mask };
+}
+
+function isCrossOriginHttpUrl(value: string) {
+    if (typeof window === "undefined") return false;
+    try {
+        const url = new URL(value, window.location.href);
+        return (url.protocol === "http:" || url.protocol === "https:") && url.origin !== window.location.origin;
+    } catch {
+        return false;
+    }
 }

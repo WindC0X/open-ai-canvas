@@ -7,6 +7,7 @@ import { nextCanvasVersionLabel } from "@/lib/canvas/canvas-layout";
 import { buildAudioGenerationMetadata, buildVideoGenerationMetadata, generationReferenceUrls, isGenerationCanceled, runCanvasGenerationTaskToConsumer } from "@/lib/canvas/canvas-project-generation";
 import { canvasGenerationPromptMetadata } from "@/lib/canvas/canvas-generation-submission";
 import { CONTENT_MODERATION_ERROR_CODE, generationFailureMetadata, type GenerationFailureMetadata } from "@/lib/generation-error";
+import { producedModelCandidateForGeneration } from "@/lib/canvas/produced-model";
 import { CanvasNodeType, type CanvasNodeData, type Position } from "@/types/canvas";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 
@@ -101,6 +102,7 @@ export async function executeVideoGeneration({
             resourceReloadAvailable: undefined,
             failedPromptFingerprint: undefined,
             model: generationConfig.model,
+            producedModelCandidate: producedModelCandidateForGeneration(generationConfig),
             size: generationConfig.size,
             seconds: generationConfig.videoSeconds,
             vquality: generationConfig.vquality,

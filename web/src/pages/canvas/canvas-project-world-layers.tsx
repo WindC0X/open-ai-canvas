@@ -10,6 +10,7 @@ import { sortCanvasNodesByStackOrder, type CanvasNodeStackOrder } from "@/lib/ca
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { isFrameNode } from "@/lib/canvas/canvas-frame";
 import { batchRootExpanded } from "@/lib/canvas/canvas-project-domain";
+import type { CanvasNodeRenderLOD } from "@/lib/canvas/canvas-node-lod";
 import type { CanvasDisplayConnection, CanvasFolderStyle, CanvasFolderTheme, CanvasNodeData, ConnectionHandle, Position, SelectionBox } from "@/types/canvas";
 
 type DragPreview = { x: number; y: number; nodeIds: Set<string> } | null;
@@ -29,6 +30,7 @@ type CanvasProjectWorldLayersProps = {
     connectionApproach: CanvasConnectionApproach;
     nodeById: Map<string, CanvasNodeData>;
     visibleNodes: CanvasNodeData[];
+    nodeRenderLODById: Map<string, CanvasNodeRenderLOD>;
     nodeStackOrder: CanvasNodeStackOrder;
     frameChildrenById: Map<string, CanvasNodeData[]>;
     linkedFolderPreviewNodesById: Map<string, CanvasNodeData[]>;
@@ -143,6 +145,7 @@ export const CanvasProjectWorldLayers = memo(function CanvasProjectWorldLayers(p
                     <CanvasFrameNode
                         key={node.id}
                         data={node}
+                        renderLOD={props.nodeRenderLODById.get(node.id) || "full"}
                         dragOffset={props.dragPreview?.nodeIds.has(node.id) ? props.dragPreview : undefined}
                         childNodes={framePreviewNodes(node)}
                         scale={viewportScale}
@@ -160,6 +163,7 @@ export const CanvasProjectWorldLayers = memo(function CanvasProjectWorldLayers(p
                     <CanvasNode
                         key={node.id}
                         data={node}
+                        renderLOD={props.nodeRenderLODById.get(node.id) || "full"}
                         dragOffset={props.dragPreview?.nodeIds.has(node.id) ? props.dragPreview : undefined}
                         scale={viewportScale}
                         isSelected={props.selectedNodeIds.has(node.id)}
@@ -248,6 +252,7 @@ function BatchConnectionHandle({ scale, count, active, onPointerDown }: { scale:
         <button
             type="button"
             data-canvas-no-zoom
+            data-icon-only
             className="pointer-events-auto absolute grid -translate-y-1/2 translate-x-1/2 place-items-center rounded-full border shadow-md transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             style={buttonStyle}
             title={`批量连接 ${count} 个节点`}

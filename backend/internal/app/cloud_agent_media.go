@@ -631,7 +631,10 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 		}
 		a.VideoGenerateAudio = nil
 	}
-	if state.Approval != nil && state.Approval.Call.ID == call.ID {
+	// [W1 铁律域裁决 2026-09-26] 审批底稿复用改上游 CallHash 口径（点状并入，替代 Call.ID 比对）：
+	// Prepared 非空且调用内容哈希一致才复用（CallHash 在审批创建点赋值，见 runtime.go）。
+	if state.Approval != nil && state.Approval.Prepared != nil &&
+		state.Approval.CallHash == cloudAgentApprovalCallHash(call) {
 		a.Prepared = state.Approval.Prepared
 	}
 	if err := s.fillCloudAgentMediaSnapshotHash(run.UserID, state.Request.CanvasID, &a); err != nil {

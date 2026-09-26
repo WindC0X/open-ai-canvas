@@ -6,6 +6,7 @@ import { FullScreenLoader } from "@/components/ui/aceternity/full-screen-loader"
 import { preloadWorkspaceRoute } from "@/lib/workspace-route-modules";
 import { isAuthRejectedStatus } from "@/lib/user-session";
 import { useUserStore } from "@/stores/use-user-store";
+import { recordDiagnosticEvent } from "@/services/diagnostics/client-diagnostics";
 
 export function AuthSessionHydrator({ children }: { children: ReactNode }) {
     const hydrated = useUserStore((state) => state.hydrated);
@@ -17,25 +18,57 @@ export function AuthSessionHydrator({ children }: { children: ReactNode }) {
     const load = useCallback(() => {
         let cancelled = false;
         setSessionLoadError(false);
+        // 合并口径：重试入口与启动诊断共用本次尝试（startedAt 每次 load 重采样）。
+        const startedAt = performance.now();
+        recordDiagnosticEvent({ category: "navigation", level: "info", code: "startup.auth_session_started", message: "开始恢复认证会话" });
         getAuthSession()
             .then(async (payload) => {
                 if (cancelled) return;
+                recordDiagnosticEvent({
+                    category: "navigation",
+                    level: "info",
+                    code: "startup.auth_session_ready",
+                    message: payload.user ? "认证会话已恢复" : "匿名会话已确认",
+                    durationMs: performance.now() - startedAt,
+                });
                 if (!payload.user) {
                     applyAnonymousSession(payload);
+                    recordDiagnosticEvent({
+                        category: "navigation",
+                        level: "info",
+                        code: "startup.anonymous_ready",
+                        message: "匿名页面已解除启动阻塞",
+                        durationMs: performance.now() - startedAt,
+                    });
                     return;
                 }
                 // 账号数据、画布和素材持久化只属于已登录工作区，登录页不下载这些模块。
                 const { applyUserSession } = await import("@/lib/user-session");
                 if (cancelled) return;
                 await applyUserSession(payload);
+                recordDiagnosticEvent({
+                    category: "navigation",
+                    level: "info",
+                    code: "startup.workspace_ready",
+                    message: "登录工作区已解除启动阻塞",
+                    durationMs: performance.now() - startedAt,
+                });
                 preloadWorkspaceRoute(window.location.pathname);
             })
             .catch((error: unknown) => {
                 if (cancelled) return;
+                // 合并口径：鉴权明确拒绝=正常匿名路径；瞬态失败记录诊断后保留重试入口（不降级匿名）。
                 if (isAuthRejectedStatus(error)) {
-                    applyAnonymousSession({ user: null, logicalModels: [] });
+                    applyAnonymousSession({ user: null });
                     return;
                 }
+                recordDiagnosticEvent({
+                    category: "navigation",
+                    level: "warning",
+                    code: "startup.auth_session_failed",
+                    message: "认证会话恢复失败，已保留重试入口",
+                    durationMs: performance.now() - startedAt,
+                });
                 setSessionLoadError(true);
             });
         return () => {

@@ -4,7 +4,7 @@ import { Image as ImageIcon, Music2, Play, Plus, UserRound, X } from "lucide-rea
 
 import { Tooltip } from "@/components/ui/base/tooltip";
 
-import { canvasNodeVideoPreviewUrl } from "@/lib/canvas/canvas-media-preview";
+import { CanvasVideoPreviewImage } from "@/components/canvas/canvas-video-preview-image";
 import { MAX_ROW_ASSET_BINDINGS, buildStoryboardAssetCatalog, storyboardAssetRoleForNode } from "@/lib/canvas/canvas-storyboard-assets";
 import { isStoryboardPreviewAsset } from "@/lib/canvas/canvas-storyboard-materializer";
 import { resolveMediaUrl } from "@/services/file-storage";
@@ -59,6 +59,7 @@ export function StoryboardAssetsCell({ bindings, nodes, limit = 4, onAddAsset, o
                         <Tooltip title={`${node?.title || "资产已失效"} · ${ROLE_LABELS[binding.role]}`}>
                             <button
                                 type="button"
+                                data-icon-only
                                 disabled={!node}
                                 className="relative grid size-9 place-items-center overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.035] text-foreground/45 outline-none transition enabled:hover:border-foreground/30 enabled:hover:text-foreground/70 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:cursor-not-allowed"
                                 aria-label={`预览${node?.title || "失效资产"}`}
@@ -144,17 +145,17 @@ export function StoryboardAssetsCell({ bindings, nodes, limit = 4, onAddAsset, o
 }
 
 function AssetThumbnail({ node }: { node: CanvasNodeData }) {
-    const videoPreview = canvasNodeVideoPreviewUrl(node);
     const source = useNodeMediaSource(node.type === CanvasNodeType.Video ? null : node);
     if (node.type === CanvasNodeType.Audio) return <Music2 className="size-4" />;
     if (node.metadata?.workflowKind === "character" && !source) return <UserRound className="size-4" />;
     if (node.type === CanvasNodeType.Video) {
-        return videoPreview ? (
+        return (
             <>
-                <img src={videoPreview} alt="" loading="lazy" decoding="async" draggable={false} className="absolute inset-0 object-cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {/* 海报走上游组件(经 storageKey 解析 OSS/CDN); 几何沿用本文件 absolute inset-0 口径(2026-09-18 9:16 破格修复)。 */}
+                <CanvasVideoPreviewImage node={node} alt="" loading="lazy" decoding="async" draggable={false} className="absolute inset-0 object-cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} fallback={<Play className="size-4" />} />
                 <span className="absolute inset-0 grid place-items-center bg-black/15"><Play className="size-3.5 fill-white text-white" /></span>
             </>
-        ) : <Play className="size-4" />;
+        );
     }
     // 缩略图尺寸用 absolute 填充而非百分比流式高度(2026-09-18 用户两轮反馈 9:16 竖图破格溢出):
     // grid+place-items-center 容器里 img 的 percentage height 存在循环依赖(行高由内容定),

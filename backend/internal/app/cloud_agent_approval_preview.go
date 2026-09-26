@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"infinite-canvas/backend/internal/canvas/capability"
+	"infinite-canvas/backend/internal/canvas/layout"
 	"infinite-canvas/backend/internal/model"
 	"infinite-canvas/backend/internal/repository"
 )
@@ -91,6 +92,8 @@ func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloud
 	// Agent 新增节点由服务端统一落位(2026-09-19 用户实测: 模型自报 x/y 落在画布原点角落且不带尺寸语义)。
 	// 位置是排版决策不是内容决策: 与其让模型猜坐标, 不如按现有画布包围盒放到右侧空列, 逐个向下排。
 	// 只改写 ops 的 X/Y, preview 与执行共用 creationAddedNode, 两处天然一致; 模型显式 position 语义不再保留。
+	// 合并注: agentCanvasOp.X/Y 为 *float64(上游口径, nil=未指定), 本循环对每个 add_node 均写回, 上游的
+	// 「缺坐标时按 layout 引擎补位」分支因此在 service 落位链路上不可达——保留待真机验证后裁决(卡 B)。
 	// 落位（2026-09-21 用户实测「偏到娆娆家」）：**优先贴住本批连线的对端节点**（画布约定：
 	// 源节点右侧 +96、与源节点顶部对齐，同锚点的多个新节点逐个下移）；只有当整个批次里
 	// 找不到可依赖的对端时，才回退「全局包围盒右侧空列」——64 节点、13k×33k 的画布里，
@@ -118,17 +121,19 @@ func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloud
 			if !seen {
 				y = anchor.y
 			}
-			ops[i].X, ops[i].Y = x, y
+			ops[i].X, ops[i].Y = &x, &y
 			// 步长=该类型默认高度+100 间距(2026-09-19 review P1): 文本节点默认高度已 384,
 			// 固定 340 步长会让多节点纵向压叠 44px。未知类型回退 384。
 			anchorNextY[anchor.id] = y + height + 100.0
 		} else {
 			width := cloudAgentNodeDefaultWidth(string(ops[i].NodeType))
 			fallbackY = cloudAgentPlacementFreeSlot(nodes, "", fallbackX, fallbackY, width, height)
-			ops[i].X, ops[i].Y = fallbackX, fallbackY
+			// 落位值取新副本再取址: fallbackX/Y 是循环游标, 直接取址会被后续迭代改值。
+			fx, fy := fallbackX, fallbackY
+			ops[i].X, ops[i].Y = &fx, &fy
 			fallbackY += height + 100.0
 		}
-		placed[ops[i].ID] = cloudAgentPlacementNode{id: ops[i].ID, x: ops[i].X, y: ops[i].Y, width: cloudAgentNodeDefaultWidth(string(ops[i].NodeType))}
+		placed[ops[i].ID] = cloudAgentPlacementNode{id: ops[i].ID, x: *ops[i].X, y: *ops[i].Y, width: cloudAgentNodeDefaultWidth(string(ops[i].NodeType))}
 	}
 	items := make([]cloudAgentApprovalPreviewItem, 0, len(ops))
 	for opIndex, op := range ops {
@@ -158,7 +163,33 @@ func applyCloudAgentCanvasPlan(doc map[string]any, ops []agentCanvasOp) ([]cloud
 			if !ok {
 				return nil, BadAuthRequest("不支持的节点类型")
 			}
-			node := creationAddedNode(CreationCanvasOp{Type: op.Type, ID: op.ID, NodeType: op.NodeType, Title: title, X: &op.X, Y: &op.Y, Metadata: capability.Metadata(content)})
+			x, y := op.X, op.Y
+			if x == nil || y == nil {
+				// 没有（完整）坐标时不落到原点：按泳道与依赖关系算一个空位，
+				// 保证同一批新增的多个节点也不会互相重叠。模型只给了一个轴时保留它。
+				pending := cloudAgentLayoutNodes(map[string]any{"nodes": nodes})
+				var hint *layout.Position
+				if x != nil || y != nil {
+					hint = &layout.Position{}
+					if x != nil {
+						hint.X = *x
+					}
+					if y != nil {
+						hint.Y = *y
+					}
+				}
+				if slot, ok := cloudAgentArrangeAddNodePosition(doc, pending, op, ops, hint); ok {
+					if x == nil {
+						value := slot.X
+						x = &value
+					}
+					if y == nil {
+						value := slot.Y
+						y = &value
+					}
+				}
+			}
+			node := creationAddedNode(CreationCanvasOp{Type: op.Type, ID: op.ID, NodeType: op.NodeType, Title: title, X: x, Y: y, Metadata: capability.Metadata(content)})
 			nodes = append(nodes, node)
 			nodeTitle := cloudAgentApprovalNodeTitle(node, capability.Label)
 			items = append(items, cloudAgentApprovalPreviewItem{
@@ -351,7 +382,27 @@ func cloudAgentApprovalNodeTitle(node map[string]any, typeLabel string) string {
 }
 
 func cloudAgentApprovalCallHash(call cloudAgentCall) string {
-	raw, _ := json.Marshal(call)
+	// Tool-call IDs are transport metadata and may be regenerated when the
+	// model retries the same approved operation. Hash only the operation
+	// payload so approval survives a retry with a different call ID. A media
+	// snapshot hash is also a concurrency hint, not generation input: the
+	// server revalidates the prepared dependency hash below, which deliberately
+	// ignores layout-only edits such as moving a node.
+	arguments := call.Function.Arguments
+	if call.Function.Name == "generate_media" {
+		var object map[string]any
+		if err := json.Unmarshal([]byte(arguments), &object); err == nil {
+			delete(object, "snapshotHash")
+			if raw, err := json.Marshal(object); err == nil {
+				arguments = string(raw)
+			}
+		}
+	}
+	payload := struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	}{Name: call.Function.Name, Arguments: arguments}
+	raw, _ := json.Marshal(payload)
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
 }

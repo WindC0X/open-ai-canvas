@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"sort"
@@ -58,6 +59,7 @@ func runAgentToolTask(ctx context.Context, input canvasGenerationInput) (map[str
 	}
 	body["model"] = input.Config.Model
 	applyTextThinking(body, input, protocol)
+	applyAgentOutputLimit(body, agentStepOutputLimit(input), protocol)
 	normalizeAgentToolChoice(body, input, protocol)
 	result, err := postAgentRequest(ctx, input, path, body, protocol)
 	if protocol == "chat-completion" && isAgentToolChoiceCompatibilityError(err) {
@@ -90,6 +92,39 @@ func postAgentRequest(ctx context.Context, input canvasGenerationInput, path str
 	return parseAgentToolPayload(payload, protocol)
 }
 
+// agentStepOutputLimit 取本次 Agent 调用的输出上限。
+//
+// 两个来源语义相同但通道不同：textOptions.maxOutputTokens 是任务信封里下发的策略值
+// （画布 Agent 每步按运行时策略给，persist 在任务输入里，重启后仍在）；input.MaxOutputTokens
+// 是进程内直传的旧入口（渠道模型能力声明）。都为 0 时不写上限字段，交给上游按剩余上下文放行。
+// 都非零时取较小值：策略上限不该超过模型自己声明的物理上限。
+func agentStepOutputLimit(input canvasGenerationInput) int {
+	limits := []int{input.TextOptions.MaxOutputTokens, input.MaxOutputTokens}
+	limit := 0
+	for _, candidate := range limits {
+		if candidate <= 0 {
+			continue
+		}
+		if limit == 0 || candidate < limit {
+			limit = candidate
+		}
+	}
+	return limit
+}
+
+// applyAgentOutputLimit 按协议写入输出上限字段名：Claude 与 Chat Completions 用 max_tokens，
+// Responses 用 max_output_tokens。
+func applyAgentOutputLimit(body map[string]interface{}, limit int, protocol string) {
+	if limit <= 0 {
+		return
+	}
+	field := "max_tokens"
+	if protocol == "responses" {
+		field = "max_output_tokens"
+	}
+	applyTextOutputLimit(body, limit, field)
+}
+
 func runDeclarativeAgentTask(ctx context.Context, input canvasGenerationInput, adapter protocol.AgentAdapter) (map[string]interface{}, error) {
 	wire := input.Config.InterfaceType
 	if wire == string(model.ChannelInterfaceOpenAIResponse) {
@@ -118,6 +153,7 @@ func runDeclarativeAgentTask(ctx context.Context, input canvasGenerationInput, a
 			return nil, errors.New("声明式 Agent 请求体必须是 JSON 对象")
 		}
 		applyTextThinking(body, input, wire)
+		applyAgentOutputLimit(body, agentStepOutputLimit(input), wire)
 		normalizeAgentToolChoice(body, input, wire)
 		spec.Body = body
 		if input.StreamText {
@@ -144,7 +180,7 @@ func runDeclarativeAgentTask(ctx context.Context, input canvasGenerationInput, a
 			return parseAgentToolPayload(payload, wire)
 		}
 	}
-	body, err := executeProtocolRequest(ctx, input.Config, spec)
+	body, err := executeDeclarativeAgentWithGeminiCache(ctx, input, spec)
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +209,49 @@ func runDeclarativeAgentTask(ctx context.Context, input canvasGenerationInput, a
 		return nil, errors.New("声明式 Agent 接口没有返回内容")
 	}
 	return result, nil
+}
+
+// executeDeclarativeAgentWithGeminiCache keeps explicit Prompt Cache entirely
+// optional: cache creation, cleanup, and a single stale-cache rebuild can never
+// turn a valid uncached Agent request into a failed run.
+func executeDeclarativeAgentWithGeminiCache(ctx context.Context, input canvasGenerationInput, spec protocol.RequestSpec) ([]byte, error) {
+	baseSpec, err := cloneProtocolRequestSpec(spec)
+	if err != nil {
+		return nil, err
+	}
+	executeSpec := baseSpec
+	cacheUsed := false
+	if input.Config.InterfaceType == officialGeminiAgentInterface {
+		prepared, used, prepareErr := prepareOfficialGeminiAgentCache(ctx, input, baseSpec)
+		if prepareErr != nil {
+			log.Printf("gemini agent prompt cache unavailable: model=%s reason=%s", safeProviderModel(input.Config.Model), safeProviderLogError(prepareErr))
+		} else {
+			executeSpec, cacheUsed = prepared, used
+		}
+	}
+	body, err := executeProtocolRequest(ctx, input.Config, executeSpec)
+	if err == nil || input.Config.InterfaceType != officialGeminiAgentInterface || !cacheUsed || !geminiRequestUsesCachedContent(executeSpec) || !isGeminiCachedContentNotFound(err, stringValue(protocolBodyObject(executeSpec.Body)["cachedContent"])) {
+		return body, err
+	}
+
+	resourceName := ""
+	if body := protocolBodyObject(executeSpec.Body); body != nil {
+		resourceName, _ = body["cachedContent"].(string)
+	}
+	if invalidateErr := invalidateOfficialGeminiAgentCache(ctx, input, baseSpec, resourceName); invalidateErr != nil {
+		// The local identity is still removed whenever possible. Do not replace a
+		// provider 404 with a cache bookkeeping error or skip the one rebuild.
+		log.Printf("gemini agent prompt cache invalidation failed: model=%s reason=%s", safeProviderModel(input.Config.Model), safeProviderLogError(invalidateErr))
+	}
+	rebuilt, _, prepareErr := prepareOfficialGeminiAgentCacheMode(ctx, input, baseSpec, true)
+	if prepareErr != nil {
+		log.Printf("gemini agent prompt cache rebuild unavailable: model=%s reason=%s", safeProviderModel(input.Config.Model), safeProviderLogError(prepareErr))
+		rebuilt = baseSpec
+	}
+	// The rebuilt request is intentionally executed only once. If it receives
+	// another CachedContent 404, the first stale-cache recovery already happened;
+	// preserve the provider error instead of recursively rebuilding forever.
+	return executeProtocolRequest(ctx, input.Config, rebuilt)
 }
 
 func claudeAgentBody(request map[string]interface{}) map[string]interface{} {

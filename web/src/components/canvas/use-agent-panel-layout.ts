@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type KeyboardEvent } from "react";
-import { AGENT_PANEL_LAYOUT_KEY, changeAgentPanelLayout, clampAgentPanelLayout, restoreAgentPanelLayout, type AgentPanelGesture, type AgentPanelLayout } from "@/lib/canvas/agent-panel-layout";
+import { AGENT_PANEL_LAYOUT_KEY, changeAgentPanelLayout, clampAgentPanelLayout, defaultAgentPanelLayout, restoreAgentPanelLayout, type AgentPanelGesture, type AgentPanelLayout } from "@/lib/canvas/agent-panel-layout";
 
 const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
 
@@ -81,6 +81,7 @@ export function useAgentPanelLayout() {
             compact,
             gesturing,
             style: compact ? { left: 0, top: 8, width: "100%", height: "calc(100dvh - 8px)" } : layout,
+            reset: () => setLayout(defaultAgentPanelLayout(viewport())),
             get pointerHandlers() {
                 return handlersRef.current;
             },

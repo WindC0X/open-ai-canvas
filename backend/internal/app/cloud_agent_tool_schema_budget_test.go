@@ -52,9 +52,11 @@ func TestCloudAgentToolSchemaStaysCompact(t *testing.T) {
 		t.Fatal("canvas_apply_ops 未暴露")
 	}
 
-	// 体积预算：当前 20 个工具约 22.4 KB，这里留 ~7% 余量；新增工具或字段时请重新测量并
-	// 有意识地调整这个数字，而不是让 schema 悄悄膨胀（它每一步都要发、还在前缀最前面）。
-	if len(raw) > 24000 {
-		t.Fatalf("平台工具 schema 体积 %d 字节超出预算 24000：请压缩描述或显式调整预算", len(raw))
+	// 体积预算：上游 20 个工具实测 22,777 字节（预算 24000）；上游新增 canvas_arrange_nodes 等工具后
+	// 21 个工具 24,788 字节（预算 25000）。合并波将双方特征并集（arrange/skill_search/inspect +
+	// fork 的扩图字段与描述）后实测 22 个工具 25,616 字节，因此显式上调到 26000（约 1.5% 余量）。
+	// 新增工具或字段时请重新测量并有意识地调整这个数字，而不是让 schema 悄悄膨胀（它每一步都要发、还在前缀最前面）。
+	if len(raw) > 26000 {
+		t.Fatalf("平台工具 schema 体积 %d 字节超出预算 26000：请压缩描述或显式调整预算", len(raw))
 	}
 }

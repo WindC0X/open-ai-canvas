@@ -12,9 +12,10 @@ func TestApplyCloudAgentCanvasPlanAutoPlacementIgnoresModelCoordinates(t *testin
 		},
 		"connections": []any{},
 	}
+	modelX, modelY := 10.0, 20.0
 	ops := []agentCanvasOp{
-		{Type: "add_node", ID: "n1", NodeType: "text", X: 10, Y: 20},
-		{Type: "add_node", ID: "n2", NodeType: "text", X: 10, Y: 20},
+		{Type: "add_node", ID: "n1", NodeType: "text", X: &modelX, Y: &modelY},
+		{Type: "add_node", ID: "n2", NodeType: "text", X: &modelX, Y: &modelY},
 	}
 	if _, err := applyCloudAgentCanvasPlan(doc, ops); err != nil {
 		t.Fatal(err)
@@ -126,8 +127,8 @@ func TestApplyCloudAgentCanvasPlanFallsBackToViewport(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 可见世界左上角 = (1000/0.5, 500/0.5) = (2000, 1000)，内缩 80 → (2080, 1080)
-	if ops[0].X != 2080 || ops[0].Y != 1080 {
-		t.Fatalf("无引用节点应落在当前视野内：x=%v y=%v", ops[0].X, ops[0].Y)
+	if coordOf(t, ops[0].X) != 2080 || coordOf(t, ops[0].Y) != 1080 {
+		t.Fatalf("无引用节点应落在当前视野内：x=%v y=%v", coordOf(t, ops[0].X), coordOf(t, ops[0].Y))
 	}
 	// 视野内已有节点占据该位时向下让位（该节点 h=560 → 1080+560+100）
 	occupied := map[string]any{
@@ -142,8 +143,8 @@ func TestApplyCloudAgentCanvasPlanFallsBackToViewport(t *testing.T) {
 	if _, err := applyCloudAgentCanvasPlan(occupied, ops); err != nil {
 		t.Fatal(err)
 	}
-	if ops[0].X != 2080 || ops[0].Y != 1740 {
-		t.Fatalf("视野内占位应向下让位：x=%v y=%v", ops[0].X, ops[0].Y)
+	if coordOf(t, ops[0].X) != 2080 || coordOf(t, ops[0].Y) != 1740 {
+		t.Fatalf("视野内占位应向下让位：x=%v y=%v", coordOf(t, ops[0].X), coordOf(t, ops[0].Y))
 	}
 	// 旧文档没有 viewport 时保持包围盒回退（既有行为不变）
 	legacy := map[string]any{"nodes": []any{map[string]any{"id": "a1", "type": "text", "position": map[string]any{"x": 1000.0, "y": 500.0}, "width": 340.0, "height": 240.0}}, "connections": []any{}}
@@ -151,7 +152,18 @@ func TestApplyCloudAgentCanvasPlanFallsBackToViewport(t *testing.T) {
 	if _, err := applyCloudAgentCanvasPlan(legacy, legacyOps); err != nil {
 		t.Fatal(err)
 	}
-	if legacyOps[0].X != 1460 {
-		t.Fatalf("无 viewport 应回退包围盒右侧空列：x=%v", legacyOps[0].X)
+	if coordOf(t, legacyOps[0].X) != 1460 {
+		t.Fatalf("无 viewport 应回退包围盒右侧空列：x=%v", coordOf(t, legacyOps[0].X))
 	}
+}
+
+// 合并适配（W3）：agentCanvasOp.X/Y 为 *float64（nil=模型未指定坐标），断言统一解引用。
+func floatPtr(value float64) *float64 { return &value }
+
+func coordOf(t *testing.T, value *float64) float64 {
+	t.Helper()
+	if value == nil {
+		t.Fatal("服务端未写回落位坐标")
+	}
+	return *value
 }
