@@ -271,6 +271,10 @@ export type CanvasNodeMetadata = {
     outpaintSizeMismatch?: { submitted: string; actual: string };
     /** 扩图 mask 物化引用（提交时随 pad 底图上传物化）：重试链据此恢复蒙版，语义不降级。 */
     outpaintMaskStorageKey?: string;
+    /** 扩图原图资源引用（F-06 二期硬贴回像素源，2026-09-27）：重试链恢复 metadata.outpaint，不丢贴回。 */
+    outpaintSourceStorageKey?: string;
+    /** 扩图提交几何（rect 归一化 + frame 尺寸，与合成函数同源）：重试链恢复贴回几何。 */
+    outpaintGeometry?: { rect: { x0: number; y0: number; x1: number; y1: number }; frame: { width: number; height: number } };
     /** 图片编辑操作类型（执行链写入任务源节点 metadata：outpaint/mask 等，前端门控消费）。 */
     edit?: "outpaint" | "mask";
     failedPromptFingerprint?: string;

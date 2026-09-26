@@ -328,3 +328,67 @@ export function resolveOutpaintClipHole(params: {
         height: params.nodeRect.height,
     };
 }
+
+// ── 硬贴回几何（F-06 二期 2026-09-27）─────────────────────────────────────────
+// 原图区在提交画布中的归一化矩形 + 提交画布尺寸，任务 metadata.outpaint 的几何真源。
+// 必须与 padImageToDataUrl（canvas-image-data.ts）的取整逐项一致：后端按 rect×结果尺寸
+// 反解贴回区域，合成与描述漂移会直接表现为贴回边界错位（2px 过渡带只能吸收取整差）。
+export type OutpaintSubmitGeometry = {
+    frame: { width: number; height: number };
+    rect: { x0: number; y0: number; x1: number; y1: number };
+};
+
+export function resolveOutpaintSubmitGeometry(
+    imageWidth: number,
+    imageHeight: number,
+    padding: OutpaintPadding,
+    options?: { target?: { width: number; height: number } | null; maxLongEdge?: number },
+): OutpaintSubmitGeometry | null {
+    const imageW = Math.max(1, Math.round(imageWidth));
+    const imageH = Math.max(1, Math.round(imageHeight));
+    const left = Math.max(0, Math.round(padding.left));
+    const top = Math.max(0, Math.round(padding.top));
+    const right = Math.max(0, Math.round(padding.right));
+    const bottom = Math.max(0, Math.round(padding.bottom));
+    const fullWidth = imageW + left + right;
+    const fullHeight = imageH + top + bottom;
+    const target = options?.target;
+    let frameW: number;
+    let frameH: number;
+    let dx: number;
+    let dy: number;
+    let dw: number;
+    let dh: number;
+    if (target && target.width > 0 && target.height > 0) {
+        // target 模式（与 padImageToDataUrl 同源）：两轴 k 分别解，取整差吸收进画布右/下。
+        const kx = target.width / fullWidth;
+        const ky = target.height / fullHeight;
+        frameW = Math.max(1, Math.round(target.width));
+        frameH = Math.max(1, Math.round(target.height));
+        dx = Math.round(left * kx);
+        dy = Math.round(top * ky);
+        dw = Math.max(1, Math.round(imageW * kx));
+        dh = Math.max(1, Math.round(imageH * ky));
+    } else {
+        // free 模式：整体等比缩（context.scale(scale) + drawImage(image, left, top)，绘制区为浮点）。
+        const maxLongEdge = options?.maxLongEdge ?? 0;
+        const scale = maxLongEdge > 0 ? Math.min(1, maxLongEdge / Math.max(fullWidth, fullHeight)) : 1;
+        frameW = Math.max(1, Math.round(fullWidth * scale));
+        frameH = Math.max(1, Math.round(fullHeight * scale));
+        dx = left * scale;
+        dy = top * scale;
+        dw = imageW * scale;
+        dh = imageH * scale;
+    }
+    if (!frameW || !frameH) return null;
+    const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+    return {
+        frame: { width: frameW, height: frameH },
+        rect: {
+            x0: clamp01(dx / frameW),
+            y0: clamp01(dy / frameH),
+            x1: clamp01((dx + dw) / frameW),
+            y1: clamp01((dy + dh) / frameH),
+        },
+    };
+}

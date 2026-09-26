@@ -424,6 +424,11 @@ export function useCanvasGenerationRetry({
                         console.warn("[retry] outpaint mask restore failed; retrying without mask", cause);
                     }
                 }
+                // 硬贴回几何/像素源恢复（F-06 二期 2026-09-27）：重试复用原任务语义，rect 在则贴回必须在
+                // （裁决边界条款）；存量节点无持久字段 → 不带，后端跳过+日志，不报错不阻塞。
+                const retryOutpaint = node.metadata?.edit === "outpaint" && node.metadata?.outpaintSourceStorageKey && node.metadata?.outpaintGeometry
+                    ? { sourceStorageKey: node.metadata.outpaintSourceStorageKey, rect: node.metadata.outpaintGeometry.rect, frame: node.metadata.outpaintGeometry.frame }
+                    : undefined;
                 await runAndConsumeRetry({
                     projectId,
                     nodeId: node.id,
@@ -436,6 +441,7 @@ export function useCanvasGenerationRetry({
                     metadata: {
                         retry: true,
                         sourceNodeId: sourceNode.id,
+                        ...(retryOutpaint ? { outpaint: retryOutpaint } : {}),
                         resolvedCharacterVersions: context?.resolvedCharacterVersions || [],
                         promptTemplateOperation: node.metadata?.promptTemplateOperation,
                         promptTemplateVariables: node.metadata?.promptTemplateVariables,

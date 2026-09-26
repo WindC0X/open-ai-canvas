@@ -1,3 +1,5 @@
+import { resolveOutpaintSubmitGeometry, type OutpaintSubmitGeometry } from "./canvas-outpaint-geometry";
+
 export type ImageCropRect = {
     x: number;
     y: number;
@@ -241,12 +243,14 @@ export const OUTPAINT_SUBMIT_LONG_EDGE = 1536;
 
 // 一次性合成扩图提交对：底图（JPEG 压缩、白边不透明）+ mask（PNG、扩图区透明）。
 // 两者同一 maxLongEdge 保证像素对齐；maskSupported=false 时 mask 为 undefined（指令通道）。
+// geometry（F-06 二期）：原图区在提交画布中的归一化矩形 + 提交画布尺寸，与合成取整同源计算，
+// 作为任务 metadata.outpaint 的几何真源，供后端硬贴回（贴回不变结果图尺寸）。
 export async function buildOutpaintSubmitVariants(
     contentDataUrl: string,
     paddingPx: ImagePadRect,
     maskSupported: boolean,
     options?: { target?: { width: number; height: number } },
-): Promise<{ source: string; mask?: string }> {
+): Promise<{ source: string; mask?: string; geometry: OutpaintSubmitGeometry | null }> {
     // 锁定档位（target）时合成图尺寸 = preset 精确像素、原图占比缩放；档位像素本身是合法提交尺寸，
     // 不再叠 maxLongEdge 缩放（避免把 2K/4K 档压回 1536）。自由模式维持 maxLongEdge 压缩。
     const submitOptions = options?.target
@@ -255,9 +259,14 @@ export async function buildOutpaintSubmitVariants(
     const maskOptions = options?.target
         ? { target: options.target, mimeType: "image/png" as const }
         : { maxLongEdge: OUTPAINT_SUBMIT_LONG_EDGE, mimeType: "image/png" as const };
+    const image = await loadImage(contentDataUrl);
+    const geometry = resolveOutpaintSubmitGeometry(image.width, image.height, paddingPx, {
+        target: options?.target ?? null,
+        maxLongEdge: options?.target ? undefined : OUTPAINT_SUBMIT_LONG_EDGE,
+    });
     const source = await padImageToDataUrl(contentDataUrl, paddingPx, "#FFFFFF", submitOptions);
     const mask = maskSupported ? await padImageToDataUrl(contentDataUrl, paddingPx, "transparent", maskOptions) : undefined;
-    return { source, mask };
+    return { source, mask, geometry };
 }
 
 function isCrossOriginHttpUrl(value: string) {
