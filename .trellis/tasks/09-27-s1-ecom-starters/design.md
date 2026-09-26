@@ -71,7 +71,7 @@ export function resolveStarterRunDecision(input: { value: string; busy: boolean;
 - 兼容：`submit` 字段可选；`sendSelectionToAgent` 零改动；现有三卡零改动。
 - 回滚：单 commit 整体 revert（新增文件 + 两处扩展）。
 
-## 8. 真机走查记录（2026-09-27）
+## 8. 真机走查记录（v1 · 2026-09-27；已按退回裁决重构，设计见 §9）
 
 - 环境：vite :3010（代理 → 后端 :8483，数据目录用 floracheck 副本）＋ Orca 内嵌浏览器。
 - 卡面：4 张电商卡文案逐字正确（含「电商快捷开始」分组标题）；既有三卡与场景胶囊无回归。
@@ -86,3 +86,11 @@ export function resolveStarterRunDecision(input: { value: string; busy: boolean;
 - `web/test/canvas-ecom-starters.test.ts`：卡数据完整性（≥3 张、字段齐、无价格数字字面值正则断言）+ `resolveStarterRunDecision` 全分支。
 - `web/test/agent-starter-command.test.ts`（静态护栏，沿用 `agent-send-prefill-command.test.ts` 风格）：project.tsx 含 `submit: true` 命令语义；panel 含 toast 文案与 `resolveStarterRunDecision` 消费。
 - 门禁四件 + 真机走查（见 prd AC6/AC7）。
+
+## 9. 重构设计（控制线 2026-09-27 退回裁决，替代原「点了就跑」直发语义）
+
+- 卡片语义 =「意图卡」：点击仍走 3b3fe456 自增 id 命令通道（保留件），但发送内容改为「意图 + 澄清指令」复合 prompt：要求 Agent 先不生成、单条消息选择题式确认（①实拍图 @/上传 · ②无图直出（等权）· ③参考图混合）+ 默认规格确认；用户任意回复即视为齐备（含「没有图，商品是XX，直接生成」），先复述方案再生成，不再追问、不强制附图。
+- 布局三级（按 Agent 浮窗高度，复用 panelLayout 既有状态）：`resolveAgentWelcomeTier(panelHeight)`（`agent-panel-layout.ts`，标准 1000 / 全量 1160）→ `.agent-welcome--compact|standard|expanded`；compact=单行欢迎语+四卡紧凑行（CSS 变体）+「更多开始方式」折叠；standard=四卡带副标题+通用三卡；expanded=全量。技能组合推荐胶囊由面板按同一 tier/展开态渲染。
+- 组件接线：AgentWelcome 新增 tier/moreOpen/onMoreOpenChange；AgentConversation 透传；面板持有 welcomeMoreOpen（新建对话复位）+ tier 计算；capsules 渲染条件 = expanded 或 moreOpen。
+- 保留件（原样）：自增 id 通道、busy/running/同 tick 守卫 + toast、相对成本档、免费体验运行时判定。
+- 验收口径见 prd「重构裁定」段；真机证据见 `.local/s1-walkthrough-v2/`（01–11 + evidence-notes.md）。

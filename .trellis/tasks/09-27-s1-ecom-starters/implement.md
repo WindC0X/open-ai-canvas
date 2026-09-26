@@ -42,3 +42,11 @@
 - 真机：四卡渲染 / 点击立即起跑（Agent 读画布）/ 3:4 详情图真实产出图像节点 / 运行中二次点击 → toast（详见 design §8）。
 - 加固：决策函数 `pending` 分支（同 tick 二次命令不再静默）；对应单测与静态护栏更新。
 - 截图索引：`.local/s1-walkthrough/01|02|03|04b|05-*.png`（本地留存，不入库）。
+
+## 重构执行记录（v2，2026-09-27）
+
+- 触发：控制线【S1 退回重构裁决】（盲跑 / 入口不可见 / 定位错误三问题）。
+- 交付物变更：canvas-ecom-starters.ts（四段「意图+澄清指令」文案；旧半句模板移除）、canvas-agent-welcome.tsx（三级布局重构）、canvas-cloud-agent-panel.tsx（tier 计算 + more 状态 + capsules 同态）、canvas-cloud-agent.css（compact 变体 + 更多行样式）、agent-panel-layout.ts（tier 阈值纯函数）；测试新增/更新 3 文件。
+- 门禁：tsc=0；build ✓；focused 22 测绿；全量对照冻结基线（15 红名单内）。
+- 真机（Orca + :3010/:8483）：四卡单轮澄清全过；无图直出全链（复述→审批→生成完成→回写节点）；默认窗高四卡可见；三态截图；守卫 toast 复测入镜。详见 `.local/s1-walkthrough-v2/evidence-notes.md`。
+- 消耗：CPA 文本运行 + 1 张图（0.001 积分），可控。
