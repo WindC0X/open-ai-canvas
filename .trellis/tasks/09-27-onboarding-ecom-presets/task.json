@@ -1,0 +1,32 @@
+{
+  "id": "onboarding-ecom-presets",
+  "name": "onboarding-ecom-presets",
+  "title": "轻量枝：新手体验 + 渠道预设（S1–S4 + O-03 层1）",
+  "description": "控制线 2026-09-27 任务书：S1 电商 starters / S2 hover 说明卡 / S3 ? 帮助菜单 / S4 文档 Diátaxis / O-03 层1 直出引导；6–7 人日，五件独立 commit，父任务承载总需求与终验清单",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "WindC0X",
+  "assignee": "WindC0X",
+  "createdAt": "2026-09-27",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-27-s1-ecom-starters",
+    "09-27-s2-tool-hover-cards",
+    "09-27-s3-help-menu",
+    "09-27-s4-docs-diataxis",
+    "09-27-o03-layer1-presets"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

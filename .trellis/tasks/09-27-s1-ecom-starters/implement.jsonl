@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证环境纪律：浏览器验证启动顺序、vite watcher 陷阱、tmwd 桥边界、证据真实性规则（S1 真机走查必读）"}
+{"file": "PATCH-MAP.md", "reason": "globals.css 热区纪律：新增 UI 一律组件级样式，不改 globals（S1 样式红线）"}
+{"file": "/mnt/f/CODE/Project/canvas/新手教学体系-竞品综述与落地方案-2026-09-26.md", "reason": "S1 规格来源：§四 可执行 starters 裁定 + 闭账增补二次下修（对齐上游 2088cf78 入口、点了就跑、电商向卡）"}

@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证环境纪律：浏览器验证、watcher 陷阱、真机走查口径（S2 hover 卡真机验证必读）"}
+{"file": "PATCH-MAP.md", "reason": "globals.css 热区纪律：hover 卡样式走组件级，不改 globals"}
+{"file": "/mnt/f/CODE/Project/canvas/新手教学体系-竞品综述与落地方案-2026-09-26.md", "reason": "S2 flora hover 卡配方与覆盖范围（§一 flora 行 / §四 第2件：图标+职责+预览图+快捷键徽章）"}
