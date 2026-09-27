@@ -341,3 +341,14 @@ Review 报告（工作流 4 代理 + 人工复核，OCR 通道失败放弃）后
 - 验证：守卫测试 `docs-diataxis-consistency.test.ts` 4 用例；门禁 tsc 0 / build ✓ / 全量 2324 → 15 红逐名=基线零额外。
 - 控制线封版（2026-09-28）：37 文件对账 / D6 双面 grep 独立复验 0 命中 / 守卫重跑 4 pass / llms 零 GitHub 指向 / quick-start 抽查 全绿；S3 micro-fix 轮一并核证通过。
 - 行政：S1 任务卡归档（`2d1ec7c0`，回执批准）；S4 归档随封版；转 O-03（本枝最后一项）。
+
+---
+
+## 2026-09-28 O-03 层1 直出引导封版（轻量枝 · 1b3cd2df→fc78f10e 五提交链，含 polish + 域外修复轮）
+
+- 交付（`1b3cd2df` + `ecd02c4c`）：渠道预设组（Amazon 主图 1:1 ≥1600 / 详情长图 3:4 ≥1440×1920 / 抖音竖版 9:16 ≥1080×1920，`desiredResolution` 预留）+ min(预设,能力) 四态交集（full / capped+徽标 / short+缺口+换模型建议 / unconstrained，绝不静默）+ 价目档一致性降级链 + 药丸预设态（`1:1 · 4K` + 渠道小标 + ✕ 取消回自动）+ 默认画质档位（经济/标准/旗舰，吸附于 `defaultImageParamsForModel`，不可得不应用）；纯前端、零依赖、零 globals。四态/吸附/取消/建议全分支 +30 单测；真机走查 s1-s6。
+- 首轮验收（控制线 2026-09-28）：功能主体通过；UI polish 一轮后封版（① 两条常驻说明行收 tooltip；② 比例角标补 hover 说明——design 明文 title 因 pointer-events-none 实际不可达；③ s5 长文案判断权下放）。
+- polish + 域外修复（`d265f86e` + `32cfb3db`，预算 0.5+0.3 人日内）：S2.1 hover 卡新增 mini 变体（`ToolHoverCardMiniContent` + `useToolInfoCard`，共用状态机/定位/单卡不变式，z1150 高于设置浮层）承载「已应用 / 档位说明 / 角标释义（预设名+最低像素）」；s5 文案判定保留可见不收起。域外修复（控制线特批，根因报告在案）：A 节点引用表去 skill 混入（技能仅留 Agent 面）；B hover composer 补 ✦/Skill 分支；真机全量扫描 65 节点 22 条引用、技能标记 0 命中（账号实装 2 技能）。
+- 验证：tsc 0 / build ✓ / 全量 2361 测试（309 文件）→ 15 红逐名=冻结基线零额外（+7 新测试）；走查 s7/s7a/s8（`.local/o03-walkthrough/`）。
+- 报备：缺口 G1-G4 未修（上报制）；同 fallback 链 tool 类引用仍落 T/Image 缺省（授权范围外，观察项）；环境注记（本环境「小白鼠 Gpt Image 2」含 4K）。
+- 行政：`fc78f10e` 落卡；`5af47ab4` 归档；全枝功能项完结，待合并批次任务书（flora + 轻量枝一批合入）。
