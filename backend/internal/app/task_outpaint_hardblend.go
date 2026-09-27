@@ -17,6 +17,7 @@ import (
 	"image/png"
 	"io"
 	"math"
+	"os"
 	"strings"
 
 	"golang.org/x/image/draw"
@@ -85,6 +86,71 @@ func (s *Service) applyOutpaintHardBlend(task *model.Task, result map[string]int
 		s.logOutpaintHardBlend(task, "info", fmt.Sprintf("扩图硬贴回完成：%d 张结果已回贴原图区像素", blended))
 	}
 	return result
+}
+
+// outpaintMediaBlend 媒体物化阶段的贴回上下文（元数据 + 原图，每任务加载一次）。
+type outpaintMediaBlend struct {
+	meta   *outpaintHardBlendMeta
+	source image.Image
+}
+
+// prepareOutpaintHardBlend 为媒体物化路径准备贴回上下文；非扩图 / 关断 / 失败返回 nil（fail-open）。
+// materializeTaskMedia 对 image 模式任务调用；无 outpaint 块的任务快速返回 nil。
+func (s *Service) prepareOutpaintHardBlend(task *model.Task) *outpaintMediaBlend {
+	if task == nil {
+		return nil
+	}
+	meta, err := s.outpaintHardBlendMetadata(task)
+	if err != nil {
+		s.logOutpaintHardBlend(task, "warn", "扩图硬贴回跳过："+err.Error())
+		return nil
+	}
+	if meta == nil || !meta.hardBlend {
+		return nil
+	}
+	source, err := s.loadOutpaintHardBlendSource(task.UserID, meta.sourceStorageKey)
+	if err != nil {
+		s.logOutpaintHardBlend(task, "warn", "扩图硬贴回跳过："+err.Error())
+		return nil
+	}
+	return &outpaintMediaBlend{meta: meta, source: source}
+}
+
+// applyOutpaintHardBlendToMediaFile 在媒体物化（下载完成、入库前）对单张结果临时文件
+// 执行硬贴回；就地改写为 PNG 并返回新的 MIME 类型。任何失败 = 原样返回（fail-open，仅记日志）。
+func (s *Service) applyOutpaintHardBlendToMediaFile(task *model.Task, blend *outpaintMediaBlend, path string, mimeType string) (string, string) {
+	if blend == nil || path == "" {
+		return path, mimeType
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		s.logOutpaintHardBlend(task, "warn", "扩图硬贴回跳过：读取暂存结果失败")
+		return path, mimeType
+	}
+	generated, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		s.logOutpaintHardBlend(task, "warn", "扩图硬贴回跳过：暂存结果解码失败")
+		return path, mimeType
+	}
+	next, err := hardBlendOutpaintImage(generated, blend.source, hardBlendOutpaintParams{
+		x0: blend.meta.x0, y0: blend.meta.y0, x1: blend.meta.x1, y1: blend.meta.y1,
+		frameWidth: blend.meta.frameWidth, frameHeight: blend.meta.frameHeight,
+	})
+	if err != nil {
+		s.logOutpaintHardBlend(task, "warn", "扩图硬贴回跳过："+err.Error())
+		return path, mimeType
+	}
+	var buffer bytes.Buffer
+	if err := png.Encode(&buffer, next); err != nil {
+		s.logOutpaintHardBlend(task, "warn", "扩图硬贴回跳过：结果编码失败")
+		return path, mimeType
+	}
+	if err := os.WriteFile(path, buffer.Bytes(), 0o600); err != nil {
+		s.logOutpaintHardBlend(task, "warn", "扩图硬贴回跳过：暂存文件回写失败")
+		return path, mimeType
+	}
+	s.logOutpaintHardBlend(task, "info", "扩图硬贴回完成：结果已回贴原图区像素")
+	return path, "image/png"
 }
 
 type outpaintHardBlendMeta struct {

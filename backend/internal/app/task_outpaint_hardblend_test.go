@@ -7,6 +7,8 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"infinite-canvas/backend/internal/model"
@@ -301,5 +303,80 @@ func TestApplyOutpaintHardBlendEndToEnd(t *testing.T) {
 	itemOff := outOff["images"].([]interface{})[0].(map[string]interface{})
 	if itemOff["dataUrl"] != generatedURL {
 		t.Fatal("关断路径不得改动结果图")
+	}
+}
+
+// 媒体物化路径（materializeTaskMedia 漏斗）：临时文件就地改写为贴回后的 PNG；
+// nil 上下文（非扩图任务）= 原样返回。
+func TestApplyOutpaintHardBlendToMediaFile(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&model.SystemSetting{}, &model.UserOSSSetting{}, &model.StorageLocation{}, &model.UserDailyUploadUsage{}, &model.Resource{}, &model.Task{}, &model.TaskLog{}); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(repository.New(db), t.TempDir())
+
+	source := hardBlendTestSolid(50, 40, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	var sourceBuffer bytes.Buffer
+	if err := png.Encode(&sourceBuffer, source); err != nil {
+		t.Fatal(err)
+	}
+	uploadKey := "outpaint-media-file-source"
+	resource, _, err := svc.storeResource("user-1", "image", "source.png", "image/png", int64(sourceBuffer.Len()), 50, 40, 0, bytes.NewReader(sourceBuffer.Bytes()), &uploadKey, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	generated := hardBlendTestSolid(100, 80, color.RGBA{R: 10, G: 200, B: 30, A: 255})
+	var generatedBuffer bytes.Buffer
+	if err := png.Encode(&generatedBuffer, generated); err != nil {
+		t.Fatal(err)
+	}
+	stagePath := filepath.Join(t.TempDir(), "staged-result.png")
+	if err := os.WriteFile(stagePath, generatedBuffer.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	task := hardBlendTestTask(t, map[string]interface{}{
+		"edit": "outpaint",
+		"outpaint": map[string]interface{}{
+			"sourceStorageKey": "resource:" + resource.ID,
+			"rect":             map[string]interface{}{"x0": 0.25, "y0": 0.25, "x1": 0.75, "y1": 0.75},
+			"frame":            map[string]interface{}{"width": 100, "height": 80},
+		},
+	})
+	blend := svc.prepareOutpaintHardBlend(task)
+	if blend == nil {
+		t.Fatal("贴回上下文准备失败")
+	}
+
+	path, mimeType := svc.applyOutpaintHardBlendToMediaFile(task, blend, stagePath, "image/png")
+	if path != stagePath || mimeType != "image/png" {
+		t.Fatalf("返回路径/类型异常 %s %s", path, mimeType)
+	}
+	data, err := os.ReadFile(stagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blended, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blended.Bounds().Dx() != 100 || blended.Bounds().Dy() != 80 {
+		t.Fatalf("结果尺寸必须不变 %v", blended.Bounds())
+	}
+	if pixel := hardBlendTestPixel(blended, 50, 40); pixel.R < 250 || pixel.G > 5 {
+		t.Fatalf("原图区未贴回 %+v", pixel)
+	}
+	if pixel := hardBlendTestPixel(blended, 5, 5); pixel.G < 195 {
+		t.Fatalf("生成区被改动 %+v", pixel)
+	}
+
+	// nil 上下文 = 非扩图任务：原样返回，不改文件也不改类型。
+	path, mimeType = svc.applyOutpaintHardBlendToMediaFile(task, nil, stagePath, "image/jpeg")
+	if path != stagePath || mimeType != "image/jpeg" {
+		t.Fatal("非扩图路径不得改动")
 	}
 }
