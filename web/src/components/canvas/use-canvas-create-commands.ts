@@ -1,4 +1,5 @@
 import { resolveAddNodeMenuCommands, type AddNodeMenuContext } from "@/lib/canvas/tool-registry";
+import { resolveToolHoverCardData } from "@/lib/canvas/tool-hover-card-data";
 import { usePluginStore } from "@/stores/use-plugin-store";
 
 import type { CanvasCreateCommand } from "./canvas-create-menu";
@@ -14,6 +15,7 @@ export function useCanvasCreateCommands(context: AddNodeMenuContext, runCommand?
         icon: command.icon,
         badge: command.badge,
         section: command.section,
+        hover: resolveToolHoverCardData(command.hover),
         onClick: () => {
             const run = () => command.run(context);
             if (runCommand) runCommand(run);

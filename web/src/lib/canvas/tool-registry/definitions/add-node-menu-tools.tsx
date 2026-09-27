@@ -11,26 +11,26 @@ function nodeCommand(type: CanvasNodeType, rest: Omit<AddNodeMenuCommand, "id" |
 
 export const addNodeMenuCommands: AddNodeMenuCommand[] = [
     // 项目级动作不占用节点网格，创作节点保持统一排列。
-    { id: "style", label: "项目画风", icon: <Palette />, section: "project", defaultOrder: 10, applicable: (ctx) => !ctx.isProjectLinked, run: (ctx) => ctx.handlers.onChooseStyle() },
+    { id: "style", label: "项目画风", icon: <Palette />, section: "project", defaultOrder: 10, hover: { description: "为项目选择统一的画面风格" }, applicable: (ctx) => !ctx.isProjectLinked, run: (ctx) => ctx.handlers.onChooseStyle() },
     // 创作节点
-    nodeCommand(CanvasNodeType.Text, { defaultOrder: 10, run: (ctx) => ctx.handlers.onAddText() }),
-    nodeCommand(CanvasNodeType.Drawing, { defaultOrder: 20, run: (ctx) => ctx.handlers.onAddDrawing() }),
-    nodeCommand(CanvasNodeType.Script, { badge: "核心", defaultOrder: 30, run: (ctx) => ctx.handlers.onAddScript() }),
-    nodeCommand(CanvasNodeType.Frame, { defaultOrder: 40, applicable: (ctx) => ctx.workspaceMode !== "simple", run: (ctx) => ctx.handlers.onAddFrame() }),
-    { id: "folder", label: "文件夹", icon: <Folder />, badge: "6 款", section: "node", defaultOrder: 45, run: (ctx) => ctx.handlers.onAddFolder() },
-    nodeCommand(CanvasNodeType.Image, { defaultOrder: 50, run: (ctx) => ctx.handlers.onAddImage() }),
-    nodeCommand(CanvasNodeType.Video, { defaultOrder: 60, run: (ctx) => ctx.handlers.onAddVideo() }),
-    nodeCommand(CanvasNodeType.BatchTable, { defaultOrder: 66, run: (ctx) => ctx.handlers.onAddExtensionNode(CanvasNodeType.BatchTable) }),
-    nodeCommand(CanvasNodeType.MediaConversion, { badge: "本地", defaultOrder: 65, run: (ctx) => ctx.handlers.onAddExtensionNode(CanvasNodeType.MediaConversion) }),
+    nodeCommand(CanvasNodeType.Text, { defaultOrder: 10, hover: { description: "添加可编辑的文本节点" }, run: (ctx) => ctx.handlers.onAddText() }),
+    nodeCommand(CanvasNodeType.Drawing, { defaultOrder: 20, hover: { description: "添加可手绘的绘图节点" }, run: (ctx) => ctx.handlers.onAddDrawing() }),
+    nodeCommand(CanvasNodeType.Script, { badge: "核心", defaultOrder: 30, hover: { description: "编写分镜脚本，规划镜头内容" }, run: (ctx) => ctx.handlers.onAddScript() }),
+    nodeCommand(CanvasNodeType.Frame, { defaultOrder: 40, hover: { description: "添加视觉背板，承托与组织内容" }, applicable: (ctx) => ctx.workspaceMode !== "simple", run: (ctx) => ctx.handlers.onAddFrame() }),
+    { id: "folder", label: "文件夹", icon: <Folder />, badge: "6 款", section: "node", defaultOrder: 45, hover: { description: "用文件夹整理、收纳画布节点", preview: "/images/canvas/folder-default-cover.png" }, run: (ctx) => ctx.handlers.onAddFolder() },
+    nodeCommand(CanvasNodeType.Image, { defaultOrder: 50, hover: { description: "添加图片节点，用于生成与编辑" }, run: (ctx) => ctx.handlers.onAddImage() }),
+    nodeCommand(CanvasNodeType.Video, { defaultOrder: 60, hover: { description: "添加视频节点，用于生成与处理" }, run: (ctx) => ctx.handlers.onAddVideo() }),
+    nodeCommand(CanvasNodeType.BatchTable, { defaultOrder: 66, hover: { description: "用表格批量发起生成任务" }, run: (ctx) => ctx.handlers.onAddExtensionNode(CanvasNodeType.BatchTable) }),
+    nodeCommand(CanvasNodeType.MediaConversion, { badge: "本地", defaultOrder: 65, hover: { description: "本地转换图片或视频格式" }, run: (ctx) => ctx.handlers.onAddExtensionNode(CanvasNodeType.MediaConversion) }),
     // 导演台落在节点分区，但它开的是导演工作台、不是某种画布节点，故不走注册表。
-    { id: "director", label: "导演台", icon: <Layers3 />, badge: "3D", section: "node", defaultOrder: 70, applicable: (ctx) => ctx.workspaceMode !== "simple", run: (ctx) => ctx.handlers.onOpenDirector() },
-    nodeCommand(CanvasNodeType.Audio, { defaultOrder: 80, applicable: (ctx) => ctx.workspaceMode !== "simple", run: (ctx) => ctx.handlers.onAddAudio() }),
+    { id: "director", label: "导演台", icon: <Layers3 />, badge: "3D", section: "node", defaultOrder: 70, hover: { description: "打开 3D 导演台，搭建立体场景" }, applicable: (ctx) => ctx.workspaceMode !== "simple", run: (ctx) => ctx.handlers.onOpenDirector() },
+    nodeCommand(CanvasNodeType.Audio, { defaultOrder: 80, hover: { description: "添加音频节点，用于配音与音乐" }, applicable: (ctx) => ctx.workspaceMode !== "simple", run: (ctx) => ctx.handlers.onAddAudio() }),
     // 云端和本地工作流共用独立配置节点，不进入基础模型节点的渠道选择。
-    { id: "workflow", label: "工作流", icon: <Workflow />, section: "workflow", defaultOrder: 10, applicable: (ctx) => ctx.workspaceMode !== "simple", run: (ctx) => ctx.handlers.onAddWorkflow() },
+    { id: "workflow", label: "工作流", icon: <Workflow />, section: "workflow", defaultOrder: 10, hover: { description: "运行云端或本地工作流" }, applicable: (ctx) => ctx.workspaceMode !== "simple", run: (ctx) => ctx.handlers.onAddWorkflow() },
     // 导入资源
-    { id: "upload", label: "上传文件", icon: <UploadCloud />, section: "resource", defaultOrder: 10, run: (ctx) => ctx.handlers.onUpload() },
-    { id: "project-character", label: "添加角色卡", icon: <UserRound />, section: "resource", defaultOrder: 20, applicable: (ctx) => ctx.isProjectLinked, run: (ctx) => ctx.handlers.onOpenProjectCharacters() },
-    { id: "assets", label: "素材库", icon: <FolderOpen />, section: "resource", defaultOrder: 30, applicable: (ctx) => !ctx.isProjectLinked, run: (ctx) => ctx.handlers.onOpenMyAssets() },
+    { id: "upload", label: "上传文件", icon: <UploadCloud />, section: "resource", defaultOrder: 10, hover: { description: "上传本地文件到画布" }, run: (ctx) => ctx.handlers.onUpload() },
+    { id: "project-character", label: "添加角色卡", icon: <UserRound />, section: "resource", defaultOrder: 20, hover: { description: "为项目添加可复用的角色卡" }, applicable: (ctx) => ctx.isProjectLinked, run: (ctx) => ctx.handlers.onOpenProjectCharacters() },
+    { id: "assets", label: "素材库", icon: <FolderOpen />, section: "resource", defaultOrder: 30, hover: { description: "打开素材库，选择已有素材" }, applicable: (ctx) => !ctx.isProjectLinked, run: (ctx) => ctx.handlers.onOpenMyAssets() },
 ];
 
 registerAddNodeMenuCommands(addNodeMenuCommands);

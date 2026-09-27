@@ -4,12 +4,12 @@ import { registerToolbarTools, type ToolDefinition } from "@/lib/canvas/tool-reg
 import type { CanvasToolMode } from "@/types/canvas";
 
 const canvasModeOptions = [
-    { id: "box-select", label: "区域选择", icon: <MousePointer2 />, value: "box-select" },
-    { id: "move", label: "抓手工具", icon: <Hand />, value: "move" },
+    { id: "box-select", label: "区域选择", icon: <MousePointer2 />, value: "box-select", hover: { description: "框选批量选择节点" } },
+    { id: "move", label: "抓手工具", icon: <Hand />, value: "move", hover: { description: "拖动平移画布视图" } },
 ];
 
 export const mainToolbarTools: ToolDefinition[] = [
-    { id: "tool-workspace", toolbar: "main", category: "navigation", label: "工作区", icon: <PanelsTopLeft />, defaultVisible: true, defaultOrder: 65, run: ctx => ctx.handlers.onOpenWorkspace?.() },
+    { id: "tool-workspace", toolbar: "main", category: "navigation", label: "工作区", icon: <PanelsTopLeft />, defaultVisible: true, defaultOrder: 65, hover: { description: "展开左侧工作区：节点、资产与任务" }, run: ctx => ctx.handlers.onOpenWorkspace?.() },
     {
         id: "tool-canvas-mode",
         toolbar: "main",
@@ -33,6 +33,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Undo2 />,
         defaultVisible: true,
         defaultOrder: 30,
+        hover: { description: "撤销上一步操作", shortcuts: ["undo"] },
         disabled: (ctx) => !ctx.canUndo,
         run: (ctx) => ctx.handlers.onUndo(),
     },
@@ -44,6 +45,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Redo2 />,
         defaultVisible: true,
         defaultOrder: 40,
+        hover: { description: "恢复被撤销的操作", shortcuts: ["redo"] },
         disabled: (ctx) => !ctx.canRedo,
         run: (ctx) => ctx.handlers.onRedo(),
     },
@@ -55,6 +57,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Plus />,
         defaultVisible: true,
         defaultOrder: 50,
+        hover: { description: "打开添加面板，创建各类节点" },
         expands: true,
         active: (ctx) => ctx.addPanelOpen,
         run: (ctx, event) => ctx.handlers.onToggleAddPanel(event!),
@@ -67,6 +70,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <FolderOpen />,
         defaultVisible: true,
         defaultOrder: 60,
+        hover: { description: "打开素材库，选择与管理素材" },
         applicable: (ctx) => !ctx.isProjectLinked,
         run: (ctx) => ctx.handlers.onOpenMyAssets(),
     },
@@ -78,6 +82,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Palette />,
         defaultVisible: true,
         defaultOrder: 70,
+        hover: { description: "调整画布背景与显示偏好" },
         expands: true,
         active: (ctx) => ctx.appearancePanelOpen,
         run: (ctx, event) => ctx.handlers.onToggleAppearancePanel(event!),
@@ -90,6 +95,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Settings2 />,
         defaultVisible: true,
         defaultOrder: 80,
+        hover: { description: "选择显示哪些工具并调整顺序" },
         expands: true,
         active: (ctx) => ctx.settingsPanelOpen,
         run: (ctx) => ctx.handlers.onToggleSettingsPanel(),
@@ -102,6 +108,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Trash2 />,
         defaultVisible: true,
         defaultOrder: 90,
+        hover: { description: "删除当前选中的节点，可撤销", shortcuts: ["delete"] },
         danger: true,
         applicable: (ctx) => ctx.selectedCount > 0,
         run: (ctx) => ctx.handlers.onDeleteSelected(),
@@ -114,6 +121,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Eraser />,
         defaultVisible: true,
         defaultOrder: 100,
+        hover: { description: "清空画布上的全部内容，清空前请确认" },
         danger: true,
         run: (ctx) => ctx.handlers.onClear(),
     },

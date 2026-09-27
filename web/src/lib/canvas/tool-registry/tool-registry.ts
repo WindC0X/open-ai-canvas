@@ -5,6 +5,8 @@ import type { FloatingDockEntry } from "@/components/ui/aceternity/floating-dock
 import { ART_CRITIQUE_NODE_TYPE } from "@/lib/art-critique/contracts";
 import { listCreatableNodeDefinitions } from "@/lib/canvas/node-registry";
 
+import { resolveToolHoverCardData } from "../tool-hover-card-data";
+
 import type { AddNodeMenuCommand, AddNodeMenuContext, NodeToolbarGroup, ToolCategory, ToolContext, ToolDefinition, ToolbarId, ToolbarPrefs } from "./tool-definition";
 
 /** 模块级注册表 */
@@ -136,7 +138,7 @@ function toolToEntry(tool: ToolDefinition, ctx: ToolContext): FloatingDockEntry 
             id: tool.id,
             label: resolveText(tool.label, ctx),
             value: tool.switchGroup.value(ctx),
-            options: tool.switchGroup.options,
+            options: tool.switchGroup.options.map((option) => ({ ...option, hoverCard: resolveToolHoverCardData(option.hover) })),
             onChange: (value) => tool.switchGroup?.onChange(ctx, value),
         };
     }
@@ -150,6 +152,7 @@ function toolToEntry(tool: ToolDefinition, ctx: ToolContext): FloatingDockEntry 
         disabled: tool.disabled?.(ctx),
         danger: tool.danger,
         expands: tool.expands,
+        hoverCard: resolveToolHoverCardData(tool.hover),
         onClick: (event) => tool.run(ctx, event),
     };
 }

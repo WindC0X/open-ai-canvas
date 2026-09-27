@@ -1,0 +1,24 @@
+/* S2 · 工具/节点 hover 说明卡（fork 新增；按需 portal 到 body，无全局选择器改动） */
+
+.tool-hover-card {
+    z-index: var(--tool-hover-card-z, 150);
+    pointer-events: auto;
+    animation: tool-hover-card-in 140ms ease-out;
+}
+
+@keyframes tool-hover-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tool-hover-card {
+        animation: none;
+    }
+}
