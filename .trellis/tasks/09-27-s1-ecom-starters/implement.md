@@ -50,3 +50,9 @@
 - 门禁：tsc=0；build ✓；focused 22 测绿；全量对照冻结基线（15 红名单内）。
 - 真机（Orca + :3010/:8483）：四卡单轮澄清全过；无图直出全链（复述→审批→生成完成→回写节点）；默认窗高四卡可见；三态截图；守卫 toast 复测入镜。详见 `.local/s1-walkthrough-v2/evidence-notes.md`。
 - 消耗：CPA 文本运行 + 1 张图（0.001 积分），可控。
+
+## S1.1 执行记录（v3，2026-09-27）
+
+- 交付物：canvas-ecom-starters.ts（图标表迁入 + findEcomStarterCardByPrompt）、canvas-agent-welcome.tsx（standard 补 footnote；导入改共用图标表）、canvas-cloud-agent-chat-ui.tsx（AgentStarterChip）、canvas-cloud-agent.css（chip 样式）、canvas-cloud-agent-panel.tsx（贴底守卫）；测试增补 chip 判定与静态护栏。
+- 门禁：tsc=0；build ✓；focused 23 绿；全量 2295→15 红全基线；负载 flake ×2 已隔离归因（见 v3 evidence-notes）。
+- 真机：chip 折叠/展开（12/13）、三态（640/1080/1216 → 14/15/16）、P2 锚点（14）。新 UI 面清单已列（v3 evidence-notes）。

@@ -94,3 +94,10 @@ export function resolveStarterRunDecision(input: { value: string; busy: boolean;
 - 组件接线：AgentWelcome 新增 tier/moreOpen/onMoreOpenChange；AgentConversation 透传；面板持有 welcomeMoreOpen（新建对话复位）+ tier 计算；capsules 渲染条件 = expanded 或 moreOpen。
 - 保留件（原样）：自增 id 通道、busy/running/同 tick 守卫 + toast、相对成本档、免费体验运行时判定。
 - 验收口径见 prd「重构裁定」段；真机证据见 `.local/s1-walkthrough-v2/`（01–11 + evidence-notes.md）。
+
+## 10. S1.1 渲染层 polish（控制线 2026-09-27）
+
+- P0 chip：`findEcomStarterCardByPrompt`（canvas-ecom-starters.ts，纯内容匹配）→ AgentChatMessage 用户消息命中卡片原文时改渲染 `AgentStarterChip`（chat-ui 私有组件；图标表 ECOM_STARTER_ICONS 迁至 lib 共用）；展开原文走本地 state；样式组件级 CSS（canvas-cloud-agent.css）。数据层/导出/历史零改动。
+- P1：welcome standard 分支补回 footnote；副标题与球体 compact 隐藏、standard/expanded 显示（核查确认球体未丢）。
+- P2：AgentConversation 自动贴底加「有消息」守卫（layout effect + RO 回调，ref 带最新值）——welcome 展示中锚点不动。
+- 验证：`.local/s1-walkthrough-v3/`（12–16 + evidence-notes.md）。
