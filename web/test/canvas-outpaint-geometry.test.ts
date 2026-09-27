@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
     describeOutpaintSize,
+    nearestAspectRatioValue,
     relocateOutpaintPadding,
     resolveOutpaintClipHole,
     resolveOutpaintSubmitGeometry,
@@ -487,5 +488,21 @@ describe("resolveOutpaintSubmitGeometry（F-06 二期硬贴回几何真源，202
     test("零 padding 时 rect 即全画幅", () => {
         const geometry = resolveOutpaintSubmitGeometry(100, 50, { left: 0, top: 0, right: 0, bottom: 0 }, { target: { width: 100, height: 50 } });
         expect(geometry!.rect).toEqual({ x0: 0, y0: 0, x1: 1, y1: 1 });
+    });
+});
+
+describe("nearestAspectRatioValue", () => {
+    test("原图 3:2 就近取枚举（nano 枚举含 3:2）", () => {
+        expect(nearestAspectRatioValue(["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"], 1.5)).toBe("3:2");
+    });
+
+    test("跳过不可解析值，极端宽比归最近枚举", () => {
+        expect(nearestAspectRatioValue(["auto", "1024x1024", "1:1", "16:9"], 1.9)).toBe("16:9");
+    });
+
+    test("全不可解析或非法输入返回 null", () => {
+        expect(nearestAspectRatioValue(["auto", "1024x1024"], 1.5)).toBeNull();
+        expect(nearestAspectRatioValue([], 1.5)).toBeNull();
+        expect(nearestAspectRatioValue(["1:1"], 0)).toBeNull();
     });
 });

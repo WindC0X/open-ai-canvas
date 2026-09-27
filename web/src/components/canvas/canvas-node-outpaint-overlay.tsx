@@ -14,7 +14,7 @@ import {
     type ImageResolutionChoice,
     type ImageResolutionTier,
 } from "@/lib/image-resolution-tiers";
-import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveDragAxis, resolveOutpaintClipHole, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type FrameAxis, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
+import { describeOutpaintSize, nearestAspectRatioValue, parseRatioValue, relocateOutpaintPadding, resolveDragAxis, resolveOutpaintClipHole, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type FrameAxis, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { CANVAS_NODE_DRAG_PREVIEW_EVENT, subscribeCanvasViewportPreview, type CanvasNodeDragPreview } from "@/lib/canvas/canvas-live-viewport";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -250,8 +250,13 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const lockedRatio = lockedRatioKey === ORIGINAL_RATIO_KEY ? contentRatio : parseRatioValue(lockedRatioKey ?? "");
     const submitSize =
         sizeParameter === "aspect_ratio"
-            ? // 原图比例不是模型枚举值 → 提交模型默认；枚举档位直接提交。
-              sizeOptions.includes(lockedRatioKey ?? "") ? (lockedRatioKey as string) : sizeFallback
+            ? // 枚举档位直接提交；「原图比例」不在枚举内时就近取枚举（验收修复 2026-09-27：
+              // 此前回落模型默认，nano 原图 3:2 被静默换成 1:1 出方图），仍无解才回落模型默认。
+              sizeOptions.includes(lockedRatioKey ?? "")
+                  ? (lockedRatioKey as string)
+                  : lockedRatioKey === ORIGINAL_RATIO_KEY
+                    ? (nearestAspectRatioValue(sizeOptions, contentRatio) ?? sizeFallback)
+                    : sizeFallback
             : sizeParameter === "size"
               ? // 比例锁定 + 分辨率档 → 渠道配置的精确像素；自由比例或 auto → 模型自选（auto）。
                 selectedTier !== "auto" && lockedRatioKey

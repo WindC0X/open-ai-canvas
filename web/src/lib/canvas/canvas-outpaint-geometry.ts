@@ -257,6 +257,25 @@ export function parseRatioValue(value: string): number | null {
     return Number.isFinite(decimal) && decimal > 0 ? decimal : null;
 }
 
+// 「原图比例」在 aspect_ratio 制模型（nano/grok 枚举）下的就近映射（验收修复 2026-09-27）：
+// 之前不在枚举内直接回落模型默认，1.5 的原图会被静默换成 1:1 方图输出。
+// 距离 = |log(候选/目标)|（对数域对称）；跳过不可解析值与非正值；全无解返回 null。
+export function nearestAspectRatioValue(values: string[], ratio: number): string | null {
+    if (!Number.isFinite(ratio) || ratio <= 0) return null;
+    let best: string | null = null;
+    let bestDistance = Infinity;
+    for (const value of values) {
+        const parsed = parseRatioValue(value);
+        if (parsed === null || parsed <= 0) continue;
+        const distance = Math.abs(Math.log(parsed / ratio));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = value;
+        }
+    }
+    return best;
+}
+
 // 拖动图片 = 扩图框内重定位（用户裁定 2026-09-19）：框不跟拖，仅四边 padding 相互转移。
 // 图片右移 dx>0 → left 增、right 减；右 pad 耗尽后差额转为框扩展（贴边续拖 = 框随图扩）。
 // ratio 锁定时外扩总量守恒（只转移不扩展），避免拖图破坏锁定比例。

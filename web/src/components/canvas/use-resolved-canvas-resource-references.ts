@@ -88,7 +88,10 @@ function resolveReferencePreview(reference: CanvasResourceReference, identity: s
     const pending = resolveImageUrl(storageKey, reference.previewUrl || "", { cacheMiss: true })
         .catch(() => reference.previewUrl || "")
         .then((url) => {
-            if (!url) previewPromiseCache.delete(identity);
+            // 只作在途去重：settle 即清除（验收修复 2026-09-27）。展示签名 URL 有效期约 5 分钟
+            // （assets/access.go ttl = 5min），永久缓存会让后续挂载复用过期签名 → 403 → 裂图；
+            // 清除后每次挂载重新解析，TTL 由 getResourceAccess 的 accessCache 负责。
+            if (previewPromiseCache.get(identity) === pending) previewPromiseCache.delete(identity);
             return url;
         });
     previewPromiseCache.set(identity, pending);
