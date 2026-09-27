@@ -53,3 +53,12 @@
 - 门禁：tsc 0 / build ✓ / focused 85 绿（10 文件组）/ 全量 2317 测试 → 15 红逐名=冻结基线 + **5 条超时型波动**（ui-kit-retirement/http-ownership 快扫描测试，基线期 3.0-3.4s、当日 5.1-5.9s 超 5s 超时；`--timeout 20000` 全绿，断言本体无红）——已列报告。
 - 真机走查（:3010 / :8483，证据 `.local/s3-walkthrough/`）：四件套逐一可开；反馈表单空态/填写/复制（真实点击 → writeText 结算 ok + toast）、分享开关禁用态与启用态（临时建分享→勾选→payload 含分享节→撤销复核）、changelog 行存活、教程/反馈渠道 window.open URL 拦截验证。
 - 降级与备注：「最近操作」项按任务书降级隐藏（成本原因）；changelog 菜单行为 menuitem+button 双层节点（设计既定）；剪贴板图片/文件选择路径列入 pending-test 真机复核。
+
+
+## 渠道改造与 micro-fix 记录（2026-09-28 · 控制线产品裁定）
+
+- 产品裁定：在线平台不向用户暴露项目仓库（含上游）——原「反馈走 GitHub Issues 外链」「教程链 GitHub docs」前提作废（R2/R4 相应表述以本节为准）。
+- 落地：`canvas-help-links.ts` 重构——`DOCS_BASE_URL`（产品域名文档站待定，禁止 GitHub；就绪填入即全链路启用）、`FEEDBACK_SUPPORT_EMAIL`（fengw5774@gmail.com）、`FEEDBACK_CHANNEL_URL`（用户群加群链接）；`FEEDBACK_ISSUES_URL` 删除；教程路径 `${DOCS_BASE_URL}/docs/getting-started/quick-start` 相对拼装保留（S4 定稿后同步）。
+- 教程菜单项：`DOCS_BASE_URL` 为空期间置禁用 + 「使用教程（教程编写中）」提示（四件套结构不删项）；原「合入后生效 GitHub 404 过渡态」裁决作废。
+- 反馈提交区双通道（复制为第一公民）：邮件反馈（mailto 预填聚合文本；超 1800 字符降级描述摘要 + 引导复制粘贴）+ 加入用户群（新标签 noopener；文案「加群后将复制的反馈内容粘贴到群内」）。
+- micro-fix 1-7 全落：明示区条件行（分享/截图文件名，单点可核全量 payload）/ 分享时效提示 / 剪贴板失败展开只读文本框 / 弹窗关闭焦点归还「?」按钮 / 对比度提亮（/35~45 → /60~70，现 token）/ 截图 alt 文件名 + Switch 禁用态 aria-describedby / 快扫描测试 per-test 超时 20s（环境证据注释）。

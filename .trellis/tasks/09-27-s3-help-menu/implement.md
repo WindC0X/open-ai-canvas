@@ -42,3 +42,10 @@
 - Step 4 门禁：tsc 0；build ✓；focused 85 绿（10 文件组）；全量对照见 prd 记录（15 基线红 + 5 超时波动的定性：`bun test --timeout 20000` 下相关文件全绿）。
 - Step 4 真机走查（:3010/:8483；证据 `.local/s3-walkthrough/evidence-notes.md`）：菜单四态、快捷键模态、反馈空/填/复制(s5+payload 捕获)、分享开关双态闭环（临时分享已撤销）、changelog 弹窗存活、教程 URL 拦截验证；方法披露（菜单行真实点击投递间歇失败→DOM 直点补验；剪贴板需真实点击激活；截图陈旧帧现象）。
 - Step 5：正文 + 落卡双 commit，不 push；待控制线复核。
+
+
+### S3 micro-fix 执行记录（2026-09-28 · 渠道改造 + 收编 1-7）
+
+- 渠道改造（8-10）：`canvas-help-links.ts` 重构（DOCS_BASE_URL 空置 + `getDocsQuickstartUrl` 拼装 + 邮箱/群常量；FEEDBACK_ISSUES_URL 删除）；顶栏教程项禁用态 + 「教程编写中」；反馈提交区 = 复制（primary）+ 邮件反馈（`buildFeedbackMailtoUrl`，超 1800 字符摘要降级）+ 加入用户群。
+- micro-fix（1-7）：`buildFeedbackManifest`（meta + 条件行，明示区单点可核）；分享时效提示；copy 失败降级只读 textarea（聚焦全选）；关闭焦点归还（topbar ref + rAF）；对比度映射 /35→/60、/40→/65、/45→/65、/50→/65、/60→/70；截图 alt=文件名、Switch 禁用态 aria-describedby；ui-kit-retirement / http-ownership 全 src 扫描用例加宽 20s（注释引环境证据）。
+- 验证：tsc 0；focused 94 绿（12 文件组）；build ✓；全量 2320 测试 → 15 红逐名=冻结基线、零超时波动；走查（:3010/:8483，`.local/s3-walkthrough/` s8-s10）：禁用项零动作 / 失败-恢复-清除闭环 / 分享条件行+时效提示 / 焦点归还实测 / 群链接与邮件 URL 构造覆盖。

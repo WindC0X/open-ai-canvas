@@ -72,3 +72,9 @@ docs/llms.txt                      # 新建（静态手工）
 1. 目标结构「全移动」vs「低 churn 备选」（§目标结构）——默认推荐全移动版。
 2. pending-test 落点 `docs/plans/`（备选 `docs/dev/`）——默认 plans。
 3. 组 2–4 空组处理：仅 meta.json（pages:[]）——判定可接受 or 需最小组导语页（后续波次另卡）。
+
+
+## 产品裁定同步（来自 S3，2026-09-28 控制线）
+
+- **不向用户暴露项目仓库（含上游）**：S4 的 llms.txt / 教程链接口径不得指向 GitHub；教程链接以 `DOCS_BASE_URL`（产品域名文档站待定，单源：`web/src/lib/canvas/canvas-help-links.ts`）为基址拼装 `${DOCS_BASE_URL}/docs/getting-started/quick-start`，S4 文档路径定稿后同步该常量（DOM 实测禁用态 + 「教程编写中」提示已在 S3 落地）。
+- 反馈渠道已改为邮件（fengw5774@gmail.com）+ 用户群，S4 文档中如有反馈指引按此口径。
