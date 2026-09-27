@@ -2820,6 +2820,7 @@ function InfiniteCanvasPage() {
                                     : undefined
                             }
                             onEnterFocusMode={enterFocusMode}
+                            feedbackContext={{ projectId, nodeCount: canvasContext.nodeCount }}
                             shortDramaGuide={shortDramaGuide}
                         />
                     ) : null}

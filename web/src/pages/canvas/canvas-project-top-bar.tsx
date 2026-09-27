@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
-import { Clapperboard, CloudDownload, CloudUpload, CopyPlus, Focus, FolderKanban, Gauge, History, Home, LayoutGrid, LoaderCircle, Menu, Pencil, Plus, Redo2, Save, Search, Share2, Trash2, Undo2, Upload } from "lucide-react";
+import { BookOpen, CircleHelp, Clapperboard, CloudDownload, CloudUpload, CopyPlus, Focus, FolderKanban, Gauge, History, Home, Keyboard, LayoutGrid, LoaderCircle, Menu, MessageSquareHeart, Pencil, Plus, Redo2, Save, Search, Share2, Trash2, Undo2, Upload } from "lucide-react";
 import { Button, Dropdown, Tooltip } from "antd";
 
+import { AppChangelogButton } from "@/components/layout/app-changelog-modal";
 import { WorkspaceCreditGiftMark } from "@/components/layout/workspace-credit-gift-mark";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { canvasDockStyle } from "@/lib/canvas/canvas-aceternity-style";
+import { DOCS_QUICKSTART_URL } from "@/lib/canvas/canvas-help-links";
 import type { CanvasContextSummary } from "@/lib/canvas/canvas-context-summary";
 import type { CanvasShortDramaProgress } from "@/lib/canvas/canvas-short-drama";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasThemeStore } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { CanvasMediaPerformanceMode } from "@/types/canvas";
+import { CanvasFeedbackDialog } from "./canvas-feedback-dialog";
 import { CanvasShortcutsModal } from "./canvas-shortcuts-modal";
 
 type CanvasTopBarProps = {
@@ -44,6 +47,7 @@ type CanvasTopBarProps = {
     onOpenSearch: () => void;
     projectContext?: CanvasContextSummary & { projectId: string; projectName: string };
     onEnterFocusMode: () => void;
+    feedbackContext?: { projectId: string; nodeCount: number };
     shortDramaGuide?: { progress: CanvasShortDramaProgress; collapsed: boolean; onToggle: () => void };
 };
 
@@ -76,6 +80,7 @@ export function CanvasTopBar({
     onOpenSearch,
     projectContext,
     onEnterFocusMode,
+    feedbackContext,
     shortDramaGuide,
 }: CanvasTopBarProps) {
     const theme = canvasThemes[useCanvasThemeStore((state) => state.theme)];
@@ -85,6 +90,7 @@ export function CanvasTopBar({
     const { availableMicrocredits, refreshing } = useWalletBalance(user?.id, creditsEnabled);
     const titleRef = useRef<HTMLDivElement>(null);
     const [shortcutsOpen, setShortcutsOpen] = useState(false);
+    const [feedbackOpen, setFeedbackOpen] = useState(false);
 
     const handleShortDramaGuideToggle = () => {
         shortDramaGuide?.onToggle();
@@ -288,9 +294,26 @@ export function CanvasTopBar({
                     <CanvasTopBarTooltip label="分享画布">
                         <Button type="text" className="canvas-topbar-action !h-10 !w-10 !min-w-10 !rounded-xl !p-0" style={{ color: theme.node.text }} icon={<Share2 className="size-4" />} onClick={onShare} aria-label="分享画布" />
                     </CanvasTopBarTooltip>
+                    <CanvasTopBarTooltip label="帮助">
+                        <Dropdown
+                            trigger={["click"]}
+                            placement="bottomRight"
+                            menu={{
+                                items: [
+                                    { key: "tutorial", icon: <BookOpen className="size-4" />, label: "使用教程", onClick: () => window.open(DOCS_QUICKSTART_URL, "_blank", "noopener,noreferrer") },
+                                    { key: "shortcuts", icon: <Keyboard className="size-4" />, label: "快捷键", onClick: () => setShortcutsOpen(true) },
+                                    { key: "feedback", icon: <MessageSquareHeart className="size-4" />, label: "反馈", onClick: () => setFeedbackOpen(true) },
+                                    { key: "changelog", label: <AppChangelogButton className="flex w-full items-center gap-2 text-left" showLabel label="最近更新" /> },
+                                ],
+                            }}
+                        >
+                            <Button type="text" className="canvas-topbar-action !h-10 !w-10 !min-w-10 !rounded-xl !p-0" style={{ color: theme.node.text }} icon={<CircleHelp className="size-4" />} aria-label="帮助" />
+                        </Dropdown>
+                    </CanvasTopBarTooltip>
                 </div>
             </div>
             <CanvasShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+            <CanvasFeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} projectId={feedbackContext?.projectId} nodeCount={feedbackContext?.nodeCount} />
         </>
     );
 }
