@@ -7,6 +7,8 @@
  * - 不包含 Cookie / 密钥 / 授权头等敏感字段；分享链接仅当用户显式勾选且已开启分享时出现。
  */
 
+import { FEEDBACK_SUPPORT_EMAIL } from "./canvas-help-links";
+
 export type FeedbackPayloadMeta = {
     /** 应用版本（`v` 前缀会被归一为单前缀） */
     appVersion: string;
@@ -63,4 +65,31 @@ export function buildFeedbackPayload(input: FeedbackPayloadInput): { text: strin
     ];
 
     return { text: `${lines.join("\n")}\n`, meta };
+}
+
+/**
+ * 「将包含以下信息」明示区条目：白名单元信息 + 用户勾选的条件项（分享链接 / 截图文件名）。
+ * 与 `buildFeedbackPayload` 产出的复制文本逐条一致，保证明示区单点可核全量 payload。
+ */
+export function buildFeedbackManifest(input: Pick<FeedbackPayloadInput, "screenshotName" | "shareUrl" | "meta">): Array<[string, string]> {
+    const entries: Array<[string, string]> = Object.entries(buildFeedbackMeta(input.meta));
+    if (input.shareUrl) entries.push(["分享链接", input.shareUrl]);
+    if (input.screenshotName) entries.push(["截图文件名", input.screenshotName]);
+    return entries;
+}
+
+/**
+ * mailto body 长度阈值：不同浏览器对 mailto URL 长度截断口径不一，聚合文本超过该值时不整篇预填，
+ * 降级为描述摘要 + 引导回弹窗复制全文后粘贴。
+ */
+export const FEEDBACK_MAILTO_BODY_LIMIT = 1800;
+
+/** 邮件反馈链接：body 预填聚合文本；超限时降级为描述摘要 + 引导。 */
+export function buildFeedbackMailtoUrl(input: FeedbackPayloadInput): string {
+    const { text } = buildFeedbackPayload(input);
+    const body =
+        text.length <= FEEDBACK_MAILTO_BODY_LIMIT
+            ? text
+            : `问题描述（摘要）：${input.description.trim().slice(0, 200)}\n\n（完整反馈内容较长，未随邮件整篇附带；请回到反馈弹窗点「复制反馈内容」后粘贴到邮件中。）`;
+    return `mailto:${FEEDBACK_SUPPORT_EMAIL}?subject=${encodeURIComponent("画布反馈")}&body=${encodeURIComponent(body)}`;
 }

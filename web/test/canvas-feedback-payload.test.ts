@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildFeedbackMeta, buildFeedbackPayload } from "../src/lib/canvas/feedback-payload";
+import { buildFeedbackMailtoUrl, buildFeedbackManifest, buildFeedbackMeta, buildFeedbackPayload, FEEDBACK_MAILTO_BODY_LIMIT } from "../src/lib/canvas/feedback-payload";
+import { FEEDBACK_SUPPORT_EMAIL } from "../src/lib/canvas/canvas-help-links";
 
 const baseMeta = {
     appVersion: "v1.2.3",
@@ -78,5 +79,37 @@ describe("反馈聚合纯函数 · buildFeedbackPayload", () => {
         for (const [label, value] of Object.entries(result.meta)) {
             expect(result.text).toContain(`- ${label}：${value}`);
         }
+    });
+
+    test("明示区条件行：勾选分享 / 附截图时补齐，缺省时不出现", () => {
+        const without = buildFeedbackManifest({ meta: baseMeta });
+        expect(without.map(([label]) => label)).toEqual(["版本", "页面", "画布 ID", "画布节点数", "时间", "浏览器"]);
+        const shareUrl = "https://example.com/share/canvas/tok123";
+        const withBoth = buildFeedbackManifest({ shareUrl, screenshotName: "shot.png", meta: baseMeta });
+        expect(withBoth.map(([label]) => label)).toEqual(["版本", "页面", "画布 ID", "画布节点数", "时间", "浏览器", "分享链接", "截图文件名"]);
+        expect(withBoth[6][1]).toBe(shareUrl);
+        expect(withBoth[7][1]).toBe("shot.png");
+    });
+
+    test("明示区（含条件行）与复制文本单点一致", () => {
+        const input = { description: "d", screenshotName: "shot.png", shareUrl: "https://example.com/share/canvas/tok123", meta: baseMeta };
+        const { text } = buildFeedbackPayload(input);
+        for (const [label, value] of buildFeedbackManifest(input)) {
+            expect(text).toContain(value);
+            if (label !== "分享链接" && label !== "截图文件名") expect(text).toContain(`- ${label}：${value}`);
+        }
+    });
+
+    test("邮件链接：短文本全文入 body；超限降级为描述摘要 + 引导", () => {
+        const short = buildFeedbackMailtoUrl({ description: "描述", meta: baseMeta });
+        expect(short.startsWith(`mailto:${FEEDBACK_SUPPORT_EMAIL}?subject=`)).toBe(true);
+        const shortBody = decodeURIComponent(short.split("body=")[1]);
+        expect(shortBody).toBe(buildFeedbackPayload({ description: "描述", meta: baseMeta }).text);
+
+        const long = buildFeedbackMailtoUrl({ description: "长".repeat(3000), meta: baseMeta });
+        const longBody = decodeURIComponent(long.split("body=")[1]);
+        expect(longBody).toContain("问题描述（摘要）");
+        expect(longBody).toContain("复制反馈内容");
+        expect(longBody.length).toBeLessThan(FEEDBACK_MAILTO_BODY_LIMIT);
     });
 });

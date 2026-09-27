@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
 import { BookOpen, CircleHelp, Clapperboard, CloudDownload, CloudUpload, CopyPlus, Focus, FolderKanban, Gauge, History, Home, Keyboard, LayoutGrid, LoaderCircle, Menu, MessageSquareHeart, Pencil, Plus, Redo2, Save, Search, Share2, Trash2, Undo2, Upload } from "lucide-react";
-import { Button, Dropdown, Tooltip } from "antd";
+import { Button, Dropdown, Tooltip, type GetRef } from "antd";
 
 import { AppChangelogButton } from "@/components/layout/app-changelog-modal";
 import { WorkspaceCreditGiftMark } from "@/components/layout/workspace-credit-gift-mark";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { canvasDockStyle } from "@/lib/canvas/canvas-aceternity-style";
-import { DOCS_QUICKSTART_URL } from "@/lib/canvas/canvas-help-links";
+import { DOCS_BASE_URL, getDocsQuickstartUrl } from "@/lib/canvas/canvas-help-links";
 import type { CanvasContextSummary } from "@/lib/canvas/canvas-context-summary";
 import type { CanvasShortDramaProgress } from "@/lib/canvas/canvas-short-drama";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -91,6 +91,8 @@ export function CanvasTopBar({
     const titleRef = useRef<HTMLDivElement>(null);
     const [shortcutsOpen, setShortcutsOpen] = useState(false);
     const [feedbackOpen, setFeedbackOpen] = useState(false);
+    // 反馈弹层关闭后焦点归还「?」按钮（菜单项销毁会丢失原焦点）
+    const helpButtonRef = useRef<GetRef<typeof Button>>(null);
 
     const handleShortDramaGuideToggle = () => {
         shortDramaGuide?.onToggle();
@@ -300,20 +302,28 @@ export function CanvasTopBar({
                             placement="bottomRight"
                             menu={{
                                 items: [
-                                    { key: "tutorial", icon: <BookOpen className="size-4" />, label: "使用教程", onClick: () => window.open(DOCS_QUICKSTART_URL, "_blank", "noopener,noreferrer") },
+                                    { key: "tutorial", icon: <BookOpen className="size-4" />, label: DOCS_BASE_URL ? "使用教程" : "使用教程（教程编写中）", disabled: !DOCS_BASE_URL, onClick: () => { const url = getDocsQuickstartUrl(); if (url) window.open(url, "_blank", "noopener,noreferrer"); } },
                                     { key: "shortcuts", icon: <Keyboard className="size-4" />, label: "快捷键", onClick: () => setShortcutsOpen(true) },
                                     { key: "feedback", icon: <MessageSquareHeart className="size-4" />, label: "反馈", onClick: () => setFeedbackOpen(true) },
                                     { key: "changelog", label: <AppChangelogButton className="flex w-full items-center gap-2 text-left" showLabel label="最近更新" /> },
                                 ],
                             }}
                         >
-                            <Button type="text" className="canvas-topbar-action !h-10 !w-10 !min-w-10 !rounded-xl !p-0" style={{ color: theme.node.text }} icon={<CircleHelp className="size-4" />} aria-label="帮助" />
+                            <Button ref={helpButtonRef} type="text" className="canvas-topbar-action !h-10 !w-10 !min-w-10 !rounded-xl !p-0" style={{ color: theme.node.text }} icon={<CircleHelp className="size-4" />} aria-label="帮助" />
                         </Dropdown>
                     </CanvasTopBarTooltip>
                 </div>
             </div>
             <CanvasShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-            <CanvasFeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} projectId={feedbackContext?.projectId} nodeCount={feedbackContext?.nodeCount} />
+            <CanvasFeedbackDialog
+                open={feedbackOpen}
+                onClose={() => {
+                    setFeedbackOpen(false);
+                    window.requestAnimationFrame(() => helpButtonRef.current?.focus());
+                }}
+                projectId={feedbackContext?.projectId}
+                nodeCount={feedbackContext?.nodeCount}
+            />
         </>
     );
 }
