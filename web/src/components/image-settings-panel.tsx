@@ -4,10 +4,10 @@ import { Switch } from "@/components/ui/base/switch";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { buildImageResolutionOptions, formatImageResolutionSize, imageRatioForSize, imageResolutionChoices, imageResolutionOption, imageSizeForResolution, supportsImageResolutionPresets, type ImageResolutionChoice } from "@/lib/image-resolution-tiers";
-import { imageResolutionUsesQuality, imageTierAvailable, imageQualityForTier } from "@/lib/image-size-presets";
+import { hasPriceTierForImageSelection, IMAGE_QUALITY_TIERS, imageResolutionUsesQuality, imageTierAvailable, imageQualityForTier, type EcomChannelPreset, type ImageQualityTier } from "@/lib/image-size-presets";
 import { modelCapabilityConfigFor, normalizeImageValue, type ImageCapabilityConfig } from "@/lib/model-capabilities";
-import { mergedImageCapabilityConfig } from "@/lib/model-selection";
-import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
+import { imagePriceTiersForModel, mergedImageCapabilityConfig } from "@/lib/model-selection";
+import { type AiConfig } from "@/stores/use-config-store";
 
 const qualityOptions = [
     { value: "auto", label: "自动" },
@@ -44,6 +44,23 @@ const aspectOptions: AspectOption[] = [
     { value: "auto", label: "auto", width: 0, height: 0, icon: "auto" },
 ];
 
+/** O-03 电商场景预设槽（仅节点 composer 路径由 popover 传入；不传 = 零变化，批量/审批/蒙版不感知）。 */
+export type ImageSettingsEcomPresetSlot = {
+    presets: EcomChannelPreset[];
+    activeId?: string;
+    banner?: string;
+    suggestions?: { id: string; label: string }[];
+    onApply: (id: string) => void;
+    onClear: () => void;
+    onSelectModel?: (id: string) => void;
+};
+
+/** O-03 默认画质档位一行（economy/standard/flagship；写入用户级创作偏好，V1 形态）。 */
+export type ImageSettingsQualityTierSlot = {
+    value: ImageQualityTier | null;
+    onChange: (tier: ImageQualityTier) => void;
+};
+
 type ImageSettingsPanelProps = {
     config: AiConfig;
     onConfigChange: (key: "quality" | "size" | "transparentBackground", value: string) => void;
@@ -58,9 +75,15 @@ type ImageSettingsPanelProps = {
     quickCount?: number;
     /** 局部编辑等场景需要先允许选择参数，由后端负责最终计费校验。 */
     bypassPriceGuard?: boolean;
+    /** O-03：电商场景预设行（可选）。 */
+    ecomPresets?: ImageSettingsEcomPresetSlot;
+    /** O-03：默认画质档位控件（可选）。 */
+    qualityTierControl?: ImageSettingsQualityTierSlot;
+    /** O-03：比例网格角标（aspect → 预设名列表；纯展示）。 */
+    aspectBadges?: Record<string, string[]>;
 };
 
-export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 3, bypassPriceGuard = false }: ImageSettingsPanelProps) {
+export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 3, bypassPriceGuard = false, ecomPresets, qualityTierControl, aspectBadges }: ImageSettingsPanelProps) {
     const [snapDimensionToStep, setSnapDimensionToStep] = useState(true);
     const profile = mergedImageCapabilityConfig(config, config.model || config.imageModel);
     const normalized = normalizeImageValue(profile, config);
@@ -88,7 +111,14 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
 	const activeQualityOptions = profile.quality.values.map((value) => qualityOptions.find((item) => item.value === value) || { value, label: value });
 	// 分辨率档 = quality 档位映射 ∪ 后台 presets 分组 tier(quality 漏配档位时以 presets 为准, 如 Grok Imagine Image Edit)。
 	const imageTierChoices = (["1k", "2k", "4k"] as const).filter((tier) => imageTierAvailable(profile, tier) || profile.size.presets?.some((preset) => preset.tier === tier));
-	const priceTiers = imageModelPriceTiers(config);
+    const priceTiers = imagePriceTiersForModel(config, config.model || config.imageModel);
+    const badgeFor = (item: AspectOption): string[] | undefined => {
+        if (!aspectBadges) return undefined;
+        const byLabel = aspectBadges[item.label];
+        if (byLabel?.length) return byLabel;
+        const ratio = item.size ? imageRatioForSize(item.size) : "";
+        return ratio ? aspectBadges[ratio] : undefined;
+    };
     const selectAspect = (value: string) => {
         const option = availableAspects.find((item) => item.value === value);
         onConfigChange("size", option ? imageOptionValue(profile, option) : "auto");
@@ -126,6 +156,68 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 }}
             >
                 {showTitle ? <div className="text-base font-semibold">图像设置</div> : null}
+                {ecomPresets ? <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                        <SettingTitle color={theme.node.groupTitle}>电商场景</SettingTitle>
+                        {ecomPresets.activeId ? (
+                            <button
+                                type="button"
+                                className="cursor-pointer text-[11px] leading-none opacity-65 hover:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                style={{ outlineColor: theme.node.muted, color: theme.node.text }}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={ecomPresets.onClear}
+                            >
+                                恢复默认
+                            </button>
+                        ) : null}
+                    </div>
+                    <div className="canvas-settings-group space-y-1.5">
+                        <div className="flex flex-wrap gap-1">
+                            {ecomPresets.presets.map((preset) => (
+                                <OptionPill key={preset.id} selected={ecomPresets.activeId === preset.id} theme={theme} onClick={() => ecomPresets.onApply(preset.id)}>
+                                    <span title={preset.hint}>{preset.label}</span>
+                                </OptionPill>
+                            ))}
+                        </div>
+                        {ecomPresets.activeId ? (() => {
+                            const activePreset = ecomPresets.presets.find((preset) => preset.id === ecomPresets.activeId);
+                            return activePreset ? <div className="text-[10px] leading-snug opacity-65">已应用：{activePreset.hint}</div> : null;
+                        })() : null}
+                        {ecomPresets.banner ? <div className="text-[10px] leading-snug opacity-85">{ecomPresets.banner}</div> : null}
+                        {ecomPresets.suggestions?.length ? (
+                            <div className="flex flex-wrap items-center gap-1 text-[10px] leading-none">
+                                <span className="opacity-65">建议换用：</span>
+                                {ecomPresets.suggestions.map((suggestion) => ecomPresets.onSelectModel ? (
+                                    <button
+                                        key={suggestion.id}
+                                        type="button"
+                                        className="cursor-pointer rounded-md px-1.5 py-1 leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                        style={{ outlineColor: theme.node.muted, background: theme.toolbar.itemHover, color: theme.node.text }}
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onClick={() => ecomPresets.onSelectModel?.(suggestion.id)}
+                                    >
+                                        {suggestion.label}
+                                    </button>
+                                ) : (
+                                    <span key={suggestion.id} className="rounded-md px-1.5 py-1" style={{ background: theme.toolbar.itemHover }}>{suggestion.label}</span>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+                </div> : null}
+                {qualityTierControl ? <div className="space-y-1.5">
+                    <SettingTitle color={theme.node.groupTitle}>默认画质</SettingTitle>
+                    <div className="canvas-settings-group space-y-1">
+                        <div className="grid grid-cols-3 gap-1.5">
+                            {IMAGE_QUALITY_TIERS.map((tier) => (
+                                <OptionPill key={tier.id} selected={qualityTierControl.value === tier.id} theme={theme} onClick={() => qualityTierControl.onChange(tier.id)}>
+                                    {tier.label}
+                                </OptionPill>
+                            ))}
+                        </div>
+                        <div className="text-[10px] leading-snug opacity-60">新节点与切换模型时按此档吸附；模型不支持时自动回退。</div>
+                    </div>
+                </div> : null}
                 {availableAspects.length ? <div className="space-y-1.5">
                     <SettingTitle color={theme.node.groupTitle}>比例</SettingTitle>
                     <div className="canvas-settings-group space-y-2">
@@ -148,11 +240,12 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 key={item.value}
                                 type="button"
                                 aria-pressed={selectedAspect?.value === item.value}
-                                className="canvas-settings-option flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                className="canvas-settings-option relative flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                 style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => selectAspect(item.value)}
                             >
+                                {badgeFor(item) ? <span aria-hidden="true" title={`电商预设：${badgeFor(item)!.join("、")}`} className="pointer-events-none absolute right-1 top-1 size-1.5 rounded-full" style={{ background: theme.node.activeStroke }} /> : null}
                                 <AspectIcon type={item.icon} width={item.width} height={item.height} color="currentColor" />
                                 <span className="whitespace-nowrap">{item.label}</span>
                             </button>
@@ -271,20 +364,6 @@ export function imageSizeLabel(size: string) {
     if (size === "auto") return "自动";
     const resolutionLabel = formatImageResolutionSize(size, buildImageResolutionOptions([size]));
     return resolutionLabel !== size ? resolutionLabel : aspectOptions.find((item) => (item.size || item.value) === size || item.value === size)?.label || size;
-}
-
-function imageModelPriceTiers(config: AiConfig) {
-	const channel = resolveModelChannel(config, config.model || config.imageModel);
-	const cost = channel.modelCosts?.find((item) => item.model === modelOptionName(config.model || config.imageModel));
-	return cost?.logicalPriceTiers || [];
-}
-
-function hasPriceTierForImageSelection(tiers: ReturnType<typeof imageModelPriceTiers>, quality: string, size: string) {
-	if (!tiers.length) return true;
-	return tiers.some((tier) => {
-		const selector = tier.selector || {};
-		return (!selector.quality || selector.quality === "*" || selector.quality === quality.toLowerCase()) && (!selector.size || selector.size === "*" || selector.size === size.toLowerCase());
-	});
 }
 
 /** 共享分段 pill(参数面板统一控件, audio/video 面板同源消费)。

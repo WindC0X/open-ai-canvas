@@ -490,6 +490,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                                         placement={expanded ? "topRight" : "topLeft"}
                                         buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
                                         onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}
+                                        onSelectModel={(model) => onConfigChange(node.id, { model, ...defaultImageParamsForModel(config, model) })}
                                         onMissingConfig={() => navigateToSettings({ continueCreation: true })}
                                         onOpenChange={expanded ? undefined : onImageSettingsOpenChange}
                                     />
