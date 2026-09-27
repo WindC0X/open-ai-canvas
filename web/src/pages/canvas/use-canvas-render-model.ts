@@ -430,15 +430,18 @@ export function useCanvasRenderModel({
         }
         return map;
     }, [semanticNodes]);
+    // 控制线域外授权 2026-09-28，根因报告在案：技能引用不进节点引用面——
+    // 装技能后 hover 引用条会把 kind:"skill" 误渲染为 T+Image 缺省（fork 遗留休眠缺陷，装技能后激活）；
+    // 技能仅保留在 Agent 对话 composer 的 @ 候选面（canvas-cloud-agent-panel 自行合并），tool 引用照旧注入。
     const mentionReferencesByNodeId = useMemo(() => {
         const map = buildCanvasNodeMentionReferenceMap(semanticNodes, connections, visibleNodes);
-        if (!skillMentionReferences.length && toolMentionReferencesByNodeId.size === 0) return map;
+        if (toolMentionReferencesByNodeId.size === 0) return map;
         map.forEach((references, nodeId) => {
-            const extras = [...skillMentionReferences, ...(toolMentionReferencesByNodeId.get(nodeId) ?? [])];
+            const extras = toolMentionReferencesByNodeId.get(nodeId) ?? [];
             if (extras.length) map.set(nodeId, [...references, ...extras]);
         });
         return map;
-    }, [connections, semanticNodes, skillMentionReferences, toolMentionReferencesByNodeId, visibleNodes]);
+    }, [connections, semanticNodes, toolMentionReferencesByNodeId, visibleNodes]);
 
     return {
         activeDirectorNode,
