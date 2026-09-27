@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { ModelPicker } from "@/components/model-picker";
 import { CreditSymbol } from "@/constant/credits";
 import { defaultImageParamsForModel } from "@/lib/model-selection";
-import { isOutpaintEligible, modelCapabilityConfigFor } from "@/lib/model-capabilities";
+import { isOutpaintEligible, modelCapabilityConfigFor, outpaintTierBadge, outpaintTierRank } from "@/lib/model-capabilities";
 import { modelQuoteRequest, requestCreditCost } from "@/lib/model-pricing";
 import {
     buildImageResolutionOptions,
@@ -51,6 +51,8 @@ const ORIGINAL_RATIO_KEY = "original";
 
 // 通用比例组（size.parameter 非 aspect_ratio 的模型走这组，只约束框几何，不进提交参数）。
 const GENERIC_RATIO_OPTIONS = ["1:1", "4:3", "3:4", "16:9", "9:16"];
+// 扩图专属空态/禁用文案（2026-09-28 用户裁定：白名单为空须明示，不静默失败）。
+const NO_ELIGIBLE_OUTPAINT_MESSAGE = "当前没有支持扩图的模型";
 
 const CORNER_HANDLES: Array<{ edge: OutpaintDragEdge; className: string }> = [
     { edge: "topLeft", className: "-left-1.5 -top-1.5 cursor-nwse-resize" },
@@ -156,11 +158,19 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     }, []);
     const [ratioKey, setRatioKey] = useState<string>(ORIGINAL_RATIO_KEY);
     // 扩图白名单（2026-09-28 用户裁定）：只有「推荐/可用」档模型进入扩图模型槽（硬过滤）。
+    // 排序：推荐档优先（默认选中第一个=推荐），同档保持配置顺序（sort 稳定）。
     const eligibleModels = useMemo(
-        () => selectableModelsByCapability(config, "image").filter((candidate) => isOutpaintEligible(modelCapabilityConfigFor(config, candidate).image)),
+        () =>
+            selectableModelsByCapability(config, "image")
+                .filter((candidate) => isOutpaintEligible(modelCapabilityConfigFor(config, candidate).image))
+                .sort((a, b) => outpaintTierRank(modelCapabilityConfigFor(config, a).image?.outpaintTier) - outpaintTierRank(modelCapabilityConfigFor(config, b).image?.outpaintTier)),
         [config],
     );
     const filterOutpaintModel = useCallback((candidate: string) => eligibleModels.includes(candidate), [eligibleModels]);
+    const outpaintBadgeForModel = useCallback(
+        (candidate: string) => outpaintTierBadge(modelCapabilityConfigFor(config, candidate).image?.outpaintTier),
+        [config],
+    );
     const [model, setModel] = useState<string>(() => {
         for (const candidate of [node?.metadata?.model, config.model]) {
             if (candidate && eligibleModels.includes(candidate)) return candidate;
@@ -877,6 +887,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         // 叠加档位白名单（2026-09-28 用户裁定）：仅「推荐/可用」出现，未认证不进列表。
                         requirements={{ capability: "image", input: { textCount: 1, imageCount: 1, videoCount: 0, audioCount: 0, characterCount: 0 } }}
                         filterModel={filterOutpaintModel}
+                        badgeForModel={outpaintBadgeForModel}
+                        emptyLabel={NO_ELIGIBLE_OUTPAINT_MESSAGE}
+                        placeholder={noEligibleModels ? NO_ELIGIBLE_OUTPAINT_MESSAGE : undefined}
                         hideIncompatible
                         placement="topRight"
                         variant="creation"
@@ -993,7 +1006,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     disabled={!canExecute}
                     onClick={handleExecute}
                     style={{ "--canvas-composer-submit-action": "var(--primary)", "--canvas-composer-submit-action-fg": "var(--primary-foreground)" } as CSSProperties}
-                    aria-label={canExecute ? `预计消耗 ${credits} 积分，执行扩图` : noEligibleModels ? "当前没有支持扩图的模型" : "当前模型不支持扩图，请更换模型"}
+                    aria-label={canExecute ? `预计消耗 ${credits} 积分，执行扩图` : noEligibleModels ? NO_ELIGIBLE_OUTPAINT_MESSAGE : "当前模型不支持扩图，请更换模型"}
                 >
                     {canExecute && creditsEnabled ? (
                         <span className="canvas-node-composer-submit-cost">

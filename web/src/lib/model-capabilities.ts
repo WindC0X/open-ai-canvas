@@ -224,6 +224,20 @@ export function isOutpaintEligible(image?: Pick<ImageCapabilityConfig, "outpaint
     return image?.outpaintTier === "recommended" || image?.outpaintTier === "capable";
 }
 
+/** 档位排序权重：推荐 < 可用 < 未认证（扩图候选与默认选中按此优先）。 */
+export function outpaintTierRank(tier?: ImageOutpaintTier): number {
+    return tier === "recommended" ? 0 : tier === "capable" ? 1 : 2;
+}
+
+/** 档位徽章（模型槽行内呈现；2026-09-28 用户反馈：用户视角需能分辨推荐/可用）。 */
+export type OutpaintTierBadge = { label: string; tone: "accent" | "muted"; title?: string };
+
+export function outpaintTierBadge(tier?: ImageOutpaintTier): OutpaintTierBadge | null {
+    if (tier === "recommended") return { label: "推荐", tone: "accent", title: "扩图推荐档" };
+    if (tier === "capable") return { label: "可用", tone: "muted", title: "扩图可用档：未验证扩图效果" };
+    return null;
+}
+
 export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = ""): ImageCapabilityConfig {
     const image: ImageCapabilityConfig = {
         references: { promptMaxChars: 32000, maxImages: 16, maxImageBytes: 30 * 1024 * 1024, maskSupported: true },

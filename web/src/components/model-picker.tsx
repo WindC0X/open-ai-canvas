@@ -59,6 +59,10 @@ type ModelPickerProps = {
     hideIncompatible?: boolean;
     /** 额外候选过滤（如扩图档位白名单，2026-09-28）：不满足的模型直接不进列表；缺省不过滤。 */
     filterModel?: (model: string) => boolean;
+    /** 行内档位徽章（如扩图「推荐/可用」，2026-09-28）：返回 null 不渲染；缺省不渲染。 */
+    badgeForModel?: (model: string) => { label: string; tone?: "accent" | "muted"; title?: string } | null;
+    /** 空态文案覆盖（如扩图专用「当前没有支持扩图的模型」）；缺省用通用文案。 */
+    emptyLabel?: string;
 };
 
 export function ModelPicker({
@@ -81,6 +85,8 @@ export function ModelPicker({
     grouping = "channel",
     hideIncompatible = false,
     filterModel,
+    badgeForModel,
+    emptyLabel,
 }: ModelPickerProps) {
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const pickerId = useId();
@@ -426,6 +432,7 @@ export function ModelPicker({
         const pinned = pinnedModels.includes(displayModel);
         const mediaTypes = modelMediaTypes(config, displayModel, capability);
         const priceForChip = showOptionPrices && creditsEnabled ? modelMenuPrice(config, displayModel, capability, true) : null;
+        const rowBadge = badgeForModel?.(displayModel) ?? null;
         return (
             <div key={groupLabel + ":" + modelGroup.key} className="canvas-model-picker-rowgroup">
                 <button
@@ -475,6 +482,14 @@ export function ModelPicker({
                             disabledReason={disabledReason}
                             inlineBadges={(
                                 <>
+                                    {rowBadge ? (
+                                        <span
+                                            className={cn("canvas-model-picker-chip canvas-model-picker-chip-text", rowBadge.tone === "accent" && "is-accent")}
+                                            title={rowBadge.title ?? rowBadge.label}
+                                        >
+                                            {rowBadge.label}
+                                        </span>
+                                    ) : null}
                                     {priceForChip ? <ModelPrice price={priceForChip} chip /> : null}
                                     {mediaTypes.map((item) => (
                                         <span key={item.kind} className="canvas-model-picker-chip canvas-model-picker-chip-icon" title={item.label}>
@@ -663,7 +678,7 @@ export function ModelPicker({
             {MenuBody()}
             {drillMode === "flat" && !visibleGroups.length ? (
                 <div className="canvas-model-picker-empty" style={{ color: theme.node.muted }}>
-                    {emptyModelLabel(config, capability)}
+                    {emptyLabel ?? emptyModelLabel(config, capability)}
                 </div>
             ) : null}
         </div>
