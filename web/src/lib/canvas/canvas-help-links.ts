@@ -9,7 +9,7 @@
 /** 文档站基址（产品域名文档站待定；禁止指向 GitHub。就绪后填入即启用，如 "https://docs.example.com"）。 */
 export const DOCS_BASE_URL = "";
 
-/** 教程目标相对路径（S4 文档内容定稿后按实际路径同步）。 */
+/** 教程目标相对路径（S4 2026-09-28 定稿结构：getting-started/quick-start；产品域名就绪后随 DOCS_BASE_URL 启用）。 */
 export const DOCS_QUICKSTART_PATH = "/docs/getting-started/quick-start";
 
 /** 教程完整链接；`DOCS_BASE_URL` 为空时返回空串（调用方按禁用态处理）。 */

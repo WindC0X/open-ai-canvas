@@ -1,0 +1,26 @@
+# 影策 · llms.txt
+<!-- 手工维护：文档结构变更时同步更新（不建生成工程）。 -->
+
+> 影策（open-ai-canvas）用户与开发文档的机器可读索引。文档总索引见 docs/index.md。
+
+## 用户文档
+
+- [快速开始](content/docs/getting-started/quick-start.mdx)：10 分钟跑通注册 → 首节点 → 首图 → Agent
+- [功能清单](content/docs/getting-started/features.mdx)：当前项目已实现的核心工作台能力与使用入口
+
+## 参考文档
+
+- [插件系统设计](content/docs/reference/plugins/plugin-system.mdx)：影策统一插件系统的扩展边界、Manifest 合同与 Eagle 外部素材来源方案
+- [插件显示形态](content/docs/reference/plugins/plugin-surfaces.mdx)：画布插件的非全屏、全屏和混合工作台形态
+- [AI 审美批改画布插件](content/docs/reference/plugins/ai-art-critique.mdx)：面向图片创作的 AI 视觉分析、问题定位和修改建议插件设计
+- [支付插件运行时](content/docs/reference/plugins/payment-plugin-runtime.mdx)：影策支付插件的运行时协议、原生包边界与安全约束
+- [本地开发](content/docs/reference/backend/local-development.mdx)：在宿主机启动影策前后端开发服务
+- [HTTP API 合同](content/docs/reference/backend/http-api.mdx)：信封、错误码与 OpenAPI
+- [代码功能地图](content/docs/reference/backend/code-map.mdx)：从产品功能快速定位主要代码入口
+- [后端数据库](content/docs/reference/backend/backend-database.mdx)：影策后端核心持久化表与状态边界
+- [画布 Agent 外观与 Live2D](content/docs/reference/backend/canvas-agent-appearance.mdx)：助手名称、文案、模型导入和运行库部署
+- [画布 Agent 提示词与用户意图](content/docs/reference/backend/agent-prompt-policy.mdx)：云端画布 Agent 的行为策略、上下文来源、运行提醒和回归边界
+- [视频 Token 计费](content/docs/reference/backend/video-token-billing.mdx)：所有视频模型共用火山式公式定价、预留与用量结算
+- [任务缓存与队列稳定性](content/docs/reference/backend/task-runtime-stability.mdx)：热点回源保护、并发租约、故障边界和上线验收
+- [在线更新与安全回退](content/docs/reference/backend/system-update.mdx)：Host Updater、Release 检查、数据库备份迁移、健康验证与异常回退机制
+- [NewAPI Video Generations Channel 2](content/docs/reference/backend/newapi-channel-2.mdx)：Channel 2 视频任务创建、轮询与上游任务同步延迟处理

@@ -62,4 +62,4 @@ Ark 协议读取[查询视频任务接口](https://www.volcengine.com/docs/82379
 
 前后端需一起发布，并执行 schema v25 `video_token_formula_snapshot`：在 `billing_orders` 增加 `video_formula_tokens`（默认 0）与 `usage_source`（默认空字符串），不重算历史订单、不改既有模型售价。关闭自动迁移的部署先执行新版本 `migrate-schema up`、`migrate-schema verify`，然后启动后端。回退旧二进制需匹配数据库备份和 schema 版本，不能手工伪造迁移记录；旧程序也不支持新音频 selector 和非 Ark 视频 Token 配置。本次仅实现并测试迁移，没有操作真实账号数据库。
 
-本地测试覆盖模型像素、公式取整、参考时长、音频分档、免费档、渠道与逻辑模型报价、任务预留一致性，以及真实用量的退差、补扣和非法值拒绝。真实账号页面及真实上游账单仍需按[待测试清单](/docs/progress/pending-test)验收。
+本地测试覆盖模型像素、公式取整、参考时长、音频分档、免费档、渠道与逻辑模型报价、任务预留一致性，以及真实用量的退差、补扣和非法值拒绝。真实账号页面及真实上游账单仍需按[待测试清单](/docs/plans/pending-test)验收。

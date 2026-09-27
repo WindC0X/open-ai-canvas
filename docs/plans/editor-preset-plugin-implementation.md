@@ -265,7 +265,7 @@
 3. 新建 `backend/internal/service/render/`：ffmpeg 导出任务，消费前端传来的 `TimelineRenderPlan`（`buildTimelineRenderPlan` 产物，前端序列化上传）；按 plan.steps 执行（trim → gap → concat → subtitle → burn）；产物写入资源存储。
 4. handler：`/api/timeline/transcription`（提交/查询/取消）、`/api/timeline/render`（提交/查询/取消），响应统一 `{ code, data, msg }`；写路径强校验归属与配额。
 5. 前端任务客户端：`web/src/services/api/timeline-tasks.ts`（经 `apiClient`，复用 `request<T>`；不新建 axios 实例），`editor-transcription` 与 `editor-export` 插件消费。
-6. 数据库字段/表变化同步 `docs/content/docs/backend/backend-database.mdx`（AGENTS.md 第 5 节义务）。
+6. 数据库字段/表变化同步 `docs/content/docs/reference/backend/backend-database.mdx`（AGENTS.md 第 5 节义务）。
 
 产出：转写/导出为异步任务，浏览器 wasm 仅为无后端降级。
 验证：后端 `cd backend && go test ./...`；任务冒烟路径（提交→轮询→产物可访问）。
@@ -279,7 +279,7 @@
 1. 权限执行校验：新建 `web/src/lib/plugins/plugin-permission-check.ts`，宿主 API 调用点（命令入队、转写提交、导出提交、素材读取、外部打开）统一走 `checkPermission(pluginId, permission)`，fail-closed（未声明 → 拒绝并报错；后续按 astravia 语义可扩展 warn+noop / 抛错三档，首版只做 fail-closed）。
 2. 黄金文件：命令序列黄金文件（§7.1）、渲染计划黄金文件（§7.2）入库为测试夹具。
 3. 浏览器验证清单执行（§7.4），关键路由/明暗主题/滚动/空态/核心交互逐项记录。
-4. 文档同步：`docs/content/docs/progress/todo.mdx` 更新待办；已实现未确认项写入 `docs/content/docs/progress/pending-test.mdx`；功能清单 `docs/content/docs/overview/features.mdx` 补编辑器插件化条目。
+4. 文档同步：已实现未确认项写入 `docs/plans/pending-test.mdx`；功能清单 `docs/content/docs/getting-started/features.mdx` 补编辑器插件化条目。
 
 产出：无权限插件调用编辑器 API 被拒绝且界面给出明确提示。
 验证：权限拒绝路径测试（§7.3）；全量构建通过。
@@ -436,7 +436,7 @@ export function createEditorCommandRegistry(): {
 - `web/src/lib/plugins/plugin-types.ts`（v2 类型）、`plugin-registry.ts`（v2 分支 + 插槽联动）、`builtin/index.ts`（editor 预设入口）
 - `web/src/application.tsx`（编辑器页面壳接线插槽；不新增业务分支）
 - `backend/internal/model/models_task.go`（任务类型）、`backend/internal/handler/`（transcription/render handler）
-- `docs/content/docs/backend/backend-database.mdx`（任务表变化）、`docs/content/docs/progress/todo.mdx`、`pending-test.mdx`、`overview/features.mdx`
+- `docs/content/docs/reference/backend/backend-database.mdx`（任务表变化）、`docs/plans/pending-test.mdx`、`docs/content/docs/getting-started/features.mdx`
 
 ## 7. 测试与验证策略
 

@@ -10,7 +10,7 @@
 
 - [画布批量生成一致性治理](design/canvas-consistency-repair.mdx)：节点丢失、批次状态与引用解析的根因、已实施边界重构、回归证据和仍待验收的性能/同步场景。
 
-- [画布 Agent 外观与 Live2D](content/docs/backend/canvas-agent-appearance.mdx)：独立助手名称、文案模板、模型包边界、Core 部署和验收要求。
+- [画布 Agent 外观与 Live2D](content/docs/reference/backend/canvas-agent-appearance.mdx)：独立助手名称、文案模板、模型包边界、Core 部署和验收要求。
 
 - [云端 Agent 架构优化方案](design/cloud-agent-architecture-optimization.md)：跨端生成合同、引用绑定、审批依赖、报价预算、运行存储与工作上下文的现状审查、分阶段方案和验收门槛（提案，未实施）。
 
@@ -53,13 +53,13 @@
 
 ## 按约定维护的文档（`docs/content/docs/`）
 
-功能、代码地图、待办、待测试分别维护在以下页面；尚未建立的专题会在对应任务中补齐：
+功能、代码地图、待测试分别维护在以下页面；尚未建立的专题会在对应任务中补齐：
 
-- [AI 审美批改画布插件](content/docs/plugins/ai-art-critique.mdx)
-- [功能](content/docs/overview/features.mdx)
-- [本地开发](content/docs/backend/local-development.mdx)
-- [HTTP API 合同](content/docs/backend/http-api.mdx)
-- [后端数据库](content/docs/backend/backend-database.mdx)
-- [代码地图](content/docs/backend/code-map.mdx)
-- [待办](content/docs/progress/todo.mdx)
-- [待测试](content/docs/progress/pending-test.mdx)
+- [快速开始](content/docs/getting-started/quick-start.mdx)
+- [功能](content/docs/getting-started/features.mdx)
+- [AI 审美批改画布插件](content/docs/reference/plugins/ai-art-critique.mdx)
+- [本地开发](content/docs/reference/backend/local-development.mdx)
+- [HTTP API 合同](content/docs/reference/backend/http-api.mdx)
+- [后端数据库](content/docs/reference/backend/backend-database.mdx)
+- [代码地图](content/docs/reference/backend/code-map.mdx)
+- [待测试](plans/pending-test.mdx)

@@ -1,0 +1,6 @@
+{
+  "title": "先认识",
+  "root": true,
+  "defaultOpen": true,
+  "pages": ["quick-start", "features"]
+}

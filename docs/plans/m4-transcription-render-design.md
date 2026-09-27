@@ -140,6 +140,6 @@ stage/progress 由 `processTimelineTranscription` 内更新：
 - 无 schema 变更（复用 tasks 表）。任务 type 以字符串存储，无须迁移。
 - `auth.go` 的 API 前缀白名单已加 `timeline`（防 NoRoute 短代理把未匹配的
   `/api/timeline/*` 当渠道请求）。
-- 同步更新 `docs/content/docs/progress/pending-test.mdx`（gitignore，仅本地）与
+- 同步更新 `docs/plans/pending-test.mdx`（gitignore，仅本地）与
   Runbook M4 章节的 API 表格（端点/入参/出参），以及权限文档中的 feature gate。
   本文 §2–§4 已按实现回写，仍以代码为准。
