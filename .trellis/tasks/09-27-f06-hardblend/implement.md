@@ -58,3 +58,31 @@
 - mock 临时环境：ddcat base_url 已还原 `https://api.ddcat.pronhubcn.com`；CHANNEL_000007 f06-mock
   留存于测试库（不进 UI 菜单）；mock 进程已停止。
 - 待用户/控制线：真机主观确认贴回效果；上游恢复期偶发 500 属外部依赖。
+
+## 验收期发现（2026-09-27 下午·用户真机反馈，均带证据待裁定）
+
+### N1. nano-banana2 默认「原图比例」回落 1:1 → 上游出方图、贴回按纪律跳过（前端行为待裁定）
+- 链路：overlay `submitSize`（aspect_ratio 制）对 `ORIGINAL_RATIO_KEY` 不在枚举内 → 回落 `sizeFallback`=模型默认 `"1:1"`
+  （canvas-node-outpaint-overlay.tsx:~252）→ 后端 gemini 桥 `geminiImageConfigFor` 把 `"1:1"` 映射 `imageConfig.aspectRatio`
+  （provider_image.go:194）→ 上游严格出 1:1 方图。nano 枚举实际含 `3:2`（= 1536x1024 原图比例，model_capability.go GeminiImage 段）。
+- 实测（助手跑单 34c5977d → 节点 eh4sgvtNfOa5o1dKjS0bl；及用户两单）：
+  | 运行 | 提交 size | frame | 上游返回 | 比例偏差 | 贴回 |
+  |---|---|---|---|---|---|
+  | 用户 09:18 | "1:1"(回落) | 1536x1025 | 2048x2048 | 0.405 | 跳过（纪律） |
+  | 用户 09:35（手选 3:4） | "3:4" | 1151x1536 | 1792x2400 | 0.0036 | ✅ 0.00% |
+  | 助手 09:5x（默认） | "1:1"(回落) | 1536x1098 | 2048x2048 | 0.336 | 跳过（纪律） |
+- 结论：上游「听话」（手选 3:4 严格出 3:4 + 贴回生效），问题=默认档把"原图比例"静默换成模型默认 1:1。
+  候选修复：原图比例在 aspect_ratio 制下按最近枚举值提交（1.5→3:2），而非模型默认。
+- 附带：结果节点「画幅偏差」角标对 aspect 制模型显示像素推算值（如 2161x1442），而实际提交的是比值串 "1:1"，口径不一致易误读。
+
+### N2. composer 引用缩略图「裂图」= 过期签名 URL 被前端永久缓存（前端 bug，证据实锤）
+- 展示用资源访问签名 TTL=5 分钟（internal/assets/access.go:105 `ttl := 5 * time.Minute`）。
+- `use-resolved-canvas-resource-references.ts` 的 `previewPromiseCache` 对每个引用永久缓存首个解析结果，
+  超过 TTL 后新打开 composer 复用过期签名 URL → 403 → 浏览器裂图。
+- 证据：后端日志 09:37–09:39 同一过期签名（expires=1790472178 即 09:22:58 到期）被反复请求 26 次 403
+  （该签名约 09:17:58 签发给源图资源 a62dabce…，正是首次打开引用面板的时刻）。
+- 修复方向：解析 promise settle 后即从缓存移除（下游 `getResourceAccess` 的 accessCache 已按 expiresAt 处理 TTL）。
+
+### N3. gpt-image-2.5「黑色晕影」= 上游生成产物，贴回本身正确
+- 该单内区回贴 0.00%（inset4，(0,0) 对齐，双副本一致）；黑边/纯黑四角（角落 [0,0,0]、边缘带 49% 亮度<30）为上游 2.5 输出形态。
+- 处理建议：换模型档或渠道反馈；本链无需改动。
