@@ -31,3 +31,14 @@
 
 ## 回滚点
 - 全量 revert；或先撤菜单项保留组件。
+
+
+## S3 执行记录（2026-09-28 · 完成）
+
+- Step 0：`use-canvas-operation-history` 核对 = Agent ops 撤销栈（非通用操作列表），跨 project.tsx 布新状态成本不符 → 「最近操作」按设计风险 3 降级隐藏（本记录+清单备案）；`bunx tsc --noEmit` 基线 0。
+- Step 1：`canvas-help-links.ts`（DOCS_QUICKSTART_URL 与 S4 互链注释 / FEEDBACK_ISSUES_URL=issues/new/choose）+ `feedback-payload.ts`（buildFeedbackMeta / buildFeedbackPayload；白名单 meta；空描述抛错；版本前缀归一）+ `web/test/canvas-feedback-payload.test.ts` 6 用例（确定性/拒绝/敏感排除/分享节缺省/可选缺省/明示一致性）。
+- Step 2：`canvas-feedback-dialog.tsx`（AppModal flush；描述/截图本地预览/分享 toggle 读 getCanvasShare/「将包含以下信息」折叠区；复制=writeText+截图 ClipboardItem 尽力；打开反馈渠道=window.open noopener）。
+- Step 3：顶栏「?」按钮 + 四件套 Dropdown（教程外链 / 快捷键 setShortcutsOpen / 反馈 setFeedbackOpen / 最近更新=AppChangelogButton 菜单行）；`project.tsx` 传 feedbackContext={{projectId, nodeCount}}。
+- Step 4 门禁：tsc 0；build ✓；focused 85 绿（10 文件组）；全量对照见 prd 记录（15 基线红 + 5 超时波动的定性：`bun test --timeout 20000` 下相关文件全绿）。
+- Step 4 真机走查（:3010/:8483；证据 `.local/s3-walkthrough/evidence-notes.md`）：菜单四态、快捷键模态、反馈空/填/复制(s5+payload 捕获)、分享开关双态闭环（临时分享已撤销）、changelog 弹窗存活、教程 URL 拦截验证；方法披露（菜单行真实点击投递间歇失败→DOM 直点补验；剪贴板需真实点击激活；截图陈旧帧现象）。
+- Step 5：正文 + 落卡双 commit，不 push；待控制线复核。

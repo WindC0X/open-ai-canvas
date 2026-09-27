@@ -45,3 +45,11 @@
 - TapNow 表单参照：描述 + 截图 + 分享链接 toggle + 最近操作回放 toggle + 自动附加信息明示（综述 §一/§四）。
 - 「最近操作」项：如 `use-canvas-operation-history` 成本可控则并入聚合（默认勾选可关）；否则记录降级原因（评审门报备）。
 - `pending-test.mdx` 登记（S4 迁移前旧路径）。
+
+
+## S3 实现与验证记录（2026-09-28 · 完成）
+
+- 交付：顶栏「?」帮助菜单（使用教程外链 / 快捷键复用现有 Modal / 反馈聚合弹层 / 最近更新复用 changelog）；新增 `canvas-help-links.ts`、`feedback-payload.ts`（纯函数）、`canvas-feedback-dialog.tsx`；触点薄增 `canvas-project-top-bar.tsx` + `project.tsx`（feedbackContext 传参）。
+- 门禁：tsc 0 / build ✓ / focused 85 绿（10 文件组）/ 全量 2317 测试 → 15 红逐名=冻结基线 + **5 条超时型波动**（ui-kit-retirement/http-ownership 快扫描测试，基线期 3.0-3.4s、当日 5.1-5.9s 超 5s 超时；`--timeout 20000` 全绿，断言本体无红）——已列报告。
+- 真机走查（:3010 / :8483，证据 `.local/s3-walkthrough/`）：四件套逐一可开；反馈表单空态/填写/复制（真实点击 → writeText 结算 ok + toast）、分享开关禁用态与启用态（临时建分享→勾选→payload 含分享节→撤销复核）、changelog 行存活、教程/反馈渠道 window.open URL 拦截验证。
+- 降级与备注：「最近操作」项按任务书降级隐藏（成本原因）；changelog 菜单行为 menuitem+button 双层节点（设计既定）；剪贴板图片/文件选择路径列入 pending-test 真机复核。
