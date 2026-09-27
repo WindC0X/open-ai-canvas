@@ -329,3 +329,15 @@ Review 报告（工作流 4 代理 + 人工复核，OCR 通道失败放弃）后
 - micro-fix（控制线收编 1-7 + 产品裁定 8-10，改完不再回审）：渠道去 GitHub 化（DOCS_BASE_URL 空置待产品域名 + 教程项禁用「教程编写中」；邮箱 fengw5774@gmail.com + 用户群 qm.qq.com 双通道，复制为第一公民）；明示区条件行（buildFeedbackManifest）/ 分享时效提示 / 剪贴板失败降级只读文本框 / 关闭焦点归还「?」/ 对比度提亮 / alt+aria-describedby / 快扫描测试超时 20s rider。
 - 验证：tsc 0 / focused 94 绿（12 文件组）/ build ✓ / 全量 2320 → 15 红逐名=冻结基线、零超时波动；fix 轮走查（.local/s3-walkthrough/ s8-s10）：禁用项零动作、注入拒绝→降级文本框→恢复成功清除闭环、分享条件行+时效提示、焦点归还实测。
 - 提交：f19720e0 + ac180b47（首轮）→ 3b1f49a1 + 43736e44（micro-fix），不 push；S3 封版，转 S4（产品裁定已同步 S4 prd 口径）。
+
+
+---
+
+## 2026-09-28 S4 文档 Diátaxis 重排封版（轻量枝 · 7f527424 + 0083403f）
+
+- 交付：内容层四分组（getting-started/agent/canvas/assets/reference）+ Quickstart 新页 + 静态 llms.txt（16 页索引，手工维护头注）+ pending-test 迁 docs/plans（D6 清账）；17 文件全 R 识别 rename；meta.json ×8（含根与 plugins 新建）。
+- 引用同步：README（3+1 死链全清 + 导航块）/ docs/index.md / AGENTS.md §9 与 3 处路径 / mdx 互链 7 处 / S3 常量注释对齐；活跃面旧路径零命中（豁免明列：.trellis 历史、设计变更日志、recon 快照、构建产物）。
+- .gitignore 五组白名单重写 + `!docs/llms.txt`；曾捕获根 meta.json 被 `docs/content/docs/*` 吞并修正；git check-ignore 逐文件核验。
+- 验证：守卫测试 `docs-diataxis-consistency.test.ts` 4 用例；门禁 tsc 0 / build ✓ / 全量 2324 → 15 红逐名=基线零额外。
+- 控制线封版（2026-09-28）：37 文件对账 / D6 双面 grep 独立复验 0 命中 / 守卫重跑 4 pass / llms 零 GitHub 指向 / quick-start 抽查 全绿；S3 micro-fix 轮一并核证通过。
+- 行政：S1 任务卡归档（`2d1ec7c0`，回执批准）；S4 归档随封版；转 O-03（本枝最后一项）。
