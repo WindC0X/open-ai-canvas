@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
+import { HelpCircle } from "lucide-react";
 
-import { Kbd } from "@/components/ui/base/kbd";
 import type { ToolHoverCardData } from "@/lib/canvas/tool-hover-card-data";
 
+import { NodePreviewMockup } from "./tool-hover-card-mockups";
 import "./tool-hover-card.css";
 
 /** hover 后到出卡的延迟（ms）——对齐既有浮层手感，避免掠过时闪烁 */
@@ -55,7 +56,8 @@ export function isToolHoverCardOpen(state: ToolHoverCardState) {
 }
 
 /* ---------------------------------------------------------------------------
- * 定位：触发器上方优先，空间不足翻到下方；水平居中并夹在视口内
+ * 定位：上方优先、不足翻下；翻下仍出界则整体上移夹进视口；水平居中并夹紧。
+ * 高卡（400px+）必须纵向 clamp——矮卡时代的"翻下即结束"会在视口底部截断。
  * ------------------------------------------------------------------------- */
 
 export type ToolHoverCardPosition = { top: number; left: number; placement: "above" | "below" };
@@ -65,15 +67,30 @@ export function computeToolHoverCardPosition(
     card: { width: number; height: number },
     viewport: { width: number; height: number },
 ): ToolHoverCardPosition {
-    const fitsAbove = anchor.top - CARD_TRIGGER_GAP - card.height >= CARD_EDGE_MARGIN;
-    const top = fitsAbove ? anchor.top - CARD_TRIGGER_GAP - card.height : anchor.bottom + CARD_TRIGGER_GAP;
-    const maxLeft = Math.max(CARD_EDGE_MARGIN, viewport.width - CARD_EDGE_MARGIN - card.width);
-    const left = Math.min(Math.max(anchor.left + anchor.width / 2 - card.width / 2, CARD_EDGE_MARGIN), maxLeft);
-    return { top, left, placement: fitsAbove ? "above" : "below" };
+    // 视图装不下整卡时按 max-height 折算（CSS 同款兜底：max-height: calc(100vh - 16px)）
+    const maxHeight = Math.max(viewport.height - CARD_EDGE_MARGIN * 2, 0);
+    const cardHeight = Math.min(card.height, maxHeight);
+    const cardWidth = Math.min(card.width, Math.max(viewport.width - CARD_EDGE_MARGIN * 2, 0));
+
+    const maxLeft = Math.max(CARD_EDGE_MARGIN, viewport.width - CARD_EDGE_MARGIN - cardWidth);
+    const left = Math.min(Math.max(anchor.left + anchor.width / 2 - cardWidth / 2, CARD_EDGE_MARGIN), maxLeft);
+
+    const aboveTop = anchor.top - CARD_TRIGGER_GAP - cardHeight;
+    if (aboveTop >= CARD_EDGE_MARGIN) {
+        return { top: aboveTop, left, placement: "above" };
+    }
+    const belowTop = anchor.bottom + CARD_TRIGGER_GAP;
+    if (belowTop + cardHeight <= viewport.height - CARD_EDGE_MARGIN) {
+        return { top: belowTop, left, placement: "below" };
+    }
+    // 翻下仍出界：整体上移夹进视口（贴底对齐视口下缘留白）。
+    const clampedTop = Math.min(Math.max(belowTop, CARD_EDGE_MARGIN), Math.max(viewport.height - CARD_EDGE_MARGIN - cardHeight, CARD_EDGE_MARGIN));
+    return { top: clampedTop, left, placement: "below" };
 }
 
 /* ---------------------------------------------------------------------------
- * 卡片内容：图标 + 名称/职责 + 快捷键徽章 + 可选预览图（纯展示，SSR 可测）
+ * 卡片内容（flora 四层结构，纯展示、SSR 可测）：
+ * L1 头部（图标块 + 标题 + tagline） / L2 长句 / L3 预览（工具类大图标 · 节点类 mockup） / L4 footer 引导行
  * ------------------------------------------------------------------------- */
 
 export type ToolHoverCardContentProps = {
@@ -84,40 +101,58 @@ export type ToolHoverCardContentProps = {
 } & HTMLAttributes<HTMLDivElement>;
 
 export function ToolHoverCardContent({ data, label, icon, ref, className, ...rest }: ToolHoverCardContentProps) {
-    const [previewFailed, setPreviewFailed] = useState(false);
-    useEffect(() => setPreviewFailed(false), [data.preview]);
-    const shortcutKeys = data.shortcutKeys ?? [];
+    const primaryCombo = data.shortcutKeys?.[0];
 
     return (
-        <div
-            ref={ref}
-            role="tooltip"
-            className={`tool-hover-card fixed flex w-max max-w-[260px] flex-col gap-1.5 rounded-md border border-border bg-surface-strong px-2.5 py-2 text-foreground shadow-md ${className ?? ""}`}
-            {...rest}
-        >
-            <span className="flex items-start gap-2">
-                {icon ? <span className="grid size-5 shrink-0 place-items-center [&_svg]:size-4">{icon}</span> : null}
-                <span className="flex min-w-0 flex-col gap-1">
-                    <span className="text-tiny font-semibold leading-none">{label}</span>
-                    <span className="text-tiny leading-snug opacity-70">{data.description}</span>
+        <div ref={ref} role="tooltip" data-preview-mode={data.preview.mode} className={`tool-hover-card ${className ?? ""}`} {...rest}>
+            {/* L1 头部：32×32 图标块 + 标题/tagline 双行 */}
+            <div className="tool-hover-card-header">
+                {icon ? (
+                    <span className="tool-hover-card-icon" aria-hidden="true">
+                        {icon}
+                    </span>
+                ) : null}
+                <span className="tool-hover-card-headings">
+                    <span className="tool-hover-card-title">{label}</span>
+                    <span className="tool-hover-card-tagline">{data.tagline}</span>
                 </span>
-            </span>
-            {shortcutKeys.length ? (
-                <span className="flex flex-wrap items-center gap-1.5" aria-label={shortcutKeys.map((combination) => combination.join(" 加 ")).join(" 或 ")}>
-                    {shortcutKeys.map((combination, combinationIndex) => (
-                        <span key={combination.join("-")} className="inline-flex items-center gap-0.5">
-                            {combinationIndex ? <em className="text-tiny not-italic opacity-50">或</em> : null}
-                            {combination.map((key, keyIndex) => (
-                                <span key={`${key}-${keyIndex}`} className="inline-flex items-center gap-0.5">
-                                    {keyIndex ? <i className="text-tiny not-italic opacity-50">+</i> : null}
-                                    <Kbd>{key}</Kbd>
-                                </span>
-                            ))}
-                        </span>
-                    ))}
-                </span>
+            </div>
+
+            {/* L2 正文长句 */}
+            <p className="tool-hover-card-description">{data.description}</p>
+
+            {/* L3 预览：工具类 = 48px 大图标；节点类 = 标题 + 矢量 mockup */}
+            {data.preview.mode === "node" ? (
+                <div className="tool-hover-card-preview-section">
+                    <span className="tool-hover-card-preview-label">节点预览</span>
+                    <div className="tool-hover-card-preview">
+                        <NodePreviewMockup kind={data.preview.kind} />
+                    </div>
+                </div>
+            ) : (
+                <div className="tool-hover-card-preview">
+                    <span className="tool-hover-card-preview-icon" aria-hidden="true">
+                        {icon}
+                    </span>
+                </div>
+            )}
+
+            {/* L4 footer 引导行：有键位才渲染；句式「按 <kbd>…</kbd> {tagline}」 */}
+            {primaryCombo ? (
+                <div className="tool-hover-card-footer">
+                    <HelpCircle className="tool-hover-card-footer-help" aria-hidden="true" />
+                    <span>按</span>
+                    <span className="tool-hover-card-footer-keys">
+                        {primaryCombo.map((key, keyIndex) => (
+                            <span key={`${key}-${keyIndex}`} className="tool-hover-card-footer-key">
+                                {keyIndex ? <span className="tool-hover-card-footer-sep">+</span> : null}
+                                <kbd className="tool-hover-card-kbd">{key}</kbd>
+                            </span>
+                        ))}
+                    </span>
+                    <span>{data.tagline}</span>
+                </div>
             ) : null}
-            {data.preview && !previewFailed ? <img className="block max-h-[120px] w-full rounded-sm object-cover" src={data.preview} alt="" loading="lazy" onError={() => setPreviewFailed(true)} /> : null}
         </div>
     );
 }
@@ -140,6 +175,12 @@ type ToolHoverCardProps = {
 export function ToolHoverCard({ open, anchorEl, data, label, icon, onCardEnter, onCardLeave, onEscape }: ToolHoverCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
     const [position, setPosition] = useState<ToolHoverCardPosition | null>(null);
+    const [entered, setEntered] = useState(false);
+
+    // 每次开卡重新进入"进场中"态：will-change 仅覆盖动画窗口，进场后清除。
+    useEffect(() => {
+        if (open) setEntered(false);
+    }, [open]);
 
     useLayoutEffect(() => {
         if (!open || !anchorEl) return;
@@ -147,17 +188,17 @@ export function ToolHoverCard({ open, anchorEl, data, label, icon, onCardEnter, 
             const cardEl = cardRef.current;
             if (!cardEl) return;
             const anchorRect = anchorEl.getBoundingClientRect();
-            const cardRect = cardEl.getBoundingClientRect();
+            // offsetWidth/Height 不吃 transform（进场 scale 中途量尺寸会把宽高缩成 0.96x）
             setPosition(
                 computeToolHoverCardPosition(
                     { top: anchorRect.top, bottom: anchorRect.bottom, left: anchorRect.left, width: anchorRect.width },
-                    { width: cardRect.width, height: cardRect.height },
+                    { width: cardEl.offsetWidth, height: cardEl.offsetHeight },
                     { width: window.innerWidth, height: window.innerHeight },
                 ),
             );
         };
         update();
-        // 预览图加载/文案换行会改变卡片高度，跟随重排。
+        // mockup/文案换行会改变卡片高度，跟随重排。
         const observer = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
         if (observer && cardRef.current) observer.observe(cardRef.current);
         window.addEventListener("resize", update);
@@ -191,6 +232,8 @@ export function ToolHoverCard({ open, anchorEl, data, label, icon, onCardEnter, 
             icon={icon}
             style={position ? { top: position.top, left: position.left } : { top: -9999, left: -9999 }}
             data-placement={position?.placement ?? "above"}
+            data-entering={entered ? "false" : "true"}
+            onAnimationEnd={() => setEntered(true)}
             onPointerEnter={onCardEnter}
             onPointerLeave={onCardLeave}
         />,

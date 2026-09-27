@@ -160,10 +160,12 @@ export type AddNodeMenuContext = {
 
 /** hover 说明卡数据——一句话职责 + 可选预览图 + 快捷键徽章（引用 CANVAS_SHORTCUTS 的 id，键位实时解析） */
 export type ToolHoverInfo = {
-    /** 一句话职责（hover 卡正文，必填） */
+    /** 动作定性短句（hover 卡头部第二行，必填；≤10 字，消灭缺省高度跳变） */
+    tagline: string;
+    /** 场景 + 防误触长句（hover 卡正文，必填） */
     description: string;
-    /** 预览图（web/public 相对根路径，可选；缺省降级纯文字卡） */
-    preview?: string;
+    /** 预览模式（可选；缺省 "icon" 工具类大图标，"node" = 节点类 SVG mockup） */
+    preview?: "icon" | "node";
     /** 快捷键徽章：CANVAS_SHORTCUTS 的 id 列表（可选，单一来源） */
     shortcuts?: string[];
 };

@@ -138,7 +138,7 @@ function toolToEntry(tool: ToolDefinition, ctx: ToolContext): FloatingDockEntry 
             id: tool.id,
             label: resolveText(tool.label, ctx),
             value: tool.switchGroup.value(ctx),
-            options: tool.switchGroup.options.map((option) => ({ ...option, hoverCard: resolveToolHoverCardData(option.hover) })),
+            options: tool.switchGroup.options.map((option) => ({ ...option, hoverCard: resolveToolHoverCardData(option.hover, option.id) })),
             onChange: (value) => tool.switchGroup?.onChange(ctx, value),
         };
     }
@@ -152,7 +152,7 @@ function toolToEntry(tool: ToolDefinition, ctx: ToolContext): FloatingDockEntry 
         disabled: tool.disabled?.(ctx),
         danger: tool.danger,
         expands: tool.expands,
-        hoverCard: resolveToolHoverCardData(tool.hover),
+        hoverCard: resolveToolHoverCardData(tool.hover, tool.id),
         onClick: (event) => tool.run(ctx, event),
     };
 }

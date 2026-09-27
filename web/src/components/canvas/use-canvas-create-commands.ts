@@ -15,7 +15,7 @@ export function useCanvasCreateCommands(context: AddNodeMenuContext, runCommand?
         icon: command.icon,
         badge: command.badge,
         section: command.section,
-        hover: resolveToolHoverCardData(command.hover),
+        hover: resolveToolHoverCardData(command.hover, command.id),
         onClick: () => {
             const run = () => command.run(context);
             if (runCommand) runCommand(run);
