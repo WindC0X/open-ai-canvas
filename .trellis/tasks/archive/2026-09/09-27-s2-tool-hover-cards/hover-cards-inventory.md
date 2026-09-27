@@ -74,3 +74,12 @@
 - footer：仅 A2（Ctrl / Cmd + Z）/ A3（Ctrl / Cmd + Shift + Z）/ A9（Delete）3 项；手势短语不做假键位；抓手键位绑定（flora Shift+8）留 backlog。
 - 文案：三段式终版已落（A9「移除所选内容」、B15「复用角色设定」、B16「选取素材插入画布」、A2 保留「画布设置」表述等）。
 - 偏离：次级灰 #949494（AA 修复）、footer 中文化（PATCH-MAP「形态偏离登记」）。
+
+## 单卡加固（2026-09-28 · 控制线封版前）
+
+- 用户复核发现双卡叠放（真机截图）；取证：逻辑级复现失败 + 环境硬数据（节流拉长 140ms→435ms+ vs 60ms 余量、合成器陈旧帧实锤）→ 结构性保证「全局单卡不变式」（`createToolHoverCardExclusivity` 注册表，layout 先关后画；escape 语义保再武装）。DOM 双卡不再可能。提交 `b5dc75e7` + `572f32ca`。
+
+## 修缮期 backlog（控制线 2026-09-28 封版回执登记）
+
+- ① 极端矮视口（视口高 < 卡高）纵向夹紧后卡片叠压触发器；② 同场景内滚区键盘不可达 —— 控制线裁定同根（超矮视口无专属交互模式），修缮期处理，本轮不做。
+- ③ reduced-motion 下 `data-entering` 挂死：控制线代码核验判无影响（该属性仅门控 will-change，而 css 内 reduced-motion media query 已将 will-change 置 auto；挂死的只是 DOM 属性值）—— 不修，detector 严重度误报。
