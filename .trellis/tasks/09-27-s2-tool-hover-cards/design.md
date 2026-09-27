@@ -96,3 +96,5 @@ export function CanvasToolHoverCard({ icon, label, hover, theme, open, anchorRec
 - **定位升级**：`computeToolHoverCardPosition` 按 419–447px 高卡重写（上方优先 → 翻下 → 纵向 clamp + max-height calc(100vh−16px) overflow-y-auto → 水平 clamp）；卡尺寸测量改用 `offsetWidth/offsetHeight`（进场中间帧吃 transform 的回归修复）。
 - **两处有意偏离**（控制线批准，PATCH-MAP「形态偏离登记」）：次级灰 #7B7B7B → #949494（flora 原值对比 3.87:1 不达 AA，fork 提亮至 ≥4.6:1）；footer 句式中文化。
 - **与 v1 相同的边界保留**：Esc 双动作（全局键盘先手）、portal 主题差、<1024 沉浸无 surface、<768 native title 兜底。
+
+- **加固（2026-09-28）**：新增「全局单卡不变式」（`createToolHoverCardExclusivity` 注册表 + layout 阶段强制关闭其它卡）——节流环境下 leave 宽限定时器被实测拉长（140ms→435ms+），可能与新卡显示延迟倒挂产生双卡残留；不变式让「同时最多一张卡」成为结构性保证（后开者以 escape 语义关闭先开者，保留正常再武装）。
