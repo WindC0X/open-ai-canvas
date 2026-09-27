@@ -72,3 +72,17 @@
 - 缺口上报（不擅自扩）：G1-G4 沿用首日盘点（research/capability-coverage-2026-09-27.md），本枝未修。
 - 环境注记：本环境「小白鼠 Gpt Image 2」含 4K 尺寸（盘点记 1K 封顶）；交集逻辑实时取 config，不受盘点表约束。
 - 派生态边界（设计 risk2 已接受）：值与预设计划同值时显示预设态（走查实录 W5）。
+
+## O-03 polish 轮 + 技能 chip 修复记录（2026-09-28 · 控制线收编轮）
+
+### polish（控制线 2026-09-28 收编）
+- 两条常驻说明行（已应用 / 档位吸附）收入 S2.1 hover 卡 mini 变体（新增 `ToolHoverCardMiniContent` + `useToolInfoCard`，共用状态机/定位/单卡不变式；z 1150 高于设置浮层 1100）。
+- 比例角标补 hover 释义：预设名 + 最低像素要求（design 要求的 title 因 pointer-events-none 不可达，已改为按需小卡）。
+- 判定：s5 不达标长文案保留可见（双数值警示语义，不收起）。
+- 测试：mini SSR/形态守卫/说明卡构造/接线守卫；走查 s7/s7a/s8。
+
+### 技能 chip 修复（canvas-core，控制线域外授权 2026-09-28，根因报告在案）
+- A 注入面收窄：use-canvas-render-model 节点引用表去除 skillMentionReferences 混入（tool 保留；CanvasConfigComposer skillReferences / cloud agent panel / 创建页不动）。
+- B hover composer：kind:"skill" 显式分支（✦ / Skill），不再落 T/Image 缺省。
+- 守卫：节点引用表 block 源码守卫 + Agent 面来源守卫 + SSR 技能徽章 + 源级分支守卫；真机全量扫描 0 命中（22 条引用条目）。
+- 报备：同 fallback 链上 kind:"tool" 仍落 T/Image 缺省（本次授权范围外未动，观察项）。

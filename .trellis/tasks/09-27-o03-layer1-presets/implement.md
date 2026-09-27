@@ -53,3 +53,10 @@
 - Step 4：档位词汇表 + store 持久化 + `defaultImageParamsForModel` 吸附（价目档校验、不可得不应用）+ V1 面板行。
 - Step 5：门禁四件（tsc 0 / build ✓ / 全量 2354 → 15 红=基线零额外）；真机走查 s1-s6（`.local/o03-walkthrough/`）；pending-test 登记（docs/plans/pending-test.mdx 新路径）；计价自证（无价格常量/数字，静态护栏 + 手工核对）。
 - Step 6：正文 + 落卡双 commit，不 push。
+
+## polish + 修复轮执行记录（2026-09-28）
+
+- polish：tool-hover-card mini 变体（tsx/css）+ 面板说明行收卡 + 角标释义 + popover 结构化 badges；测试更新（ecom-preset-ui / canvas-tool-hover-cards）。
+- 修复：use-canvas-render-model 注入收窄 + canvas-node-hover-composer skill 分支；守卫测试（canvas-node-hover-composer）。
+- 门禁四件 + 真机走查 s7/s7a/s8（+ DOM 全量技能 chip 扫描 0 命中）；pending-test 已登记。
+- 提交：三段（polish 正文 / 域外修复独立 commit / 落卡），不 push。
