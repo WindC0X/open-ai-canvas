@@ -57,6 +57,8 @@ type ModelPickerProps = {
     /** 特化生成场景(如扩图)的候选集合同: 不满足 requirements 的模型直接不进列表, 而非灰显
      *  (扩图里选了也无法执行, 灰显徒增误选成本)。默认 false 保持灰显语义。 */
     hideIncompatible?: boolean;
+    /** 额外候选过滤（如扩图档位白名单，2026-09-28）：不满足的模型直接不进列表；缺省不过滤。 */
+    filterModel?: (model: string) => boolean;
 };
 
 export function ModelPicker({
@@ -78,6 +80,7 @@ export function ModelPicker({
     searchable = false,
     grouping = "channel",
     hideIncompatible = false,
+    filterModel,
 }: ModelPickerProps) {
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const pickerId = useId();
@@ -195,9 +198,10 @@ export function ModelPicker({
     );
     const options = useMemo(() => {
         const base = Array.from(new Set(selectableModelsByCapability(config, capability).filter(Boolean)));
-        if (!hideIncompatible || !selectionRequirements) return base;
-        return base.filter((model) => Boolean(compatibleModelInGroup(config, [model], selectionRequirements)));
-    }, [capability, config, hideIncompatible, selectionRequirements]);
+        const allowed = filterModel ? base.filter((model) => filterModel(model)) : base;
+        if (!hideIncompatible || !selectionRequirements) return allowed;
+        return allowed.filter((model) => Boolean(compatibleModelInGroup(config, [model], selectionRequirements)));
+    }, [capability, config, filterModel, hideIncompatible, selectionRequirements]);
     const optionGroups = useMemo(() => {
         // 分组语法: 前台(创作页)按模型家族聚(产商族, flora Providers 结构的数据诚实版);
         // 画布系统模型按渠道分组。options 已由当前有效渠道重建, 无法解析渠道的旧值直接丢弃。

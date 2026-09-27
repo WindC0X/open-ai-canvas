@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { ModelPicker } from "@/components/model-picker";
 import { CreditSymbol } from "@/constant/credits";
 import { defaultImageParamsForModel } from "@/lib/model-selection";
-import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
+import { isOutpaintEligible, modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import { modelQuoteRequest, requestCreditCost } from "@/lib/model-pricing";
 import {
     buildImageResolutionOptions,
@@ -16,7 +16,7 @@ import {
 } from "@/lib/image-resolution-tiers";
 import { describeOutpaintSize, nearestAspectRatioValue, parseRatioValue, relocateOutpaintPadding, resolveDragAxis, resolveOutpaintClipHole, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type FrameAxis, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { CANVAS_NODE_DRAG_PREVIEW_EVENT, subscribeCanvasViewportPreview, type CanvasNodeDragPreview } from "@/lib/canvas/canvas-live-viewport";
-import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
+import { modelOptionName, resolveModelChannel, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { quoteLogicalModel } from "@/services/api/logical-models";
 import type { CanvasNodeData } from "@/types/canvas";
@@ -155,7 +155,23 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         expandingTimerRef.current = window.setTimeout(() => setExpanding(false), 420);
     }, []);
     const [ratioKey, setRatioKey] = useState<string>(ORIGINAL_RATIO_KEY);
-    const [model, setModel] = useState<string>(node?.metadata?.model || config.model);
+    // 扩图白名单（2026-09-28 用户裁定）：只有「推荐/可用」档模型进入扩图模型槽（硬过滤）。
+    const eligibleModels = useMemo(
+        () => selectableModelsByCapability(config, "image").filter((candidate) => isOutpaintEligible(modelCapabilityConfigFor(config, candidate).image)),
+        [config],
+    );
+    const filterOutpaintModel = useCallback((candidate: string) => eligibleModels.includes(candidate), [eligibleModels]);
+    const [model, setModel] = useState<string>(() => {
+        for (const candidate of [node?.metadata?.model, config.model]) {
+            if (candidate && eligibleModels.includes(candidate)) return candidate;
+        }
+        return eligibleModels[0] || "";
+    });
+    // 配置异步到达 / 遗留非白名单值时校正选中模型。
+    useEffect(() => {
+        if (!eligibleModels.length) return;
+        if (!model || !eligibleModels.includes(model)) setModel(eligibleModels[0]);
+    }, [eligibleModels, model]);
     const [sizeValue, setSizeValue] = useState<string>("");
     const [qualityValue, setQualityValue] = useState<string>("");
     const [count, setCount] = useState(1);
@@ -171,7 +187,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     // 会回落默认能力域，不能用 imageProfile 是否存在判定“已选模型”。
     const hasModel = Boolean(model);
     const imageProfile = useMemo(() => (hasModel ? modelCapabilityConfigFor(config, model).image : undefined), [config, hasModel, model]);
-    const canExecute = hasModel && (imageProfile?.references?.maxImages ?? 0) >= 1;
+    const canExecute = hasModel && (imageProfile?.references?.maxImages ?? 0) >= 1 && isOutpaintEligible(imageProfile);
+    const noEligibleModels = eligibleModels.length === 0;
     const countMax = Math.max(1, Math.min(4, imageProfile?.references?.maxImages ?? 1));
     const countOptions = Array.from({ length: countMax }, (_, index) => index + 1);
     const sizeParameter = imageProfile?.size?.parameter;
@@ -857,7 +874,9 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         capability="image"
                         // 扩图合同：模型必须能接收底图参考（maxImages>=1），maxImages=0 的纯文生图
                         // 模型（如 grok-imagine-image-2.0）直接不进列表，而非灰显（2026-09-20 用户反馈）。
+                        // 叠加档位白名单（2026-09-28 用户裁定）：仅「推荐/可用」出现，未认证不进列表。
                         requirements={{ capability: "image", input: { textCount: 1, imageCount: 1, videoCount: 0, audioCount: 0, characterCount: 0 } }}
+                        filterModel={filterOutpaintModel}
                         hideIncompatible
                         placement="topRight"
                         variant="creation"
@@ -974,7 +993,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     disabled={!canExecute}
                     onClick={handleExecute}
                     style={{ "--canvas-composer-submit-action": "var(--primary)", "--canvas-composer-submit-action-fg": "var(--primary-foreground)" } as CSSProperties}
-                    aria-label={canExecute ? `预计消耗 ${credits} 积分，执行扩图` : "当前模型不支持扩图，请更换模型"}
+                    aria-label={canExecute ? `预计消耗 ${credits} 积分，执行扩图` : noEligibleModels ? "当前没有支持扩图的模型" : "当前模型不支持扩图，请更换模型"}
                 >
                     {canExecute && creditsEnabled ? (
                         <span className="canvas-node-composer-submit-cost">

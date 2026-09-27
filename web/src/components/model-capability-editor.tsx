@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/base/switch";
 import { SegmentedControl } from "@/components/ui/base/segmented-control";
 import type { ReactNode } from "react";
 
-import { defaultImageCapabilityConfig, defaultModelCapabilityConfig, normalizeModelCapabilityConfig, type ImageCapabilityConfig, type ModelCapabilityConfig, type TextCapabilityConfig, type VideoCapabilityConfig } from "@/lib/model-capabilities";
+import { defaultImageCapabilityConfig, defaultModelCapabilityConfig, normalizeModelCapabilityConfig, type ImageCapabilityConfig, type ImageOutpaintTier, type ModelCapabilityConfig, type TextCapabilityConfig, type VideoCapabilityConfig } from "@/lib/model-capabilities";
 import type { ModelProtocol } from "@/lib/model-protocols";
 import { VIDEO_RESOLUTION_CAPABILITY_OPTIONS } from "@/lib/video-generation-options";
 import { Select } from "@/components/ui/base/select";
@@ -21,6 +21,13 @@ const operationOptions = [
     { label: "运镜调整", value: "camera_motion" },
     { label: "风格迁移", value: "style_transfer" },
     { label: "音频生视频", value: "audio_to_video" },
+];
+
+// 扩图档位（2026-09-28 用户裁定：白名单硬过滤，仅推荐/可用进入扩图模型槽）。
+const outpaintTierOptions: Array<{ label: string; value: ImageOutpaintTier }> = [
+    { label: "未认证", value: "uncertified" },
+    { label: "可用", value: "capable" },
+    { label: "推荐", value: "recommended" },
 ];
 
 function ImageSizeHelp() {
@@ -444,6 +451,16 @@ function ImageCapabilityEditor({ value, onChange, protocol, model, disabled, sec
                         <NumberField label="最大参考图" value={profile.references.maxImages} min={0} disabled={disabled} onChange={(maxImages) => updateReferences({ maxImages: maxImages || 0 })} />
                         <NumberField label="单图上限 MB" value={bytesToMB(profile.references.maxImageBytes)} min={0} disabled={disabled} onChange={(maxImageBytes) => updateReferences({ maxImageBytes: mbToBytes(maxImageBytes) })} />
                         <ParameterField label="蒙版编辑" description="允许图片编辑接口提交 mask" supported={profile.references.maskSupported} disabled={disabled} onChange={(maskSupported) => updateReferences({ maskSupported })} />
+                        <Field label="扩图档位">
+                            <Select
+                                className="w-full"
+                                disabled={disabled}
+                                value={profile.outpaintTier ?? "uncertified"}
+                                options={outpaintTierOptions}
+                                onChange={(next) => update({ outpaintTier: next as ImageOutpaintTier })}
+                            />
+                        </Field>
+                        <p className="text-[var(--fs-tiny)] text-foreground/48">仅「推荐/可用」出现在扩图工具；未认证不显示。</p>
                     </ReferenceCard>
                     <ReferenceCard title="通用限制" description="所有图片请求共用的基础约束">
                         <NumberField label="提示词最大字符数" value={profile.references.promptMaxChars} min={1} disabled={disabled} onChange={(promptMaxChars) => updateReferences({ promptMaxChars: promptMaxChars || 1 })} />
@@ -540,6 +557,16 @@ function ImageCapabilityEditor({ value, onChange, protocol, model, disabled, sec
                     <NumberField label="单图上限 MB" value={bytesToMB(profile.references.maxImageBytes)} min={0} disabled={disabled} onChange={(maxImageBytes) => updateReferences({ maxImageBytes: mbToBytes(maxImageBytes) })} />
                 </div>
                 <ParameterField label="蒙版编辑" description="允许调用图片编辑接口并提交 mask" supported={profile.references.maskSupported} disabled={disabled} onChange={(maskSupported) => updateReferences({ maskSupported })} />
+                <Field label="扩图档位">
+                    <Select
+                        className="w-full"
+                        disabled={disabled}
+                        value={profile.outpaintTier ?? "uncertified"}
+                        options={outpaintTierOptions}
+                        onChange={(next) => update({ outpaintTier: next as ImageOutpaintTier })}
+                    />
+                </Field>
+                <p className="text-[var(--fs-tiny)] text-foreground/48">仅「推荐/可用」出现在扩图工具；未认证不显示。</p>
             </CapabilityGroup>
 
             <CapabilityGroup title="输出规格" description="单次生成数量、尺寸参数与默认值">

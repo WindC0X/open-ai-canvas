@@ -37,6 +37,9 @@ export type ImageSizeParameter = "none" | "size" | "aspect_ratio";
  */
 export const DEFAULT_VIDEO_PROMPT_MAX_CHARS = 8000;
 
+/** 扩图档位（2026-09-28 用户裁定：白名单硬过滤，仅推荐/可用进入扩图模型槽）。 */
+export type ImageOutpaintTier = "recommended" | "capable" | "uncertified";
+
 export type ImageCapabilityConfig = {
     references: {
         promptMaxChars: number;
@@ -60,6 +63,8 @@ export type ImageCapabilityConfig = {
     responseFormat: { supported: boolean };
     outputFormat: { supported: boolean };
     maxOutputs: number;
+    /** 扩图档位；缺省=未认证（不进扩图列表）。由渠道能力编辑器维护、按模型名缺省播种。 */
+    outpaintTier?: ImageOutpaintTier;
 };
 
 export type VideoCapabilityConfig = {
@@ -202,6 +207,23 @@ const defaultImageSizes = [
     "2160x3840",
 ];
 
+/** nano 族扩图推荐名单（与后端 applyOutpaintTierSeed 同源维护；大小写不敏感包含匹配）。 */
+const IMAGE_OUTPAINT_RECOMMENDED_MODELS = ["nano-banana-2", "nano-banana2", "gemini-3.1-flash-image"];
+
+export function applyOutpaintTierSeed(image: ImageCapabilityConfig, model = ""): ImageCapabilityConfig {
+    if (image.outpaintTier) return image;
+    const normalized = model.trim().toLowerCase();
+    if (IMAGE_OUTPAINT_RECOMMENDED_MODELS.some((name) => normalized.includes(name))) {
+        image.outpaintTier = "recommended";
+    }
+    return image;
+}
+
+/** 扩图白名单谓词：只有推荐/可用档模型出现在扩图工具（硬过滤）。 */
+export function isOutpaintEligible(image?: Pick<ImageCapabilityConfig, "outpaintTier"> | null): boolean {
+    return image?.outpaintTier === "recommended" || image?.outpaintTier === "capable";
+}
+
 export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = ""): ImageCapabilityConfig {
     const image: ImageCapabilityConfig = {
         references: { promptMaxChars: 32000, maxImages: 16, maxImageBytes: 30 * 1024 * 1024, maskSupported: true },
@@ -291,7 +313,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.outputFormat = { supported: false };
         image.maxOutputs = 1;
     }
-    return image;
+    return applyOutpaintTierSeed(image, model);
 }
 
 export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = ""): ModelCapabilityConfig {

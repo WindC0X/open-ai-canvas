@@ -45,7 +45,7 @@ import { buildVideoFrameNodes } from "@/lib/canvas/canvas-video-frame-nodes";
 import { mergeVideos, type MergeVideoProgress } from "@/lib/canvas/canvas-video-merge";
 import { extractVideoAudio, trimVideoSegment } from "@/lib/canvas/canvas-video-segment";
 import { generationErrorMessage } from "@/lib/generation-error";
-import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
+import { isOutpaintEligible, modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import { defaultImageParamsForModel } from "@/lib/model-selection";
 import { navigateToSettings } from "@/lib/settings-navigation";
 import { storeGeneratedVideo } from "@/services/api/video";
@@ -841,6 +841,10 @@ export function useCanvasMediaTools({
         const selectedImageProfile = modelCapabilityConfigFor(baseGenerationConfig, selectedModel).image;
         if ((selectedImageProfile?.references.maxImages ?? 0) < 1) {
             message.error("当前图片模型不支持扩图，请选择支持图像编辑的模型");
+            return;
+        }
+        if (!isOutpaintEligible(selectedImageProfile)) {
+            message.error("当前模型未认证扩图，请在渠道管理中调整扩图档位");
             return;
         }
         const generationConfig = {
