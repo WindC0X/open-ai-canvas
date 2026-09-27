@@ -242,6 +242,32 @@ export function ToolHoverCard({ open, anchorEl, data, label, icon, onCardEnter, 
 }
 
 /* ---------------------------------------------------------------------------
+ * 全局单卡不变式：任一卡打开时强制关闭其它已打开的卡。
+ * 内嵌浏览器被遮挡/后台节流时，leave 宽限定时器会被拉长到数百毫秒，与
+ * 新卡的显示延迟可能倒挂，产生双卡残留；本注册表让「同时最多一张卡」
+ * 成为结构性保证（后开者强制关闭先开者）。
+ * ------------------------------------------------------------------------- */
+
+export function createToolHoverCardExclusivity() {
+    let activeCloser: (() => void) | null = null;
+    return {
+        request(closer: () => void) {
+            const previous = activeCloser;
+            activeCloser = closer;
+            if (previous && previous !== closer) previous();
+        },
+        release(closer: () => void) {
+            if (activeCloser === closer) activeCloser = null;
+        },
+    };
+}
+
+export const toolHoverCardExclusivity = createToolHoverCardExclusivity();
+
+// SSR 环境无布局阶段，降级为 useEffect（避免 useLayoutEffect SSR 警告）
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/* ---------------------------------------------------------------------------
  * 消费 hook：触发器事件 → 状态机（含出卡延迟与移入宽限），产出卡片节点
  * ------------------------------------------------------------------------- */
 
@@ -320,6 +346,20 @@ export function useToolHoverCard({ data, label, icon }: { data?: ToolHoverCardDa
     );
 
     const open = Boolean(data) && Boolean(anchorEl) && isToolHoverCardOpen(state);
+
+    const closeForExclusivity = useCallback(() => {
+        clearTimer(showTimerRef);
+        clearTimer(leaveTimerRef);
+        clearTimer(cardLeaveTimerRef);
+        setState((current) => (current.dismissed ? current : reduceToolHoverCardState(current, "escape")));
+    }, [clearTimer]);
+
+    // 单卡不变式：本卡打开时关闭其它卡；用 layout effect 在绘制前完成，避免双卡上屏一帧
+    useIsoLayoutEffect(() => {
+        if (!open) return;
+        toolHoverCardExclusivity.request(closeForExclusivity);
+        return () => toolHoverCardExclusivity.release(closeForExclusivity);
+    }, [open, closeForExclusivity]);
 
     return {
         enabled: Boolean(data),

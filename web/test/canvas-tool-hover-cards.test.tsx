@@ -6,7 +6,7 @@ import { Undo2 } from "lucide-react";
 import type { FloatingDockCommand } from "../src/components/ui/aceternity/floating-dock";
 import { FloatingDock } from "../src/components/ui/aceternity/floating-dock";
 import { NodePreviewMockup } from "../src/components/ui/tool-hover-card-mockups";
-import { ToolHoverCardContent, computeToolHoverCardPosition, initialToolHoverCardState, isToolHoverCardOpen, reduceToolHoverCardState } from "../src/components/ui/tool-hover-card";
+import { ToolHoverCardContent, computeToolHoverCardPosition, createToolHoverCardExclusivity, initialToolHoverCardState, isToolHoverCardOpen, reduceToolHoverCardState } from "../src/components/ui/tool-hover-card";
 import { CANVAS_SHORTCUTS } from "../src/lib/canvas/canvas-shortcuts";
 import { NODE_PREVIEW_KINDS, resolveToolHoverCardData } from "../src/lib/canvas/tool-hover-card-data";
 import { addNodeMenuCommands } from "../src/lib/canvas/tool-registry/definitions/add-node-menu-tools";
@@ -303,5 +303,35 @@ describe("S2 hover 说明卡 · a11y（WCAG 1.4.13 三件套）", () => {
         const narrow = computeToolHoverCardPosition({ top: 300, bottom: 340, left: 190, width: 30 }, card, { width: 400, height: 900 });
         expect(narrow.left).toBe(8);
         expect(narrow.left + Math.min(card.width, 400 - 16)).toBe(392);
+    });
+});
+
+describe("S2.1 hover 卡 · 全局单卡不变式（节流环境双卡残留加固）", () => {
+    test("后开的卡强制关闭先开的卡；幂等 / 不误杀", () => {
+        const registry = createToolHoverCardExclusivity();
+        const calls: string[] = [];
+        const a = () => calls.push("a");
+        const b = () => calls.push("b");
+
+        registry.request(a);
+        expect(calls).toEqual([]);
+        registry.request(b);
+        expect(calls).toEqual(["a"]); // 后开者强制关闭先开者
+        registry.request(b);
+        expect(calls).toEqual(["a"]); // 同 closer 重复 request 幂等
+        registry.release(a);
+        registry.request(b);
+        expect(calls).toEqual(["a"]); // 非 active 释放不误杀
+        registry.request(a);
+        expect(calls).toEqual(["a", "b"]); // 换回 a 时关掉 b
+        registry.release(a);
+        registry.request(b);
+        expect(calls).toEqual(["a", "b"]); // active 已空，无旧卡可关
+    });
+
+    test("hook 侧接入不变式（静态守卫）", () => {
+        const source = readFileSync(new URL("../src/components/ui/tool-hover-card.tsx", import.meta.url), "utf8");
+        expect(source).toContain("toolHoverCardExclusivity.request");
+        expect(source).toContain("toolHoverCardExclusivity.release");
     });
 });
