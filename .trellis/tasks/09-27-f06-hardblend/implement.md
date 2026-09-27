@@ -173,3 +173,25 @@ nano 走新无蒙版路由（用户已在渠道编辑器关闭其蒙版编辑，
 - 界面核对方式：市场页选择令牌「4k」→ 路由状态/个人路由设置。
 - 备查：key 读取 = POST /api/token/{id}/key（读操作，另支持 batch/keys）；a6api 计费含 markup_percent:20（以账单为准）。
 - 后续（待充值）：两把 key 接入测试库渠道 → 补跑少女图 nano 两格 + 全链验证。
+
+## a6api 接入 + 补跑轮（2026-09-28 凌晨；用户充值 $1 后）
+
+- 双 key 实证：123/4k 两把 key 均 200（/v1/models）；无 auth 与垃圾 key 均 401（对照组）。
+- 测试库接入（本地 SQL，克隆八方渠道行）：CHANNEL_000009「a6api」(key=123) + CHANNEL_000010「a6api-4k」(key=4k)，base_url=https://api.a6api.com；channel_models MODEL_000026-31（gpt-image-2.5 / nano-banana-2 / gpt-image-2.5-sunburst ×2 渠道）；PTIER_000013-18；id_sequences 抬至 CHANNEL=10 / MODEL=31 / PTIER=18（防未来 ID 冲突）。
+- 协议选型踩坑与修复（提交 bb2e549f，plugin-packages/a6api.yingce-plugin + 解包目录三文件）：
+  - 初版误克隆 ddcat 的 gemini-image/openai-image 协议 → nano 报「声明式协议已完成但没有返回媒体地址 / 没有返回结果」。
+  - 根因：a6api 对 nano-banana-2 的回包为非标准形态——/v1beta 与 /v1/images/edits 均为 chat 壳，图片以文本 URL 呈现（parts[].text / choices[0].message.content）。
+  - 修复：渠道模型切到本仓定制插件 a6api-image 协议（有参考图自动走 /v1/images/edits multipart）；扩展其 response.images = $concatArrays{原 data[] 分支, 无标准 data 时取 choices 文本为 {url}}；同步 README/docs 合同镜像（逐字段契约规则）。
+  - 验证：官方插件全量测试 TestOfficialProtocolPackagesAreSelfContainedDeclarativePlugins 绿（196 包，5.2s）；重启后注册表重建含补丁；nano 冒烟 45s 出图成功。
+- 补跑结果（hardBlend=false 原始输出；全部经产品全链）：
+  | 格 | 新增 | 累计 n | seam | region% |
+  |---|---|---|---|---|
+  | girl 2p5 white-nomask | +2（123 key ×1 + 4k key ×1） | 4 | 0.99–1.18 | 50–61 |
+  | girl sunburst white-nomask | +2 | 3 | 1.01–1.12 | 53–65 |
+  | girl nano white-nomask | +2 | 2 | 0.98–1.00 | 5.5 |
+  | girl nano gray-nomask | +3 | 3 | 0.91–1.00 | 5.2 / 5.2 / 79.8（第三发高重绘出格，记录不剔除） |
+  | lake nano gray-nomask | +1 | 2 | 0.96–1.04 | 1.6–3.7 |
+- 双 key 产品链验证：4K key 独立跑通 nano（任务 e6fd7f8d）与 2.5（任务 41b60fd2）各一格。
+- 结论：因余额阻塞的格子全部补齐；跨底图结论不变（pad/mask 差异 ≤0.1 属噪声；nano 区域保持最稳；白底默认不变）。
+- 证据：.local/f06hb-evidence-after/matrix-20260927/a6api-round/（a6-summary.jsonl 22 条含调试期失败留痕、各格 crop/result、a6-contact-sheet.png）。
+- 备注：调试期 12 次失败尝试（协议修复前）保留于 a6-summary.jsonl；消息面余额消耗未取到（浏览器标签被占），按市场价估算本轮成功 10 发 ≈ $0.06–0.08。
