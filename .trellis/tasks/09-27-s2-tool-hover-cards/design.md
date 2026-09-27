@@ -71,3 +71,18 @@ export function CanvasToolHoverCard({ icon, label, hover, theme, open, anchorRec
 ## 7. 回滚
 
 单 commit 全量 revert；或分层回退（先撤接入、保留数据）。
+
+## 8. 实现差异与落地记录（2026-09-27）
+
+与 §2/§3 的刻意差异：
+
+1. **组件落位 `web/src/components/ui/`**：`tool-hover-card.tsx` / `.css` 不放 `components/canvas/`，因为 `floating-dock.tsx`（ui/aceternity）接入时不得反向依赖 canvas；`ToolHoverCardData` 与快捷键解析 `resolveToolHoverCardData`（id → `string[][]`）落在 `web/src/lib/canvas/tool-hover-card-data.ts`（ui→lib 为既有允许方向）。
+2. **快捷键解析前移到适配层**：`tool-registry.ts toolToEntry` 与 `use-canvas-create-commands.ts` 把 `ToolHoverInfo.shortcuts`（`CANVAS_SHORTCUTS` id）解析为键位数组后注入渲染层；渲染组件不依赖快捷键模块。
+
+落地细节（设计外细化）：
+
+- 状态机为导出纯函数 `reduceToolHoverCardState` / `isToolHoverCardOpen`；延时 200ms、离开宽限 140ms；Esc document-capture 监听（`preventDefault/stopPropagation`），关闭后 `dismissed` 直到下一次 enter/focus 重新武装。
+- 定位 `computeToolHoverCardPosition` 纯函数：上方优先、空间不足翻下、水平夹取（边距 8）；portal 至 body，ResizeObserver + scroll-capture 跟随重排。
+- 门控：`cardsEnabled = !scrollable`（coarsePointer 或视口 <768 时禁用）；禁用工具不出卡（对齐既有 tooltip 语义）；switch 由 DockSwitch 父级单 hook + refs Map 实现逐段卡（规避 hooks-in-loop）。
+- 样式走全局 Semantic token（`bg-surface-strong` / `border-border` / `text-foreground`）+ `base/Kbd`；**未触碰 `globals.css`**。接受小代价：portal 无法承接 dock 的 inline 画布主题变量，画布主题 ≠ app 主题时材质或有细微差异。
+- Esc 已知边界：画布全局 Esc（取消/去选）在 `window`-capture 先于卡片 `document`-capture，Esc 关卡可能同时触发画布动作；修复需共享键盘调度器，本轮接受并登记。
