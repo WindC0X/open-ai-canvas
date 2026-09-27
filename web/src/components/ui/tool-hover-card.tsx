@@ -158,13 +158,57 @@ export function ToolHoverCardContent({ data, label, icon, ref, className, ...res
 }
 
 /* ---------------------------------------------------------------------------
+ * 小卡变体（O-03 polish）：与四层卡共用状态机/定位/单卡不变式，内容收敛为「标题 + 说明行」。
+ * 用于设置面板内按需说明（常驻说明行收进 hover），z 高于设置浮层(--z-dialog-popover 1100)。
+ * ------------------------------------------------------------------------- */
+
+export type ToolHoverCardMini = {
+    /** 小卡标题行 */
+    title: string;
+    /** 说明行（逐行渲染，可作为多行释义） */
+    lines?: string[];
+};
+
+export type ToolHoverCardMiniContentProps = {
+    title: string;
+    lines?: string[];
+    icon?: ReactNode;
+    ref?: Ref<HTMLDivElement>;
+} & HTMLAttributes<HTMLDivElement>;
+
+export function ToolHoverCardMiniContent({ title, lines, icon, ref, className, ...rest }: ToolHoverCardMiniContentProps) {
+    return (
+        <div ref={ref} role="tooltip" className={`tool-hover-card tool-hover-card-mini ${className ?? ""}`} {...rest}>
+            <div className="tool-hover-card-mini-header">
+                {icon ? (
+                    <span className="tool-hover-card-mini-icon" aria-hidden="true">
+                        {icon}
+                    </span>
+                ) : null}
+                <span className="tool-hover-card-mini-title">{title}</span>
+            </div>
+            {lines?.length ? (
+                <div className="tool-hover-card-mini-lines">
+                    {lines.map((line, index) => (
+                        <span key={index} className="tool-hover-card-mini-line">
+                            {line}
+                        </span>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+/* ---------------------------------------------------------------------------
  * 卡片容器：portal 到 body、跟随触发器定位、Esc 关闭、指针可移入
  * ------------------------------------------------------------------------- */
 
 type ToolHoverCardProps = {
     open: boolean;
     anchorEl: HTMLElement | null;
-    data: ToolHoverCardData;
+    data?: ToolHoverCardData;
+    mini?: ToolHoverCardMini;
     label: string;
     icon?: ReactNode;
     onCardEnter: () => void;
@@ -172,7 +216,7 @@ type ToolHoverCardProps = {
     onEscape: () => void;
 };
 
-export function ToolHoverCard({ open, anchorEl, data, label, icon, onCardEnter, onCardLeave, onEscape }: ToolHoverCardProps) {
+export function ToolHoverCard({ open, anchorEl, data, mini, label, icon, onCardEnter, onCardLeave, onEscape }: ToolHoverCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
     const [position, setPosition] = useState<ToolHoverCardPosition | null>(null);
     const [entered, setEntered] = useState(false);
@@ -208,7 +252,7 @@ export function ToolHoverCard({ open, anchorEl, data, label, icon, onCardEnter, 
             window.removeEventListener("resize", update);
             window.removeEventListener("scroll", update, true);
         };
-    }, [open, anchorEl, data]);
+    }, [open, anchorEl, data, mini]);
 
     useEffect(() => {
         if (!open) return;
@@ -225,18 +269,33 @@ export function ToolHoverCard({ open, anchorEl, data, label, icon, onCardEnter, 
     if (!open || typeof document === "undefined") return null;
 
     return createPortal(
-        <ToolHoverCardContent
-            ref={cardRef}
-            data={data}
-            label={label}
-            icon={icon}
-            style={position ? { top: position.top, left: position.left } : { top: -9999, left: -9999 }}
-            data-placement={position?.placement ?? "above"}
-            data-entering={entered ? "false" : "true"}
-            onAnimationEnd={() => setEntered(true)}
-            onPointerEnter={onCardEnter}
-            onPointerLeave={onCardLeave}
-        />,
+        data ? (
+            <ToolHoverCardContent
+                ref={cardRef}
+                data={data}
+                label={label}
+                icon={icon}
+                style={position ? { top: position.top, left: position.left } : { top: -9999, left: -9999 }}
+                data-placement={position?.placement ?? "above"}
+                data-entering={entered ? "false" : "true"}
+                onAnimationEnd={() => setEntered(true)}
+                onPointerEnter={onCardEnter}
+                onPointerLeave={onCardLeave}
+            />
+        ) : mini ? (
+            <ToolHoverCardMiniContent
+                ref={cardRef}
+                title={mini.title}
+                lines={mini.lines}
+                icon={icon}
+                style={position ? { top: position.top, left: position.left } : { top: -9999, left: -9999 }}
+                data-placement={position?.placement ?? "above"}
+                data-entering={entered ? "false" : "true"}
+                onAnimationEnd={() => setEntered(true)}
+                onPointerEnter={onCardEnter}
+                onPointerLeave={onCardLeave}
+            />
+        ) : null,
         document.body,
     );
 }
@@ -271,7 +330,7 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
  * 消费 hook：触发器事件 → 状态机（含出卡延迟与移入宽限），产出卡片节点
  * ------------------------------------------------------------------------- */
 
-export function useToolHoverCard({ data, label, icon }: { data?: ToolHoverCardData; label: string; icon?: ReactNode }) {
+export function useToolHoverCard({ data, mini, label, icon }: { data?: ToolHoverCardData; mini?: ToolHoverCardMini; label: string; icon?: ReactNode }) {
     const [state, setState] = useState(initialToolHoverCardState);
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -345,7 +404,8 @@ export function useToolHoverCard({ data, label, icon }: { data?: ToolHoverCardDa
         [clearTimer],
     );
 
-    const open = Boolean(data) && Boolean(anchorEl) && isToolHoverCardOpen(state);
+    const enabled = Boolean(data || mini);
+    const open = enabled && Boolean(anchorEl) && isToolHoverCardOpen(state);
 
     const closeForExclusivity = useCallback(() => {
         clearTimer(showTimerRef);
@@ -362,12 +422,17 @@ export function useToolHoverCard({ data, label, icon }: { data?: ToolHoverCardDa
     }, [open, closeForExclusivity]);
 
     return {
-        enabled: Boolean(data),
+        enabled,
         setAnchor: setAnchorEl,
         onEnter,
         onLeave,
         onFocus,
         onBlur,
-        card: data ? <ToolHoverCard open={open} anchorEl={anchorEl} data={data} label={label} icon={icon} onCardEnter={onCardEnter} onCardLeave={onCardLeave} onEscape={onEscape} /> : null,
+        card: enabled ? <ToolHoverCard open={open} anchorEl={anchorEl} data={data} mini={mini} label={label} icon={icon} onCardEnter={onCardEnter} onCardLeave={onCardLeave} onEscape={onEscape} /> : null,
     };
+}
+
+/** 面板信息小卡的便捷包装：hover/focus 出「标题 + 说明行」小卡（O-03 polish 起用）。 */
+export function useToolInfoCard({ title, lines, label, icon }: { title: string; lines?: string[]; label: string; icon?: ReactNode }) {
+    return useToolHoverCard({ mini: { title, lines }, label, icon });
 }

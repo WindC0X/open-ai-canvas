@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { CanvasImageSettingsPopover, imageSettingsPresetView } from "../src/components/canvas/canvas-image-settings-popover";
-import { ImageSettingsPanel } from "../src/components/image-settings-panel";
+import { ImageSettingsPanel, QUALITY_TIER_INFO_LINES, aspectBadgeInfoCard, ecomPresetInfoCard } from "../src/components/image-settings-panel";
+import { ToolHoverCardMiniContent } from "../src/components/ui/tool-hover-card";
 import { canvasThemes } from "../src/lib/canvas-theme";
 import { defaultImageCapabilityConfig, defaultModelCapabilityConfig, type ImageCapabilityConfig } from "../src/lib/model-capabilities";
 import { ECOM_CHANNEL_PRESETS } from "../src/lib/image-size-presets";
@@ -102,7 +103,11 @@ describe("面板预设行 / 角标 / 档位行（SSR）", () => {
                 onSelectModel: () => {},
             }}
             qualityTierControl={{ value: "flagship", onChange: () => {} }}
-            aspectBadges={{ "1:1": ["Amazon 主图"], "3:4": ["详情长图"], "9:16": ["抖音竖版"] }}
+            aspectBadges={{
+                "1:1": [{ label: "Amazon 主图", pixelRequirement: "1600×1600" }],
+                "3:4": [{ label: "详情长图", pixelRequirement: "1440×1920" }],
+                "9:16": [{ label: "抖音竖版", pixelRequirement: "1080×1920" }],
+            }}
         />,
     );
 
@@ -112,24 +117,27 @@ describe("面板预设行 / 角标 / 档位行（SSR）", () => {
         expect(html).toContain("详情长图");
         expect(html).toContain("抖音竖版");
         expect(html).toContain("恢复默认");
-        expect(html).toContain("已应用：白底主图，品牌/文字向");
+        expect(html).not.toContain("已应用：白底主图"); // O-03 polish：常驻行收入 hover 小卡，不占面板高度
+        expect(html).toContain("查看已应用预设说明：Amazon 主图");
         expect(html).toContain("当前模型上限 2K，已满足 ≥1600×1600px");
         expect(html).toContain("建议换用：");
         expect(html).toContain("Agnes 2.5 Flash");
         expect(html).toMatch(/aria-pressed="true"[^>]*><span title="白底主图，品牌\/文字向">Amazon 主图/);
     });
 
-    test("比例角标：带预设的 aspect 出现小圆点与 title", () => {
-        expect(html).toContain("电商预设：Amazon 主图");
-        expect(html).toContain("电商预设：详情长图");
-        expect(html).toContain("电商预设：抖音竖版");
+    test("比例角标：带预设的 aspect 出现小圆点 + 释义接线（hover 小卡数据）", () => {
+        expect(html).toContain('data-canvas-aspect-badges="Amazon 主图"');
+        expect(html).toContain('data-canvas-aspect-badges="详情长图"');
+        expect(html).toContain('data-canvas-aspect-badges="抖音竖版"');
+        expect(html).not.toContain("电商预设：Amazon 主图");
     });
 
-    test("默认画质行：三档 + 说明小字 + 当前档选中", () => {
+    test("默认画质行：三档 + 说明收入 hover 小卡 + 当前档选中", () => {
         expect(html).toContain("默认画质");
         expect(html).toContain("经济");
         expect(html).toContain("旗舰");
-        expect(html).toContain("新节点与切换模型时按此档吸附；模型不支持时自动回退。");
+        expect(html).toContain("查看默认画质说明");
+        expect(html).not.toContain("新节点与切换模型时按此档吸附");
         expect(html).toMatch(/aria-pressed="true"[^>]*>旗舰/);
     });
 
@@ -137,6 +145,41 @@ describe("面板预设行 / 角标 / 档位行（SSR）", () => {
         const plain = renderToStaticMarkup(<ImageSettingsPanel config={config} onConfigChange={() => {}} theme={canvasThemes.dark} showTitle={false} />);
         expect(plain).not.toContain("电商场景");
         expect(plain).not.toContain("默认画质");
+    });
+});
+
+describe("O-03 polish · 说明行收入 hover 小卡（mini 变体）", () => {
+    test("说明卡构造：已应用 / 默认画质 / 角标释义（预设名 + 最低像素）", () => {
+        const amazon = ECOM_CHANNEL_PRESETS.find((preset) => preset.id === "amazon-main")!;
+        const applied = ecomPresetInfoCard(amazon);
+        expect(applied.title).toBe("已应用：Amazon 主图");
+        expect(applied.lines).toEqual([amazon.hint]);
+        const appliedMarkup = renderToStaticMarkup(<ToolHoverCardMiniContent title={applied.title} lines={applied.lines} />);
+        expect(appliedMarkup).toContain('role="tooltip"');
+        expect(appliedMarkup).toContain("tool-hover-card-mini");
+        expect(appliedMarkup).toContain("已应用：Amazon 主图");
+        expect(appliedMarkup).toContain("白底主图，品牌/文字向");
+
+        const qualityMarkup = renderToStaticMarkup(<ToolHoverCardMiniContent title="默认画质" lines={QUALITY_TIER_INFO_LINES} />);
+        expect(qualityMarkup).toContain("新节点与切换模型时按此档吸附；模型不支持时自动回退。");
+
+        const badges = aspectBadgeInfoCard([
+            { label: "Amazon 主图", pixelRequirement: "1600×1600" },
+            { label: "详情长图", pixelRequirement: "1440×1920" },
+        ]);
+        expect(badges.title).toBe("电商预设");
+        const badgeMarkup = renderToStaticMarkup(<ToolHoverCardMiniContent title={badges.title} lines={badges.lines} />);
+        expect(badgeMarkup).toContain("Amazon 主图（≥1600×1600px）");
+        expect(badgeMarkup).toContain("详情长图（≥1440×1920px）");
+    });
+
+    test("静态护栏：角标按钮 hover 接线 + mini CSS 高于设置浮层", () => {
+        const panelSource = readFileSync(resolve(import.meta.dir, "../src/components/image-settings-panel.tsx"), "utf8");
+        expect(panelSource).toContain("aspectBadgeHover.setAnchor");
+        expect(panelSource).toContain("useToolInfoCard");
+        expect(panelSource).toContain("export type ImageSettingsAspectBadge");
+        const css = readFileSync(resolve(import.meta.dir, "../src/components/ui/tool-hover-card.css"), "utf8");
+        expect(css).toContain("z-index: var(--tool-hover-card-mini-z, 1150)");
     });
 });
 

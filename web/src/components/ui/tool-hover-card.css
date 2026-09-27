@@ -189,6 +189,61 @@
     color: #d4d4d4;
 }
 
+/* O-03 polish · 面板信息小卡：与四层卡共用底盘/状态机/单卡不变式，仅体量收敛。
+   z 置于设置浮层（--z-dialog-popover 1100）之上、全屏加载（1200）之下。 */
+.tool-hover-card-mini {
+    z-index: var(--tool-hover-card-mini-z, 1150);
+    gap: 6px;
+    width: max-content;
+    min-width: 160px;
+    max-width: min(280px, calc(100vw - 16px));
+    padding: 10px 12px;
+    border-radius: 16px;
+}
+
+.tool-hover-card-mini-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tool-hover-card-mini-icon {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #eeeeee;
+}
+
+.tool-hover-card-mini-icon svg {
+    width: 12px;
+    height: 12px;
+}
+
+.tool-hover-card-mini-title {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 18px;
+    color: #eeeeee;
+}
+
+.tool-hover-card-mini-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tool-hover-card-mini-line {
+    font-size: 12px;
+    font-weight: 350;
+    line-height: 1.5;
+    color: #b4b4b4;
+    white-space: normal;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .tool-hover-card {
         animation: none;

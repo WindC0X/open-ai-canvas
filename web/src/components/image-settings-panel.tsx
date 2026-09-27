@@ -1,6 +1,8 @@
 import { type ReactNode, useState } from "react";
 import { ConfigProvider } from "antd";
+import { Info } from "lucide-react";
 import { Switch } from "@/components/ui/base/switch";
+import { useToolHoverCard, useToolInfoCard, type ToolHoverCardMini } from "@/components/ui/tool-hover-card";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { buildImageResolutionOptions, formatImageResolutionSize, imageRatioForSize, imageResolutionChoices, imageResolutionOption, imageSizeForResolution, supportsImageResolutionPresets, type ImageResolutionChoice } from "@/lib/image-resolution-tiers";
@@ -61,6 +63,9 @@ export type ImageSettingsQualityTierSlot = {
     onChange: (tier: ImageQualityTier) => void;
 };
 
+/** O-03 polish：比例角标释义条目（预设名 + 最低像素要求；hover 小卡展示）。 */
+export type ImageSettingsAspectBadge = { label: string; pixelRequirement: string };
+
 type ImageSettingsPanelProps = {
     config: AiConfig;
     onConfigChange: (key: "quality" | "size" | "transparentBackground", value: string) => void;
@@ -79,8 +84,8 @@ type ImageSettingsPanelProps = {
     ecomPresets?: ImageSettingsEcomPresetSlot;
     /** O-03：默认画质档位控件（可选）。 */
     qualityTierControl?: ImageSettingsQualityTierSlot;
-    /** O-03：比例网格角标（aspect → 预设名列表；纯展示）。 */
-    aspectBadges?: Record<string, string[]>;
+    /** O-03：比例网格角标（aspect → 预设释义条目；纯展示 + hover 小卡）。 */
+    aspectBadges?: Record<string, ImageSettingsAspectBadge[]>;
 };
 
 export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 3, bypassPriceGuard = false, ecomPresets, qualityTierControl, aspectBadges }: ImageSettingsPanelProps) {
@@ -112,13 +117,17 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
 	// 分辨率档 = quality 档位映射 ∪ 后台 presets 分组 tier(quality 漏配档位时以 presets 为准, 如 Grok Imagine Image Edit)。
 	const imageTierChoices = (["1k", "2k", "4k"] as const).filter((tier) => imageTierAvailable(profile, tier) || profile.size.presets?.some((preset) => preset.tier === tier));
     const priceTiers = imagePriceTiersForModel(config, config.model || config.imageModel);
-    const badgeFor = (item: AspectOption): string[] | undefined => {
+    const badgeFor = (item: AspectOption): ImageSettingsAspectBadge[] | undefined => {
         if (!aspectBadges) return undefined;
         const byLabel = aspectBadges[item.label];
         if (byLabel?.length) return byLabel;
         const ratio = item.size ? imageRatioForSize(item.size) : "";
         return ratio ? aspectBadges[ratio] : undefined;
     };
+    // O-03 polish：角标释义用单实例小卡（按 hover/focus 的比例项切换锚点与文案）。
+    const [aspectBadgeCard, setAspectBadgeCard] = useState<ToolHoverCardMini | undefined>(undefined);
+    const aspectBadgeHover = useToolHoverCard({ mini: aspectBadgeCard, label: "电商预设", icon: <Info aria-hidden="true" /> });
+    const activeEcomPreset = ecomPresets?.activeId ? ecomPresets.presets.find((preset) => preset.id === ecomPresets.activeId) : undefined;
     const selectAspect = (value: string) => {
         const option = availableAspects.find((item) => item.value === value);
         onConfigChange("size", option ? imageOptionValue(profile, option) : "auto");
@@ -158,7 +167,10 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 {showTitle ? <div className="text-base font-semibold">图像设置</div> : null}
                 {ecomPresets ? <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                        <SettingTitle color={theme.node.groupTitle}>电商场景</SettingTitle>
+                        <div className="flex items-center gap-1">
+                            <SettingTitle color={theme.node.groupTitle}>电商场景</SettingTitle>
+                            {activeEcomPreset ? <SettingsInfoTrigger card={ecomPresetInfoCard(activeEcomPreset)} label={`查看已应用预设说明：${activeEcomPreset.label}`} theme={theme} /> : null}
+                        </div>
                         {ecomPresets.activeId ? (
                             <button
                                 type="button"
@@ -179,10 +191,6 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 </OptionPill>
                             ))}
                         </div>
-                        {ecomPresets.activeId ? (() => {
-                            const activePreset = ecomPresets.presets.find((preset) => preset.id === ecomPresets.activeId);
-                            return activePreset ? <div className="text-[10px] leading-snug opacity-65">已应用：{activePreset.hint}</div> : null;
-                        })() : null}
                         {ecomPresets.banner ? <div className="text-[10px] leading-snug opacity-85">{ecomPresets.banner}</div> : null}
                         {ecomPresets.suggestions?.length ? (
                             <div className="flex flex-wrap items-center gap-1 text-[10px] leading-none">
@@ -206,7 +214,10 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     </div>
                 </div> : null}
                 {qualityTierControl ? <div className="space-y-1.5">
-                    <SettingTitle color={theme.node.groupTitle}>默认画质</SettingTitle>
+                    <div className="flex items-center gap-1">
+                        <SettingTitle color={theme.node.groupTitle}>默认画质</SettingTitle>
+                        <SettingsInfoTrigger card={{ title: "默认画质", lines: QUALITY_TIER_INFO_LINES }} label="查看默认画质说明" theme={theme} />
+                    </div>
                     <div className="canvas-settings-group space-y-1">
                         <div className="grid grid-cols-3 gap-1.5">
                             {IMAGE_QUALITY_TIERS.map((tier) => (
@@ -215,7 +226,6 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 </OptionPill>
                             ))}
                         </div>
-                        <div className="text-[10px] leading-snug opacity-60">新节点与切换模型时按此档吸附；模型不支持时自动回退。</div>
                     </div>
                 </div> : null}
                 {availableAspects.length ? <div className="space-y-1.5">
@@ -235,22 +245,31 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 <span className="whitespace-nowrap">自适应</span>
                             </button>
                         ) : null}
-                        {availableAspects.map((item) => (
-                            <button
-                                key={item.value}
-                                type="button"
-                                aria-pressed={selectedAspect?.value === item.value}
-                                className="canvas-settings-option relative flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-                                style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
-                                onMouseDown={(event) => event.stopPropagation()}
-                                onClick={() => selectAspect(item.value)}
-                            >
-                                {badgeFor(item) ? <span aria-hidden="true" title={`电商预设：${badgeFor(item)!.join("、")}`} className="pointer-events-none absolute right-1 top-1 size-1.5 rounded-full" style={{ background: theme.node.activeStroke }} /> : null}
-                                <AspectIcon type={item.icon} width={item.width} height={item.height} color="currentColor" />
-                                <span className="whitespace-nowrap">{item.label}</span>
-                            </button>
-                        ))}
+                        {availableAspects.map((item) => {
+                            const badges = badgeFor(item);
+                            return (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    aria-pressed={selectedAspect?.value === item.value}
+                                    data-canvas-aspect-badges={badges?.map((badge) => badge.label).join("、") || undefined}
+                                    className="canvas-settings-option relative flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                    style={{ outlineColor: theme.node.muted, fontSize: "var(--fs-label)" }}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    onClick={() => selectAspect(item.value)}
+                                    onPointerEnter={badges ? (event) => { setAspectBadgeCard(aspectBadgeInfoCard(badges)); aspectBadgeHover.setAnchor(event.currentTarget); aspectBadgeHover.onEnter(); } : undefined}
+                                    onPointerLeave={badges ? () => aspectBadgeHover.onLeave() : undefined}
+                                    onFocus={badges ? (event) => { if (!event.currentTarget.matches(":focus-visible")) return; setAspectBadgeCard(aspectBadgeInfoCard(badges)); aspectBadgeHover.setAnchor(event.currentTarget); aspectBadgeHover.onFocus(); } : undefined}
+                                    onBlur={badges ? () => aspectBadgeHover.onBlur() : undefined}
+                                >
+                                    {badges ? <span aria-hidden="true" className="pointer-events-none absolute right-1 top-1 size-1.5 rounded-full" style={{ background: theme.node.activeStroke }} /> : null}
+                                    <AspectIcon type={item.icon} width={item.width} height={item.height} color="currentColor" />
+                                    <span className="whitespace-nowrap">{item.label}</span>
+                                </button>
+                            );
+                        })}
                     </div>
+                    {aspectBadgeHover.card}
                     {/* 自定义与长宽定义并列一行(用户拍板): 点击"自定义"应用当前 W/H; 编辑输入即切自定义;
                         W/H 定宽压缩(用户反馈: 给开关常显名字留位); 16 倍对齐就地开关常显"16 倍"。 */}
                     {profile.size.allowCustom ? <div className="flex items-center gap-1">
@@ -491,6 +510,49 @@ function SettingTitle({ children, color }: { children: string; color: string }) 
         <div className="text-xs font-normal" style={{ color }}>
             {children}
         </div>
+    );
+}
+
+/** O-03 polish · 默认画质说明文案（收入 hover 小卡后不再常驻占高）。 */
+export const QUALITY_TIER_INFO_LINES = ["新节点与切换模型时按此档吸附；模型不支持时自动回退。"];
+
+/** O-03 polish · 「已应用」说明卡：预设名 + hint（原常驻行文案的按需形态）。 */
+export function ecomPresetInfoCard(preset: Pick<EcomChannelPreset, "label" | "hint">): ToolHoverCardMini {
+    return { title: `已应用：${preset.label}`, lines: [preset.hint] };
+}
+
+/** O-03 polish · 角标释义卡：预设名 + 最低像素要求。 */
+export function aspectBadgeInfoCard(badges: ImageSettingsAspectBadge[]): ToolHoverCardMini {
+    return { title: "电商预设", lines: badges.map((badge) => `${badge.label}（≥${badge.pixelRequirement}px）`) };
+}
+
+/** O-03 polish · 组标题旁信息入口：hover / focus(:focus-visible) 出小卡，不占常驻高度。 */
+function SettingsInfoTrigger({ card, label, theme }: { card: ToolHoverCardMini; label: string; theme: CanvasTheme }) {
+    const hover = useToolInfoCard({ title: card.title, lines: card.lines, label, icon: <Info aria-hidden="true" /> });
+    return (
+        <>
+            <button
+                type="button"
+                aria-label={label}
+                className="flex size-4 cursor-help items-center justify-center rounded-full opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                style={{ color: theme.node.muted, outlineColor: theme.node.muted }}
+                onMouseDown={(event) => event.stopPropagation()}
+                onPointerEnter={(event) => {
+                    hover.setAnchor(event.currentTarget);
+                    hover.onEnter();
+                }}
+                onPointerLeave={() => hover.onLeave()}
+                onFocus={(event) => {
+                    if (!event.currentTarget.matches(":focus-visible")) return;
+                    hover.setAnchor(event.currentTarget);
+                    hover.onFocus();
+                }}
+                onBlur={() => hover.onBlur()}
+            >
+                <Info size={12} aria-hidden="true" />
+            </button>
+            {hover.card}
+        </>
     );
 }
 

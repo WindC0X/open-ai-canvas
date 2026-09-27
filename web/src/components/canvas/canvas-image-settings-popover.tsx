@@ -5,7 +5,7 @@ import { Button } from "antd";
 import { usePopoverExit } from "./use-popover-exit";
 import { useExclusiveSettings } from "./use-exclusive-settings";
 
-import { ImageSettingsPanel, imageQualityLabel, imageSizeLabel, type ImageSettingsEcomPresetSlot, type ImageSettingsQualityTierSlot } from "@/components/image-settings-panel";
+import { ImageSettingsPanel, imageQualityLabel, imageSizeLabel, type ImageSettingsAspectBadge, type ImageSettingsEcomPresetSlot, type ImageSettingsQualityTierSlot } from "@/components/image-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor, normalizeImageValue } from "@/lib/model-capabilities";
 import { ECOM_CHANNEL_PRESETS, planEcomPresetApplication, type EcomChannelPreset, type EcomPresetPlan } from "@/lib/image-size-presets";
@@ -209,7 +209,7 @@ function ImageSettingsPortal({
     supplyNodeId?: string;
     ecomPresets: ImageSettingsEcomPresetSlot;
     qualityTierControl: ImageSettingsQualityTierSlot;
-    aspectBadges: Record<string, string[]>;
+    aspectBadges: Record<string, ImageSettingsAspectBadge[]>;
 }) {
     const gap = 4;
     const margin = 12;
@@ -291,7 +291,7 @@ function presetModelSuggestions(config: AiConfig, preset: EcomChannelPreset): { 
     return plan.suggestModelIds.slice(0, 3).map((id) => ({ id, label: configuredModelDisplayName(config, id) }));
 }
 
-const ECOM_ASPECT_BADGES: Record<string, string[]> = ECOM_CHANNEL_PRESETS.reduce<Record<string, string[]>>((acc, preset) => {
-    acc[preset.aspect] = [...(acc[preset.aspect] || []), preset.label];
+const ECOM_ASPECT_BADGES: Record<string, ImageSettingsAspectBadge[]> = ECOM_CHANNEL_PRESETS.reduce<Record<string, ImageSettingsAspectBadge[]>>((acc, preset) => {
+    acc[preset.aspect] = [...(acc[preset.aspect] || []), { label: preset.label, pixelRequirement: `${preset.minPixels.width}×${preset.minPixels.height}` }];
     return acc;
 }, {});

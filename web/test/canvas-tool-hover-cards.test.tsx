@@ -6,7 +6,7 @@ import { Undo2 } from "lucide-react";
 import type { FloatingDockCommand } from "../src/components/ui/aceternity/floating-dock";
 import { FloatingDock } from "../src/components/ui/aceternity/floating-dock";
 import { NodePreviewMockup } from "../src/components/ui/tool-hover-card-mockups";
-import { ToolHoverCardContent, computeToolHoverCardPosition, createToolHoverCardExclusivity, initialToolHoverCardState, isToolHoverCardOpen, reduceToolHoverCardState } from "../src/components/ui/tool-hover-card";
+import { ToolHoverCardContent, ToolHoverCardMiniContent, computeToolHoverCardPosition, createToolHoverCardExclusivity, initialToolHoverCardState, isToolHoverCardOpen, reduceToolHoverCardState } from "../src/components/ui/tool-hover-card";
 import { CANVAS_SHORTCUTS } from "../src/lib/canvas/canvas-shortcuts";
 import { NODE_PREVIEW_KINDS, resolveToolHoverCardData } from "../src/lib/canvas/tool-hover-card-data";
 import { addNodeMenuCommands } from "../src/lib/canvas/tool-registry/definitions/add-node-menu-tools";
@@ -333,5 +333,23 @@ describe("S2.1 hover 卡 · 全局单卡不变式（节流环境双卡残留加�
         const source = readFileSync(new URL("../src/components/ui/tool-hover-card.tsx", import.meta.url), "utf8");
         expect(source).toContain("toolHoverCardExclusivity.request");
         expect(source).toContain("toolHoverCardExclusivity.release");
+    });
+});
+
+describe("O-03 polish · 面板信息小卡（mini 变体）", () => {
+    test("SSR：role=tooltip + mini 类名 + 标题/说明行", () => {
+        const markup = renderToStaticMarkup(<ToolHoverCardMiniContent title="已应用：Amazon 主图" lines={["白底主图，品牌/文字向"]} />);
+        expect(markup).toContain('role="tooltip"');
+        expect(markup).toContain("tool-hover-card-mini");
+        expect(markup).toContain("已应用：Amazon 主图");
+        expect(markup).toContain("白底主图，品牌/文字向");
+    });
+
+    test("形态守卫：高于设置浮层 z1100、圆角 16、沿用四层卡底盘与动效", () => {
+        const css = readFileSync(new URL("../src/components/ui/tool-hover-card.css", import.meta.url), "utf8");
+        expect(css).toContain(".tool-hover-card-mini {");
+        expect(css).toContain("z-index: var(--tool-hover-card-mini-z, 1150)");
+        expect(css).toContain("border-radius: 16px");
+        expect(css).toContain("max-width: min(280px, calc(100vw - 16px))");
     });
 });
