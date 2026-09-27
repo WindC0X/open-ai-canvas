@@ -57,3 +57,18 @@
 3. ✅ 药丸取消语义：size→auto + quality 回归模型默认档（「预设推荐值」语义，取消 = 回无预设基线态）。
 4. ✅ Amazon ≥1600（任务书为准，≥2048 旧稿不追溯）。
 5. ✅ 预设数据落点 = 扩展 image-size-presets.ts；desiredResolution 字段预留（层2 触发条件）。
+
+
+## O-03 实现与验证记录（2026-09-28 · 完成）
+
+- 数据层：`image-size-presets.ts` 增 `ECOM_CHANNEL_PRESETS`（三预设，minPixels+desiredResolution+hint）/ `IMAGE_QUALITY_TIERS`（economy/standard/flagship→1K/2K/4K）/ `parseImageQualityTier` / `imageAvailableTiers`（双范式）/ `resolveTierPlan`（降级链+价目档校验）/ `planEcomPresetApplication`（四态）/ `hasPriceTierForImageSelection`（自面板迁入，去重）。
+- 面板：`ImageSettingsPanel` 三可选槽（ecomPresets/qualityTierControl/aspectBadges）——不传零变化（批量/审批/蒙版回归锚，SSR 断言在案）；预设行/徽标/建议/角标/档位行为纯视觉。
+- 药丸：`imageSettingsPresetView`（派生，无独立状态）；✕ 取消 = size→auto + quality 回模型默认档（控制线 2026-09-27 批）。
+- 档位：store `image.qualityTier` 持久化；`defaultImageParamsForModel` 吸附（不可得回退零变化）；`imagePriceTiersForModel` 下沉 model-selection。
+- 换模型建议：目录动态查找 + 按可达档排序（4K 优先）+ 点击切换接现有 onSelectModel（node composer 路径）。
+- 测试：`ecom-preset-plan.test.ts` 17 例 + `ecom-preset-ui.test.tsx` 13 例（四态全分支/降级/未知/价目档/吸附/SSR 渲染/静态护栏）。
+- 门禁：tsc 0 / build ✓ / 全量 2354 测试（309 文件）→ 15 红逐名=冻结基线、零额外。
+- 真机走查：`.local/o03-walkthrough/` s1-s6（s1 预设行+角标；s2/s2a 药丸特写；s3 取消；s4 吸附；s5 不达标态；s6 还原）；明细见该目录 evidence-notes.md。
+- 缺口上报（不擅自扩）：G1-G4 沿用首日盘点（research/capability-coverage-2026-09-27.md），本枝未修。
+- 环境注记：本环境「小白鼠 Gpt Image 2」含 4K 尺寸（盘点记 1K 封顶）；交集逻辑实时取 config，不受盘点表约束。
+- 派生态边界（设计 risk2 已接受）：值与预设计划同值时显示预设态（走查实录 W5）。

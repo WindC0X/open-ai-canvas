@@ -42,3 +42,14 @@
 
 ## 回滚点
 - Step 1 纯新增；Step 2/3/4 可分层回退；整枝单 commit revert。
+
+
+## O-03 执行记录（2026-09-28 · 完成）
+
+- Step 0：盘点已于首日完成（d6482645；research/ 两件在册），本日直接进入实现。
+- Step 1：数据 + 纯函数（四态/降级链/双范式/价目档口径）+ 17 用例绿。
+- Step 2：面板槽位（不传零变化）+ 角标 + popover 组装/应用/清除；node composer 路径接 onSelectModel。
+- Step 3：药丸预设态（派生）+ 渠道小标 + ✕ 取消；SSR/静态护栏断言。
+- Step 4：档位词汇表 + store 持久化 + `defaultImageParamsForModel` 吸附（价目档校验、不可得不应用）+ V1 面板行。
+- Step 5：门禁四件（tsc 0 / build ✓ / 全量 2354 → 15 红=基线零额外）；真机走查 s1-s6（`.local/o03-walkthrough/`）；pending-test 登记（docs/plans/pending-test.mdx 新路径）；计价自证（无价格常量/数字，静态护栏 + 手工核对）。
+- Step 6：正文 + 落卡双 commit，不 push。
