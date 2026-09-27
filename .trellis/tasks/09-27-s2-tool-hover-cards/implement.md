@@ -43,3 +43,18 @@
   - 披露：会话中段起自动化指针通道失稳，矩阵除 `h0`（真实指针悬停）外由页内事件驱动相同 React 处理器（逐张 DOM/状态断言）；`orca keypress` 零投递、OS 级按键因焦点门禁放弃。
   - 窄屏：视口 <1024 自动沉浸（`use-focus-mode` 既有行为）→ 主 Dock 不渲染、无卡可出、无报错（h10）；<768 scrollable/原生 title 兜底由源码+单测覆盖。
 - Step 4：正文 + 落卡双 commit；`git diff` 自证不含 `globals.css`、零新依赖。
+
+
+## S2.1 执行记录（2026-09-28 · 完成）
+
+- Step 1 文案：26 项三段式送审 → 控制线总批（3 必改 + 2 可选）；A9/A2 限定词先做代码实证（`use-canvas-history` 的 `historyRef` 为内存态、无持久化、50 条上限；快照含 canvasAppearance/backgroundMode/showImageInfo 且 undo 会 apply）。
+- Step 2 施工：数据层重写（`tool-hover-card-data.ts` NODE_PREVIEW_KINDS + 双参解析）、27 处文案迁移（含 3 必改 + 2 可选 + preview:'node' 标记）、`tool-hover-card-mockups.tsx` 11 款 SVG、渲染层四层重写 + CSS 底盘重写、测试文件全量迁移（文案锁 / 分布断言 15 icon+11 node / 四层结构守卫 / 几何断言）。
+- Step 3 门禁：tsc 0；build ✓；focused 66 绿（7 文件组）；全量 `bun test` 2309 测试 → 15 红逐名=冻结基线（日志 `/tmp/s21-bun-test-full.log`）。
+- Step 3 真机走查（双实例 :3012/:3013 + :8483；证据 `.local/s21-walkthrough/`）：
+  - 默认态对照对（全新双标签，全部交互后重开）：全域 1067px（0.045%），主/缩放/素材 Dock 带与画布区全 0px；残差＝顶栏字形 412px（同 v1 环境 class）+ Agent 光球动画。
+  - 出卡实拍 6 张：撤销（icon + footer 键位句）、工作区（无 footer）、图片/文件夹（node mockup）、抓手（switch 段）、几何 1024×768；每张先 DOM 断言后截图。
+  - 计算样式四层逐项实测命中（r24 / 玻璃 / 阴影 / #949494 / #B4B4B4 / 366×229 / 41px / kbd 徽章 / gap 8.0px / 无溢出 / 不遮触发点）。
+  - fiber 状态轨迹（dismissed 后 Esc 再武装）、will-change 生命周期实测（进场 `transform, opacity` → 结束 `auto`）。
+- 现场修复 2 缺陷（均由本版新断言/测量捕获）：CSS 漏 `position: fixed`（静态定位跑到 (0,0)）→ 补属性 + 新增静态断言；进场中间帧测量吃 transform（尺寸缩为 0.96×）→ `offsetWidth/offsetHeight` + 新增断言。
+- 披露：Esc 首次真实 OS 键投递成功，随后该通道两次打断本会话工具命令（OS 级泄漏风险）→ 停用，其余 Esc 证据采用页面内 dispatch + 单测；帧率采样因窗口遮挡节流不可得（替代证据见 evidence-notes §四）。
+- Step 4：正文 + 落卡双 commit；不 push；S2 封印待控制线复核。

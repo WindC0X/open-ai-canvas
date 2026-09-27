@@ -86,3 +86,13 @@ export function CanvasToolHoverCard({ icon, label, hover, theme, open, anchorRec
 - 门控：`cardsEnabled = !scrollable`（coarsePointer 或视口 <768 时禁用）；禁用工具不出卡（对齐既有 tooltip 语义）；switch 由 DockSwitch 父级单 hook + refs Map 实现逐段卡（规避 hooks-in-loop）。
 - 样式走全局 Semantic token（`bg-surface-strong` / `border-border` / `text-foreground`）+ `base/Kbd`；**未触碰 `globals.css`**。接受小代价：portal 无法承接 dock 的 inline 画布主题变量，画布主题 ≠ app 主题时材质或有细微差异。
 - Esc 已知边界：画布全局 Esc（取消/去选）在 `window`-capture 先于卡片 `document`-capture，Esc 关卡可能同时触发画布动作；修复需共享键盘调度器，本轮接受并登记。
+
+
+## §9 S2.1 形态升级（flora 四层配方）实现差异与落地记录（2026-09-28）
+
+- **数据层升级**：`ToolHoverInfo` → `{ tagline（必填）, description（长句）, preview?: 'icon'|'node', shortcuts? }`；`ToolHoverCardData.preview` 必填，`resolveToolHoverCardData(hover, itemId)` 双参——node 预览仅当 `preview==='node'` 且 itemId ∈ `NODE_PREVIEW_KINDS`（11 节点白名单），否则 icon 回退；适配层（tool-registry / use-canvas-create-commands）补传 itemId。
+- **渲染层重写**：四层结构（L1 41px 头：32×32 圆角图标块 + 名称/tagline；L2 长句 2 行 min-height 防高度跳变；L3 366×229 预览盒：tool=48px 大图标、node=`tool-hover-card-mockups.tsx` 11 款手写 SVG mockup（标题栏 + 类型徽章 + 点阵背景）；L4 footer「按 + kbd 徽章 + tagline」仅第一组键位）；kbd 徽章本地样式（不动共享 Kbd）。
+- **壳 CSS**：min(408px, 100vw−16px) / r24 / rgba(32,32,32,0.9)+blur(16px) / flora 双段阴影 / padding 20px / gap 14px / 150ms scale 0.96→1 / `data-entering` 进场挂 will-change、动画结束清除 / prefers-reduced-motion 直切。
+- **定位升级**：`computeToolHoverCardPosition` 按 419–447px 高卡重写（上方优先 → 翻下 → 纵向 clamp + max-height calc(100vh−16px) overflow-y-auto → 水平 clamp）；卡尺寸测量改用 `offsetWidth/offsetHeight`（进场中间帧吃 transform 的回归修复）。
+- **两处有意偏离**（控制线批准，PATCH-MAP「形态偏离登记」）：次级灰 #7B7B7B → #949494（flora 原值对比 3.87:1 不达 AA，fork 提亮至 ≥4.6:1）；footer 句式中文化。
+- **与 v1 相同的边界保留**：Esc 双动作（全局键盘先手）、portal 主题差、<1024 沉浸无 surface、<768 native title 兜底。

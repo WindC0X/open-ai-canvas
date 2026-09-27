@@ -50,3 +50,13 @@
 - 验收结果：门禁四件绿（tsc 0 / build ✓ / focused 最终复核 61 绿（7 文件组，实现期首跑 51） / 全量 2304 测试对照冻结红基线逐名一致）；真机走查矩阵与默认态对照见 `.local/s2-walkthrough/`（主 Dock 带 0–11px，同标签噪声同量级）。
 - 预览资产：1/26（仅 B6 文件夹封面）；缺口清单见清单文件「preview 覆盖率」节。
 - 登记：`pending-test.mdx` S2 节（含待真机复核项与 Esc 已知限制）。
+
+
+## S2.1 形态升级与验证记录（2026-09-28 · 完成）
+
+控制线裁定：S2 v1（fc18a40d + 22708b60）功能/工程验收通过，但形态对比 flora.ai 判「简陋」→ 限定范围一轮升级：工程底座（状态机/延时/定位骨架/Esc/指针入卡/a11y 三件/测试体系）全保留，仅重写渲染层 + CSS 至 flora 四层配方（权威依据：`docs/artifacts/s2-hover-upgrade/flora-hover-spec.md` v1.1 + 两张实拍证据图）。
+
+- 文案三段式 26 项全量重写（tagline ≤10 字 + 长句），控制线总批通过（3 必改 + 2 可选全部执行）：A9 tagline「移除所选内容」+ 长句「可在会话内撤销」（撤销栈会话级 = 代码实证）；A2「节点、连线与画布设置都能恢复」保留（快照含 canvasAppearance/backgroundMode/showImageInfo 且 undo apply = 代码实证）；B15「复用角色设定」；B16「选取素材插入画布」；A4 长句砍尾。
+- 预览制式：位图预览整体退场（含 B6 文件夹封面）→ 工具类 48px 大图标 ×15、节点类手写 SVG mockup ×11（零位图资产）；footer 仅 3 项（A2/A3/A9），手势短语不做假键位。
+- 验收：四层 DOM/计算样式断言 + 1024×768 几何边界 + 26 卡等高（测试层）+ :3012/:3013 同态对照（默认态主 Dock 带 0px）+ 出卡实拍矩阵；门禁四件绿（tsc 0 / build ✓ / focused 66 / 全量 2309 测试 → 15 红逐名=冻结基线）。
+- 明细见 design §9 / implement「S2.1 执行记录」/ `.local/s21-walkthrough/evidence-notes.md`。

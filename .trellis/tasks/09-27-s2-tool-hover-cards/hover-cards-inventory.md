@@ -65,3 +65,12 @@
 3. 插件贡献的节点命令：无 hover 数据时优雅降级（维持原生 `title`），不报错。
 4. 实现方式（已批准）：数据＝`ToolDefinition` / `AddNodeMenuCommand` 增可选 `hover` 字段（上游文件**薄增、纯数据**）；挂点＝floating-dock `DockCommandButton` / `DockSwitch` 与 canvas-create-menu 按钮的渲染分支（**薄附加 prop + 缺省回退**）；卡片组件与样式为 fork 新文件；`globals.css` 零改动。
 5. 现状说明：Dock 现为「极简 label tooltip」，菜单现仅原生 `title`——本批在有 hover 数据时升级为说明卡，无数据回退现状。
+
+
+## S2.1 终版状态（2026-09-28 · 形态升级后归档口径）
+
+- 数据形态：`hover = { tagline, description, preview?, shortcuts? }`；26 项 tagline 全量必填（防卡片高度跳变）。
+- 预览制式（更新）：**位图预览整体退场** —— 原 B6 文件夹封面撤下、B1 项目画风维持「有意不配」；改为 工具类 48px 大图标 ×15 + 节点类手写 SVG mockup ×11（零位图资产，`tool-hover-card-mockups.tsx`）。
+- footer：仅 A2（Ctrl / Cmd + Z）/ A3（Ctrl / Cmd + Shift + Z）/ A9（Delete）3 项；手势短语不做假键位；抓手键位绑定（flora Shift+8）留 backlog。
+- 文案：三段式终版已落（A9「移除所选内容」、B15「复用角色设定」、B16「选取素材插入画布」、A2 保留「画布设置」表述等）。
+- 偏离：次级灰 #949494（AA 修复）、footer 中文化（PATCH-MAP「形态偏离登记」）。
