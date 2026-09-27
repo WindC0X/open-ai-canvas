@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ECOM_STARTER_CARDS, ecomStarterSubtitle, findEcomStarterCardByPrompt, isFreeExperienceModel, resolveStarterRunDecision } from "../src/lib/canvas/canvas-ecom-starters";
+import { ECOM_STARTER_CARDS, ecomStarterSubtitle, findEcomStarterCardByPrompt, isFreeExperienceModel, resolveSceneStarterCards, resolveStarterRunDecision } from "../src/lib/canvas/canvas-ecom-starters";
 import type { AiConfig } from "../src/stores/use-config-store";
 
 test("电商 starter 卡数据：4 张、字段齐、无价格数字", () => {
@@ -51,6 +51,13 @@ test("findEcomStarterCardByPrompt：命中卡片原文返回卡；其余文本�
     expect(findEcomStarterCardByPrompt("")).toBeUndefined();
     // 只做完整原文匹配，不做片段匹配
     expect(findEcomStarterCardByPrompt(ECOM_STARTER_CARDS[0].prompt.slice(0, 20))).toBeUndefined();
+});
+
+test("resolveSceneStarterCards：广告电商复用四卡；其余场景 null（S1 v3.2 卡区判定）", () => {
+    expect(resolveSceneStarterCards("ecommerce")).toBe(ECOM_STARTER_CARDS);
+    for (const key of ["drama", "creative", "frequent", "social", "others", ""]) {
+        expect(resolveSceneStarterCards(key)).toBeNull();
+    }
 });
 
 test("resolveStarterRunDecision：空值 ignore / 忙态 toast / 空闲 submit", () => {

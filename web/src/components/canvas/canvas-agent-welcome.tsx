@@ -1,6 +1,5 @@
-import { ArrowUpRight, ChevronDown, Clapperboard, Layers3, Sparkles } from "lucide-react";
+import { ArrowUpRight, Clapperboard, Layers3, Sparkles } from "lucide-react";
 import { agentCopy, type CanvasAppearance } from "@/lib/canvas/agent-appearance";
-import { ECOM_STARTER_CARDS, ECOM_STARTER_ICONS, ecomStarterSubtitle } from "@/lib/canvas/canvas-ecom-starters";
 import type { AgentWelcomeTier } from "@/lib/canvas/agent-panel-layout";
 
 type AgentWelcomeProps = {
@@ -8,23 +7,18 @@ type AgentWelcomeProps = {
     nodeCount: number;
     onChooseSkill: () => void;
     onDraftPrompt: (prompt: string) => void;
-    /** 电商 starter 卡（S1）：点击 = 新命令立即执行；未接线时分组不渲染。 */
-    onRunStarter?: (prompt: string) => void;
-    /** 免费通道（运行时判定）：副标题成本段显示「免费体验」。 */
-    freeExperience?: boolean;
     /**
-     * 内容分级（控制线 2026-09-27 退回裁决 2.2，按 Agent 浮窗高度）：
-     * compact = 默认窗：欢迎语一行 + 电商卡紧凑行 + 「更多开始方式」折叠；
-     * standard = 拉高窗口：电商卡带副标题与成本档，通用三卡展开；
-     * expanded = 全量形态（现状顺序）。
+     * 内容分级（控制线 2026-09-27 退回裁决 2.2，按 Agent 浮窗高度）。
+     * v3.2 内容统一为 hero → 通用三卡 → 辅助行：
+     * compact = 单行欢迎语 + 单行卡（无副标题）；standard/expanded = 完整 hero + 卡带副标题。
+     * 电商卡移入场景钻取卡区（胶囊条下方），welcome 不再包含电商分组与折叠钮。
      */
     tier?: AgentWelcomeTier;
-    /** 「更多开始方式」展开态；技能组合推荐由面板侧按同一状态渲染。 */
-    moreOpen?: boolean;
-    onMoreOpenChange?: (open: boolean) => void;
+    /** S1 v3.2：场景钻取态——通用三卡与辅助行渐进隐藏（返回恢复）。 */
+    drilledScene?: string | null;
 };
 
-export function AgentWelcome({ appearance, nodeCount, onChooseSkill, onDraftPrompt, onRunStarter, freeExperience, tier = "expanded", moreOpen = false, onMoreOpenChange }: AgentWelcomeProps) {
+export function AgentWelcome({ appearance, nodeCount, onChooseSkill, onDraftPrompt, tier = "expanded", drilledScene = null }: AgentWelcomeProps) {
     const intro = (
         <div className="agent-welcome-intro">
             <span className="agent-welcome-orb" aria-hidden="true" />
@@ -62,50 +56,13 @@ export function AgentWelcome({ appearance, nodeCount, onChooseSkill, onDraftProm
         </div>
     );
 
-    const ecomGroup = onRunStarter ? (
-        <div className="agent-welcome-ecom" aria-label="电商快捷开始">
-            <p className="agent-welcome-ecom-title">电商快捷开始</p>
-            <div className="agent-welcome-actions">
-                {ECOM_STARTER_CARDS.map((card) => {
-                    const Icon = ECOM_STARTER_ICONS[card.icon];
-                    return (
-                        <button key={card.id} type="button" onClick={() => onRunStarter(card.prompt)}>
-                            <Icon aria-hidden="true" />
-                            <span>
-                                <strong>{card.title}</strong>
-                                <small>{ecomStarterSubtitle(card, freeExperience)}</small>
-                            </span>
-                            <ArrowUpRight className="agent-welcome-arrow" aria-hidden="true" />
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
-    ) : null;
-
-    const moreToggle = tier !== "expanded" ? (
-        <button type="button" className="agent-welcome-more" aria-expanded={moreOpen} onClick={() => onMoreOpenChange?.(!moreOpen)}>
-            <span>更多开始方式</span>
-            <ChevronDown aria-hidden="true" />
-        </button>
-    ) : null;
-
     return (
         <section className={`agent-welcome agent-welcome--${tier}`} aria-label="开始 Agent 创作">
             {intro}
-            {tier === "expanded" ? (
+            {drilledScene ? null : (
                 <>
                     {genericActions}
-                    {ecomGroup}
                     <p className="agent-welcome-footnote">先聊想法，再决定下一步</p>
-                </>
-            ) : (
-                <>
-                    {ecomGroup}
-                    {tier === "standard" ? genericActions : null}
-                    {moreToggle}
-                    {tier === "standard" ? <p className="agent-welcome-footnote">先聊想法，再决定下一步</p> : null}
-                    {tier === "compact" && moreOpen ? genericActions : null}
                 </>
             )}
         </section>

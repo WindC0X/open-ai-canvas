@@ -583,99 +583,136 @@
     opacity: 0.6;
 }
 
-/* S1 电商 starter 卡组：内层复用 .agent-welcome-actions 按钮形态，组级只做分隔与标题。 */
-.agent-welcome-ecom {
-    width: 100%;
-    max-width: 360px;
-    margin-top: var(--space-6);
-}
-
-.agent-welcome-ecom-title {
-    margin: 0 0 var(--space-2);
-    padding-inline: var(--space-4);
-    color: var(--agent-caption);
-    font-size: var(--fs-label);
-}
-
-.agent-welcome-ecom .agent-welcome-actions {
-    margin-top: 0;
-}
-
-/* S1 重构（控制线 2026-09-27 退回裁决 2.2）：按 Agent 浮窗高度三级内容分级。
-   compact=默认窗：单行欢迎语 + 卡紧凑行 + 「更多开始方式」折叠；standard：卡带副标题 + 通用三卡；expanded：全量。 */
+/* S1 v3.2（控制线 2026-09-27）：三级仍按 Agent 浮窗高度，内容统一为 hero → 通用三卡 → 辅助行。
+   compact=单行欢迎语（18px，球体/副标题省略）+ 单行卡（无副标题）+ 辅助行；standard/expanded=完整 hero + 卡带副标题。
+   电商卡移入场景钻取卡区（胶囊条下方），welcome 不再包含电商分组与折叠钮。 */
 .agent-welcome--compact {
     justify-content: flex-start;
     padding-block: var(--space-4);
 }
 
 .agent-welcome--compact .agent-welcome-orb,
-.agent-welcome--compact .agent-welcome-intro p,
-.agent-welcome--compact .agent-welcome-footnote {
+.agent-welcome--compact .agent-welcome-intro p {
     display: none;
 }
 
-.agent-welcome--compact .agent-welcome-ecom {
-    margin-top: var(--space-4);
-}
-
-.agent-welcome--compact .agent-welcome-ecom-title {
-    margin-bottom: var(--space-1);
+.agent-welcome--compact .agent-welcome-intro h2 {
+    font-size: 18px;
 }
 
 .agent-welcome--compact .agent-welcome-actions {
-    margin-top: var(--space-2);
+    margin-top: var(--space-4);
 }
 
-.agent-welcome--compact .agent-welcome-ecom button {
+.agent-welcome--compact .agent-welcome-actions button {
     padding-block: var(--space-2);
 }
 
-.agent-welcome--compact .agent-welcome-ecom small {
+.agent-welcome--compact .agent-welcome-actions small {
     display: none;
 }
 
-.agent-welcome-more {
-    display: flex;
-    width: 100%;
-    max-width: 360px;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
+.agent-welcome--compact .agent-welcome-footnote {
     margin-top: var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    border: 0;
-    border-radius: var(--space-4);
-    background: transparent;
+}
+
+/* S1 v3.2：场景钻取卡区——挂在技能胶囊条下方、输入框上方；广告电商 2×2 磁贴。 */
+.agent-scene-cards {
+    /* 容器 min-height 锁定：钻取/恢复切换不产生卡区高度抖动；入场上浮淡入（cross-fade）。 */
+    min-height: 148px;
+    margin: 0 var(--space-3) var(--space-2);
+    animation: agent-scene-cards-in 180ms ease;
+}
+
+.agent-scene-cards-title {
+    margin: 0 0 var(--space-2);
+    padding-inline: var(--space-1);
     color: var(--agent-caption);
     font-size: var(--fs-label);
+}
+
+.agent-scene-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+}
+
+.agent-scene-card {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+    border-radius: var(--space-3);
+    background: var(--agent-surface-soft);
+    color: var(--agent-caption);
+    text-align: left;
     cursor: pointer;
     transition: background-color 160ms ease, color 160ms ease;
 }
 
-.agent-welcome-more:hover {
-    background: var(--agent-surface-soft);
+.agent-scene-card:hover:not(:disabled) {
+    background: var(--agent-surface-hover, var(--agent-surface-soft));
     color: var(--agent-ink);
 }
 
-.agent-welcome-more:focus-visible {
+.agent-scene-card:focus-visible {
     outline: 2px solid var(--agent-focus-ring);
     outline-offset: 2px;
 }
 
-.agent-welcome-more svg {
-    width: var(--space-4);
-    height: var(--space-4);
-    transition: transform 160ms ease;
+.agent-scene-card:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
-.agent-welcome-more[aria-expanded="true"] svg {
-    transform: rotate(180deg);
+.agent-scene-card svg {
+    width: var(--space-4);
+    height: var(--space-4);
+    flex: 0 0 auto;
+    stroke-width: 1.5;
+}
+
+.agent-scene-card-text {
+    min-width: 0;
+    flex: 1;
+}
+
+.agent-scene-card-text strong,
+.agent-scene-card-text small {
+    display: block;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.agent-scene-card-text strong {
+    color: var(--agent-ink);
+    font-size: var(--fs-body);
+}
+
+.agent-scene-card-text small {
+    font-size: var(--fs-label);
+}
+
+.agent-scene-card-arrow {
+    opacity: 0.6;
+}
+
+@keyframes agent-scene-cards-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .agent-welcome-more,
-    .agent-welcome-more svg {
-        transition: none;
+    .agent-scene-cards {
+        animation: none;
     }
 }
 

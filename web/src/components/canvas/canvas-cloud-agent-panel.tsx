@@ -41,6 +41,7 @@ import { resolveAgentWelcomeTier, type AgentWelcomeTier } from "@/lib/canvas/age
 import { useCanvasOverlayLayer } from "./canvas-overlay-layer";
 import { useAgentLauncherPosition } from "./use-agent-launcher-position";
 import { AgentWelcome } from "./canvas-agent-welcome";
+import { AgentSceneCards } from "./canvas-agent-scene-cards";
 import { DEFAULT_CANVAS_APPEARANCE, agentCopy } from "@/lib/canvas/agent-appearance";
 import { live2DModelURL } from "@/services/api/appearance";
 import { Live2DAvatar } from "./live2d-avatar";
@@ -81,8 +82,10 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     const lastPrefillIdRef = useRef(0);
     // prefill 效应定义在 submit 之前，用 ref 桥接最新 submit（发送路径唯一，不另造）。
     const submitRef = useRef<((override?: string) => Promise<void>) | null>(null);
-    // S1 重构（控制线 2026-09-27 退回裁决 2.2）：「更多开始方式」展开态（compact/standard 下折叠其余入口；技能组合推荐同态渲染）。
-    const [welcomeMoreOpen, setWelcomeMoreOpen] = useState(false);
+    // S1 v3.2（控制线 2026-09-27）：场景钻取态（技能胶囊条联动）——welcome 隐藏通用三卡与辅助行，卡区在胶囊条下方渲染。
+    const [drilledScene, setDrilledScene] = useState<string | null>(null);
+    // 返回钻取前的场景 key（a11y：返回后焦点归位对应场景胶囊）。
+    const lastSceneKeyRef = useRef<string | null>(null);
     const [reasoningMode, setReasoningMode] = useState<AgentReasoningMode>("off");
     const [profileView, setProfileView] = useState<AgentProfileView | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
@@ -230,20 +233,17 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
             }
             setSkills(refreshed.skills);
             setSelectedSkillIds(preset.skillIds);
-            setMessages((current) => appendUniqueMessage(current, {
-                id: `preset-${preset.presetId}-${Date.now()}`,
-                role: "system",
-                text: `已按「${preset.name}」挂上 ${preset.skillIds.length} 个技能${missing.length ? `（新装 ${missing.length} 个）` : ""}。${preset.rationale}`,
-            }));
+            // S1 v3.2（控制线 2026-09-27）：静默挂载——不写会话消息（避免 welcome/任务卡被卸载），Skills 计数照常更新，反馈走 toast。
+            message.info(`已按「${preset.name}」挂上 ${preset.skillIds.length} 个技能${missing.length ? `（新装 ${missing.length} 个）` : ""}。${preset.rationale}`);
         } catch (cause) {
-            if (isCurrent()) setMessages((current) => appendAgentError(current, `preset-${preset.presetId}`, cause, `「${preset.name}」挂载失败（已安装的技能仍在技能库中）`));
+            if (isCurrent()) message.error(`「${preset.name}」挂载失败（已安装的技能仍在技能库中）：${cause instanceof Error ? cause.message : String(cause)}`);
         } finally {
             if (presetApplyingRef.current === token) {
                 presetApplyingRef.current = null;
                 setPresetApplyingId("");
             }
         }
-    }, [busy, conversationScope, historyHydrated, installedSkillIds, pendingHydrated, running]);
+    }, [busy, conversationScope, historyHydrated, installedSkillIds, message, pendingHydrated, running]);
 
     // 单个技能（含用户自建）挂载到本会话；未装的先补装，已挂的不重复追加。
     const applySingleSkill = useCallback(async (skill: Skill) => {
@@ -266,20 +266,17 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
             }
             setSkills(refreshed.skills);
             setSelectedSkillIds((current) => (current.includes(skill.skillId) ? current : [...current, skill.skillId]));
-            setMessages((current) => appendUniqueMessage(current, {
-                id: `skill-${skill.skillId}-${Date.now()}`,
-                role: "system",
-                text: `已把「${skill.skillName}」挂到本会话。用哪张卡交给 Agent 按任务检索。`,
-            }));
+            // S1 v3.2（控制线 2026-09-27）：静默挂载——不写会话消息，Skills 计数照常更新，反馈走 toast。
+            message.info(`已把「${skill.skillName}」挂到本会话。用哪张卡交给 Agent 按任务检索。`);
         } catch (cause) {
-            if (isCurrent()) setMessages((current) => appendAgentError(current, `skill-${skill.skillId}`, cause, `「${skill.skillName}」挂载失败`));
+            if (isCurrent()) message.error(`「${skill.skillName}」挂载失败：${cause instanceof Error ? cause.message : String(cause)}`);
         } finally {
             if (presetApplyingRef.current === token) {
                 presetApplyingRef.current = null;
                 setPresetApplyingId("");
             }
         }
-    }, [busy, conversationScope, historyHydrated, installedSkillIds, pendingHydrated, running]);
+    }, [busy, conversationScope, historyHydrated, installedSkillIds, message, pendingHydrated, running]);
     const status = run?.status || "idle";
     const statusLabel = status === "waiting_approval" ? "等待审批" : status === "running" || status === "queued" ? "运行中" : status === "completed" ? "已完成" : status === "failed" ? "异常" : status === "cancelled" ? "已停止" : status === "rejected" ? "已拒绝" : "待命";
     const statusColor = status === "failed" ? "#e66b6b" : status === "rejected" || status === "cancelled" ? theme.node.muted : status === "waiting_approval" ? "#d6a24a" : status === "running" || status === "queued" ? "#69c29b" : theme.node.muted;
@@ -299,6 +296,21 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
             message.info("正在创作中，请稍候");
         }
     }, [prefillPrompt, prefillPromptId, prefillSubmit, busy, message, running]);
+
+    // S1 v3.2（控制线）：钻取/返回焦点迁移——钻取后到卡区首卡（无卡场景退「全部场景」），返回后归位对应场景胶囊。
+    useEffect(() => {
+        if (drilledScene) {
+            lastSceneKeyRef.current = drilledScene;
+            const card = document.querySelector<HTMLElement>("[data-scene-cards] .agent-scene-card:not(:disabled)");
+            const back = document.querySelector<HTMLElement>('.agent-scene-capsule[data-scene="back"]');
+            (card ?? back)?.focus({ preventScroll: true });
+            return;
+        }
+        const key = lastSceneKeyRef.current;
+        if (!key) return;
+        lastSceneKeyRef.current = null;
+        document.querySelector<HTMLElement>(`.agent-scene-capsule[data-scene="${key}"]`)?.focus({ preventScroll: true });
+    }, [drilledScene]);
 
     useEffect(() => {
         if (!open || view !== "chat") setSkillsOpen(false);
@@ -831,7 +843,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         setPrompt("");
         setApproval(null);
         lastSeqRef.current = 0;
-        setWelcomeMoreOpen(false);
+        setDrilledScene(null);
+        lastSceneKeyRef.current = null;
         setView("chat");
     };
 
@@ -1003,11 +1016,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                         approvalSubmitting={approvalSubmitting || connectionStatus !== "connected"}
                                         onChooseSkill={() => setSkillsOpen(true)}
                                         onDraftPrompt={(draft) => setPrompt((current) => current.trim() ? `${current}\n\n${draft}` : draft)}
-                                        onStarterPrompt={onStarterPrompt}
-                                        starterFree={starterFree}
                                         welcomeTier={welcomeTier}
-                                        welcomeMoreOpen={welcomeMoreOpen}
-                                        onWelcomeMoreOpenChange={setWelcomeMoreOpen}
+                                        drilledScene={drilledScene}
                                         onApprovalReasonChange={(reason) => setApproval((current) => (current ? { ...current, reason } : current))}
                                         onApprove={(settings) => void submitApproval("approve", settings)}
                                         onReject={() => void submitApproval("reject")}
@@ -1024,7 +1034,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                             onDismiss={() => setUndoDismissed(true)}
                                         />
                                     ) : null}
-                                    {(welcomeTier === "expanded" || welcomeMoreOpen) && historyHydrated && !messages.some((message) => message.role === "user" || message.role === "assistant") && !run ? (
+                                    {historyHydrated && !messages.some((message) => message.role === "user" || message.role === "assistant") && !run ? (
                                         <AgentSceneCapsules
                                             buckets={sceneBuckets}
                                             installedIds={installedSkillIds}
@@ -1032,6 +1042,16 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                             disabled={busy || running || !pendingHydrated || Boolean(presetApplyingId)}
                                             onPick={(preset) => void applyScenePreset(preset)}
                                             onPickSkill={(skill) => void applySingleSkill(skill)}
+                                            onActiveChange={setDrilledScene}
+                                        />
+                                    ) : null}
+                                    {/* S1 v3.2（控制线 2026-09-27）：场景卡区在胶囊条下方（卡区从上方下移，修复逆向布局抖动）；广告电商钻取渲染，其余场景零渲染。 */}
+                                    {historyHydrated && !messages.some((message) => message.role === "user" || message.role === "assistant") && !run && drilledScene && onStarterPrompt ? (
+                                        <AgentSceneCards
+                                            sceneKey={drilledScene}
+                                            freeExperience={starterFree}
+                                            disabled={busy || running || !pendingHydrated || Boolean(presetApplyingId)}
+                                            onRunStarter={onStarterPrompt}
                                         />
                                     ) : null}
                                     {pendingQuestion ? (
@@ -1369,11 +1389,8 @@ function AgentConversation({
     nodeCount,
     onChooseSkill,
     onDraftPrompt,
-    onStarterPrompt,
-    starterFree,
     welcomeTier,
-    welcomeMoreOpen,
-    onWelcomeMoreOpenChange,
+    drilledScene,
     onFocusNode,
     onApprovalReasonChange,
     onApprove,
@@ -1388,11 +1405,9 @@ function AgentConversation({
     nodeCount: number;
     onChooseSkill: () => void;
     onDraftPrompt: (prompt: string) => void;
-    onStarterPrompt?: (prompt: string) => void;
-    starterFree?: boolean;
     welcomeTier: AgentWelcomeTier;
-    welcomeMoreOpen: boolean;
-    onWelcomeMoreOpenChange: (open: boolean) => void;
+    /** S1 v3.2：钻取态（隐藏通用三卡与辅助行；卡区由面板侧在胶囊条下方渲染）。 */
+    drilledScene?: string | null;
     onFocusNode?: (nodeId: string) => void;
     onApprovalReasonChange: (reason: string) => void;
     onApprove: (settings?: AgentMediaSettings) => void;
@@ -1412,8 +1427,8 @@ function AgentConversation({
     }, [lastUserId]);
     useLayoutEffect(() => {
         const element = scrollRef.current;
-        // S1.1（控制线 P2）：无消息（welcome 展示中）不自动贴底，否则展开「更多开始方式」时
-        // 技能胶囊压缩会话区、贴底会把电商四卡卷出视口；展开锚点不动，新内容在下方滚动域呈现。
+        // S1.1（控制线 P2）：无消息（welcome 展示中）不自动贴底——welcome 态高度变化（钻取/恢复）
+        // 不改变滚动锚点，新内容在下方滚动域呈现。
         if (element && followRef.current && messages.length > 0) element.scrollTop = element.scrollHeight;
     }, [messages, busy, approval]);
     useEffect(() => {
@@ -1436,7 +1451,7 @@ function AgentConversation({
             const element = event.currentTarget;
             followRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
         }}>
-            {!messages.length ? <AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} onRunStarter={onStarterPrompt} freeExperience={starterFree} tier={welcomeTier} moreOpen={welcomeMoreOpen} onMoreOpenChange={onWelcomeMoreOpenChange} /> : null}
+            {!messages.length ? <AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} tier={welcomeTier} drilledScene={drilledScene} /> : null}
             <div ref={contentRef} className="agent-conversation-messages">
                 {messages.map((item) => (
                     <AgentChatMessage key={item.id} item={item} theme={theme} references={references} onFocusNode={onFocusNode} isStreaming={busy && !approval && item.streaming === true && item === messages.at(-1)} />

@@ -739,13 +739,15 @@ export const AGENT_SCENE_DEFS: Array<{ key: string; label: string; icon: typeof 
     { key: "others", label: "其他", icon: Shapes },
 ];
 
-export function AgentSceneCapsules({ buckets, installedIds, theme, disabled = false, onPick, onPickSkill }: {
+export function AgentSceneCapsules({ buckets, installedIds, theme, disabled = false, onPick, onPickSkill, onActiveChange }: {
     buckets: AgentSceneBucket[];
     installedIds: Set<string>;
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
     disabled?: boolean;
     onPick: (preset: SkillPreset) => void;
     onPickSkill: (skill: Skill) => void;
+    /** S1 v3.2（控制线 2026-09-27）：钻取态回调（面板用于隐藏通用卡并渲染场景卡区；条内交互上游原样）。 */
+    onActiveChange?: (key: string | null) => void;
 }) {
     // 始终只占一排：默认显示场景分类，点某个场景后在同一排内就地切换内容。
     const [activeKey, setActiveKey] = useState<string | null>(null);
@@ -776,6 +778,7 @@ export function AgentSceneCapsules({ buckets, installedIds, theme, disabled = fa
                             onClick={(event) => {
                                 event.stopPropagation();
                                 setActiveKey(null);
+                                onActiveChange?.(null);
                             }}
                         >
                             <ArrowLeft aria-hidden="true" />
@@ -842,6 +845,7 @@ export function AgentSceneCapsules({ buckets, installedIds, theme, disabled = fa
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     setActiveKey(bucket.key);
+                                    onActiveChange?.(bucket.key);
                                 }}
                             >
                                 <Icon aria-hidden="true" />

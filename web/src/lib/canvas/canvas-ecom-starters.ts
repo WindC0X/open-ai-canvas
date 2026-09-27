@@ -78,6 +78,14 @@ export function findEcomStarterCardByPrompt(content: string): EcomStarterCard | 
     return ECOM_STARTER_CARDS.find((card) => card.prompt === trimmed);
 }
 
+/**
+ * S1 v3.2（控制线 2026-09-27）：场景钻取卡区数据——广告电商复用四张 starter 卡；
+ * 其余场景返回 null（不渲染卡区，无假空态）。
+ */
+export function resolveSceneStarterCards(sceneKey: string): EcomStarterCard[] | null {
+    return sceneKey === "ecommerce" ? ECOM_STARTER_CARDS : null;
+}
+
 /** 副标题合成：免费通道（运行时判定）时成本段替换为「免费体验」。 */
 export function ecomStarterSubtitle(card: EcomStarterCard, freeExperience = false): string {
     return `${card.action} · ${freeExperience ? "免费体验" : card.cost}`;
