@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ECOM_STARTER_CARDS, ecomStarterSubtitle, isFreeExperienceModel, resolveStarterRunDecision } from "../src/lib/canvas/canvas-ecom-starters";
+import { ECOM_STARTER_CARDS, ecomStarterSubtitle, findEcomStarterCardByPrompt, isFreeExperienceModel, resolveStarterRunDecision } from "../src/lib/canvas/canvas-ecom-starters";
 import type { AiConfig } from "../src/stores/use-config-store";
 
 test("电商 starter 卡数据：4 张、字段齐、无价格数字", () => {
@@ -40,6 +40,17 @@ test("意图卡文案：单轮选择题式澄清 + 不直接生成/不再追问�
     expect(ECOM_STARTER_CARDS.find((card) => card.id === "detail-3x4")!.prompt).toContain("③ 风格/竞品参考");
     expect(ECOM_STARTER_CARDS.find((card) => card.id === "batch-prompts")!.prompt).toContain("② 你从当前画布读取已有提示词");
     expect(ECOM_STARTER_CARDS.find((card) => card.id === "scene")!.prompt).toContain("③ 参考图混合");
+});
+
+test("findEcomStarterCardByPrompt：命中卡片原文返回卡；其余文本不命中（S1.1 chip 判定）", () => {
+    for (const card of ECOM_STARTER_CARDS) {
+        expect(findEcomStarterCardByPrompt(card.prompt)?.id).toBe(card.id);
+        expect(findEcomStarterCardByPrompt(`  ${card.prompt}  `)?.id).toBe(card.id);
+    }
+    expect(findEcomStarterCardByPrompt("普通消息")).toBeUndefined();
+    expect(findEcomStarterCardByPrompt("")).toBeUndefined();
+    // 只做完整原文匹配，不做片段匹配
+    expect(findEcomStarterCardByPrompt(ECOM_STARTER_CARDS[0].prompt.slice(0, 20))).toBeUndefined();
 });
 
 test("resolveStarterRunDecision：空值 ignore / 忙态 toast / 空闲 submit", () => {

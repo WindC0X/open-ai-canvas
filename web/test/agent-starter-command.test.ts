@@ -26,4 +26,11 @@ test("starter 卡走自增 id prefill 命令通道并复用 submit 发送路径"
     expect(panel).toContain('(welcomeTier === "expanded" || welcomeMoreOpen)');
     expect(welcome).toContain("agent-welcome--${tier}");
     expect(welcome).toContain("更多开始方式");
+    // S1.1（控制线 P0/P2）：消息 chip 化 + welcome 态不自动贴底
+    const chatUi = await Bun.file(new URL("../src/components/canvas/canvas-cloud-agent-chat-ui.tsx", import.meta.url)).text();
+    expect(chatUi).toContain("findEcomStarterCardByPrompt");
+    expect(chatUi).toContain("agent-starter-chip");
+    expect(welcome).toContain("ECOM_STARTER_ICONS");
+    expect(panel).toContain("hasMessagesRef.current = messages.length > 0");
+    expect(panel).toContain("followRef.current && hasMessagesRef.current");
 });

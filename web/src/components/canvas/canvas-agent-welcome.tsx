@@ -1,6 +1,6 @@
-import { ArrowUpRight, ChevronDown, Clapperboard, Image, Layers3, LayoutPanelTop, ListChecks, Mountain, Sparkles, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Clapperboard, Layers3, Sparkles } from "lucide-react";
 import { agentCopy, type CanvasAppearance } from "@/lib/canvas/agent-appearance";
-import { ECOM_STARTER_CARDS, ecomStarterSubtitle, type EcomStarterIcon } from "@/lib/canvas/canvas-ecom-starters";
+import { ECOM_STARTER_CARDS, ECOM_STARTER_ICONS, ecomStarterSubtitle } from "@/lib/canvas/canvas-ecom-starters";
 import type { AgentWelcomeTier } from "@/lib/canvas/agent-panel-layout";
 
 type AgentWelcomeProps = {
@@ -22,13 +22,6 @@ type AgentWelcomeProps = {
     /** 「更多开始方式」展开态；技能组合推荐由面板侧按同一状态渲染。 */
     moreOpen?: boolean;
     onMoreOpenChange?: (open: boolean) => void;
-};
-
-const ECOM_STARTER_ICONS: Record<EcomStarterIcon, LucideIcon> = {
-    image: Image,
-    detail: LayoutPanelTop,
-    batch: ListChecks,
-    scene: Mountain,
 };
 
 export function AgentWelcome({ appearance, nodeCount, onChooseSkill, onDraftPrompt, onRunStarter, freeExperience, tier = "expanded", moreOpen = false, onMoreOpenChange }: AgentWelcomeProps) {
@@ -111,6 +104,7 @@ export function AgentWelcome({ appearance, nodeCount, onChooseSkill, onDraftProm
                     {ecomGroup}
                     {tier === "standard" ? genericActions : null}
                     {moreToggle}
+                    {tier === "standard" ? <p className="agent-welcome-footnote">先聊想法，再决定下一步</p> : null}
                     {tier === "compact" && moreOpen ? genericActions : null}
                 </>
             )}

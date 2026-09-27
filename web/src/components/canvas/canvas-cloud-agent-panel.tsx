@@ -1402,6 +1402,8 @@ function AgentConversation({
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const followRef = useRef(true);
+    // S1.1（控制线 P2）：welcome（无消息）展示中不自动贴底——RO 回调闭包不随渲染更新，用 ref 带最新值。
+    const hasMessagesRef = useRef(false);
     const lastUserId = messages.findLast((item) => item.role === "user")?.id;
 
     // 自己发送时恢复跟随；阅读旧消息时不让流式输出抢走滚动位置。
@@ -1410,14 +1412,19 @@ function AgentConversation({
     }, [lastUserId]);
     useLayoutEffect(() => {
         const element = scrollRef.current;
-        if (element && followRef.current) element.scrollTop = element.scrollHeight;
+        // S1.1（控制线 P2）：无消息（welcome 展示中）不自动贴底，否则展开「更多开始方式」时
+        // 技能胶囊压缩会话区、贴底会把电商四卡卷出视口；展开锚点不动，新内容在下方滚动域呈现。
+        if (element && followRef.current && messages.length > 0) element.scrollTop = element.scrollHeight;
     }, [messages, busy, approval]);
+    useEffect(() => {
+        hasMessagesRef.current = messages.length > 0;
+    }, [messages.length]);
     useEffect(() => {
         const element = scrollRef.current;
         const content = contentRef.current;
         if (!element || !content) return;
         const observer = new ResizeObserver(() => {
-            if (followRef.current) element.scrollTop = element.scrollHeight;
+            if (followRef.current && hasMessagesRef.current) element.scrollTop = element.scrollHeight;
         });
         observer.observe(element);
         observer.observe(content);

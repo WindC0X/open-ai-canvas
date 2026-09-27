@@ -1,4 +1,5 @@
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
+import { Image, LayoutPanelTop, ListChecks, Mountain, type LucideIcon } from "lucide-react";
 
 /**
  * S1 电商 starter 卡（Agent 面板新对话态）。
@@ -9,6 +10,14 @@ import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/us
  */
 
 export type EcomStarterIcon = "image" | "detail" | "batch" | "scene";
+
+/** starter 卡图标（欢迎卡与聊天 chip 共用）。 */
+export const ECOM_STARTER_ICONS: Record<EcomStarterIcon, LucideIcon> = {
+    image: Image,
+    detail: LayoutPanelTop,
+    batch: ListChecks,
+    scene: Mountain,
+};
 
 export type EcomStarterCard = {
     id: string;
@@ -59,6 +68,15 @@ export const ECOM_STARTER_CARDS: EcomStarterCard[] = [
         icon: "scene",
     },
 ];
+
+/**
+ * 反查（S1.1 控制线 P0）：用户消息内容命中 starter 卡原文时返回对应卡，供渲染层 chip 化。
+ * 纯内容匹配：数据层/导出/历史零改动，刷新/历史恢复后同样命中。
+ */
+export function findEcomStarterCardByPrompt(content: string): EcomStarterCard | undefined {
+    const trimmed = content.trim();
+    return ECOM_STARTER_CARDS.find((card) => card.prompt === trimmed);
+}
 
 /** 副标题合成：免费通道（运行时判定）时成本段替换为「免费体验」。 */
 export function ecomStarterSubtitle(card: EcomStarterCard, freeExperience = false): string {
