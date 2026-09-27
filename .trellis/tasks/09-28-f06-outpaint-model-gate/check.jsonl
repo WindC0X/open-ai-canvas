@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证声明必须与实际执行一致（提交信息与文档不得写未验证结论）"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "交付前质量检查项"}
