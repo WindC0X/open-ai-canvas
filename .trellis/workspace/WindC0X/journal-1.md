@@ -309,3 +309,13 @@ Review 报告（工作流 4 代理 + 人工复核，OCR 通道失败放弃）后
 3. P2×3：undo POST 补 15s 超时；Agent 扩图 ratio 补 0.2–5 边界；扩图重入守卫改可见提示；`storeResourceFromBytes` 补 Pending/Failed 分支；`containsOutsideQuotes` 逐字符扫描防转义引号击穿。
 
 方法论收获：**修复即引入回归**——把长网络调用（POST）塞进串行临界区必须同时检查区内所有"等待外部状态"的调用（本次是 flush 里的 load 等待）。复核用真实运行（死锁复现脚本、能力反解实调）而非只读代码，才抓到这两个 P1。
+
+---
+
+## 2026-09-28 S2 hover 说明卡封版（轻量枝 · fc18a40d→572f32ca 六提交链）
+
+- v1（`fc18a40d` + `22708b60`）：数据驱动 hover 卡覆盖左栏 Dock 10 项 + 节点菜单 16 项（26/26）；状态机 200ms/140ms/Esc/指针入卡；门禁四件绿；真机矩阵 `.local/s2-walkthrough/`。
+- S2.1（`582220d2` + `858aec8c`）：控制线判「形态简陋」后一轮重写为 flora 四层配方（41px 头/长句/366×229 预览盒/footer）；位图预览退场 → 15 大图标 + 11 手写 SVG mockup；偏离登记 PATCH-MAP D1（#949494 AA）/D2（footer 中文化）；现场捕获 2 缺陷（CSS 漏 position:fixed、进场帧测量吃 transform）并补回归断言。
+- 加固（`b5dc75e7` + `572f32ca`）：用户复核发现双卡叠放 → 逻辑级复现失败、环境硬数据（节流 435-955ms vs 60ms 余量）→「全局单卡不变式」（layout 先关后画，escape 语义保再武装）；+2 单测、:3013 真机冒烟绿。控制线方法账收录（与 F-06「钩进单一漏斗」同方法论）。
+- 控制线封版回执（2026-09-28）：通过——独立核证（numstat 对账 / 三处必改实证链 / focused 重跑 / 红队五路推演）全绿。Detector 3 处置：①② 矮视口叠压触发器 + 滚区键盘不可达（同根）→ 修缮期 backlog（清单已登记）；③ reduced-motion data-entering 挂死 → 代码核验误报，不修。
+- 归档：`67fbe8aa`（chore task archive，含清单登记）；用户侧 3 项真机复核挂 pending-test 不阻塞。环境：:3010/:8483 保持；:3013 用户标签待自行刷新。
