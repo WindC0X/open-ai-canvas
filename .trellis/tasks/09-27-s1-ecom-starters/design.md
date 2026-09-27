@@ -109,3 +109,10 @@ export function resolveStarterRunDecision(input: { value: string; busy: boolean;
 - a11y：面板 effect 按 drilledScene 迁移焦点（卡区首卡 / 无卡退 back / 返回归位场景胶囊）。
 - CSS：compact（18px 单行、单行卡、footnote 常显）、卡区 `min-height:148px` 锁定 + 入场淡入（cross-fade）、reduced-motion 关断。
 - 验证：`.local/s1-walkthrough-v4/`（01–13 + evidence-notes.md）。
+
+## 12. v4 基线不减（控制线终版，2026-09-27）
+
+- `canvas-agent-welcome.tsx` = 基线原文（`git show 5a567238` 还原；零 fork 痕迹）；面板侧移除 welcomeTier/AgentWelcomeTier/resolveAgentWelcomeTier 与 P2 贴底守卫（折叠钮时代产物），滚动段回归基线原文；welcome 调用签名回归基线。
+- 保留：AgentSceneCards（面板级、胶囊条下方）、drilledScene 联动、静默挂载 toast、焦点迁移、chip、四段澄清文案、busy 守卫。
+- CSS：删除全部 `.agent-welcome--*` 变体规则；保留 chip + 卡区样式（对基线仅新增）。
+- 对照验证法：同 commit 独立只读实例（:3012）作基线参照 + fresh origin（:3013）测我方，方法见 v5 evidence-notes。

@@ -63,3 +63,10 @@
 - 归属：上游原生（#608）→ PATCH-MAP 登记。
 - 门禁：tsc=0；build ✓；focused 18 绿；全量 2301→15 红全基线（双跑）。
 - 真机：矩阵 01–13（含 toast）、焦点迁移、静默挂载、点卡不挂技能、预算实测。见 v4 evidence-notes。
+
+## S1 v4 执行记录（v5，2026-09-27；基线不减终版）
+
+- 交付物：welcome 还原基线（0 diff）；panel 移除 tier/贴底守卫（净 −23 行）；lib 移除 tier 体系（−16 行）；css 删 welcome 变体（净 −35）；测试同步（tier 用例删除、welcome 基线断言、chip + 基线滚动断言）。
+- 对照：基线只读实例（/tmp 临时 worktree @5a567238，:3012）vs 我方 fresh origin（:3013）；截图 b1–b6 / m1–m6 + cmp/*（sxs + 数值 diff）。
+- 门禁：tsc 0；build ✓ 1m33s；focused 24 绿；全量 2299 → 15 红全基线。
+- 行为：静默挂载/点卡 chip/焦点迁移/钻取联动 复测 ✓（v5 evidence-notes）。
