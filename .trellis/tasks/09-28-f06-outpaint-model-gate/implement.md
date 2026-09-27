@@ -50,3 +50,14 @@
 - Step 1 后：focused + channel/capability 测试通过 ✓
 - Step 2 后：tsc + eslint + 专项测试 ✓
 - Step 3 后：接口证据留档 ✓；真机终验由用户承接（模型槽显示 / 自动改选 / 空态文案 / 编辑器往返）
+
+## 用户真机验收反馈修复（2026-09-28 第二轮，提交见 git log）
+
+- [x] U1 用户视角档位不可分辨（截图实锤：nano 与临时升档模型在槽内并列、行上无任何档位标记）：模型槽行内新增档位徽章——`outpaintTierBadge`（推荐=前景提亮 accent / 可用=灰底 muted，悬停 title 注明“未验证扩图效果”），ModelPicker 新增 `badgeForModel` 可选 prop；候选默认选中改推荐优先（`outpaintTierRank` 排序，同档保持配置顺序）。
+- [x] U2 空白名单空态文案错误（截图实锤：显示通用「暂无支持当前输入的生图模型」）：ModelPicker 新增 `emptyLabel` prop，扩图槽传「当前没有支持扩图的模型」；参数条触发器 placeholder 与执行按钮 aria 同步改用同一常量（NO_ELIGIBLE_OUTPAINT_MESSAGE 单一来源，触发器/按钮/菜单空态三处复用）。
+- [x] 验证（headless 真实鼠标链路，证据 .local/f06hb-evidence-after/tier-gate/）：
+  - A1 ddcat flyout：nano 行徽章=推荐 ✓；A2 a6api-4k flyout：nano=推荐 + GPT Image 2.5=可用（临时升档造样本）双徽章同列 ✓；
+  - B1 空白名单：触发器 aria=「当前没有支持扩图的模型」、执行按钮 disabled 同 aria ✓；B2 菜单空态同文案 ✓；
+  - 脚本 finally 恢复：nano×3=recommended、2.5=未认证（键移除）；测试库现场复核通过。
+- 回归：专项 5/5（新增 2 例）；tsc/eslint 双绿；全量 2284 pass / 15 fail——15 项 = stash 基线 17 项中的确定性集合（本轮无超时抖动），零新增回归。
+- 备注：a6api / a6api-4k 的 sunburst 保持用户所设「未认证」；「可用」徽章复现方式 = 渠道管理把任一模型改「可用」。
