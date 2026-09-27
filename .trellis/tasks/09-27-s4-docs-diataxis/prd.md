@@ -78,3 +78,16 @@ docs/llms.txt                      # 新建（静态手工）
 
 - **不向用户暴露项目仓库（含上游）**：S4 的 llms.txt / 教程链接口径不得指向 GitHub；教程链接以 `DOCS_BASE_URL`（产品域名文档站待定，单源：`web/src/lib/canvas/canvas-help-links.ts`）为基址拼装 `${DOCS_BASE_URL}/docs/getting-started/quick-start`，S4 文档路径定稿后同步该常量（DOM 实测禁用态 + 「教程编写中」提示已在 S3 落地）。
 - 反馈渠道已改为邮件（fengw5774@gmail.com）+ 用户群，S4 文档中如有反馈指引按此口径。
+
+
+## S4 实现与验证记录（2026-09-28 · 完成）
+
+- 结构：17 个文件 git mv 全部 rename 识别（features→getting-started；backend/plugins→reference/；pending-test→docs/plans/）；五组 meta.json + 根 meta.json + reference/plugins/meta.json 新建；overview/progress 退场。
+- 新增：getting-started/quick-start.mdx（10 分钟链路，对齐真实 UI 措辞）；docs/llms.txt（静态手工，16 页索引，文件头注明手工维护）。
+- 引用同步（活跃面全量）：README（头部双链 + 3 处正文链 + 导航块 + :197 工程死链清理）/ docs/index.md / AGENTS.md §9 与 3 处 backend 路径 / mdx 互链 7 处（/docs/backend→/docs/reference/backend、/docs/progress/pending-test→/docs/plans/pending-test）/ canvas-help-links 注释对齐 S4 结构。
+- .gitignore：docs 内容块按五组重写 + `!docs/llms.txt` + 根 meta.json 白名单；git check-ignore 逐文件核验（全部 trackable）。
+- 守卫测试：web/test/docs-diataxis-consistency.test.ts（结构 / meta 可解析 / llms 路径存在 / 活跃面旧路径零命中；遗留豁免与白名单在注释）。
+- 门禁：tsc 0 / build ✓ / 全量 2324 测试 → 15 红逐名=冻结基线、零额外。
+- 豁免明列（历史记录，不随重排改动）：.trellis/tasks/**（含 archive 与 S4 自身任务书）、docs/design/admin-ui-change-log.md、docs/upstream-sync-recon-*.md、web/dist（构建产物）。
+- 产品裁定同步：不向用户暴露仓库已落 S4 口径（教程链接单源 DOCS_BASE_URL + getting-started/quick-start；llms.txt 无 GitHub 指向）。
+- 待填充明示：agent / canvas / assets 三组为结构占位（控制线既定，后续波次补内容）。

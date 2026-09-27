@@ -31,3 +31,12 @@
 
 ## 回滚点
 - 单 commit revert；git mv 全链可逆。
+
+
+## S4 执行记录（2026-09-28 · 完成）
+
+- Step 0：移动前跟踪集快照 17 文件；git status 起始干净。
+- Step 1：.gitignore 重写先行（避免 rename 被 ignore 拦截）→ 17 个 git mv（全部 R 识别）；meta.json ×8（含随迁）；quick-start.mdx；llms.txt。
+- Step 2：引用同步见 prd 记录；grep 旧路径活跃面零命中（豁免：历史任务/日志/构建产物，明列于 prd 记录与终报）。
+- Step 3：新守卫测试 4 用例绿；门禁四件：tsc 0 / build ✓ / 全量 15 红=基线零额外。
+- Step 4：正文 + 落卡双 commit，不 push。
