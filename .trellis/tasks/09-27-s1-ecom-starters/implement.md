@@ -70,3 +70,9 @@
 - 对照：基线只读实例（/tmp 临时 worktree @5a567238，:3012）vs 我方 fresh origin（:3013）；截图 b1–b6 / m1–m6 + cmp/*（sxs + 数值 diff）。
 - 门禁：tsc 0；build ✓ 1m33s；focused 24 绿；全量 2299 → 15 红全基线。
 - 行为：静默挂载/点卡 chip/焦点迁移/钻取联动 复测 ✓（v5 evidence-notes）。
+
+## S1 v5 执行记录（v6，2026-09-27；面板归零终版）
+
+- 交付物：删除 canvas-agent-scene-cards.tsx + agent-scene-cards.test.tsx；panel/project 归零（对基线 diff=0）；chat-ui 撤 onActiveChange（余 chip +27 行）；css 删卡区块（余 chip 68 行）；lib 收口（删 4 个死函数）；agent-starter-command.test.ts 重写为 v5 归零断言；canvas-ecom-starters.test.ts 裁剪。
+- 门禁：tsc 0；focused 26 绿；build ✓；全量对照冻结基线（15 红）。
+- 对照：默认/电商/短剧 × 双环境（v6 目录）；行为：组合胶囊 → 确认消息 + Skills + 进对话。

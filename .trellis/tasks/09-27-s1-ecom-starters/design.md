@@ -116,3 +116,9 @@ export function resolveStarterRunDecision(input: { value: string; busy: boolean;
 - 保留：AgentSceneCards（面板级、胶囊条下方）、drilledScene 联动、静默挂载 toast、焦点迁移、chip、四段澄清文案、busy 守卫。
 - CSS：删除全部 `.agent-welcome--*` 变体规则；保留 chip + 卡区样式（对基线仅新增）。
 - 对照验证法：同 commit 独立只读实例（:3012）作基线参照 + fresh origin（:3013）测我方，方法见 v5 evidence-notes。
+
+## 13. v5 面板归零（控制线终版，2026-09-27 · 选项 B）
+
+- 归零方式：`canvas-cloud-agent-panel.tsx` / `project.tsx` 直接恢复基线 5a567238 原文（diff=0）；`canvas-agent-scene-cards.tsx` 删除；chat-ui 仅撤 `onActiveChange` 上报（chip 保留，残余 +27 行）；css 仅删卡区块（余 chip 块 68 行）；`canvas-ecom-starters.ts` 收口为卡数据 + 图标 + 反查（resolveSceneStarterCards / ecomStarterSubtitle / resolveStarterRunDecision / isFreeExperienceModel 全删）。
+- PATCH-MAP 行为层 B1（静默挂载分歧）撤回：当前无活跃分歧，上游同步按「无分歧」处理。
+- 验证法同 §12（只读实例 :3012 + fresh origin :3013），验证集 = 默认/电商钻取/短剧钻取；行为 = 组合胶囊原语义（确认消息 + Skills + 进对话）。
