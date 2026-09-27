@@ -101,3 +101,11 @@ export function resolveStarterRunDecision(input: { value: string; busy: boolean;
 - P1：welcome standard 分支补回 footnote；副标题与球体 compact 隐藏、standard/expanded 显示（核查确认球体未丢）。
 - P2：AgentConversation 自动贴底加「有消息」守卫（layout effect + RO 回调，ref 带最新值）——welcome 展示中锚点不动。
 - 验证：`.local/s1-walkthrough-v3/`（12–16 + evidence-notes.md）。
+
+## 11. v3.2 结构重排与静默挂载（控制线终版任务书，2026-09-27）
+
+- 布局：`AgentSceneCards`（新组件，面板级，胶囊条下方）+ `drilledScene` 状态（AgentSceneCapsules 增可选 `onActiveChange` 上报，条内交互上游原样）；welcome 增 `drilledScene` prop（真值时隐藏通用三卡与辅助行）；无折叠钮（welcomeMoreOpen 全面移除，胶囊条所有 tier 常显；旧电商组/折叠类清删）。
+- 静默挂载：`applyScenePreset`/`applySingleSkill` 的 `setMessages` 系统消息 → `message.info` toast（Skills 计数照常；错误路径 `message.error`，避免异常路径重新卸载 welcome；归属上游 → PATCH-MAP B1）。
+- a11y：面板 effect 按 drilledScene 迁移焦点（卡区首卡 / 无卡退 back / 返回归位场景胶囊）。
+- CSS：compact（18px 单行、单行卡、footnote 常显）、卡区 `min-height:148px` 锁定 + 入场淡入（cross-fade）、reduced-motion 关断。
+- 验证：`.local/s1-walkthrough-v4/`（01–13 + evidence-notes.md）。

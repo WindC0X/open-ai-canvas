@@ -56,3 +56,10 @@
 - 交付物：canvas-ecom-starters.ts（图标表迁入 + findEcomStarterCardByPrompt）、canvas-agent-welcome.tsx（standard 补 footnote；导入改共用图标表）、canvas-cloud-agent-chat-ui.tsx（AgentStarterChip）、canvas-cloud-agent.css（chip 样式）、canvas-cloud-agent-panel.tsx（贴底守卫）；测试增补 chip 判定与静态护栏。
 - 门禁：tsc=0；build ✓；focused 23 绿；全量 2295→15 红全基线；负载 flake ×2 已隔离归因（见 v3 evidence-notes）。
 - 真机：chip 折叠/展开（12/13）、三态（640/1080/1216 → 14/15/16）、P2 锚点（14）。新 UI 面清单已列（v3 evidence-notes）。
+
+## S1 v3.2 执行记录（v4，2026-09-27；终版）
+
+- 交付物：canvas-agent-scene-cards.tsx（新增）、canvas-ecom-starters.ts（resolveSceneStarterCards）、canvas-agent-welcome.tsx（重写：hero→通用三卡→辅助行 + drilledScene）、canvas-cloud-agent-chat-ui.tsx（onActiveChange ×2）、canvas-cloud-agent-panel.tsx（drilledScene/静默挂载/焦点/卡区渲染）、canvas-cloud-agent.css（compact 重排 + 卡区样式 + 死类清删）；测试新增 agent-scene-cards.test.tsx、重写 agent-starter-command v3.2 段、扩充 canvas-ecom-starters；PATCH-MAP 行为层分歧 B1。
+- 归属：上游原生（#608）→ PATCH-MAP 登记。
+- 门禁：tsc=0；build ✓；focused 18 绿；全量 2301→15 红全基线（双跑）。
+- 真机：矩阵 01–13（含 toast）、焦点迁移、静默挂载、点卡不挂技能、预算实测。见 v4 evidence-notes。
