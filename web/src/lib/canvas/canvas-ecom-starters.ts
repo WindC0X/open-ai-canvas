@@ -1,17 +1,19 @@
-import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
 import { Image, LayoutPanelTop, ListChecks, Mountain, type LucideIcon } from "lucide-react";
 
 /**
- * S1 电商 starter 卡（Agent 面板新对话态）。
- * 点击 = 走 3b3fe456 自增 id prefill 命令通道立即执行（不另造发送路径）；
- * 卡片语义 =「意图卡」（控制线 2026-09-27 退回重构）：发送「意图 + 澄清指令」复合 prompt，
- * Agent 首轮必须做单轮选择题式澄清（三分支等权，无图直出不得降格），用户任意回复即进入生成。
+ * S1 电商 starter 卡数据（Agent 面板）。
+ * 控制线 2026-09-27 v5「面板归零」后为**休眠件**：卡面入口（欢迎卡/场景卡区）已整体下架，
+ * 本文件仅保留卡片数据与 findEcomStarterCardByPrompt 反查（供渲染层 chip 化复用），
+ * 为未来 slash 指令 / 对话内推荐入口留底——入口重建时沿用同一数据与匹配语义即可。
+ *
+ * 卡片文案存档语义（控制线 2026-09-27 退回重构）：点击 = 自增 id 命令通道发送「意图 + 澄清指令」
+ * 复合 prompt，Agent 首轮单轮选择题式澄清（三分支等权，无图直出不得降格）；
  * 副标题 = 动作 · 相对成本档；价格类数字一律运行时计算，本文件不存价格。
  */
 
 export type EcomStarterIcon = "image" | "detail" | "batch" | "scene";
 
-/** starter 卡图标（欢迎卡与聊天 chip 共用）。 */
+/** starter 卡图标（chip 渲染共用）。 */
 export const ECOM_STARTER_ICONS: Record<EcomStarterIcon, LucideIcon> = {
     image: Image,
     detail: LayoutPanelTop,
@@ -22,9 +24,9 @@ export const ECOM_STARTER_ICONS: Record<EcomStarterIcon, LucideIcon> = {
 export type EcomStarterCard = {
     id: string;
     title: string;
-    /** 副标题前半：动作。 */
+    /** 副标题前半：动作（历史卡面用，数据留档）。 */
     action: string;
-    /** 副标题后半：相对成本档（不含价格数字）。 */
+    /** 副标题后半：相对成本档（不含价格数字，历史卡面用，数据留档）。 */
     cost: string;
     prompt: string;
     icon: EcomStarterIcon;
@@ -76,55 +78,4 @@ export const ECOM_STARTER_CARDS: EcomStarterCard[] = [
 export function findEcomStarterCardByPrompt(content: string): EcomStarterCard | undefined {
     const trimmed = content.trim();
     return ECOM_STARTER_CARDS.find((card) => card.prompt === trimmed);
-}
-
-/**
- * S1 v3.2（控制线 2026-09-27）：场景钻取卡区数据——广告电商复用四张 starter 卡；
- * 其余场景返回 null（不渲染卡区，无假空态）。
- */
-export function resolveSceneStarterCards(sceneKey: string): EcomStarterCard[] | null {
-    return sceneKey === "ecommerce" ? ECOM_STARTER_CARDS : null;
-}
-
-/** 副标题合成：免费通道（运行时判定）时成本段替换为「免费体验」。 */
-export function ecomStarterSubtitle(card: EcomStarterCard, freeExperience = false): string {
-    return `${card.action} · ${freeExperience ? "免费体验" : card.cost}`;
-}
-
-export type StarterRunDecision = "submit" | "busy-toast" | "ignore";
-
-/**
- * 点击裁决（控制线 2026-09-27 裁决 2b）：
- * 空值 → ignore；busy/running → busy-toast（守卫拒绝必须可见，禁止静默吞）；
- * pending（submit 内部幂等守卫已在途，同 tick 二次命令会静默挡下）→ 同样走 busy-toast；
- * 否则 → submit（复用现有 submit 发送路径）。
- */
-export function resolveStarterRunDecision(input: { value: string; busy: boolean; running: boolean; pending?: boolean }): StarterRunDecision {
-    if (!input.value.trim()) return "ignore";
-    if (input.busy || input.running || input.pending) return "busy-toast";
-    return "submit";
-}
-
-const zeroPrice = (value: number | undefined) => value === 0;
-
-/**
- * 免费体验判定（运行时）：默认模型解析到的渠道价目全为 0 → true。
- * 只覆盖「免费」语义；「低价」细分不在本判定内（后续按需扩展）。
- */
-export function isFreeExperienceModel(config: AiConfig, modelOptionValue: string): boolean {
-    const channel = resolveModelChannel(config, modelOptionValue);
-    const cost = channel.modelCosts?.find((item) => item.model === modelOptionName(modelOptionValue));
-    if (!cost) return false;
-    const tiers = cost.logicalPriceTiers || [];
-    if (tiers.length) {
-        return tiers.every((tier) =>
-            tier.billingMode === "token"
-                ? zeroPrice(tier.inputTokenPriceMicrocredits) && zeroPrice(tier.outputTokenPriceMicrocredits) && zeroPrice(tier.cachedTokenPriceMicrocredits)
-                : zeroPrice(tier.unitPriceMicrocredits),
-        );
-    }
-    if (cost.billingMode === "token") {
-        return zeroPrice(cost.inputTokenPriceMicrocredits) && zeroPrice(cost.outputTokenPriceMicrocredits) && zeroPrice(cost.cachedTokenPriceMicrocredits);
-    }
-    return zeroPrice(cost.unitPriceMicrocredits);
 }

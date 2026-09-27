@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
-import { App, Button, Dropdown, Input, Popover } from "antd";
+import { Button, Dropdown, Input, Popover } from "antd";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, Check, ChevronRight, CircleDot, Clock3, Download, History, LoaderCircle, MessageSquarePlus, MoveDiagonal2, RotateCcw, Settings2, ShieldCheck, Trash2, Sparkles, X } from "lucide-react";
 import { saveAs } from "file-saver";
@@ -7,7 +7,6 @@ import { buildAgentDebugExport } from "@/lib/canvas/agent-debug-export";
 import { markdownPlainText } from "@/lib/markdown-plain-text";
 import { agentToolRetry, mergeAgentToolRetry } from "@/lib/canvas/agent-tool-retry";
 import { agentPlanVisible, latestAgentPlanItems, latestAgentPlanTerminal, pendingAgentQuestion } from "@/lib/canvas/cloud-agent-plan";
-import { isFreeExperienceModel, resolveStarterRunDecision } from "@/lib/canvas/canvas-ecom-starters";
 import { emptyAgentContextUsage, presentAgentContextUsage, reduceAgentContextUsage, type AgentContextPhase, type AgentContextUsage, type AgentContextUsageView } from "@/lib/canvas/agent-context-usage";
 import { nanoid } from "nanoid";
 
@@ -40,17 +39,16 @@ import { useAgentPanelLayout } from "./use-agent-panel-layout";
 import { useCanvasOverlayLayer } from "./canvas-overlay-layer";
 import { useAgentLauncherPosition } from "./use-agent-launcher-position";
 import { AgentWelcome } from "./canvas-agent-welcome";
-import { AgentSceneCards } from "./canvas-agent-scene-cards";
 import { DEFAULT_CANVAS_APPEARANCE, agentCopy } from "@/lib/canvas/agent-appearance";
 import { live2DModelURL } from "@/services/api/appearance";
 import { Live2DAvatar } from "./live2d-avatar";
 import "./canvas-cloud-agent.css";
 
-type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; selectedNodeIds: string[]; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; prefillPromptId?: number; prefillSubmit?: boolean; onStarterPrompt?: (prompt: string) => void; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void; panelLayout: ReturnType<typeof useAgentPanelLayout> };
+type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; selectedNodeIds: string[]; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; prefillPromptId?: number; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void; panelLayout: ReturnType<typeof useAgentPanelLayout> };
 type ApprovalState = { approvalId: string; detail: Record<string, unknown>; reason: string };
 type AgentPanelView = "chat" | "history" | "settings";
 
-export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, selectedNodeIds, references, open, prefillPrompt, prefillPromptId, prefillSubmit, onStarterPrompt, onOpen, onCollapse, onFocusNode, panelLayout }: CloudAgentPanelProps) {
+export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, selectedNodeIds, references, open, prefillPrompt, prefillPromptId, onOpen, onCollapse, onFocusNode, panelLayout }: CloudAgentPanelProps) {
     const userId = useUserStore((state) => state.user?.id);
     // Agent 浮窗与节点面板等同属"最后交互置顶"的画布浮层体系: 点击/聚焦面板即 bringToFront,
     // 否则固定 z-modal-overlay(110) 的 Agent 会被交互后置顶(150)的节点面板永久压住(用户实测层级问题)。
@@ -66,7 +64,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     const theme = canvasThemes[useActiveTheme()];
     const config = useEffectiveConfig();
     const updateConfig = useConfigStore((state) => state.updateConfig);
-    const { message } = App.useApp();
     const reducedMotion = useReducedMotion();
     const [view, setView] = useState<AgentPanelView>("chat");
     const [run, setRun] = useState<AgentRun | null>(null);
@@ -79,12 +76,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     // 旧实现按值去重，同一节点重复发送（文本相同）的第二条命令被静默吞掉；
     // 自增 id 下每条新命令都会重新落进输入框（含原本就在 chat 视图时切回 chat）。
     const lastPrefillIdRef = useRef(0);
-    // prefill 效应定义在 submit 之前，用 ref 桥接最新 submit（发送路径唯一，不另造）。
-    const submitRef = useRef<((override?: string) => Promise<void>) | null>(null);
-    // S1 v3.2（控制线 2026-09-27）：场景钻取态（技能胶囊条联动）——welcome 隐藏通用三卡与辅助行，卡区在胶囊条下方渲染。
-    const [drilledScene, setDrilledScene] = useState<string | null>(null);
-    // 返回钻取前的场景 key（a11y：返回后焦点归位对应场景胶囊）。
-    const lastSceneKeyRef = useRef<string | null>(null);
     const [reasoningMode, setReasoningMode] = useState<AgentReasoningMode>("off");
     const [profileView, setProfileView] = useState<AgentProfileView | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
@@ -156,8 +147,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         const preferred = config.textModel || config.model || "";
         return textModels.includes(preferred) ? preferred : (textModels[0] || "");
     }, [config]);
-    // S1 免费体验标注：默认文本模型解析到全零价渠道（如测试通道）时，卡面成本段显示「免费体验」。
-    const starterFree = useMemo(() => (onStarterPrompt ? isFreeExperienceModel(config, selectedModel) : false), [config, onStarterPrompt, selectedModel]);
     const reasoningSupported = Boolean(modelCapabilityConfigFor(config, selectedModel).text?.thinking);
     useEffect(() => { if (!reasoningSupported && reasoningMode !== "off") setReasoningMode("off"); }, [reasoningSupported, reasoningMode]);
     const installedSkills = useMemo(() => skills.filter((skill) => skill.isAdded), [skills]);
@@ -230,17 +219,20 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
             }
             setSkills(refreshed.skills);
             setSelectedSkillIds(preset.skillIds);
-            // S1 v3.2（控制线 2026-09-27）：静默挂载——不写会话消息（避免 welcome/任务卡被卸载），Skills 计数照常更新，反馈走 toast。
-            message.info(`已按「${preset.name}」挂上 ${preset.skillIds.length} 个技能${missing.length ? `（新装 ${missing.length} 个）` : ""}。${preset.rationale}`);
+            setMessages((current) => appendUniqueMessage(current, {
+                id: `preset-${preset.presetId}-${Date.now()}`,
+                role: "system",
+                text: `已按「${preset.name}」挂上 ${preset.skillIds.length} 个技能${missing.length ? `（新装 ${missing.length} 个）` : ""}。${preset.rationale}`,
+            }));
         } catch (cause) {
-            if (isCurrent()) message.error(`「${preset.name}」挂载失败（已安装的技能仍在技能库中）：${cause instanceof Error ? cause.message : String(cause)}`);
+            if (isCurrent()) setMessages((current) => appendAgentError(current, `preset-${preset.presetId}`, cause, `「${preset.name}」挂载失败（已安装的技能仍在技能库中）`));
         } finally {
             if (presetApplyingRef.current === token) {
                 presetApplyingRef.current = null;
                 setPresetApplyingId("");
             }
         }
-    }, [busy, conversationScope, historyHydrated, installedSkillIds, message, pendingHydrated, running]);
+    }, [busy, conversationScope, historyHydrated, installedSkillIds, pendingHydrated, running]);
 
     // 单个技能（含用户自建）挂载到本会话；未装的先补装，已挂的不重复追加。
     const applySingleSkill = useCallback(async (skill: Skill) => {
@@ -263,17 +255,20 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
             }
             setSkills(refreshed.skills);
             setSelectedSkillIds((current) => (current.includes(skill.skillId) ? current : [...current, skill.skillId]));
-            // S1 v3.2（控制线 2026-09-27）：静默挂载——不写会话消息，Skills 计数照常更新，反馈走 toast。
-            message.info(`已把「${skill.skillName}」挂到本会话。用哪张卡交给 Agent 按任务检索。`);
+            setMessages((current) => appendUniqueMessage(current, {
+                id: `skill-${skill.skillId}-${Date.now()}`,
+                role: "system",
+                text: `已把「${skill.skillName}」挂到本会话。用哪张卡交给 Agent 按任务检索。`,
+            }));
         } catch (cause) {
-            if (isCurrent()) message.error(`「${skill.skillName}」挂载失败：${cause instanceof Error ? cause.message : String(cause)}`);
+            if (isCurrent()) setMessages((current) => appendAgentError(current, `skill-${skill.skillId}`, cause, `「${skill.skillName}」挂载失败`));
         } finally {
             if (presetApplyingRef.current === token) {
                 presetApplyingRef.current = null;
                 setPresetApplyingId("");
             }
         }
-    }, [busy, conversationScope, historyHydrated, installedSkillIds, message, pendingHydrated, running]);
+    }, [busy, conversationScope, historyHydrated, installedSkillIds, pendingHydrated, running]);
     const status = run?.status || "idle";
     const statusLabel = status === "waiting_approval" ? "等待审批" : status === "running" || status === "queued" ? "运行中" : status === "completed" ? "已完成" : status === "failed" ? "异常" : status === "cancelled" ? "已停止" : status === "rejected" ? "已拒绝" : "待命";
     const statusColor = status === "failed" ? "#e66b6b" : status === "rejected" || status === "cancelled" ? theme.node.muted : status === "waiting_approval" ? "#d6a24a" : status === "running" || status === "queued" ? "#69c29b" : theme.node.muted;
@@ -285,29 +280,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         lastPrefillIdRef.current = prefillId;
         setPrompt(value);
         setView("chat");
-        if (!prefillSubmit) return;
-        const decision = resolveStarterRunDecision({ value, busy, running, pending: submissionRequestRef.current });
-        if (decision === "submit") {
-            void submitRef.current?.(value);
-        } else if (decision === "busy-toast") {
-            message.info("正在创作中，请稍候");
-        }
-    }, [prefillPrompt, prefillPromptId, prefillSubmit, busy, message, running]);
-
-    // S1 v3.2（控制线）：钻取/返回焦点迁移——钻取后到卡区首卡（无卡场景退「全部场景」），返回后归位对应场景胶囊。
-    useEffect(() => {
-        if (drilledScene) {
-            lastSceneKeyRef.current = drilledScene;
-            const card = document.querySelector<HTMLElement>("[data-scene-cards] .agent-scene-card:not(:disabled)");
-            const back = document.querySelector<HTMLElement>('.agent-scene-capsule[data-scene="back"]');
-            (card ?? back)?.focus({ preventScroll: true });
-            return;
-        }
-        const key = lastSceneKeyRef.current;
-        if (!key) return;
-        lastSceneKeyRef.current = null;
-        document.querySelector<HTMLElement>(`.agent-scene-capsule[data-scene="${key}"]`)?.focus({ preventScroll: true });
-    }, [drilledScene]);
+    }, [prefillPrompt, prefillPromptId]);
 
     useEffect(() => {
         if (!open || view !== "chat") setSkillsOpen(false);
@@ -658,11 +631,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         }
     };
 
-    // 每次 render 后同步最新 submit，供 prefill 效应/未来入口复用同一发送路径。
-    useEffect(() => {
-        submitRef.current = submit;
-    });
-
     // 撤销预检时机: run 进入终态(completed/failed/cancelled/rejected)后拉一次;
     // canvas_undone 事件会触发画布刷新, 这里再本地把 preview 失效为"已撤销"提示态。
     useEffect(() => {
@@ -840,8 +808,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         setPrompt("");
         setApproval(null);
         lastSeqRef.current = 0;
-        setDrilledScene(null);
-        lastSceneKeyRef.current = null;
         setView("chat");
     };
 
@@ -1037,16 +1003,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                             disabled={busy || running || !pendingHydrated || Boolean(presetApplyingId)}
                                             onPick={(preset) => void applyScenePreset(preset)}
                                             onPickSkill={(skill) => void applySingleSkill(skill)}
-                                            onActiveChange={setDrilledScene}
-                                        />
-                                    ) : null}
-                                    {/* S1 v3.2（控制线 2026-09-27）：场景卡区在胶囊条下方（卡区从上方下移，修复逆向布局抖动）；广告电商钻取渲染，其余场景零渲染。 */}
-                                    {historyHydrated && !messages.some((message) => message.role === "user" || message.role === "assistant") && !run && drilledScene && onStarterPrompt ? (
-                                        <AgentSceneCards
-                                            sceneKey={drilledScene}
-                                            freeExperience={starterFree}
-                                            disabled={busy || running || !pendingHydrated || Boolean(presetApplyingId)}
-                                            onRunStarter={onStarterPrompt}
                                         />
                                     ) : null}
                                     {pendingQuestion ? (

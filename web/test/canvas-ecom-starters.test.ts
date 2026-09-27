@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
-import { ECOM_STARTER_CARDS, ecomStarterSubtitle, findEcomStarterCardByPrompt, isFreeExperienceModel, resolveSceneStarterCards, resolveStarterRunDecision } from "../src/lib/canvas/canvas-ecom-starters";
-import type { AiConfig } from "../src/stores/use-config-store";
+import { ECOM_STARTER_CARDS, findEcomStarterCardByPrompt } from "../src/lib/canvas/canvas-ecom-starters";
+
+// S1 v5（控制线 2026-09-27「面板归零」）：卡面入口下架后，本文件仅守护休眠保留件——
+// 卡片数据（chip 匹配键）与 findEcomStarterCardByPrompt 反查。
 
 test("电商 starter 卡数据：4 张、字段齐、无价格数字", () => {
     expect(ECOM_STARTER_CARDS).toHaveLength(4);
@@ -19,16 +21,7 @@ test("电商 starter 卡数据：4 张、字段齐、无价格数字", () => {
     }
 });
 
-test("副标题合成：默认相对档位；免费通道替换「免费体验」", () => {
-    const [white, detail, batch, scene] = ECOM_STARTER_CARDS;
-    expect(ecomStarterSubtitle(white)).toBe("生成主图 · 约消耗 1 张图档");
-    expect(ecomStarterSubtitle(detail)).toBe("生成详情图 · 约消耗 1 张图档");
-    expect(ecomStarterSubtitle(batch)).toBe("批量调优 · 纯文本 · 小额");
-    expect(ecomStarterSubtitle(scene)).toBe("生成场景图 · 约消耗 1 张图档");
-    expect(ecomStarterSubtitle(white, true)).toBe("生成主图 · 免费体验");
-});
-
-test("意图卡文案：单轮选择题式澄清 + 不直接生成/不再追问（控制线 2026-09-27 退回重构 2.1）", () => {
+test("意图卡文案：单轮选择题式澄清 + 不直接生成/不再追问（控制线 2026-09-27 退回重构 2.1，文案存档冻结）", () => {
     for (const card of ECOM_STARTER_CARDS) {
         expect(card.prompt).toMatch(/先不要直接(生成|开始)/);
         expect(card.prompt).toContain("①");
@@ -42,7 +35,7 @@ test("意图卡文案：单轮选择题式澄清 + 不直接生成/不再追问�
     expect(ECOM_STARTER_CARDS.find((card) => card.id === "scene")!.prompt).toContain("③ 参考图混合");
 });
 
-test("findEcomStarterCardByPrompt：命中卡片原文返回卡；其余文本不命中（S1.1 chip 判定）", () => {
+test("findEcomStarterCardByPrompt：命中卡片原文返回卡；其余文本不命中（S1.1 chip 判定，v5 休眠保留）", () => {
     for (const card of ECOM_STARTER_CARDS) {
         expect(findEcomStarterCardByPrompt(card.prompt)?.id).toBe(card.id);
         expect(findEcomStarterCardByPrompt(`  ${card.prompt}  `)?.id).toBe(card.id);
@@ -51,32 +44,4 @@ test("findEcomStarterCardByPrompt：命中卡片原文返回卡；其余文本�
     expect(findEcomStarterCardByPrompt("")).toBeUndefined();
     // 只做完整原文匹配，不做片段匹配
     expect(findEcomStarterCardByPrompt(ECOM_STARTER_CARDS[0].prompt.slice(0, 20))).toBeUndefined();
-});
-
-test("resolveSceneStarterCards：广告电商复用四卡；其余场景 null（S1 v3.2 卡区判定）", () => {
-    expect(resolveSceneStarterCards("ecommerce")).toBe(ECOM_STARTER_CARDS);
-    for (const key of ["drama", "creative", "frequent", "social", "others", ""]) {
-        expect(resolveSceneStarterCards(key)).toBeNull();
-    }
-});
-
-test("resolveStarterRunDecision：空值 ignore / 忙态 toast / 空闲 submit", () => {
-    expect(resolveStarterRunDecision({ value: "  ", busy: false, running: false })).toBe("ignore");
-    expect(resolveStarterRunDecision({ value: "hi", busy: true, running: false })).toBe("busy-toast");
-    expect(resolveStarterRunDecision({ value: "hi", busy: false, running: true })).toBe("busy-toast");
-    expect(resolveStarterRunDecision({ value: "hi", busy: false, running: false, pending: true })).toBe("busy-toast");
-    expect(resolveStarterRunDecision({ value: "hi", busy: false, running: false })).toBe("submit");
-});
-
-test("isFreeExperienceModel：全零价 → 免费体验；缺价或非零价 → 否", () => {
-    const makeConfig = (cost: Record<string, unknown>) =>
-        ({
-            channels: [{ id: "cpa-test", name: "cpa-test", models: ["test-model"], modelCosts: [{ model: "test-model", ...cost }] }],
-            model: "test-model",
-        }) as unknown as AiConfig;
-    expect(isFreeExperienceModel(makeConfig({ billingMode: "token", unitPriceMicrocredits: 0, inputTokenPriceMicrocredits: 0, outputTokenPriceMicrocredits: 0, cachedTokenPriceMicrocredits: 0 }), "test-model")).toBe(true);
-    expect(isFreeExperienceModel(makeConfig({ billingMode: "token", unitPriceMicrocredits: 0, inputTokenPriceMicrocredits: 5, outputTokenPriceMicrocredits: 5, cachedTokenPriceMicrocredits: 0 }), "test-model")).toBe(false);
-    expect(isFreeExperienceModel(makeConfig({ billingMode: "fixed_request", unitPriceMicrocredits: 20 }), "test-model")).toBe(false);
-    expect(isFreeExperienceModel(makeConfig({ billingMode: "fixed_request", unitPriceMicrocredits: 0 }), "test-model")).toBe(true);
-    expect(isFreeExperienceModel(makeConfig({ billingMode: "fixed_request", unitPriceMicrocredits: 0 }), "missing-model")).toBe(false);
 });
