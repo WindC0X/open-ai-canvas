@@ -37,7 +37,6 @@ import { AgentChatComposer, AgentChatMessage, AgentPlanBar, AgentQuestionBar, Ag
 import { CanvasAgentSkillLibraryModal } from "./canvas-agent-skill-library-modal";
 import { CanvasCloudAgentSettings, agentPermissionLabel, agentPermissionMenuItems, agentPermissionVisual, type AgentContextKey } from "./canvas-cloud-agent-settings";
 import { useAgentPanelLayout } from "./use-agent-panel-layout";
-import { resolveAgentWelcomeTier, type AgentWelcomeTier } from "@/lib/canvas/agent-panel-layout";
 import { useCanvasOverlayLayer } from "./canvas-overlay-layer";
 import { useAgentLauncherPosition } from "./use-agent-launcher-position";
 import { AgentWelcome } from "./canvas-agent-welcome";
@@ -159,8 +158,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     }, [config]);
     // S1 免费体验标注：默认文本模型解析到全零价渠道（如测试通道）时，卡面成本段显示「免费体验」。
     const starterFree = useMemo(() => (onStarterPrompt ? isFreeExperienceModel(config, selectedModel) : false), [config, onStarterPrompt, selectedModel]);
-    // S1 重构：新对话态内容分级按 Agent 浮窗高度三级（复用 panelLayout 既有窗高状态；默认 640=compact，阈值见 resolveAgentWelcomeTier）。
-    const welcomeTier = resolveAgentWelcomeTier(panelLayout.compact ? Math.max(420, window.innerHeight - 8) : panelLayout.layout.height);
     const reasoningSupported = Boolean(modelCapabilityConfigFor(config, selectedModel).text?.thinking);
     useEffect(() => { if (!reasoningSupported && reasoningMode !== "off") setReasoningMode("off"); }, [reasoningSupported, reasoningMode]);
     const installedSkills = useMemo(() => skills.filter((skill) => skill.isAdded), [skills]);
@@ -1016,8 +1013,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                         approvalSubmitting={approvalSubmitting || connectionStatus !== "connected"}
                                         onChooseSkill={() => setSkillsOpen(true)}
                                         onDraftPrompt={(draft) => setPrompt((current) => current.trim() ? `${current}\n\n${draft}` : draft)}
-                                        welcomeTier={welcomeTier}
-                                        drilledScene={drilledScene}
                                         onApprovalReasonChange={(reason) => setApproval((current) => (current ? { ...current, reason } : current))}
                                         onApprove={(settings) => void submitApproval("approve", settings)}
                                         onReject={() => void submitApproval("reject")}
@@ -1389,8 +1384,6 @@ function AgentConversation({
     nodeCount,
     onChooseSkill,
     onDraftPrompt,
-    welcomeTier,
-    drilledScene,
     onFocusNode,
     onApprovalReasonChange,
     onApprove,
@@ -1405,9 +1398,6 @@ function AgentConversation({
     nodeCount: number;
     onChooseSkill: () => void;
     onDraftPrompt: (prompt: string) => void;
-    welcomeTier: AgentWelcomeTier;
-    /** S1 v3.2：钻取态（隐藏通用三卡与辅助行；卡区由面板侧在胶囊条下方渲染）。 */
-    drilledScene?: string | null;
     onFocusNode?: (nodeId: string) => void;
     onApprovalReasonChange: (reason: string) => void;
     onApprove: (settings?: AgentMediaSettings) => void;
@@ -1417,8 +1407,6 @@ function AgentConversation({
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const followRef = useRef(true);
-    // S1.1（控制线 P2）：welcome（无消息）展示中不自动贴底——RO 回调闭包不随渲染更新，用 ref 带最新值。
-    const hasMessagesRef = useRef(false);
     const lastUserId = messages.findLast((item) => item.role === "user")?.id;
 
     // 自己发送时恢复跟随；阅读旧消息时不让流式输出抢走滚动位置。
@@ -1427,19 +1415,14 @@ function AgentConversation({
     }, [lastUserId]);
     useLayoutEffect(() => {
         const element = scrollRef.current;
-        // S1.1（控制线 P2）：无消息（welcome 展示中）不自动贴底——welcome 态高度变化（钻取/恢复）
-        // 不改变滚动锚点，新内容在下方滚动域呈现。
-        if (element && followRef.current && messages.length > 0) element.scrollTop = element.scrollHeight;
+        if (element && followRef.current) element.scrollTop = element.scrollHeight;
     }, [messages, busy, approval]);
-    useEffect(() => {
-        hasMessagesRef.current = messages.length > 0;
-    }, [messages.length]);
     useEffect(() => {
         const element = scrollRef.current;
         const content = contentRef.current;
         if (!element || !content) return;
         const observer = new ResizeObserver(() => {
-            if (followRef.current && hasMessagesRef.current) element.scrollTop = element.scrollHeight;
+            if (followRef.current) element.scrollTop = element.scrollHeight;
         });
         observer.observe(element);
         observer.observe(content);
@@ -1451,7 +1434,7 @@ function AgentConversation({
             const element = event.currentTarget;
             followRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
         }}>
-            {!messages.length ? <AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} tier={welcomeTier} drilledScene={drilledScene} /> : null}
+            {!messages.length ? <AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} /> : null}
             <div ref={contentRef} className="agent-conversation-messages">
                 {messages.map((item) => (
                     <AgentChatMessage key={item.id} item={item} theme={theme} references={references} onFocusNode={onFocusNode} isStreaming={busy && !approval && item.streaming === true && item === messages.at(-1)} />

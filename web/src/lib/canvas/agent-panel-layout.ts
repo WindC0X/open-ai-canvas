@@ -39,22 +39,6 @@ export function defaultAgentPanelLayout(viewport: AgentPanelViewport): AgentPane
     return clampAgentPanelLayout({ width, height, left: viewport.width - width - MARGIN, top: viewport.height - height - MARGIN }, viewport);
 }
 
-export type AgentWelcomeTier = "compact" | "standard" | "expanded";
-
-/**
- * 新对话态内容分级阈值（控制线 2026-09-27 退回裁决 2.2，按 Agent 浮窗高度 px）：
- * 默认窗 640 = compact（只有任务入口）；拉高到 1000+ 升 standard（加副标题与通用三卡）；1160+ 全量展开。
- * 阈值口径 = 面板窗高（与 useAgentPanelLayout 既有状态复用），非浏览器窗高。
- */
-export const AGENT_WELCOME_STANDARD_MIN_HEIGHT = 1000;
-export const AGENT_WELCOME_EXPANDED_MIN_HEIGHT = 1160;
-
-export function resolveAgentWelcomeTier(panelHeight: number): AgentWelcomeTier {
-    if (panelHeight >= AGENT_WELCOME_EXPANDED_MIN_HEIGHT) return "expanded";
-    if (panelHeight >= AGENT_WELCOME_STANDARD_MIN_HEIGHT) return "standard";
-    return "compact";
-}
-
 export function changeAgentPanelLayout(start: AgentPanelLayout, gesture: AgentPanelGesture, dx: number, dy: number, viewport: AgentPanelViewport): AgentPanelLayout {
     if (gesture === "move") return clampAgentPanelLayout({ ...start, left: start.left + dx, top: start.top + dy }, viewport);
     const right = start.left + start.width;

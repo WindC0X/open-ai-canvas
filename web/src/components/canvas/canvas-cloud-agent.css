@@ -583,40 +583,7 @@
     opacity: 0.6;
 }
 
-/* S1 v3.2（控制线 2026-09-27）：三级仍按 Agent 浮窗高度，内容统一为 hero → 通用三卡 → 辅助行。
-   compact=单行欢迎语（18px，球体/副标题省略）+ 单行卡（无副标题）+ 辅助行；standard/expanded=完整 hero + 卡带副标题。
-   电商卡移入场景钻取卡区（胶囊条下方），welcome 不再包含电商分组与折叠钮。 */
-.agent-welcome--compact {
-    justify-content: flex-start;
-    padding-block: var(--space-4);
-}
-
-.agent-welcome--compact .agent-welcome-orb,
-.agent-welcome--compact .agent-welcome-intro p {
-    display: none;
-}
-
-.agent-welcome--compact .agent-welcome-intro h2 {
-    font-size: 18px;
-}
-
-.agent-welcome--compact .agent-welcome-actions {
-    margin-top: var(--space-4);
-}
-
-.agent-welcome--compact .agent-welcome-actions button {
-    padding-block: var(--space-2);
-}
-
-.agent-welcome--compact .agent-welcome-actions small {
-    display: none;
-}
-
-.agent-welcome--compact .agent-welcome-footnote {
-    margin-top: var(--space-3);
-}
-
-/* S1 v3.2：场景钻取卡区——挂在技能胶囊条下方、输入框上方；广告电商 2×2 磁贴。 */
+/* S1 v3.2（控制线 2026-09-27）：场景钻取卡区——挂在技能胶囊条下方、输入框上方；广告电商 2×2 磁贴。 */
 .agent-scene-cards {
     /* 容器 min-height 锁定：钻取/恢复切换不产生卡区高度抖动；入场上浮淡入（cross-fade）。 */
     min-height: 148px;

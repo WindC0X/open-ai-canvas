@@ -19,34 +19,38 @@ test("starter 卡走自增 id prefill 命令通道并复用 submit 发送路径"
     expect(panel).toContain("if (!prefillSubmit) return;");
 });
 
-// S1 v3.2（控制线 2026-09-27）：卡区下移到胶囊条下方、无折叠钮、钻取状态机联动、静默挂载。
-test("v3.2：场景卡区下移、无折叠钮、真实钻取状态机与静默挂载", async () => {
+// S1 v4（基线不减原则）：welcome 回归基线（零 fork 痕迹）；卡区/钻取链路/静默挂载保留。
+test("v4：welcome 回归基线（无 tier 裁剪），卡区与静默挂载保留", async () => {
     const [panel, welcome, chatUi, sceneCards] = await Promise.all([
         Bun.file(new URL("../src/components/canvas/canvas-cloud-agent-panel.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/components/canvas/canvas-agent-welcome.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/components/canvas/canvas-cloud-agent-chat-ui.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/components/canvas/canvas-agent-scene-cards.tsx", import.meta.url)).text(),
     ]);
-    // 分级仍在；「更多开始方式」折叠钮与 tier 门控彻底移除（验收 b）
-    expect(panel).toContain("resolveAgentWelcomeTier(panelLayout.compact");
-    expect(panel).not.toContain("更多开始方式");
-    expect(panel).not.toContain("welcomeMoreOpen");
+    // welcome：基线指纹在位；零 fork 标记（tier / 钻取响应 / 折叠钮 / 电商组）
+    expect(welcome).toContain('<section className="agent-welcome" aria-label="开始 Agent 创作">');
+    expect(welcome).toContain("先聊想法，再决定下一步");
+    expect(welcome).not.toContain("tier");
+    expect(welcome).not.toContain("drilledScene");
     expect(welcome).not.toContain("更多开始方式");
-    // 卡区渲染：面板接线（welcome 守卫内、胶囊条之后）+ 面板把钻取态传给 welcome（验收 c/d）
+    expect(welcome).not.toContain("ECOM_STARTER");
+    // 面板：welcome 调用回归基线签名；tier 体系移除
+    expect(panel).toContain("<AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} />");
+    expect(panel).not.toContain("welcomeTier");
+    expect(panel).not.toContain("resolveAgentWelcomeTier");
+    expect(panel).not.toContain("更多开始方式");
+    // 卡区渲染：胶囊条之后、welcome 守卫内（保留件）
     expect(panel).toContain("onActiveChange={setDrilledScene}");
     expect(panel).toContain("<AgentSceneCards");
-    expect(panel).toContain("drilledScene={drilledScene}");
     expect(panel.indexOf("<AgentSceneCapsules")).toBeLessThan(panel.indexOf("<AgentSceneCards"));
     // 钻取状态机：真实 setActiveKey 调用点均同步上报（钻取 + 返回）
     expect(chatUi).toContain("setActiveKey(bucket.key);");
     expect(chatUi).toContain("onActiveChange?.(bucket.key);");
     expect(chatUi).toContain("setActiveKey(null);");
     expect(chatUi).toContain("onActiveChange?.(null);");
-    // welcome 钻取态隐藏通用三卡与辅助行
-    expect(welcome).toContain("drilledScene ? null : (");
-    // 静默挂载（验收 e）：组合/单技能激活不写会话消息，反馈走 toast
+    // 静默挂载：组合/单技能激活不写会话消息，反馈走 toast
     expect(panel).not.toContain("text: `已按「`");
-    expect(panel).not.toContain("text: `已把「");
+    expect(panel).not.toContain("text: `已把「`");
     expect(panel).toContain("message.info(`已按「${preset.name}」挂上");
     expect(panel).toContain("message.info(`已把「${skill.skillName}」挂到本会话");
     // 卡区由场景解析驱动 + 组头格式
@@ -55,14 +59,16 @@ test("v3.2：场景卡区下移、无折叠钮、真实钻取状态机与静默�
     expect(sceneCards).toContain("data-scene-cards");
 });
 
-// S1.1（控制线 P0/P2）：消息 chip 化 + welcome 态不自动贴底（保留件）。
-test("S1.1：chip 化与 welcome 态不自动贴底护栏", async () => {
+// S1.1（控制线 P0）：消息 chip 化（保留件）；v4：welcome 滚动行为回归基线（P2 贴底守卫已随折叠钮退场）。
+test("S1.1：chip 化保留 + welcome 滚动回归基线", async () => {
     const [panel, chatUi] = await Promise.all([
         Bun.file(new URL("../src/components/canvas/canvas-cloud-agent-panel.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/components/canvas/canvas-cloud-agent-chat-ui.tsx", import.meta.url)).text(),
     ]);
     expect(chatUi).toContain("findEcomStarterCardByPrompt");
     expect(chatUi).toContain("agent-starter-chip");
-    expect(panel).toContain("hasMessagesRef.current = messages.length > 0");
-    expect(panel).toContain("followRef.current && hasMessagesRef.current");
+    // v4：贴底守卫（hasMessagesRef）移除，滚动段回归基线原文
+    expect(panel).not.toContain("hasMessagesRef");
+    expect(panel).toContain("if (element && followRef.current) element.scrollTop = element.scrollHeight;");
+    expect(panel).toContain("if (followRef.current) element.scrollTop = element.scrollHeight;");
 });
