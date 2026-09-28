@@ -195,3 +195,53 @@ nano 走新无蒙版路由（用户已在渠道编辑器关闭其蒙版编辑，
 - 结论：因余额阻塞的格子全部补齐；跨底图结论不变（pad/mask 差异 ≤0.1 属噪声；nano 区域保持最稳；白底默认不变）。
 - 证据：.local/f06hb-evidence-after/matrix-20260927/a6api-round/（a6-summary.jsonl 22 条含调试期失败留痕、各格 crop/result、a6-contact-sheet.png）。
 - 备注：调试期 12 次失败尝试（协议修复前）保留于 a6-summary.jsonl；消息面余额消耗未取到（浏览器标签被占），按市场价估算本轮成功 10 发 ≈ $0.06–0.08。
+
+## 验收收口与封版（2026-09-28 控制线）
+
+### 用户真机裁决（三项，全部通过）
+
+1. **硬贴回衔接带**：大体 OK、细看可见衔接——定性为**生成式扩图上限**（重绘内容与原图天然不连续），非缺陷；验收通过、不做后续优化。备注：彻底无接缝的替代路线只有纹理合成型扩图，但语义上画不出新物体，不满足电商「补场景」需求——产品边界，不列待办。
+2. **扩图档位 4 项真机**：全部正常，验收通过。
+3. **a6api 余额**：充足，无运营动作，悬案销。
+
+### 红基线对账（口径统一：15 红逐名 = 冻结基线）
+
+早前轮次报告「全量 2279/18 vs stash 基线 2277/17」，与冻结基线 15 项存在 2 条口径差。逐名对账：
+
+**冻结基线（15 红逐名；2026-09-28 全量 2284 pass / 15 fail 的确定集合，此后全量口径）**
+1. 运行中不再锁死输入框，发送走插话而不是新建轮次
+2. shared action colors and focus feedback > workspace density overrides inherit action colors and shadow-free focus
+3. auth scene consumes resolved appearance instead of hardcoded media constants
+4. DEV director lab loads without calling the appearance backend
+5. appearance still blocks normal startup: dev=false path=/dev/director-repro
+6. appearance still blocks normal startup: dev=true path=/login
+7. appearance still blocks normal startup: dev=false path=/login
+8. appearance still blocks normal startup: dev=true path=/dev/director-repro/
+9. appearance still blocks normal startup: dev=true path=/dev/director-repro-other
+10. public film entry remains independent: /welcome
+11. public film entry remains independent: /welcome/
+12. large canvas media rendering > keeps inactive video nodes on a viewport-gated static first frame
+13. 并发生成结果经真实持久化消费链路及重新读取后保留成功、失败和用户编辑
+14. menu surfaces are explicitly scoped and old account inner overrides are removed
+15. shared single-select popup uses a borderless surface instead of a bright focus frame
+
+**「stash 基线 17」= 上述 15 + 2 条**（唯一差集）：
+- `axios.create stays in the shared request client`（超时）
+- `copied flush Modal padding lives only in AppModal`（超时）
+
+**归因**：属**已知 flake 家族**（全 src 快扫描守卫类，5s 默认超时的边缘耗时——本机实测 4.4–6.3s，`axios.create` 复跑实录 6.08s）；隔离 `--timeout 20000` 复跑全过；非分支固有、非确定性。同一家族在门控轮 after 口径里另报过 3 条临时超时（copied flush / command confirms / flush modal drawer），随负载出现/消失（徽章轮 15/15 与冻结基线完全一致）。**结论：17 与 15 无实质差异，2 条差集全部为超时家族波动。**
+
+**口径（此后统一）**：本枝全量门禁 = 「15 红逐名 = 冻结基线」；守卫超时家族已由 rider 消除（见下），后续轮次不应再出现该家族。
+
+### 封版前行政项 2：轻量枝超时 rider 移植（提交 4db8b876）
+
+- 来源：轻量枝 `3b1f49a1` 中对 `web/test/http-ownership.test.ts`、`web/test/ui-kit-retirement.test.ts` 的修订——5 个全 src 快扫描用例追加 `per-test 20000ms`（含说明注释）。
+- 方式：**部分补丁移植**（`git diff 3b1f49a1^..3b1f49a1 -- <两文件>` + `git apply --3way`，两文件基版一致、clean apply）；未整提交 cherry-pick（该提交另含轻量枝 S3 反馈渠道改造等功能，不属本枝范围）。
+- 验证：`bun test http-ownership ui-kit-retirement` → **6 pass / 0 fail**（axios.create 6.08s、copied flush 5.03s——越 5s 线实证，20s 下稳定通过）。
+
+### 封版声明
+
+- `feat/ecom-f06-hardblend` 封版：五轮成果一次冻结——① 硬贴回（服务端 apply_overlay）② 扩图档位门控（白名单/徽章/空态）③ 真机反馈修复轮 ④ a6api 双 key 接入与插件适配 ⑤ 多底图泛化实验轮。
+- 封版 HEAD = 本卡封版节所在提交（分支末位提交，`git log -1` 即得）；工作区干净；推 fork（github.com/WindC0X/open-ai-canvas）。
+- 环境释放：:3001 vite、:8181 测试后端、cloudflared 隧道（B 线自建）停用；:3010 家族走查环境不动。
+- 待合并批次（flora + 轻量枝 + B 线 F-06 三枝），合并任务书由控制线下发，合入动作在 main checkout 执行。
