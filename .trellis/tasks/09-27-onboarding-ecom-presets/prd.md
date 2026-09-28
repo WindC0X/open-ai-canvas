@@ -131,3 +131,9 @@ W3 第三轻量枝（控制线 2026-09-27 任务书）：在 `feat/onboarding-ec
 - 修四件：①撤回 clamp（三处接线）恢复纯贴附；②--z-global-tools:160 + dock 带消费（PATCH-MAP E11）；③卡默认 z→--z-tooltip；④useToolHoverCard 看门狗（pointer miss 300ms→escape；focused 跳过；visibilitychange/blur 清场）。
 - 验证：真机不变式（面板跨压 dock 命中按钮、穿层）、卡层归属、watchdog A/B2/对照/blur、纯贴附 gap=12；门禁照旧。
 - 去向：批内 merge → 测试线复验（纯贴附 + dock 穿越 + 卡层级 + 看门狗）→ 终审。
+
+## 2026-09-29 hover 卡再提层（用户裁定）：默认卡 1150，压过设置弹层
+
+- 用户截图：素材库 hover 卡被设置弹层（--z-dialog-popover 1100）水平切掉右缘；裁定默认卡与 mini 卡同语义——设置浮层 1100 之上、加载 1200 之下。
+- 改动：tool-hover-card.css 默认卡回退值 var(--z-tooltip)(1000) → 1150；守卫测试语义化（cardZ > --z-dialog-popover）；PATCH-MAP D3 登记。
+- 实测：叠区归属 POPOVER → CARD；卡描述文案完整。去向：随批 merge → 测试线复验（卡 vs 设置弹层）。
