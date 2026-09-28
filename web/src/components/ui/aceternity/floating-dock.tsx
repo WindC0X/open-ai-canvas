@@ -217,7 +217,9 @@ function DockCommandButton({ command, mouseX, metrics, motionEnabled, compact, s
     const [focused, setFocused] = useState(false);
     const [hovered, setHovered] = useState(false);
     // hover 说明卡：有数据且非 label/触屏形态时替代极简 tooltip（禁用态维持不出卡，与 tooltip 语义一致）。
-    const hoverCard = useToolHoverCard({ data: !showLabel && cardsEnabled && !command.disabled ? command.hoverCard : undefined, label: command.label, icon: command.icon });
+    // hotfix-2（batch-12 阻断）：expands 类命令在面板展开期间不出卡——卡会遮住子菜单点击且信息冗余；
+    // 收起后恢复。无 hover 卡数据的 active 项（小地图/素材空间等）不受影响。
+    const hoverCard = useToolHoverCard({ data: !showLabel && cardsEnabled && !command.disabled && !command.active ? command.hoverCard : undefined, label: command.label, icon: command.icon });
     const distance = useTransform(mouseX, (value) => {
         const bounds = ref.current?.getBoundingClientRect();
         if (!bounds || !Number.isFinite(value)) return Number.POSITIVE_INFINITY;
