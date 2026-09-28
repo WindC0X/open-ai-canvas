@@ -146,8 +146,7 @@
     --elevation-hairline: inset 0 0 0 1px rgba(17, 17, 17, 0.13);
     --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.05);
     --elevation-card-hover: 0 10px 26px rgba(0, 0, 0, 0.1), 0 2px 5px rgba(0, 0, 0, 0.05);
-    /* 安静化(DESIGN.md 表面补录):弹层/浮层升高从 60px 大投影收敛为低模糊克制阴影,与 AntD boxShadowSecondary 同向 */
-    --elevation-overlay: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+    --elevation-overlay: 0 24px 60px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.09);
     --elevation-panel: -18px 0 52px rgba(0, 0, 0, 0.16);
     --focus-ring-soft: 0 0 0 3px color-mix(in srgb, var(--ring) 28%, transparent);
 
@@ -255,9 +254,6 @@
 
     /* --- 7. 动效（对应 #99 动效 token）--- */
     /* duration */
-    /* 微供给存在感(2026-09-12 契约): hover 节点时工具栏/composer 的低存在感级别 */
-    --affordance-micro-opacity: 0.45;
-    --affordance-micro-saturate: 0.8;
     --motion-dur-instant: 80ms;
     --motion-dur-fast: 150ms;
     --motion-dur-base: 250ms;
@@ -950,9 +946,6 @@
     --ring: oklch(0.708 0 0);
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
-    /* 画布/工作区弹层用的文本基色。此前全仓无定义, 所有用它的 color-mix 在计算时失效
-       退化为不透明继承色(2026-09-09 实测 chip 描边/图标变 rgb(237,237,237) 的根因)。 */
-    --workspace-foreground: var(--foreground);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
@@ -983,12 +976,7 @@
 }
 
 .dark {
-    --canvas-model-badge-bg: rgba(255, 255, 255, .10);
-    --canvas-model-badge-fg: rgba(255, 255, 255, .72);
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --workspace-foreground: var(--foreground);
-    --border: oklch(1 0 0 / 10%);
+    --background: #0f0f0f;
     --auth-page-bg: #08090c;
     --auth-panel-bg: #0b0c10;
     --auth-card-bg: #121318;
@@ -998,6 +986,8 @@
        直接复用 --foreground 会得到白底白勾。 */
     --auth-check-bg: #e5e5e5;
     --auth-check-fg: #171717;
+    --foreground: #ffffff;
+    --border: #222222;
     --ring: oklch(0.556 0 0);
     --card: #181818;
     --card-foreground: #ffffff;
@@ -1168,8 +1158,7 @@
     --elevation-hairline: inset 0 0 0 1px rgba(255, 255, 255, 0.085);
     --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.4);
     --elevation-card-hover: 0 12px 30px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.32);
-    /* 安静化(DESIGN.md 表面补录):与 light 侧同向收敛 */
-    --elevation-overlay: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.28);
+    --elevation-overlay: 0 28px 72px rgba(0, 0, 0, 0.62), 0 4px 14px rgba(0, 0, 0, 0.4);
     --elevation-panel: -20px 0 60px rgba(0, 0, 0, 0.56);
 
     --surface-card: rgba(255, 255, 255, 0.035);
@@ -1282,11 +1271,7 @@
     --canvas-create-resource-height: var(--space-8);
 
     /* Node 组件：节点首先是内容容器，常态不使用卡片投影或发光。 */
-    --node-radius: 20px;                  /* flora P51-030 rounded-3xl(24@384世界) 等比适配影策 420 世界 */
-    /* 黑上黑根因: 本块(:root)源码顺序晚于上方 .dark 块, 同特异性(0,1,0)下顺序覆盖 .dark 的同名变量,
-       导致暗色下亮色徽章变量泄漏。修法: 本处只写亮值, Component 块闭合后立刻补一条 .dark 覆盖(顺序在后, 生效)。 */
-    --canvas-model-badge-bg: rgba(17, 24, 39, .06);
-    --canvas-model-badge-fg: rgba(17, 24, 39, .62);
+    --node-radius: var(--r-lg);           /* 12px */
     --node-header-height: 24px;
     --node-title-fs: var(--fs-label);     /* 11px */
     --node-badge-fs: var(--fs-tiny);      /* 10px */
@@ -1302,7 +1287,7 @@
     --canvas-composer-control-surface: color-mix(in srgb, var(--foreground) 5%, transparent);
     --canvas-composer-control-hover: color-mix(in srgb, var(--foreground) 8%, transparent);
     --canvas-composer-shadow: var(--elevation-card);
-    --canvas-composer-settings-max-width: 168px;
+    --canvas-composer-settings-width: 138px;
     --canvas-mention-menu-max-height: 320px;
     --canvas-mention-search-height: 38px;
     --canvas-mention-item-height: 38px;
@@ -1381,12 +1366,6 @@
     --flow-step-track-height: var(--stroke-2);    /* 2px 状态轨道高 */
     --flow-step-track-width: var(--space-5);      /* 20px 轨道段长 */
     --flow-step-current-glow: 0 0 0 4px var(--cn-active-stroke-soft); /* 当前节点光晕 */
-}
-
-/* 模型徽章暗色值: 必须在本 Component :root 块之后声明才能覆盖它(顺序敏感, 见上方黑上黑注释)。 */
-.dark {
-    --canvas-model-badge-bg: rgba(255, 255, 255, .10);
-    --canvas-model-badge-fg: rgba(255, 255, 255, .72);
 }
 
 @layer base {
@@ -16651,8 +16630,9 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
     display: flex;
     min-width: 0;
     align-items: center;
-    gap: 8px;
-    padding: 10px 10px 10px 14px;
+    /* [2026-09-27 flora rider] 文案列加宽：gap/padding 微调 +10px，修侧栏 offer 截断（72→82 ≥ 81）。 */
+    gap: 6px;
+    padding: 10px 8px 10px 12px;
     border-radius: 12px;
     background: #fff;
     box-shadow: 0 10px 24px rgba(16, 18, 22, .12);
@@ -16699,7 +16679,7 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
 .app-user-workspace .app-workspace-sidebar-checkin.is-collapsed {
     flex: none;
     height: 32px;
-    padding: 0 12px;
+    padding: 0 10px;
     border: 0;
     border-radius: 999px;
     background: #171717;
