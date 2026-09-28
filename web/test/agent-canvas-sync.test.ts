@@ -66,7 +66,10 @@ test("fallback snapshots obey the configured minimum refresh interval", async ()
     for (let index = 0; index < 50; index++) sync.reconcile();
     await sleep(15);
     expect(times).toHaveLength(1);
-    await sleep(120);
+    // rider 2026-09-28：正等待窗口 120→250ms。全量并行 + /mnt/f 慢 IO 下 100ms 间隔的
+    // 定时器回调可被延迟出窗 → 假红（本批全量 3 跑 1 现；flora 验收期首现的观察名单
+    // 二次复现，控制线裁决选 b）。负窗口（15ms 内不得刷新）断言语义原样保留。
+    await sleep(250);
     sync.dispose();
     expect(times).toHaveLength(2);
     expect(times[1] - times[0]).toBeGreaterThanOrEqual(100);
