@@ -98,3 +98,4 @@
 | E7 | `1b3cd2df` + `75acd589` + `d265f86e` | O-03 层1：渠道预设组/交集逻辑/药丸预设态/画质档位；四刀（预设场景 / 删恢复默认 / 新节点画质+ⓘ补行 / banner「未达该预设要求（≥…）」文案）+ 宫格残余 a/b（两列独立成卡/格点豁免统一内边距/文案纠偏）；polish（说明行收入 hover 小卡/比例角标释义） | 组件级 | 有意保留；随上游同步核对 |
 | E8 | `0ce555fa` + `eada7ccb` | hotfix-3（batch-12 三跑 7 红）：hover 卡滞留族修复（状态归零/focus 门控）+ O-03 达标诚实化（实际像素判定）；三文件语义 = `tool-hover-card.tsx` / `canvas-create-menu.tsx` / `image-size-presets.ts`（`canvas-image-settings-popover.tsx` 挂点） | 组件级 | 有意保留；随上游同步核对 |
 | E9 | `0a16cd41` + `c8a32f58` | B 线 micro-rider：扩图硬贴回形状失明归一化（经典协议 images 归一化与失配日志；`task_outpaint_hardblend.go`）+ Agent 链 mask 可选化（跳过合成与预检放行；`cloud_agent_media_outpaint.go`） | B 线（后端） | 有意保留；随上游同步核对 |
+| E10 | `4dc8c251` + `5a5ac8f1` | dock 让位 rider（batch-12）：`canvas-workspace-overlays.tsx` 面板让位语义——选中态挂件（预设 chip/面板行）不遮 dock 全局工具「添加节点」热区 | 组件级（布局避让） | 有意保留；随上游同步核对 |
