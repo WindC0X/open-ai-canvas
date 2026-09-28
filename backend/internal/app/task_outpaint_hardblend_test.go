@@ -306,6 +306,81 @@ func TestApplyOutpaintHardBlendEndToEnd(t *testing.T) {
 	}
 }
 
+// 经典内置协议形状（micro-rider 2026-09-28，glm review）：openai-image classic / gemini-image /
+// grok / volcengine-ark 的 imageDataURLs 返回 []map[string]string——此前类型断言失明、贴回
+// 静默跳过（无日志）。归一化后必须与原形状走同一贴回语义，且回写进 result 供 persist 使用。
+func TestApplyOutpaintHardBlendClassicProtocolShape(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&model.SystemSetting{}, &model.UserOSSSetting{}, &model.StorageLocation{}, &model.UserDailyUploadUsage{}, &model.Resource{}, &model.Task{}, &model.TaskLog{}); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(repository.New(db), t.TempDir())
+
+	source := hardBlendTestSolid(50, 40, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	var sourceBuffer bytes.Buffer
+	if err := png.Encode(&sourceBuffer, source); err != nil {
+		t.Fatal(err)
+	}
+	uploadKey := "outpaint-classic-shape-source"
+	resource, _, err := svc.storeResource("user-1", "image", "source.png", "image/png", int64(sourceBuffer.Len()), 50, 40, 0, bytes.NewReader(sourceBuffer.Bytes()), &uploadKey, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	generated := hardBlendTestSolid(100, 80, color.RGBA{R: 10, G: 200, B: 30, A: 255})
+	var generatedBuffer bytes.Buffer
+	if err := png.Encode(&generatedBuffer, generated); err != nil {
+		t.Fatal(err)
+	}
+	generatedURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(generatedBuffer.Bytes())
+
+	task := hardBlendTestTask(t, map[string]interface{}{
+		"edit": "outpaint",
+		"outpaint": map[string]interface{}{
+			"sourceStorageKey": "resource:" + resource.ID,
+			"rect":             map[string]interface{}{"x0": 0.25, "y0": 0.25, "x1": 0.75, "y1": 0.75},
+			"frame":            map[string]interface{}{"width": 100, "height": 80},
+		},
+	})
+	classic := map[string]interface{}{
+		"mode":   "image",
+		"images": []map[string]string{{"dataUrl": generatedURL}},
+	}
+	out := svc.applyOutpaintHardBlend(task, classic)
+	items, ok := out["images"].([]interface{})
+	if !ok || len(items) != 1 {
+		t.Fatalf("归一化后 images 应为 []interface{}，得到 %T", out["images"])
+	}
+	item, ok := items[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("归一化后条目应为 map[string]interface{}，得到 %T", items[0])
+	}
+	updated, _ := item["dataUrl"].(string)
+	if updated == generatedURL || updated == "" {
+		t.Fatal("经典协议形状结果图未执行贴回")
+	}
+	_, data, err := svc.decodeDataURL(updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blended, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blended.Bounds().Dx() != 100 || blended.Bounds().Dy() != 80 {
+		t.Fatalf("结果尺寸必须不变 %v", blended.Bounds())
+	}
+	if pixel := hardBlendTestPixel(blended, 50, 40); pixel.R < 250 || pixel.G > 5 {
+		t.Fatalf("原图区未贴回 %+v", pixel)
+	}
+	if pixel := hardBlendTestPixel(blended, 5, 5); pixel.G < 195 {
+		t.Fatalf("生成区被改动 %+v", pixel)
+	}
+}
+
 // 媒体物化路径（materializeTaskMedia 漏斗）：临时文件就地改写为贴回后的 PNG；
 // nil 上下文（非扩图任务）= 原样返回。
 func TestApplyOutpaintHardBlendToMediaFile(t *testing.T) {

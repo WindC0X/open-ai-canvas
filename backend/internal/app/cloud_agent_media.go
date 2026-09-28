@@ -675,7 +675,8 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	// 扩图：恰好 1 张图片参考时，服务端合成 pad 底图 + mask 并物化为资源后替换参考，
 	// 后续路由/校验/计价/执行与 image_to_image 完全同构（输入只有 resource 引用）。
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
-		// 能力预检前置到 prepare（合成/上传之前）：mask 输入 + 自定义 size 是扩图隐含硬要求。
+		// 能力预检前置到 prepare（合成/上传之前）：画幅能力是扩图隐含硬要求；mask 按模型能力
+		// 可选——不支持蒙版的模型跳过合成、白底直扩（2026-09-28 micro-rider，与手动链同语义）。
 		// 真实增量是省掉不可用模型的 pad/mask 合成与上传白耗，并把错误直接还给 LLM 便于换模型；
 		// admission 在审批前已会拦（不是「审批后爆」——review 2026-09-21 P3 纠正了此前的表述）。
 		spec, capErr := s.cloudAgentOutpaintModelCapability(a)
@@ -685,7 +686,8 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 		if capErr := cloudAgentOutpaintCapabilityCheck(spec); capErr != nil {
 			return CreateTaskRequest{}, nil, capErr
 		}
-		frame, err := s.applyCloudAgentOutpaint(run.UserID, input, a)
+		// mask 通道按模型能力启用（2026-09-28 micro-rider）：spec 有 mask 输入约束 = 支持蒙版。
+		frame, err := s.applyCloudAgentOutpaint(run.UserID, input, a, spec.Inputs["mask"].Max >= 1)
 		if err != nil {
 			return CreateTaskRequest{}, nil, err
 		}

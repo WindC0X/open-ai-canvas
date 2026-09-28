@@ -3,9 +3,16 @@ package app
 import (
 	"bytes"
 	"image"
+	"image/color"
 	"image/png"
 	"math"
 	"testing"
+
+	"infinite-canvas/backend/internal/model"
+	"infinite-canvas/backend/internal/repository"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func TestCloudAgentOutpaintRatioValue(t *testing.T) {
@@ -297,5 +304,70 @@ func TestCloudAgentOutpaintLayoutMatchesPaintAndGeometry(t *testing.T) {
 	}
 	if got := int(math.Round(geometry.RectY1 * float64(paintH))); got != maxY+1 {
 		t.Fatalf("rect.y1 反解 = %d, want %d", got, maxY+1)
+	}
+}
+
+// micro-rider 2026-09-28（deepseek review）：扩图预检不再硬依赖 mask 输入——模型不支持蒙版时
+// 跳过合成、白底直扩（与手动链同语义）；画幅能力仍为硬要求。
+func TestCloudAgentOutpaintCapabilityCheckMaskOptional(t *testing.T) {
+	withMask := CapabilitySpec{Version: 1, Capability: "image", Inputs: map[string]InputConstraint{"image": {Min: 0, Max: 16}, "mask": {Min: 0, Max: 1}}, ImageSize: &CapabilityImageSize{Parameter: "size", AllowCustom: true}}
+	if err := cloudAgentOutpaintCapabilityCheck(withMask); err != nil {
+		t.Fatalf("支持蒙版的模型应通过预检：%v", err)
+	}
+	withoutMask := CapabilitySpec{Version: 1, Capability: "image", Inputs: map[string]InputConstraint{"image": {Min: 0, Max: 16}}, ImageSize: &CapabilityImageSize{Parameter: "size", AllowCustom: true}}
+	if err := cloudAgentOutpaintCapabilityCheck(withoutMask); err != nil {
+		t.Fatalf("不支持蒙版的模型（跳过合成）应通过预检：%v", err)
+	}
+	noSize := CapabilitySpec{Version: 1, Capability: "image", Inputs: map[string]InputConstraint{"image": {Min: 0, Max: 16}}}
+	if err := cloudAgentOutpaintCapabilityCheck(noSize); err == nil {
+		t.Fatal("无画幅能力必须拒绝")
+	}
+}
+
+// micro-rider 2026-09-28（deepseek review）：mask 合成按模型能力跳过——withMask=false 时
+// 只物化 pad 底图（mask=nil，refs 不写 mask），真机主链（nano 关蒙版）与手动链同语义。
+func TestCloudAgentOutpaintMaterializeSkipsMaskWhenUnsupported(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&model.SystemSetting{}, &model.UserOSSSetting{}, &model.StorageLocation{}, &model.UserDailyUploadUsage{}, &model.Resource{}, &model.Task{}, &model.TaskLog{}); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(repository.New(db), t.TempDir())
+
+	source := hardBlendTestSolid(200, 120, color.RGBA{R: 40, G: 80, B: 160, A: 255})
+	var sourceBuffer bytes.Buffer
+	if err := png.Encode(&sourceBuffer, source); err != nil {
+		t.Fatal(err)
+	}
+	uploadKey := "agent-outpaint-mask-skip-source"
+	resource, _, err := svc.storeResource("user-1", "image", "source.png", "image/png", int64(sourceBuffer.Len()), 200, 120, 0, bytes.NewReader(sourceBuffer.Bytes()), &uploadKey, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	media := &providerMedia{ID: "src-1", Name: "扩图底图", Type: "image", StorageKey: "resource:" + resource.ID, MimeType: "image/png", Width: 200, Height: 120}
+	padding := map[string]int{"left": 48, "right": 48, "top": 48, "bottom": 48}
+
+	padded, mask, geometry, err := svc.cloudAgentOutpaintMaterialize("user-1", media, padding, 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mask != nil {
+		t.Fatalf("maskSupported=false 时不得合成蒙版，得到 %+v", mask)
+	}
+	if padded.StorageKey == "" || padded.Width <= 0 || padded.Height <= 0 {
+		t.Fatalf("pad 底图应正常物化，得到 %+v", padded)
+	}
+	if geometry.Width <= 0 || geometry.Height <= 0 || geometry.RectX1 <= geometry.RectX0 || geometry.RectY1 <= geometry.RectY0 {
+		t.Fatalf("硬贴回几何异常 %+v", geometry)
+	}
+
+	_, maskOn, _, err := svc.cloudAgentOutpaintMaterialize("user-1", media, padding, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if maskOn == nil {
+		t.Fatal("maskSupported=true 时应产出蒙版（对照组）")
 	}
 }
