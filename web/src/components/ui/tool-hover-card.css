@@ -2,7 +2,8 @@
 
 .tool-hover-card {
     position: fixed;
-    z-index: var(--tool-hover-card-z, 150);
+    /* rider-2（控制线 2026-09-28 令）：默认层提至 tooltip 层（1000 > 画布浮层 150）——卡顶挂件，不被水平切层。 */
+    z-index: var(--tool-hover-card-z, var(--z-tooltip));
     pointer-events: auto;
     box-sizing: border-box;
     display: flex;

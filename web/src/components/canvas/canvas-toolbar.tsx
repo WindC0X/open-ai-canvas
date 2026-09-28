@@ -92,7 +92,10 @@ export function CanvasToolbar({
     onOpenProjectCharacters: () => void;
 }) {
     const rootRef = useRef<HTMLDivElement>(null);
-    const { bringToFront, zIndex } = useCanvasOverlayLayer("main-toolbar", "var(--z-toolbar)");
+    // rider-2（控制线 2026-09-28 令）：dock 带提至「全局工具带」层（--z-global-tools 160 > 画布浮层激活值 150）——
+    // 画布内容（含选中态挂件）从其下穿过，dock 按钮永远可点；本条激活值 150 时其余面板回落值 ≤110 仍在其下，
+    // 面板激活（150）时本条 fallback 160 恒在其上：两种状态下 dock 都在挂件之上。
+    const { bringToFront, zIndex } = useCanvasOverlayLayer("main-toolbar", "var(--z-global-tools)");
     const dockRef = useRef<HTMLDivElement>(null);
     const colorTheme = useActiveTheme();
     const theme = canvasThemes[colorTheme];

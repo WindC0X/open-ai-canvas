@@ -4035,3 +4035,11 @@ Agent 面板新对话态新增 4 张电商 starter 卡（白底产品图 / 3:4 �
 - [x] 真机：面板底缘 844 < dock 顶 854；elementFromPoint(添加节点中心)=按钮本体；真点开菜单（B 项连续创建可用）。
 - [x] 预设应用态 guard：chip/✕ 上移可点（✕ 真点生效后重应用还原）；dock 中心仍命中按钮。
 - [ ] 待测试线复验 A/B 位（修复后仅复验受影响面）。
+
+### rider-2：clamp 撤回 + dock/卡 z 提层 + hover 看门狗（控制线 2026-09-28）
+
+- [x] 撤回 dock-clamp 让位（4dc8c251），恢复 09-25 纯贴附：真机 nodeBottom=1387 → panelTop=1399（gap=12、非拎回）。
+- [x] dock 提层 --z-global-tools(160)>150：面板跨压按钮中心两态 elementFromPoint=按钮本体 + 真点菜单成功。
+- [x] hover 卡 z→var(--z-tooltip)(1000)：叠区归属=卡；mini 1150 不动。
+- [x] 看门狗：miss≥300ms 关卡（t250 保持/t700 关闭）、命中保持（t1100）、blur 清场（t50=0）、focused 不受影响（单元级）。
+- [ ] 待测试线复验（纯贴附 + dock 穿越 + 卡层级 + 看门狗）。

@@ -61,7 +61,8 @@ describe("上传图片是输入素材", () => {
 
 test("底部菜单使用画布浮层管理并响应打开、鼠标和键盘交互", () => {
     const toolbar = read("components/canvas/canvas-toolbar.tsx");
-    expect(toolbar).toContain('useCanvasOverlayLayer("main-toolbar", "var(--z-toolbar)")');
+    // rider-2（控制线 2026-09-28 令）：dock 带提至全局工具带层。
+    expect(toolbar).toContain('useCanvasOverlayLayer("main-toolbar", "var(--z-global-tools)")');
     expect(toolbar).toContain("if (addOpen || appearanceOpen) bringToFront()");
     expect(toolbar).toContain("style={{ zIndex }} onPointerDownCapture={bringToFront} onFocusCapture={bringToFront}");
 });

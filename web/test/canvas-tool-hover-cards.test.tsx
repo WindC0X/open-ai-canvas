@@ -6,7 +6,7 @@ import { Undo2 } from "lucide-react";
 import type { FloatingDockCommand } from "../src/components/ui/aceternity/floating-dock";
 import { FloatingDock } from "../src/components/ui/aceternity/floating-dock";
 import { NodePreviewMockup } from "../src/components/ui/tool-hover-card-mockups";
-import { ToolHoverCardContent, ToolHoverCardMiniContent, computeToolHoverCardPosition, createToolHoverCardExclusivity, initialToolHoverCardState, isToolHoverCardOpen, reduceToolHoverCardState } from "../src/components/ui/tool-hover-card";
+import { ToolHoverCardContent, ToolHoverCardMiniContent, TOOL_HOVER_CARD_WATCHDOG_MISS_MS, computeToolHoverCardPosition, createToolHoverCardExclusivity, initialToolHoverCardState, isToolHoverCardOpen, reduceToolHoverCardState, toolHoverCardPointerHit } from "../src/components/ui/tool-hover-card";
 import { CANVAS_SHORTCUTS } from "../src/lib/canvas/canvas-shortcuts";
 import { NODE_PREVIEW_KINDS, resolveToolHoverCardData } from "../src/lib/canvas/tool-hover-card-data";
 import { addNodeMenuCommands } from "../src/lib/canvas/tool-registry/definitions/add-node-menu-tools";
@@ -424,5 +424,41 @@ describe("O-03 polish · 面板信息小卡（mini 变体）", () => {
         expect(css).toContain("z-index: var(--tool-hover-card-mini-z, 1150)");
         expect(css).toContain("border-radius: 16px");
         expect(css).toContain("max-width: min(280px, calc(100vw - 16px))");
+    });
+});
+
+describe("rider-2：hover 卡看门狗（控制线 2026-09-28）", () => {
+    test("模拟指针序列：连续未命中超宽限 → escape 关卡；命中卡/触发器即撤销", () => {
+        const card = { left: 0, top: 0, right: 100, bottom: 100 };
+        const anchor = { left: 200, top: 200, right: 240, bottom: 240 };
+        // 状态机：hover 触发开卡
+        let state = reduceToolHoverCardState(initialToolHoverCardState, "trigger-enter");
+        expect(isToolHoverCardOpen(state)).toBe(true);
+        // 命中：卡内 / 触发器内 → 不武装（看门狗撤销）
+        expect(toolHoverCardPointerHit(50, 50, [card, anchor])).toBe(true);
+        expect(toolHoverCardPointerHit(220, 220, [card, anchor])).toBe(true);
+        // 未命中：远离两矩形 → 宽限到点派发 escape → 关卡
+        expect(toolHoverCardPointerHit(450, 450, [card, anchor])).toBe(false);
+        state = reduceToolHoverCardState(state, "escape");
+        expect(isToolHoverCardOpen(state)).toBe(false);
+        // dismissed 语义：指针仍悬停不重开，直到下一次 enter 重新武装
+        expect(isToolHoverCardOpen(reduceToolHoverCardState(state, "card-enter"))).toBe(false);
+        expect(isToolHoverCardOpen(reduceToolHoverCardState(state, "trigger-enter"))).toBe(true);
+        expect(TOOL_HOVER_CARD_WATCHDOG_MISS_MS).toBe(300);
+    });
+
+    test("focused 态不受看门狗影响（WCAG 1.4.13）；清场接线齐备（源级）", () => {
+        const focused = reduceToolHoverCardState(initialToolHoverCardState, "trigger-focus");
+        expect(focused.focused).toBe(true);
+        expect(isToolHoverCardOpen(focused)).toBe(true);
+        const src = readFileSync(new URL("../src/components/ui/tool-hover-card.tsx", import.meta.url), "utf8");
+        // 指针看门狗跳过条件含 focused；清场覆盖 visibilitychange / blur。
+        expect(src).toContain("if (!open || state.focused) return;");
+        expect(src).toContain('document.addEventListener("pointermove", onPointer, true)');
+        expect(src).toContain('document.addEventListener("pointerdown", onPointer, true)');
+        expect(src).toContain('document.addEventListener("visibilitychange", onVisibilityChange)');
+        expect(src).toContain('window.addEventListener("blur", sweep)');
+        // 卡引用贯通（看门狗读取卡片矩形的通道）
+        expect(src).toContain("cardElRef");
     });
 });

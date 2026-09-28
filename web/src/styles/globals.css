@@ -239,6 +239,7 @@
     --z-modal: 100;             /* L8 对话框 */
     --z-modal-overlay: 110;     /* L9 遮罩 */
     --z-canvas-overlay-active: 150; /* 画布浮层：最后交互的面板 */
+    --z-global-tools: 160;      /* 全局工具带：dock 带（画布内容从其下穿过；PATCH-MAP E11，rider-2 2026-09-28） */
     --z-popover: 200;           /* L10 弹出层 */
     --z-toast: 500;             /* L11 通知 */
     --z-tooltip: 1000;          /* L12 提示 */
