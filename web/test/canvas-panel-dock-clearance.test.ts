@@ -36,12 +36,17 @@ describe("z 梯级（rider-2：dock 提层 + hover 卡提层）", () => {
         expect(toolbar).toContain('useCanvasOverlayLayer("main-toolbar", "var(--z-global-tools)")');
     });
 
-    test("hover 卡 z 默认值 ≥ tooltip 层；mini 卡 1150 不动", () => {
+    test("hover 卡 z 默认值压过设置弹层（> --z-dialog-popover）；mini 卡 1150 不动", () => {
+        // 2026-09-29 用户裁定：默认卡与 mini 卡同语义（设置浮层 1100 之上、加载 1200 之下）；
+        // rider-2 曾取 --z-tooltip(1000)，会被设置弹层水平切卡，已修正为 1150。
         const css = readFileSync(resolve(import.meta.dir, "../src/components/ui/tool-hover-card.css"), "utf8");
-        expect(css).toContain("z-index: var(--tool-hover-card-z, var(--z-tooltip))");
+        expect(css).toContain("z-index: var(--tool-hover-card-z, 1150)");
         expect(css).toContain("z-index: var(--tool-hover-card-mini-z, 1150)");
         const globals = readFileSync(resolve(import.meta.dir, "../src/styles/globals.css"), "utf8");
-        const tooltip = globals.match(/--z-tooltip:\s*(\d+)/);
-        expect(tooltip ? Number(tooltip[1]) : Number.NaN).toBeGreaterThan(150);
+        const cardZ = css.match(/z-index: var\(--tool-hover-card-z,\s*(\d+)\)/);
+        const dialogPopover = globals.match(/--z-dialog-popover:\s*(\d+)/);
+        expect(cardZ ? Number(cardZ[1]) : Number.NaN).toBeGreaterThan(
+            dialogPopover ? Number(dialogPopover[1]) : Number.NaN,
+        );
     });
 });

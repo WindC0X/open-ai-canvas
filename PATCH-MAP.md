@@ -63,9 +63,10 @@
 
 ## 形态偏离登记（组件级 · 非 globals.css）
 
-> 范围说明：本节登记 fork 在**组件级样式**（不在 globals.css 账本口径内）对上游 / flora 参照的有意偏离，随上游同步核对。S2.1（2026-09-28，控制线批准）两处：
+> 范围说明：本节登记 fork 在**组件级样式**（不在 globals.css 账本口径内）对上游 / flora 参照的有意偏离，随上游同步核对。S2.1（2026-09-28，控制线批准）两处，另含 D3（2026-09-29 用户裁定追加）：
 
 | # | 参照 | 偏离语义（改了什么 / 为什么） | 分类 | 处理 |
 |---|---|---|---|---|
 | D1 | flora.ai 实测（`docs/artifacts/s2-hover-upgrade/flora-hover-spec.md`） | 卡片次级灰 #7B7B7B → #949494：flora 原值对比度 3.87:1 不达 WCAG AA，fork 提亮至 ≥4.6:1 | 组件级（`web/src/components/ui/tool-hover-card.css` 本地值） | 有意保留；外置化/同步时以 AA 为准，不回收 |
 | D2 | 同上 | 快捷脚注句式中文化（flora 英文句式 →「按 {kbd} {动作}」） | 组件级（同上） | 有意保留；随组件文件走 |
+| D3 | 本仓层级秩序（2026-09-29 用户裁定追加） | 默认 hover 卡 z 定 1150（压过设置浮层 `--z-dialog-popover` 1100）：rider-2 曾取 `--z-tooltip` 1000，被设置弹层水平切卡；与 mini 卡既有语义对齐（1100 之上、1200 之下） | 组件级（`web/src/components/ui/tool-hover-card.css` 本地值） | 有意保留；卡族统一 1150 |
