@@ -32,3 +32,28 @@ test("棋盘开合不改变左列行高：结构性修复（flex-start，替代�
     const splitHost = css.match(/\.canvas-node-toolbar-menu-split > \.canvas-grid-split-picker \{([^}]+)\}/)?.[1] || "";
     expect(splitHost).toContain("position: absolute");
 });
+
+test("残余 A：卡片背景下放两列独立成卡（根容器透明，展开不再露无内容背景块）", async () => {
+    const css = await Bun.file(new URL("../src/components/canvas/canvas-grid-split-picker.css", import.meta.url)).text();
+    const root = css.match(/(?:^|\n)\.canvas-grid-split-picker \{([^}]+)\}/)?.[1] || "";
+    // 断言语义：单卡背景包 max(两列高) 会在矮列下方露空背景块 → 背景必须下放到两列卡片。
+    expect(root).not.toContain("background");
+    expect(root).not.toContain("backdrop-filter");
+    const presets = css.match(/(?:^|\n)\.canvas-grid-split-presets \{([^}]+)\}/)?.[1] || "";
+    expect(presets).toContain("background: rgba(32, 32, 32, 0.9)");
+    const custom = css.match(/(?:^|\n)\.canvas-grid-split-custom \{([^}]+)\}/)?.[1] || "";
+    expect(custom).toContain("background: rgba(32, 32, 32, 0.9)");
+    expect(custom).toContain("border-radius: 12px");
+});
+
+test("残余 B：格点 data-icon-only 豁免（防统一按钮 padding 撑破网格轨道）", async () => {
+    const tsx = await Bun.file(new URL("../src/components/canvas/canvas-grid-split-picker.tsx", import.meta.url)).text();
+    const cellIdx = tsx.indexOf("canvas-grid-split-cell");
+    expect(cellIdx).toBeGreaterThan(-1);
+    const cellBlock = tsx.slice(Math.max(0, cellIdx - 400), cellIdx + 400);
+    // 断言语义：格点必须显式豁免，否则 padding-inline:max(12px, --space-3) 把 24px 最小宽
+    // 撑进 ~16.8px 的网格轨道 → 相邻重叠/行高被反推抬升（用户环境呈现为压扁）。
+    expect(cellBlock).toContain("data-icon-only");
+    const unified = await Bun.file(new URL("../src/styles/unified-buttons.css", import.meta.url)).text();
+    expect(unified).toContain("button:not(.ant-btn-icon-only):not([data-icon-only])");
+});

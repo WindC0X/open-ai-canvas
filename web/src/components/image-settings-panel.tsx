@@ -53,7 +53,6 @@ export type ImageSettingsEcomPresetSlot = {
     banner?: string;
     suggestions?: { id: string; label: string }[];
     onApply: (id: string) => void;
-    onClear: () => void;
     onSelectModel?: (id: string) => void;
 };
 
@@ -166,22 +165,9 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
             >
                 {showTitle ? <div className="text-base font-semibold">图像设置</div> : null}
                 {ecomPresets ? <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1">
-                            <SettingTitle color={theme.node.groupTitle}>电商场景</SettingTitle>
-                            {activeEcomPreset ? <SettingsInfoTrigger card={ecomPresetInfoCard(activeEcomPreset)} label={`查看已应用预设说明：${activeEcomPreset.label}`} theme={theme} /> : null}
-                        </div>
-                        {ecomPresets.activeId ? (
-                            <button
-                                type="button"
-                                className="cursor-pointer text-[11px] leading-none opacity-65 hover:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-                                style={{ outlineColor: theme.node.muted, color: theme.node.text }}
-                                onMouseDown={(event) => event.stopPropagation()}
-                                onClick={ecomPresets.onClear}
-                            >
-                                恢复默认
-                            </button>
-                        ) : null}
+                    <div className="flex items-center gap-1">
+                        <SettingTitle color={theme.node.groupTitle}>预设场景</SettingTitle>
+                        {activeEcomPreset ? <SettingsInfoTrigger card={ecomPresetInfoCard(activeEcomPreset)} label={`查看已应用预设说明：${activeEcomPreset.label}`} theme={theme} /> : null}
                     </div>
                     <div className="canvas-settings-group space-y-1.5">
                         <div className="flex flex-wrap gap-1">
@@ -215,8 +201,8 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 </div> : null}
                 {qualityTierControl ? <div className="space-y-1.5">
                     <div className="flex items-center gap-1">
-                        <SettingTitle color={theme.node.groupTitle}>默认画质</SettingTitle>
-                        <SettingsInfoTrigger card={{ title: "默认画质", lines: QUALITY_TIER_INFO_LINES }} label="查看默认画质说明" theme={theme} />
+                        <SettingTitle color={theme.node.groupTitle}>新节点画质</SettingTitle>
+                        <SettingsInfoTrigger card={{ title: "新节点画质", lines: QUALITY_TIER_INFO_LINES }} label="查看新节点画质说明" theme={theme} />
                     </div>
                     <div className="canvas-settings-group space-y-1">
                         <div className="grid grid-cols-3 gap-1.5">
@@ -513,8 +499,11 @@ function SettingTitle({ children, color }: { children: string; color: string }) 
     );
 }
 
-/** O-03 polish · 默认画质说明文案（收入 hover 小卡后不再常驻占高）。 */
-export const QUALITY_TIER_INFO_LINES = ["新节点与切换模型时按此档吸附；模型不支持时自动回退。"];
+/** O-03 polish · 新节点画质说明文案（收入 hover 小卡后不再常驻占高）。 */
+export const QUALITY_TIER_INFO_LINES = [
+    "新节点与切换模型时按此档吸附；模型不支持时自动回退。",
+    "只影响之后新建的节点与切换模型时的吸附，不修改当前节点。",
+];
 
 /** O-03 polish · 「已应用」说明卡：预设名 + hint（原常驻行文案的按需形态）。 */
 export function ecomPresetInfoCard(preset: Pick<EcomChannelPreset, "label" | "hint">): ToolHoverCardMini {

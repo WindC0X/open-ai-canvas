@@ -286,7 +286,7 @@ export function planEcomPresetApplication(input: { profile?: ImageCapabilityConf
         size: resolved.size,
         quality: resolved.quality,
         tier: resolved.tier,
-        gap: `当前模型最高 ${resolved.tier.toUpperCase()}（${pixels.width}×${pixels.height}），低于平台下限 ${preset.minPixels.width}×${preset.minPixels.height}px`,
+        gap: `当前模型最高 ${resolved.tier.toUpperCase()}（${pixels.width}×${pixels.height}），未达该预设要求（≥${preset.minPixels.width}×${preset.minPixels.height}px）`,
         suggestModelIds: suggestModelIdsForPreset(input.catalog, preset),
     };
 }

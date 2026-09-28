@@ -87,7 +87,6 @@ export function CanvasImageSettingsPopover({ supplyNodeId, config, onConfigChang
         banner: presetView ? presetBannerText(presetView.plan) : undefined,
         suggestions,
         onApply: applyPreset,
-        onClear: clearPreset,
         onSelectModel,
     };
     const qualityTierSlot: ImageSettingsQualityTierSlot = {

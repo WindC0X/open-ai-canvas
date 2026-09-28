@@ -145,6 +145,9 @@ describe("预设 × 能力交集四态（planEcomPresetApplication）", () => {
         if (plan.status === "short") {
             expect(plan.gap).toContain("1024×1024");
             expect(plan.gap).toContain("1600×1600");
+            // 2026-09-28 四刀：不达标改用「未达该预设要求」表述（「平台下限」系事实错误措辞）。
+            expect(plan.gap).toContain("未达该预设要求");
+            expect(plan.gap).not.toContain("平台下限");
             // 建议按可达档排序：4K 的 Agnes 在 2K 的 Grok 之前。
             expect(plan.suggestModelIds).toEqual(["relay::agnes-image-2.5-flash", "relay::grok-imagine-image-2.0"]);
         }

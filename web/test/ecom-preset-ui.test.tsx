@@ -99,7 +99,6 @@ describe("面板预设行 / 角标 / 档位行（SSR）", () => {
                 banner: "当前模型上限 2K，已满足 ≥1600×1600px",
                 suggestions: [{ id: "relay::agnes-image-2.5-flash", label: "Agnes 2.5 Flash" }],
                 onApply: () => {},
-                onClear: () => {},
                 onSelectModel: () => {},
             }}
             qualityTierControl={{ value: "flagship", onChange: () => {} }}
@@ -111,12 +110,12 @@ describe("面板预设行 / 角标 / 档位行（SSR）", () => {
         />,
     );
 
-    test("预设行：标题 / 三预设 / 恢复默认 / 状态说明 / 徽标 / 建议", () => {
-        expect(html).toContain("电商场景");
+    test("预设行：标题 / 三预设 / 无恢复默认（药丸 ✕ 为唯一取消入口）/ 状态说明 / 徽标 / 建议", () => {
+        expect(html).toContain("预设场景");
         expect(html).toContain("Amazon 主图");
         expect(html).toContain("详情长图");
         expect(html).toContain("抖音竖版");
-        expect(html).toContain("恢复默认");
+        expect(html).not.toContain("恢复默认");
         expect(html).not.toContain("已应用：白底主图"); // O-03 polish：常驻行收入 hover 小卡，不占面板高度
         expect(html).toContain("查看已应用预设说明：Amazon 主图");
         expect(html).toContain("当前模型上限 2K，已满足 ≥1600×1600px");
@@ -132,19 +131,19 @@ describe("面板预设行 / 角标 / 档位行（SSR）", () => {
         expect(html).not.toContain("电商预设：Amazon 主图");
     });
 
-    test("默认画质行：三档 + 说明收入 hover 小卡 + 当前档选中", () => {
-        expect(html).toContain("默认画质");
+    test("新节点画质行：三档 + 说明收入 hover 小卡 + 当前档选中", () => {
+        expect(html).toContain("新节点画质");
         expect(html).toContain("经济");
         expect(html).toContain("旗舰");
-        expect(html).toContain("查看默认画质说明");
+        expect(html).toContain("查看新节点画质说明");
         expect(html).not.toContain("新节点与切换模型时按此档吸附");
         expect(html).toMatch(/aria-pressed="true"[^>]*>旗舰/);
     });
 
     test("不传槽位 → 面板零变化（不含 O-03 元素）", () => {
         const plain = renderToStaticMarkup(<ImageSettingsPanel config={config} onConfigChange={() => {}} theme={canvasThemes.dark} showTitle={false} />);
-        expect(plain).not.toContain("电商场景");
-        expect(plain).not.toContain("默认画质");
+        expect(plain).not.toContain("预设场景");
+        expect(plain).not.toContain("新节点画质");
     });
 });
 
@@ -160,8 +159,9 @@ describe("O-03 polish · 说明行收入 hover 小卡（mini 变体）", () => {
         expect(appliedMarkup).toContain("已应用：Amazon 主图");
         expect(appliedMarkup).toContain("白底主图，品牌/文字向");
 
-        const qualityMarkup = renderToStaticMarkup(<ToolHoverCardMiniContent title="默认画质" lines={QUALITY_TIER_INFO_LINES} />);
+        const qualityMarkup = renderToStaticMarkup(<ToolHoverCardMiniContent title="新节点画质" lines={QUALITY_TIER_INFO_LINES} />);
         expect(qualityMarkup).toContain("新节点与切换模型时按此档吸附；模型不支持时自动回退。");
+        expect(qualityMarkup).toContain("只影响之后新建的节点与切换模型时的吸附，不修改当前节点。");
 
         const badges = aspectBadgeInfoCard([
             { label: "Amazon 主图", pixelRequirement: "1600×1600" },

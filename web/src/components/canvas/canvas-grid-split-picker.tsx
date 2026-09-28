@@ -150,6 +150,8 @@ export function CanvasGridSplitPicker({ onPick, anchorSelector, supplyNodeId, on
                             setHoverCols(2);
                         }}
                     >
+                        {/* data-icon-only：豁免 unified-buttons 的 padding-inline（纯图标按钮保持正方形；
+                            否则 12px 内边距把格点撑得比网格轨道宽 → 相邻重叠/行高被反推，用户环境呈现为压扁）。 */}
                         {Array.from({ length: CANVAS_GRID_SPLIT_MAX * CANVAS_GRID_SPLIT_MAX }, (_, index) => {
                             const row = Math.floor(index / CANVAS_GRID_SPLIT_MAX) + 1;
                             const col = (index % CANVAS_GRID_SPLIT_MAX) + 1;
@@ -158,6 +160,7 @@ export function CanvasGridSplitPicker({ onPick, anchorSelector, supplyNodeId, on
                                 <button
                                     key={`${row}-${col}`}
                                     type="button"
+                                    data-icon-only
                                     className={`canvas-grid-split-cell${active ? " is-active" : ""}`}
                                     aria-label={`${col} × ${row}`}
                                     onMouseDown={(event) => event.preventDefault()}
