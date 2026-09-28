@@ -8,7 +8,7 @@ import { useExclusiveSettings } from "./use-exclusive-settings";
 import { ImageSettingsPanel, imageQualityLabel, imageSizeLabel, type ImageSettingsAspectBadge, type ImageSettingsEcomPresetSlot } from "@/components/image-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor, normalizeImageValue } from "@/lib/model-capabilities";
-import { ECOM_CHANNEL_PRESETS, planEcomPresetApplication, type EcomChannelPreset, type EcomPresetPlan } from "@/lib/image-size-presets";
+import { ECOM_CHANNEL_PRESETS, imageAspectSelectable, planEcomPresetApplication, type EcomChannelPreset, type EcomPresetPlan } from "@/lib/image-size-presets";
 import { configuredModelDisplayName, imagePriceTiersForModel, mergedImageCapabilityConfig } from "@/lib/model-selection";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
@@ -71,6 +71,8 @@ export function CanvasImageSettingsPopover({ supplyNodeId, config, onConfigChang
     const applyPreset = (id: string) => {
         const preset = ECOM_CHANNEL_PRESETS.find((item) => item.id === id);
         if (!preset) return;
+        // hotfix-3：比例不被支持时绝不静默改写 size——由「建议换用」路径承接（O-03 绝不静默承诺）。
+        if (!imageAspectSelectable(mergedProfile, preset.aspect)) return;
         const plan = planEcomPresetApplication({ profile: mergedProfile, preset, priceTiers });
         onConfigChange("size", plan.size);
         if (plan.status !== "unconstrained" && plan.quality) onConfigChange("quality", plan.quality);

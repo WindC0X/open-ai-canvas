@@ -7,6 +7,7 @@ import {
     ECOM_CHANNEL_PRESETS,
     hasPriceTierForImageSelection,
     IMAGE_QUALITY_TIERS,
+    imageAspectSelectable,
     imageAvailableTiers,
     imageQualityTierTarget,
     imageTierSelection,
@@ -170,6 +171,38 @@ describe("预设 × 能力交集四态（planEcomPresetApplication）", () => {
         expect(downgraded).toMatchObject({ status: "capped", tier: "2k", size: "2048x2048" });
         const full = planEcomPresetApplication({ profile: agnesProfile(), preset: AMAZON, priceTiers: [{ selector: { size: "2880x2880" } }] });
         expect(full).toMatchObject({ status: "full", tier: "4k", size: "2880x2880" });
+    });
+
+    test("hotfix-3：size 模型非标档位（1536×1536 记作 2K）不得假报达标——按实际像素判 short", () => {
+        const nonStandard: ImageCapabilityConfig = {
+            ...cappedProfile(),
+            size: { parameter: "size", values: ["1536x1536", "1024x1024"], default: "1024x1024", allowCustom: false },
+        };
+        const plan = planEcomPresetApplication({ profile: nonStandard, preset: AMAZON });
+        expect(plan.status).toBe("short");
+        if (plan.status === "short") {
+            expect(plan.tier).toBe("2k");
+            expect(plan.size).toBe("1536x1536");
+            expect(plan.gap).toContain("1536×1536");
+            expect(plan.gap).not.toContain("已满足");
+        }
+    });
+
+    test("hotfix-3：比例模型不支持预设比例且不可自定义 → short 诚实提示 + 绝不静默写 size", () => {
+        const narrow: ImageCapabilityConfig = { ...grokProfile(), size: { ...grokProfile().size, values: ["16:9", "9:16"], allowCustom: false } };
+        expect(imageAspectSelectable(narrow, "1:1")).toBe(false);
+        expect(imageAspectSelectable(narrow, "16:9")).toBe(true);
+        expect(imageAspectSelectable(agnesProfile(), "1:1")).toBe(true); // size 模型不受此维度约束
+        const plan = planEcomPresetApplication({ profile: narrow, preset: AMAZON, catalog: [{ id: "relay::agnes-image-2.5-flash", profile: agnesProfile() }] });
+        expect(plan.status).toBe("short");
+        if (plan.status === "short") {
+            expect(plan.size).toBe("1:1");
+            expect(plan.gap).toContain("不支持 1:1 比例");
+            expect(plan.gap).toContain("1600×1600");
+            expect(plan.suggestModelIds).toEqual(["relay::agnes-image-2.5-flash"]);
+        }
+        // 支持该比例时行为不变（既有 capped 语义）。
+        expect(planEcomPresetApplication({ profile: grokProfile(), preset: AMAZON }).status).toBe("capped");
     });
 });
 

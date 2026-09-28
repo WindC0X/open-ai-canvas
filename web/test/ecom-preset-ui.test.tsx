@@ -224,4 +224,10 @@ describe("静态护栏：接线与取消语义", () => {
         expect(source).toContain("export type ImageSettingsEcomPresetSlot");
         expect(source).toContain("export type ImageSettingsQualityTierSlot");
     });
+
+    test("hotfix-3：applyPreset 对不支持比例绝不静默写 size（源级守卫）", () => {
+        const source = readFileSync(resolve(import.meta.dir, "../src/components/canvas/canvas-image-settings-popover.tsx"), "utf8");
+        expect(source).toContain("imageAspectSelectable");
+        expect(source).toMatch(/if \(!imageAspectSelectable\(mergedProfile, preset\.aspect\)\) return;/);
+    });
 });
