@@ -56,11 +56,13 @@ export function isToolHoverCardOpen(state: ToolHoverCardState) {
 }
 
 /* ---------------------------------------------------------------------------
- * 定位：上方优先、不足翻下；翻下仍出界则整体上移夹进视口；水平居中并夹紧。
- * 高卡（400px+）必须纵向 clamp——矮卡时代的"翻下即结束"会在视口底部截断。
+ * 定位：上方优先、不足翻下；翻下仍出界则水平侧移出锚点列（batch-12 hotfix——
+ * 旧 clamp 分支会把卡压回锚点列遮住菜单项点击）；无侧向空间才纵向夹紧兜底。
+ * 优先级：above → below → 侧移（空间大侧 + 8px gap）→ 缩高内滚（CSS max-height）。
+ * 高卡（400px+）必须纵向 clamp：矮卡时代的翻下即结束会在视口底部截断。
  * ------------------------------------------------------------------------- */
 
-export type ToolHoverCardPosition = { top: number; left: number; placement: "above" | "below" };
+export type ToolHoverCardPosition = { top: number; left: number; placement: "above" | "below" | "side" };
 
 export function computeToolHoverCardPosition(
     anchor: { top: number; bottom: number; left: number; width: number },
@@ -83,7 +85,17 @@ export function computeToolHoverCardPosition(
     if (belowTop + cardHeight <= viewport.height - CARD_EDGE_MARGIN) {
         return { top: belowTop, left, placement: "below" };
     }
-    // 翻下仍出界：整体上移夹进视口（贴底对齐视口下缘留白）。
+    // batch-12 hotfix：上下皆装不下时先水平侧移出锚点列（取空间较大侧 + 8px gap），
+    // 保证卡片矩形与锚点矩形不相交——旧行为纵向夹紧会把卡压回锚点列吃掉菜单项点击。
+    const spaceLeft = anchor.left - CARD_EDGE_MARGIN;
+    const spaceRight = viewport.width - CARD_EDGE_MARGIN - (anchor.left + anchor.width);
+    if (Math.max(spaceLeft, spaceRight) >= cardWidth) {
+        const sideLeft = spaceRight >= spaceLeft ? anchor.left + anchor.width + CARD_TRIGGER_GAP : anchor.left - CARD_TRIGGER_GAP - cardWidth;
+        const maxTop = Math.max(viewport.height - CARD_EDGE_MARGIN - cardHeight, CARD_EDGE_MARGIN);
+        const sideTop = Math.min(Math.max(anchor.top + (anchor.bottom - anchor.top) / 2 - cardHeight / 2, CARD_EDGE_MARGIN), maxTop);
+        return { top: sideTop, left: sideLeft, placement: "side" };
+    }
+    // 无侧向空间：退回纵向夹紧贴边（best effort），高卡由 CSS max-height 缩高 + 内滚兜底。
     const clampedTop = Math.min(Math.max(belowTop, CARD_EDGE_MARGIN), Math.max(viewport.height - CARD_EDGE_MARGIN - cardHeight, CARD_EDGE_MARGIN));
     return { top: clampedTop, left, placement: "below" };
 }

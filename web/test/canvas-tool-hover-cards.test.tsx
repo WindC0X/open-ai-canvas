@@ -253,7 +253,7 @@ describe("S2 hover 说明卡 · a11y（WCAG 1.4.13 三件套）", () => {
         expect(cardSource).toContain("onPointerEnter={onCardEnter}");
     });
 
-    test("定位：上方优先 / 不足翻下 / 翻下仍出界则上移夹紧 / 水平夹取", () => {
+    test("定位：上方优先 / 不足翻下 / 水平夹取（above·below 分支语义不变）", () => {
         const card = { width: 408, height: 430 };
         const viewport = { width: 1440, height: 900 };
 
@@ -272,7 +272,7 @@ describe("S2 hover 说明卡 · a11y（WCAG 1.4.13 三件套）", () => {
         expect(clampedRight.left).toBe(1440 - 8 - 408);
     });
 
-    test("几何边界（1024×768）：贴边触发不溢出视口、不遮挡触发器；横向窄视口夹紧", () => {
+    test("几何边界（1024×768）：贴边触发不溢出视口、不遮挡触发器；上下皆不足时侧移出锚点列；无侧向空间退回纵向夹紧", () => {
         const card = { width: 408, height: 430 };
         const viewport = { width: 1024, height: 768 };
 
@@ -288,21 +288,62 @@ describe("S2 hover 说明卡 · a11y（WCAG 1.4.13 三件套）", () => {
         expect(topEdge.top).toBeGreaterThanOrEqual(44);
         expect(topEdge.top + card.height).toBeLessThanOrEqual(768 - 8);
 
-        // 中部触发（上下都放不下）：整体上移夹进视口
+        // 中部触发（上下都放不下）：水平侧移出锚点列（batch-12 hotfix；旧行为纵向夹紧会压住触发器）
         const middle = computeToolHoverCardPosition({ top: 300, bottom: 340, left: 500, width: 30 }, card, viewport);
-        expect(middle.top).toBe(768 - 8 - 430);
-        expect(middle.top + card.height).toBe(760);
+        expect(middle.placement).toBe("side");
+        expect(middle.left).toBe(500 - 8 - 408); // 取空间较大侧：左 492 > 右 486
+        expect(middle.left + card.width).toBeLessThanOrEqual(500 - 8);
 
-        // 视口装不下整卡：按 max-height 折算后贴顶
+        // 视口装不下整卡：按 max-height 折算后侧移（上方不足、下方贴底）
         const tallCard = { width: 408, height: 600 };
         const cramped = computeToolHoverCardPosition({ top: 200, bottom: 240, left: 500, width: 30 }, tallCard, { width: 1024, height: 500 });
+        expect(cramped.placement).toBe("side");
         expect(cramped.top).toBe(8);
         expect(cramped.top + Math.min(tallCard.height, 500 - 16)).toBe(492);
 
-        // 窄视口横向：宽卡夹到视口内
+        // 窄视口横向：两侧都放不下 → 退回纵向夹紧兜底（宽卡夹到视口内）
         const narrow = computeToolHoverCardPosition({ top: 300, bottom: 340, left: 190, width: 30 }, card, { width: 400, height: 900 });
         expect(narrow.left).toBe(8);
         expect(narrow.left + Math.min(card.width, 400 - 16)).toBe(392);
+    });
+
+    test("hotfix（batch-12）：clamp 分支水平侧移——三视口参数化，卡矩形 ∩ 锚点矩形 = 空", () => {
+        const card = { width: 408, height: 640 };
+        const intersects = (
+            pos: { top: number; left: number },
+            anchor: { top: number; bottom: number; left: number; width: number },
+            viewport: { width: number; height: number },
+        ) => {
+            const width = Math.min(card.width, viewport.width - 16);
+            const height = Math.min(card.height, viewport.height - 16);
+            const horizontalGap = pos.left >= anchor.left + anchor.width || pos.left + width <= anchor.left;
+            const verticalGap = pos.top >= anchor.bottom || pos.top + height <= anchor.top;
+            return !horizontalGap && !verticalGap;
+        };
+
+        // 下缘菜单锚点（create-menu 在下缘、上方放不下整卡）：短视口必须侧移且不相交
+        for (const viewport of [{ width: 768, height: 1024 }, { width: 1024, height: 768 }]) {
+            const anchor = { top: viewport.height - 424, bottom: viewport.height - 388, left: 24, width: 296 };
+            const pos = computeToolHoverCardPosition(anchor, card, viewport);
+            expect(pos.placement).toBe("side");
+            expect(intersects(pos, anchor, viewport)).toBe(false);
+            expect(pos.left).toBeGreaterThanOrEqual(anchor.left + anchor.width + 8);
+        }
+
+        // 左缘 dock 锚点：左侧无空间 → 右侧侧移（三视口）
+        for (const viewport of [{ width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 2320, height: 1287 }]) {
+            const anchor = { top: 600, bottom: 636, left: 8, width: 48 };
+            const pos = computeToolHoverCardPosition(anchor, card, viewport);
+            expect(pos.placement).toBe("side");
+            expect(intersects(pos, anchor, viewport)).toBe(false);
+        }
+
+        // 2320×1287 的同一菜单锚点：above 分支即可容纳（不变式仍要求不相交）
+        const wide = { width: 2320, height: 1287 };
+        const wideAnchor = { top: wide.height - 424, bottom: wide.height - 388, left: 24, width: 296 };
+        const widePos = computeToolHoverCardPosition(wideAnchor, card, wide);
+        expect(widePos.placement).toBe("above");
+        expect(intersects(widePos, wideAnchor, wide)).toBe(false);
     });
 });
 
