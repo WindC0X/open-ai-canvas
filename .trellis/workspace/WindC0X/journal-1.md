@@ -309,3 +309,46 @@ Review 报告（工作流 4 代理 + 人工复核，OCR 通道失败放弃）后
 3. P2×3：undo POST 补 15s 超时；Agent 扩图 ratio 补 0.2–5 边界；扩图重入守卫改可见提示；`storeResourceFromBytes` 补 Pending/Failed 分支；`containsOutsideQuotes` 逐字符扫描防转义引号击穿。
 
 方法论收获：**修复即引入回归**——把长网络调用（POST）塞进串行临界区必须同时检查区内所有"等待外部状态"的调用（本次是 flush 里的 load 等待）。复核用真实运行（死锁复现脚本、能力反解实调）而非只读代码，才抓到这两个 P1。
+
+---
+
+## 2026-09-28 S2 hover 说明卡封版（轻量枝 · fc18a40d→572f32ca 六提交链）
+
+- v1（`fc18a40d` + `22708b60`）：数据驱动 hover 卡覆盖左栏 Dock 10 项 + 节点菜单 16 项（26/26）；状态机 200ms/140ms/Esc/指针入卡；门禁四件绿；真机矩阵 `.local/s2-walkthrough/`。
+- S2.1（`582220d2` + `858aec8c`）：控制线判「形态简陋」后一轮重写为 flora 四层配方（41px 头/长句/366×229 预览盒/footer）；位图预览退场 → 15 大图标 + 11 手写 SVG mockup；偏离登记 PATCH-MAP D1（#949494 AA）/D2（footer 中文化）；现场捕获 2 缺陷（CSS 漏 position:fixed、进场帧测量吃 transform）并补回归断言。
+- 加固（`b5dc75e7` + `572f32ca`）：用户复核发现双卡叠放 → 逻辑级复现失败、环境硬数据（节流 435-955ms vs 60ms 余量）→「全局单卡不变式」（layout 先关后画，escape 语义保再武装）；+2 单测、:3013 真机冒烟绿。控制线方法账收录（与 F-06「钩进单一漏斗」同方法论）。
+- 控制线封版回执（2026-09-28）：通过——独立核证（numstat 对账 / 三处必改实证链 / focused 重跑 / 红队五路推演）全绿。Detector 3 处置：①② 矮视口叠压触发器 + 滚区键盘不可达（同根）→ 修缮期 backlog（清单已登记）；③ reduced-motion data-entering 挂死 → 代码核验误报，不修。
+- 归档：`67fbe8aa`（chore task archive，含清单登记）；用户侧 3 项真机复核挂 pending-test 不阻塞。环境：:3010/:8483 保持；:3013 用户标签待自行刷新。
+
+---
+
+## 2026-09-28 S3 ? 帮助菜单四件套（轻量枝 · f19720e0→43736e44 四提交链，含 micro-fix 轮）
+
+- 交付：顶栏「?」四件套（教程 / 快捷键复用 / 反馈聚合 / changelog 复用）；反馈 = 纯前端聚合（描述+截图本地预览+分享 toggle+「将包含以下信息」明示区；复制写剪贴板；零后端）。
+- 首轮门禁：全量出现 5 条超时型波动（ui-kit-retirement/http-ownership 全 src 快扫描，基线期 3.0-3.4s、当日 5.1-6.3s 越 5s 线）→ 控制线独立复验定性环境变慢、非回归。
+- micro-fix（控制线收编 1-7 + 产品裁定 8-10，改完不再回审）：渠道去 GitHub 化（DOCS_BASE_URL 空置待产品域名 + 教程项禁用「教程编写中」；邮箱 fengw5774@gmail.com + 用户群 qm.qq.com 双通道，复制为第一公民）；明示区条件行（buildFeedbackManifest）/ 分享时效提示 / 剪贴板失败降级只读文本框 / 关闭焦点归还「?」/ 对比度提亮 / alt+aria-describedby / 快扫描测试超时 20s rider。
+- 验证：tsc 0 / focused 94 绿（12 文件组）/ build ✓ / 全量 2320 → 15 红逐名=冻结基线、零超时波动；fix 轮走查（.local/s3-walkthrough/ s8-s10）：禁用项零动作、注入拒绝→降级文本框→恢复成功清除闭环、分享条件行+时效提示、焦点归还实测。
+- 提交：f19720e0 + ac180b47（首轮）→ 3b1f49a1 + 43736e44（micro-fix），不 push；S3 封版，转 S4（产品裁定已同步 S4 prd 口径）。
+
+
+---
+
+## 2026-09-28 S4 文档 Diátaxis 重排封版（轻量枝 · 7f527424 + 0083403f）
+
+- 交付：内容层四分组（getting-started/agent/canvas/assets/reference）+ Quickstart 新页 + 静态 llms.txt（16 页索引，手工维护头注）+ pending-test 迁 docs/plans（D6 清账）；17 文件全 R 识别 rename；meta.json ×8（含根与 plugins 新建）。
+- 引用同步：README（3+1 死链全清 + 导航块）/ docs/index.md / AGENTS.md §9 与 3 处路径 / mdx 互链 7 处 / S3 常量注释对齐；活跃面旧路径零命中（豁免明列：.trellis 历史、设计变更日志、recon 快照、构建产物）。
+- .gitignore 五组白名单重写 + `!docs/llms.txt`；曾捕获根 meta.json 被 `docs/content/docs/*` 吞并修正；git check-ignore 逐文件核验。
+- 验证：守卫测试 `docs-diataxis-consistency.test.ts` 4 用例；门禁 tsc 0 / build ✓ / 全量 2324 → 15 红逐名=基线零额外。
+- 控制线封版（2026-09-28）：37 文件对账 / D6 双面 grep 独立复验 0 命中 / 守卫重跑 4 pass / llms 零 GitHub 指向 / quick-start 抽查 全绿；S3 micro-fix 轮一并核证通过。
+- 行政：S1 任务卡归档（`2d1ec7c0`，回执批准）；S4 归档随封版；转 O-03（本枝最后一项）。
+
+---
+
+## 2026-09-28 O-03 层1 直出引导封版（轻量枝 · 1b3cd2df→fc78f10e 五提交链，含 polish + 域外修复轮）
+
+- 交付（`1b3cd2df` + `ecd02c4c`）：渠道预设组（Amazon 主图 1:1 ≥1600 / 详情长图 3:4 ≥1440×1920 / 抖音竖版 9:16 ≥1080×1920，`desiredResolution` 预留）+ min(预设,能力) 四态交集（full / capped+徽标 / short+缺口+换模型建议 / unconstrained，绝不静默）+ 价目档一致性降级链 + 药丸预设态（`1:1 · 4K` + 渠道小标 + ✕ 取消回自动）+ 默认画质档位（经济/标准/旗舰，吸附于 `defaultImageParamsForModel`，不可得不应用）；纯前端、零依赖、零 globals。四态/吸附/取消/建议全分支 +30 单测；真机走查 s1-s6。
+- 首轮验收（控制线 2026-09-28）：功能主体通过；UI polish 一轮后封版（① 两条常驻说明行收 tooltip；② 比例角标补 hover 说明——design 明文 title 因 pointer-events-none 实际不可达；③ s5 长文案判断权下放）。
+- polish + 域外修复（`d265f86e` + `32cfb3db`，预算 0.5+0.3 人日内）：S2.1 hover 卡新增 mini 变体（`ToolHoverCardMiniContent` + `useToolInfoCard`，共用状态机/定位/单卡不变式，z1150 高于设置浮层）承载「已应用 / 档位说明 / 角标释义（预设名+最低像素）」；s5 文案判定保留可见不收起。域外修复（控制线特批，根因报告在案）：A 节点引用表去 skill 混入（技能仅留 Agent 面）；B hover composer 补 ✦/Skill 分支；真机全量扫描 65 节点 22 条引用、技能标记 0 命中（账号实装 2 技能）。
+- 验证：tsc 0 / build ✓ / 全量 2361 测试（309 文件）→ 15 红逐名=冻结基线零额外（+7 新测试）；走查 s7/s7a/s8（`.local/o03-walkthrough/`）。
+- 报备：缺口 G1-G4 未修（上报制）；同 fallback 链 tool 类引用仍落 T/Image 缺省（授权范围外，观察项）；环境注记（本环境「小白鼠 Gpt Image 2」含 4K）。
+- 行政：`fc78f10e` 落卡；`5af47ab4` 归档；全枝功能项完结，待合并批次任务书（flora + 轻量枝一批合入）。

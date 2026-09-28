@@ -1,0 +1,5 @@
+{
+  "title": "文档",
+  "root": true,
+  "pages": ["getting-started", "agent", "canvas", "assets", "reference"]
+}

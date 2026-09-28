@@ -397,6 +397,74 @@
     background: var(--agent-surface-hover, color-mix(in srgb, var(--foreground) 7%, transparent));
 }
 
+/* S1.1（控制线 2026-09-27 P0）：starter 点击消息 = 紧凑动作 chip（可展开原文；数据层不变）。 */
+.agent-starter-chip-wrap {
+    display: flex;
+    max-width: 82%;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-2);
+}
+
+.agent-starter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: 100%;
+    padding: var(--space-1) var(--space-3);
+    border: 0;
+    border-radius: 999px;
+    background: var(--agent-surface-soft);
+    color: var(--agent-ink);
+    font-size: var(--fs-label);
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.agent-starter-chip:hover {
+    background: var(--agent-surface-hover, var(--agent-surface-soft));
+}
+
+.agent-starter-chip:focus-visible {
+    outline: 2px solid var(--agent-focus-ring);
+    outline-offset: 2px;
+}
+
+.agent-starter-chip svg {
+    width: var(--space-4);
+    height: var(--space-4);
+    flex: 0 0 auto;
+    stroke-width: 1.5;
+}
+
+.agent-starter-chip-chevron {
+    opacity: 0.6;
+    transition: transform 160ms ease;
+}
+
+.agent-starter-chip[aria-expanded="true"] .agent-starter-chip-chevron {
+    transform: rotate(180deg);
+}
+
+.agent-starter-chip-detail {
+    max-width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--space-3);
+    background: var(--agent-surface-soft);
+    color: var(--agent-caption);
+    font-size: var(--fs-label);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-starter-chip,
+    .agent-starter-chip-chevron {
+        transition: none;
+    }
+}
+
 .agent-welcome {
     display: flex;
     min-height: 100%;

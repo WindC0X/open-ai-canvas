@@ -8,8 +8,8 @@
 
 <p align="center">
   <a href="https://github.com/ddcat-ai/open-ai-canvas">GitHub</a> ·
-  <a href="docs/content/docs/overview/features.mdx">功能</a> ·
-  <a href="docs/content/docs/overview/quick-start.mdx">文档</a> ·
+  <a href="docs/content/docs/getting-started/features.mdx">功能</a> ·
+  <a href="docs/content/docs/getting-started/quick-start.mdx">文档</a> ·
   <a href="SECURITY.md">安全策略</a>
 </p>
 
@@ -48,7 +48,7 @@
 - **Agent 技能生态**：内置技能覆盖生产流程；社区技能库 [judian-skills](https://github.com/itsWyatt-K/judian-skills) 提供 34 个场景域包索引，完整卡片通过 GitHub 安装后按需读取。安装：技能页 → 安装技能 → GitHub 标签 → 仓库地址填 `https://github.com/itsWyatt-K/judian-skills`，子目录填 `skills/drama/story-structure-engine` 这类域包路径。
 - **管理与渠道**：系统渠道、逻辑模型、用量/积分、功能开关、对象存储、响应拦截和管理后台。
 
-完整功能以[功能清单](docs/content/docs/overview/features.mdx)为准。
+完整功能以[功能清单](docs/content/docs/getting-started/features.mdx)为准。
 
 ## 快速开始
 
@@ -106,7 +106,7 @@ docker compose -f docker-compose.local.yml up -d --build
 
 默认前端端口为 `3000`、后端端口为 `8080`；端口冲突时可通过 `CANVAS_WEB_HOST_PORT` 和 `CANVAS_BACKEND_HOST_PORT` 覆盖。
 
-更多本地开发说明（包括时间线字幕转写）见[本地开发文档](docs/content/docs/backend/local-development.mdx)。
+更多本地开发说明（包括时间线字幕转写）见[本地开发文档](docs/content/docs/reference/backend/local-development.mdx)。
 
 ## 架构概览
 
@@ -155,7 +155,7 @@ curl -fsSL https://raw.githubusercontent.com/ddcat-ai/open-ai-canvas/main/script
   | sudo env CANVAS_IMAGE_TAG=v1.5.7.1 bash
 ```
 
-脚本会先按指定 Release 拉取镜像，再解析并写入 `CANVAS_BACKEND_IMAGE`、`CANVAS_WEB_IMAGE` 的 GHCR digest；生产 Compose 不接受缺失 digest 的默认镜像或 `latest`。更新流程、数据库迁移、备份和回退说明见[系统更新文档](docs/content/docs/backend/system-update.mdx)。
+脚本会先按指定 Release 拉取镜像，再解析并写入 `CANVAS_BACKEND_IMAGE`、`CANVAS_WEB_IMAGE` 的 GHCR digest；生产 Compose 不接受缺失 digest 的默认镜像或 `latest`。更新流程、数据库迁移、备份和回退说明见[系统更新文档](docs/content/docs/reference/backend/system-update.mdx)。
 
 ## 安全边界
 
@@ -172,14 +172,13 @@ curl -fsSL https://raw.githubusercontent.com/ddcat-ai/open-ai-canvas/main/script
 
 ### 文档导航
 
-- [快速开始](docs/content/docs/overview/quick-start.mdx)
-- [功能清单](docs/content/docs/overview/features.mdx)
-- [代码功能地图](docs/content/docs/backend/code-map.mdx)
-- [本地开发](docs/content/docs/backend/local-development.mdx)
-- [数据库结构](docs/content/docs/backend/backend-database.mdx)
-- [画布操作手册](docs/content/docs/canvas/canvas-node-manual.mdx)
-- [插件系统](docs/content/docs/plugins/plugin-system.mdx)
-- [待办与待测试](docs/content/docs/progress/todo.mdx) · [待测试清单](docs/content/docs/progress/pending-test.mdx)
+- [快速开始](docs/content/docs/getting-started/quick-start.mdx)
+- [功能清单](docs/content/docs/getting-started/features.mdx)
+- [代码功能地图](docs/content/docs/reference/backend/code-map.mdx)
+- [本地开发](docs/content/docs/reference/backend/local-development.mdx)
+- [数据库结构](docs/content/docs/reference/backend/backend-database.mdx)
+- [插件系统](docs/content/docs/reference/plugins/plugin-system.mdx)
+- [待测试清单](docs/plans/pending-test.mdx)
 - [更新日志](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md) · [上游声明](NOTICE)
 
 ### 验证命令
@@ -192,9 +191,6 @@ cd web && bun run lint && bun run build
 
 # 后端
 cd backend && go test ./...
-
-# 文档站
-cd docs && bun run types:check
 ```
 
 ## 许可证和上游

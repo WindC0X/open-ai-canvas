@@ -119,12 +119,13 @@ export function CanvasNodeHoverComposer({ prompt, references, theme, visible, no
                                                 <img src={thumbSrc} alt={reference.label} draggable={false} loading="lazy" decoding="async" className={`${THUMB_SIZE_CLASS} shrink-0 origin-center overflow-hidden rounded-xl border object-cover transition-transform duration-200 ease-out group-hover/ref:scale-[0.8] data-[thumb-open]:scale-[0.8]`} style={{ borderColor: theme.node.stroke }} />
                                             ) : (
                                                 <span className={`flex ${THUMB_SIZE_CLASS} shrink-0 origin-center items-center justify-center overflow-hidden rounded-xl border text-sm font-medium transition-transform duration-200 ease-out group-hover/ref:scale-[0.8] data-[thumb-open]:scale-[0.8]`} style={{ color: theme.node.muted, borderColor: theme.node.stroke, background: theme.toolbar.itemHover }}>
-                                                    {reference.kind === "audio" ? "♪" : reference.kind === "video" ? "▶" : reference.kind === "character" ? "👤" : "T"}
+                                                    {/* 技能显式分支（控制线域外授权 2026-09-28，根因报告在案）、工具显式分支（2026-09-28 rider 批准）：不再落 T 缺省误导。 */}
+                                                    {reference.kind === "audio" ? "♪" : reference.kind === "video" ? "▶" : reference.kind === "character" ? "👤" : reference.kind === "skill" ? "✦" : reference.kind === "tool" ? "⚙" : "T"}
                                                 </span>
                                             )}
                                             <span className="canvas-node-hover-composer-ref-meta flex max-w-0 flex-col justify-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity] duration-200 ease-out group-hover/ref:max-w-20 group-hover/ref:opacity-100 data-[thumb-open]:max-w-20 data-[thumb-open]:opacity-100">
                                                 <span className="truncate text-xs leading-4" style={{ color: theme.node.text }}>{reference.label}</span>
-                                                <span className="text-[10px] leading-3 opacity-55" style={{ color: theme.node.muted }}>{reference.kind === "audio" ? "Audio" : reference.kind === "video" ? "Video" : reference.kind === "character" ? "Character" : reference.kind === "text" ? "Text" : "Image"}</span>
+                                                <span className="text-[10px] leading-3 opacity-55" style={{ color: theme.node.muted }}>{reference.kind === "audio" ? "Audio" : reference.kind === "video" ? "Video" : reference.kind === "character" ? "Character" : reference.kind === "text" ? "Text" : reference.kind === "skill" ? "Skill" : reference.kind === "tool" ? "Tool" : "Image"}</span>
                                             </span>
                                         </span>
                                     );

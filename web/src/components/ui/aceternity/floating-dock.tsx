@@ -3,6 +3,8 @@ import { forwardRef, useEffect, useRef, useState, type CSSProperties, type Mouse
 
 import { cn } from "@/lib/utils";
 import { aceternityMotion } from "@/lib/aceternity-motion";
+import { useToolHoverCard } from "@/components/ui/tool-hover-card";
+import type { ToolHoverCardData } from "@/lib/canvas/tool-hover-card-data";
 
 export type FloatingDockCommand = {
     kind?: "command";
@@ -19,6 +21,8 @@ export type FloatingDockCommand = {
     danger?: boolean;
     /** 面板展开型工具——使用 aria-expanded 而非 aria-pressed */
     expands?: boolean;
+    /** hover 说明卡数据（可选；缺省回退既有 tooltip / 原生 title） */
+    hoverCard?: ToolHoverCardData;
 };
 
 export type FloatingDockSwitchOption = {
@@ -27,6 +31,8 @@ export type FloatingDockSwitchOption = {
     icon: ReactNode;
     value: string;
     displayLabel?: string;
+    /** hover 说明卡数据（可选；按 hover/focus 的段显示） */
+    hoverCard?: ToolHoverCardData;
 };
 
 export type FloatingDockSwitch = {
@@ -144,7 +150,7 @@ export const FloatingDock = forwardRef<HTMLDivElement, FloatingDockProps>(functi
             }}
             onPointerLeave={() => mouseX.set(Number.POSITIVE_INFINITY)}
         >
-            {renderDockItems(items, { mouseX, metrics, motionEnabled: motionEnabled && !showLabels, compact: size === "compact", showLabel: showLabels })}
+            {renderDockItems(items, { mouseX, metrics, motionEnabled: motionEnabled && !showLabels, cardsEnabled: !scrollable, compact: size === "compact", showLabel: showLabels })}
         </motion.div>
     );
 });
@@ -153,6 +159,8 @@ type DockItemRenderProps = {
     mouseX: MotionValue<number>;
     metrics: DockMetrics;
     motionEnabled: boolean;
+    /** 非触屏/非窄屏时才启用 hover 说明卡（尊重既有原生 title 兜底路径） */
+    cardsEnabled: boolean;
     compact: boolean;
     showLabel: boolean;
 };
@@ -172,7 +180,7 @@ function renderDockItems(items: FloatingDockEntry[], props: DockItemRenderProps)
         result.push(
             <span key={groupKey} className="aceternity-dock-danger-group flex shrink-0 items-end gap-0.5 rounded-[calc(var(--dock-item-radius)+2px)] px-0.5">
                 {dangerGroup.map((command) => (
-                    <DockCommandButton key={command.id} command={command} mouseX={props.mouseX} metrics={props.metrics} motionEnabled={props.motionEnabled} compact={props.compact} showLabel={props.showLabel} />
+                    <DockCommandButton key={command.id} command={command} mouseX={props.mouseX} metrics={props.metrics} motionEnabled={props.motionEnabled} cardsEnabled={props.cardsEnabled} compact={props.compact} showLabel={props.showLabel} />
                 ))}
             </span>,
         );
@@ -187,7 +195,7 @@ function renderDockItems(items: FloatingDockEntry[], props: DockItemRenderProps)
         }
         if (item.kind === "switch") {
             flushDangerGroup();
-            result.push(<DockSwitch key={item.id} entry={item} compact={props.compact} showLabel={props.showLabel} motionEnabled={props.motionEnabled} metrics={props.metrics} />);
+            result.push(<DockSwitch key={item.id} entry={item} compact={props.compact} showLabel={props.showLabel} motionEnabled={props.motionEnabled} cardsEnabled={props.cardsEnabled} metrics={props.metrics} />);
             index += 1;
             continue;
         }
@@ -197,17 +205,19 @@ function renderDockItems(items: FloatingDockEntry[], props: DockItemRenderProps)
             continue;
         }
         flushDangerGroup();
-        result.push(<DockCommandButton key={item.id} command={item} mouseX={props.mouseX} metrics={props.metrics} motionEnabled={props.motionEnabled} compact={props.compact} showLabel={props.showLabel} />);
+        result.push(<DockCommandButton key={item.id} command={item} mouseX={props.mouseX} metrics={props.metrics} motionEnabled={props.motionEnabled} cardsEnabled={props.cardsEnabled} compact={props.compact} showLabel={props.showLabel} />);
         index += 1;
     }
     flushDangerGroup();
     return result;
 }
 
-function DockCommandButton({ command, mouseX, metrics, motionEnabled, compact, showLabel }: { command: FloatingDockCommand; mouseX: MotionValue<number>; metrics: DockMetrics; motionEnabled: boolean; compact: boolean; showLabel: boolean }) {
+function DockCommandButton({ command, mouseX, metrics, motionEnabled, compact, showLabel, cardsEnabled }: { command: FloatingDockCommand; mouseX: MotionValue<number>; metrics: DockMetrics; motionEnabled: boolean; compact: boolean; showLabel: boolean; cardsEnabled: boolean }) {
     const ref = useRef<HTMLSpanElement>(null);
     const [focused, setFocused] = useState(false);
     const [hovered, setHovered] = useState(false);
+    // hover 说明卡：有数据且非 label/触屏形态时替代极简 tooltip（禁用态维持不出卡，与 tooltip 语义一致）。
+    const hoverCard = useToolHoverCard({ data: !showLabel && cardsEnabled && !command.disabled ? command.hoverCard : undefined, label: command.label, icon: command.icon });
     const distance = useTransform(mouseX, (value) => {
         const bounds = ref.current?.getBoundingClientRect();
         if (!bounds || !Number.isFinite(value)) return Number.POSITIVE_INFINITY;
@@ -218,9 +228,9 @@ function DockCommandButton({ command, mouseX, metrics, motionEnabled, compact, s
     const itemSize = useSpring(itemTarget, aceternityMotion.spring.dock);
     const iconSize = useSpring(iconTarget, aceternityMotion.spring.dock);
     // 鼠标点击产生的 focus 不能阻塞提示收起，只有键盘可见焦点才持续显示提示。
-    const showTooltip = !showLabel && (hovered || focused) && !command.disabled;
-    // scrollable 场景自定义 tooltip 会被 overflow 裁剪，用原生 title 兜底
-    const nativeTitle = !motionEnabled ? command.label : undefined;
+    const showTooltip = !showLabel && (hovered || focused) && !command.disabled && !command.hoverCard;
+    // scrollable 场景自定义 tooltip 会被 overflow 裁剪，用原生 title 兜底；有可用 hover 卡时不再叠一层原生 title。
+    const nativeTitle = !motionEnabled && !(command.hoverCard && cardsEnabled) ? command.label : undefined;
 
     if (showLabel) {
         return (
@@ -257,6 +267,7 @@ function DockCommandButton({ command, mouseX, metrics, motionEnabled, compact, s
             {/* 放大项留在 Flex 流内，由布局推开邻项，保持 Aceternity Floating Dock 的空间关系。 */}
             <motion.button
                 type="button"
+                ref={hoverCard.setAnchor}
                 aria-label={command.label}
                 title={nativeTitle}
                 data-icon-only
@@ -266,11 +277,15 @@ function DockCommandButton({ command, mouseX, metrics, motionEnabled, compact, s
                 className={cn("aceternity-dock-command group relative grid size-full place-items-center rounded-[var(--dock-item-radius)] border outline-none", command.quiet && "is-quiet", command.active && "is-active", command.danger && "is-danger")}
                 whileTap={motionEnabled && !command.disabled ? { scale: 0.92 } : undefined}
                 transition={aceternityMotion.spring.dock}
-                onMouseEnter={() => setHovered(true)}
-                onMouseLeave={() => setHovered(false)}
-                onFocus={(event) => setFocused(event.currentTarget.matches(":focus-visible"))}
-                onBlur={() => setFocused(false)}
-                onMouseDown={() => setFocused(false)}
+                onMouseEnter={() => { setHovered(true); hoverCard.onEnter(); }}
+                onMouseLeave={() => { setHovered(false); hoverCard.onLeave(); }}
+                onFocus={(event) => {
+                    const focusVisible = event.currentTarget.matches(":focus-visible");
+                    setFocused(focusVisible);
+                    if (focusVisible) hoverCard.onFocus();
+                }}
+                onBlur={() => { setFocused(false); hoverCard.onBlur(); }}
+                onMouseDown={() => { setFocused(false); hoverCard.onBlur(); }}
                 onClick={command.onClick}
             >
                 <motion.span className={cn("grid place-items-center", command.wide && "w-full")} style={command.wide ? { height: iconSize } : { width: iconSize, height: iconSize }}>
@@ -293,17 +308,22 @@ function DockCommandButton({ command, mouseX, metrics, motionEnabled, compact, s
                     ) : null}
                 </AnimatePresence>
             </motion.button>
+            {hoverCard.card}
         </motion.span>
     );
 }
 
-function DockSwitch({ entry, compact, showLabel, motionEnabled, metrics }: { entry: FloatingDockSwitch; compact: boolean; showLabel: boolean; motionEnabled: boolean; metrics: DockMetrics }) {
+function DockSwitch({ entry, compact, showLabel, motionEnabled, metrics, cardsEnabled }: { entry: FloatingDockSwitch; compact: boolean; showLabel: boolean; motionEnabled: boolean; metrics: DockMetrics; cardsEnabled: boolean }) {
     const reducedMotion = useReducedMotion();
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [focusedId, setFocusedId] = useState<string | null>(null);
     const selectedIndex = Math.max(0, entry.options.findIndex((option) => option.value === entry.value));
     const touch = metrics.base >= 40;
     const labeled = showLabel || entry.options.some((option) => option.displayLabel);
+    // hover 说明卡：按 hover/focus 的段显示对应文案（区域选择↔抓手二选一），不改开关交互。
+    const optionRefs = useRef<Map<string, HTMLElement>>(new Map());
+    const cardOption = entry.options.find((option) => option.id === hoveredId) ?? entry.options.find((option) => option.id === focusedId);
+    const hoverCard = useToolHoverCard({ data: cardsEnabled && !labeled ? cardOption?.hoverCard : undefined, label: cardOption ? cardOption.displayLabel || cardOption.label : entry.label, icon: cardOption?.icon });
     const slot = labeled ? (touch ? 68 : compact ? 58 : 64) : touch ? 32 : compact ? 24 : 26;
     const slotHeight = labeled ? metrics.base : slot;
     const gap = labeled ? (touch ? 4 : 3) : touch ? 10 : compact ? 8 : 10;
@@ -336,7 +356,7 @@ function DockSwitch({ entry, compact, showLabel, motionEnabled, metrics }: { ent
                 />
                 {entry.options.map((option) => {
                     const checked = option.value === entry.value;
-                    const showTooltip = !labeled && (hoveredId === option.id || focusedId === option.id);
+                    const showTooltip = !labeled && (hoveredId === option.id || focusedId === option.id) && !option.hoverCard;
                     return (
                         <span key={option.id} className="relative inline-flex shrink-0">
                             <button
@@ -344,16 +364,20 @@ function DockSwitch({ entry, compact, showLabel, motionEnabled, metrics }: { ent
                                 role="radio"
                                 aria-checked={checked}
                                 aria-label={option.label}
-                                title={!motionEnabled ? option.label : undefined}
+                                title={!motionEnabled && !(option.hoverCard && cardsEnabled) ? option.label : undefined}
+                                ref={(el) => { if (el) optionRefs.current.set(option.id, el); else optionRefs.current.delete(option.id); }}
                                 className={cn("aceternity-dock-switch-option relative z-[1] inline-flex items-center justify-center border-0 outline-none", labeled ? "gap-1 rounded-[var(--dock-item-radius)] px-2" : "rounded-full")}
                                 style={{ width: slot, height: slotHeight }}
-                                onMouseEnter={() => setHoveredId(option.id)}
-                                onMouseLeave={() => setHoveredId((current) => current === option.id ? null : current)}
+                                onMouseEnter={() => { setHoveredId(option.id); hoverCard.setAnchor(optionRefs.current.get(option.id) ?? null); hoverCard.onEnter(); }}
+                                onMouseLeave={() => { setHoveredId((current) => current === option.id ? null : current); hoverCard.onLeave(); }}
                                 onFocus={(event) => {
-                                    if (event.currentTarget.matches(":focus-visible")) setFocusedId(option.id);
+                                    if (!event.currentTarget.matches(":focus-visible")) return;
+                                    setFocusedId(option.id);
+                                    hoverCard.setAnchor(optionRefs.current.get(option.id) ?? null);
+                                    hoverCard.onFocus();
                                 }}
-                                onBlur={() => setFocusedId((current) => current === option.id ? null : current)}
-                                onMouseDown={() => setFocusedId(null)}
+                                onBlur={() => { setFocusedId((current) => current === option.id ? null : current); hoverCard.onBlur(); }}
+                                onMouseDown={() => { setFocusedId(null); hoverCard.onBlur(); }}
                                 onClick={() => {
                                     if (!checked) entry.onChange(option.value);
                                 }}
@@ -381,6 +405,7 @@ function DockSwitch({ entry, compact, showLabel, motionEnabled, metrics }: { ent
                     );
                 })}
             </span>
+            {hoverCard.card}
         </span>
     );
 }

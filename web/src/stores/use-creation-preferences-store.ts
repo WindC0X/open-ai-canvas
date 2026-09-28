@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { parseImageQualityTier, type ImageQualityTier } from "@/lib/image-size-presets";
 import { scopedLocalStorage } from "@/lib/user-scope";
 
 export type CreationModePreference = "text" | "image" | "video";
@@ -8,6 +9,8 @@ export type CreationModePreference = "text" | "image" | "video";
 export type CreationImagePreferences = {
     ratio?: string;
     quality?: string;
+    /** O-03 画质档位词汇（economy/standard/flagship）：canvas 面板写入，模型切换 / 新节点时按 min(档位, 能力) 吸附。 */
+    qualityTier?: ImageQualityTier;
     count?: string;
 };
 
@@ -28,6 +31,7 @@ type CreationPreferencesStore = {
     preferences: CreationComposerPreferences;
     rememberMode: (mode: CreationModePreference) => void;
     rememberImageSettings: (settings: CreationImagePreferences) => void;
+    rememberImageQualityTier: (tier: ImageQualityTier) => void;
     rememberVideoSettings: (settings: CreationVideoPreferences) => void;
 };
 
@@ -40,9 +44,11 @@ function nonEmptyString(value: unknown): value is string {
 function normalizeImagePreferences(value: unknown): CreationImagePreferences | undefined {
     if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
     const raw = value as Record<string, unknown>;
+    const tier = parseImageQualityTier(raw.qualityTier);
     const preferences = {
         ...(nonEmptyString(raw.ratio) ? { ratio: raw.ratio } : {}),
         ...(nonEmptyString(raw.quality) ? { quality: raw.quality } : {}),
+        ...(tier ? { qualityTier: tier } : {}),
         ...(nonEmptyString(raw.count) ? { count: raw.count } : {}),
     };
     return Object.keys(preferences).length ? preferences : undefined;
@@ -78,6 +84,7 @@ export const useCreationPreferencesStore = create<CreationPreferencesStore>()(
             preferences: {},
             rememberMode: (mode) => set((state) => ({ preferences: { ...state.preferences, mode } })),
             rememberImageSettings: (settings) => set((state) => ({ preferences: { ...state.preferences, image: { ...state.preferences.image, ...settings } } })),
+            rememberImageQualityTier: (tier) => set((state) => ({ preferences: { ...state.preferences, image: { ...state.preferences.image, qualityTier: tier } } })),
             rememberVideoSettings: (settings) => set((state) => ({ preferences: { ...state.preferences, video: { ...state.preferences.video, ...settings } } })),
         }),
         {

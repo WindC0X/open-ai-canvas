@@ -38,7 +38,7 @@ description: 从产品功能快速定位主要代码入口
 
 ## 画布核心
 
-云端 Agent 的提示词维护边界见[画布 Agent 提示词与用户意图](/docs/backend/agent-prompt-policy)：行为策略在版本化 md，动态事实由 `cloud_agent_policy.go` 编译，运行状态消息由 `cloud_agent_prompt_context.go` 统一编码；`cloud_agent_anchor.go` 不再推断用户授权或锁定首轮目标。
+云端 Agent 的提示词维护边界见[画布 Agent 提示词与用户意图](/docs/reference/backend/agent-prompt-policy)：行为策略在版本化 md，动态事实由 `cloud_agent_policy.go` 编译，运行状态消息由 `cloud_agent_prompt_context.go` 统一编码；`cloud_agent_anchor.go` 不再推断用户授权或锁定首轮目标。
 
 | 职责 | 代码位置 |
 | --- | --- |
@@ -114,7 +114,7 @@ HTTP 请求 -> handler -> service（稳定导入面 / 别名）-> app（组合�
 
 | 功能 | Handler | Service / 域包 / Repository |
 | --- | --- | --- |
-| 路由与中间件 | `handler/api.go`、`handler/routes.go` | `RegisterCanvasAPI` 挂到 `/api`。合同见 `docs/content/docs/backend/http-api.mdx`、`handler/openapi.yaml`。 |
+| 路由与中间件 | `handler/api.go`、`handler/routes.go` | `RegisterCanvasAPI` 挂到 `/api`。合同见 `docs/content/docs/reference/backend/http-api.mdx`、`handler/openapi.yaml`。 |
 | 用户和管理员 | `handler/auth.go` | `internal/auth`、`internal/app/admin.go`（经 `service` 别名） |
 | 管理后台批量操作 | `handler/auth.go` | `internal/app/admin.go`、`repository/admin_audit.go`、`repository/analytics.go` |
 | 管理后台存储资源 | `handler/admin_storage.go` | `internal/app/admin_storage.go`、`repository/admin_storage.go` |

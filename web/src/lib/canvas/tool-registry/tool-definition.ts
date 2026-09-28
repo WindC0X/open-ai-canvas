@@ -158,6 +158,18 @@ export type AddNodeMenuContext = {
     >;
 };
 
+/** hover 说明卡数据——一句话职责 + 可选预览图 + 快捷键徽章（引用 CANVAS_SHORTCUTS 的 id，键位实时解析） */
+export type ToolHoverInfo = {
+    /** 动作定性短句（hover 卡头部第二行，必填；≤10 字，消灭缺省高度跳变） */
+    tagline: string;
+    /** 场景 + 防误触长句（hover 卡正文，必填） */
+    description: string;
+    /** 预览模式（可选；缺省 "icon" 工具类大图标，"node" = 节点类 SVG mockup） */
+    preview?: "icon" | "node";
+    /** 快捷键徽章：CANVAS_SHORTCUTS 的 id 列表（可选，单一来源） */
+    shortcuts?: string[];
+};
+
 /** 工具定义——注册表的基本单元 */
 export type ToolDefinition = {
     id: string;
@@ -187,11 +199,13 @@ export type ToolDefinition = {
     /** 互斥开关：在 dock 中渲染为分段切换，而不是两个独立按钮 */
     switchGroup?: {
         value: (ctx: ToolContext) => string;
-        options: Array<{ id: string; label: string; displayLabel?: string; icon: ReactNode; value: string }>;
+        options: Array<{ id: string; label: string; displayLabel?: string; icon: ReactNode; value: string; hover?: ToolHoverInfo }>;
         onChange: (ctx: ToolContext, value: string) => void;
     };
     /** 上下文可见性谓词——返回 false 时工具不渲染（不受 prefs 控制） */
     applicable?: (ctx: ToolContext) => boolean;
+    /** hover 说明卡（可选；缺省回退既有 tooltip / 原生 title） */
+    hover?: ToolHoverInfo;
     /** 执行动作。event 来自 Dock 按钮点击 */
     run: (ctx: ToolContext, event?: MouseEvent<HTMLElement>) => void;
 };
@@ -206,6 +220,8 @@ export type AddNodeMenuCommand = {
     section: "node" | "workflow" | "project" | "resource";
     defaultOrder: number;
     applicable?: (ctx: AddNodeMenuContext) => boolean;
+    /** hover 说明卡（可选；缺省回退原生 title） */
+    hover?: ToolHoverInfo;
     run: (ctx: AddNodeMenuContext) => void;
 };
 

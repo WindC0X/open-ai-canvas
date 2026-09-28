@@ -1,0 +1,6 @@
+{
+  "title": "插件",
+  "root": true,
+  "defaultOpen": true,
+  "pages": ["plugin-system", "plugin-surfaces", "ai-art-critique", "payment-plugin-runtime"]
+}

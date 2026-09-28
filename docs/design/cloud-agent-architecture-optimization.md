@@ -364,7 +364,7 @@ P1/P2 涉及收费一致性，应先于扩展更多自动生成能力。P3 的�
 | E8 | [诊断与工具错误](../../backend/internal/app/cloud_agent_runtime.go#L807)；[完成/回写错误](../../backend/internal/app/cloud_agent_runtime.go#L1247)；[通用取消固定日志](../../backend/internal/app/task_lifecycle.go#L149) |
 | E9 | [运行结构和保存](../../backend/internal/app/cloud_agent_runtime.go#L48)（345）；[独立控制列](../../backend/internal/model/cloud_agent.go#L6)；[清理恢复](../../backend/internal/app/cloud_agent_recovery.go#L1) |
 | E10 | [压缩](../../backend/internal/app/cloud_agent_runtime.go#L640)；[跨轮摘要](../../backend/internal/app/cloud_agent_continuation.go#L15) |
-| E11 | [媒体测试](../../backend/internal/app/cloud_agent_media_test.go)、[上下文测试](../../backend/internal/app/cloud_agent_context_test.go)、[前端 mention 测试](../../web/test/canvas-node-generation-mentions.test.ts)、[待验收记录](../content/docs/progress/pending-test.mdx) |
+| E11 | [媒体测试](../../backend/internal/app/cloud_agent_media_test.go)、[上下文测试](../../backend/internal/app/cloud_agent_context_test.go)、[前端 mention 测试](../../web/test/canvas-node-generation-mentions.test.ts)、[待验收记录](../plans/pending-test.mdx) |
 | E12 | [Agent 模型字段](../../backend/internal/app/cloud_agent_media.go#L667)；[前端选择恢复](../../web/src/lib/canvas/canvas-project-generation.ts#L424)；[裸名称匹配渠道](../../web/src/stores/use-config-store.ts#L822) |
 | E13 | [同轮快照重写](../../backend/internal/app/cloud_agent_step_hash.go#L43)；[现有测试](../../backend/internal/app/cloud_agent_step_hash_test.go#L41)；[写前快照校验](../../backend/internal/app/cloud_agent_approval_preview.go#L54) |
 | E14 | [审批结构](../../backend/internal/app/cloud_agent_runtime.go#L39)；[dry-run](../../backend/internal/app/cloud_agent_runtime.go#L916)；[实际重新准入](../../backend/internal/app/cloud_agent_runtime.go#L1098) |

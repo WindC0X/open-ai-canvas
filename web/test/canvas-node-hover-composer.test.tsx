@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { CanvasNodeHoverComposer } from "@/components/canvas/canvas-node-hover-composer";
@@ -56,7 +57,47 @@ describe("CanvasNodeHoverComposer 渲染(静态标记)", () => {
         expect(html(true, [reference({ kind: "character" })])).not.toContain("<img");
     });
 
+    test("技能引用：✦ 符号 + Skill 副标（控制线域外授权修复：不再落 T/Image 缺省）", () => {
+        const markup = html(true, [reference({ kind: "skill", label: "商品图直出" })]);
+        expect(markup).toContain("✦");
+        expect(markup).toContain(">Skill<");
+        expect(markup).not.toContain("<img");
+    });
+
+    test("工具引用：⚙ 符号 + Tool 副标（2026-09-28 rider：不再落 T/Image 缺省）", () => {
+        const markup = html(true, [reference({ kind: "tool", label: "九宫格切分" })]);
+        expect(markup).toContain("⚙");
+        expect(markup).toContain(">Tool<");
+        expect(markup).not.toContain("<img");
+    });
+
     test("引用行容器挂 mask 类(左右渐隐按类名锚定, 不随 JSX 层级漂移)", () => {
         expect(html(true, [reference({ kind: "image", previewUrl: "blob:img" })])).toContain("canvas-node-hover-composer-refs-mask");
+    });
+});
+
+describe("控制线域外授权 2026-09-28 · 技能 chip 修复守卫", () => {
+    test("注入面收窄：节点引用表不再混入技能引用；tool 注入保留、@ 候选面不动", () => {
+        const source = readFileSync(new URL("../src/pages/canvas/use-canvas-render-model.ts", import.meta.url), "utf8");
+        const startIdx = source.indexOf("const mentionReferencesByNodeId = useMemo");
+        expect(startIdx).toBeGreaterThan(-1);
+        const block = source.slice(startIdx, source.indexOf("return {", startIdx));
+        expect(block).not.toContain("skillMentionReferences");
+        expect(block).toContain("toolMentionReferencesByNodeId");
+
+        const agentPanel = readFileSync(new URL("../src/components/canvas/canvas-cloud-agent-panel.tsx", import.meta.url), "utf8");
+        expect(agentPanel).toContain("buildSkillMentionReferences(installedSkills)");
+    });
+
+    test("hover composer 源级技能分支守卫（✦ / Skill）", () => {
+        const source = readFileSync(new URL("../src/components/canvas/canvas-node-hover-composer.tsx", import.meta.url), "utf8");
+        expect(source).toContain('"✦"');
+        expect(source).toContain('"Skill"');
+    });
+
+    test("hover composer 源级工具分支守卫（⚙ / Tool，2026-09-28 rider 批准）", () => {
+        const source = readFileSync(new URL("../src/components/canvas/canvas-node-hover-composer.tsx", import.meta.url), "utf8");
+        expect(source).toContain('"⚙"');
+        expect(source).toContain('"Tool"');
     });
 });

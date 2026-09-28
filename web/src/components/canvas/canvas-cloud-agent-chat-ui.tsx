@@ -15,6 +15,7 @@ import type { Skill, SkillPreset } from "@/services/api/skills";
 import { buildSkillMentionReferences } from "@/services/skill-runtime";
 import { agentToolCategory, agentToolCategoryLabel, agentToolErrorClassLabel, agentToolStatus, friendlyAgentToolSummary } from "@/lib/canvas/agent-tool-presentation";
 import { agentToolRetry, type AgentToolRetryAttempt } from "@/lib/canvas/agent-tool-retry";
+import { ECOM_STARTER_ICONS, findEcomStarterCardByPrompt, type EcomStarterCard } from "@/lib/canvas/canvas-ecom-starters";
 
 export type CloudAgentChatAttachment = { id: string; name: string; url: string };
 type CloudAgentOperationImpact = {
@@ -101,6 +102,9 @@ export function AgentChatMessage({
     onFocusNode?: (nodeId: string) => void;
 }) {
     const isUser = item.role === "user";
+    // S1.1（控制线 P0）：starter 卡点击发出的消息（内容命中卡片原文）渲染为紧凑动作 chip；
+    // 纯渲染层判定，数据层/导出/历史零改动，Agent 收到的消息原文不变。
+    const starterCard = isUser ? findEcomStarterCardByPrompt(item.text) : undefined;
     const isSystem = item.role === "system";
     const displayedText = useTypewriterText(item.text, item.role === "assistant" && isStreaming);
     const color = item.role === "error" ? "#ef4444" : theme.node.text;
@@ -173,6 +177,13 @@ export function AgentChatMessage({
             </div>
         );
     }
+    if (starterCard) {
+        return (
+            <div className="flex items-start gap-3 justify-end">
+                <AgentStarterChip card={starterCard} content={item.text} />
+            </div>
+        );
+    }
     return (
         <div className={`flex items-start gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
             {!isUser ? <AgentTimelineMarker theme={theme} tone="agent" /> : null}
@@ -205,6 +216,22 @@ export function AgentChatMessage({
  * whole block. The loop continues briefly after the stream ends to drain any
  * text that was buffered by the network.
  */
+/** S1.1（控制线 P0）：starter 消息 chip——默认紧凑（图标 + 电商快捷开始 · 卡名），点击展开查看原文。 */
+function AgentStarterChip({ card, content }: { card: EcomStarterCard; content: string }) {
+    const [expanded, setExpanded] = useState(false);
+    const Icon = ECOM_STARTER_ICONS[card.icon];
+    return (
+        <div className="agent-starter-chip-wrap">
+            <button type="button" className="agent-starter-chip" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
+                <Icon aria-hidden="true" />
+                <span className="agent-starter-chip-label">电商快捷开始 · {card.title}</span>
+                <ChevronDown className="agent-starter-chip-chevron" aria-hidden="true" />
+            </button>
+            {expanded ? <div className="agent-starter-chip-detail">{content}</div> : null}
+        </div>
+    );
+}
+
 function useTypewriterText(targetText: string, shouldAnimate: boolean) {
     const targetRef = useRef(targetText);
     const visibleRef = useRef(shouldAnimate ? "" : targetText);

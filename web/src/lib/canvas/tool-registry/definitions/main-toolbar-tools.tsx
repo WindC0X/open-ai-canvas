@@ -4,12 +4,12 @@ import { registerToolbarTools, type ToolDefinition } from "@/lib/canvas/tool-reg
 import type { CanvasToolMode } from "@/types/canvas";
 
 const canvasModeOptions = [
-    { id: "box-select", label: "区域选择", icon: <MousePointer2 />, value: "box-select" },
-    { id: "move", label: "抓手工具", icon: <Hand />, value: "move" },
+    { id: "box-select", label: "区域选择", icon: <MousePointer2 />, value: "box-select", hover: { tagline: "框选批量选择节点", description: "在画布空白处拖出选框即可批量选中节点；只做选择，不会移动或修改任何节点。" } },
+    { id: "move", label: "抓手工具", icon: <Hand />, value: "move", hover: { tagline: "拖动平移画布视图", description: "按住拖动即可平移视图，不会误选或移动画布中的节点。" } },
 ];
 
 export const mainToolbarTools: ToolDefinition[] = [
-    { id: "tool-workspace", toolbar: "main", category: "navigation", label: "工作区", icon: <PanelsTopLeft />, defaultVisible: true, defaultOrder: 65, run: ctx => ctx.handlers.onOpenWorkspace?.() },
+    { id: "tool-workspace", toolbar: "main", category: "navigation", label: "工作区", icon: <PanelsTopLeft />, defaultVisible: true, defaultOrder: 65, hover: { tagline: "打开左侧工作区", description: "展开左侧面板，集中管理本项目的节点、资产与任务。" }, run: ctx => ctx.handlers.onOpenWorkspace?.() },
     {
         id: "tool-canvas-mode",
         toolbar: "main",
@@ -33,6 +33,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Undo2 />,
         defaultVisible: true,
         defaultOrder: 30,
+        hover: { tagline: "撤销上一步操作", description: "回退最近一步编辑，节点、连线与画布设置都能恢复。", shortcuts: ["undo"] },
         disabled: (ctx) => !ctx.canUndo,
         run: (ctx) => ctx.handlers.onUndo(),
     },
@@ -44,6 +45,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Redo2 />,
         defaultVisible: true,
         defaultOrder: 40,
+        hover: { tagline: "恢复被撤销的操作", description: "重新应用刚撤销的编辑，误撤销时从这里找回。", shortcuts: ["redo"] },
         disabled: (ctx) => !ctx.canRedo,
         run: (ctx) => ctx.handlers.onRedo(),
     },
@@ -55,6 +57,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Plus />,
         defaultVisible: true,
         defaultOrder: 50,
+        hover: { tagline: "打开添加面板", description: "展开创建菜单，挑选要添加的内容类型。" },
         expands: true,
         active: (ctx) => ctx.addPanelOpen,
         run: (ctx, event) => ctx.handlers.onToggleAddPanel(event!),
@@ -67,6 +70,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <FolderOpen />,
         defaultVisible: true,
         defaultOrder: 60,
+        hover: { tagline: "浏览与管理素材", description: "打开素材空间，选取已有素材使用，或统一整理与清理。" },
         applicable: (ctx) => !ctx.isProjectLinked,
         run: (ctx) => ctx.handlers.onOpenMyAssets(),
     },
@@ -78,6 +82,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Palette />,
         defaultVisible: true,
         defaultOrder: 70,
+        hover: { tagline: "调整画布显示", description: "调整画布背景与显示偏好，随时可以改回。" },
         expands: true,
         active: (ctx) => ctx.appearancePanelOpen,
         run: (ctx, event) => ctx.handlers.onToggleAppearancePanel(event!),
@@ -90,6 +95,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Settings2 />,
         defaultVisible: true,
         defaultOrder: 80,
+        hover: { tagline: "管理工具栏按钮", description: "选择工具栏显示哪些按钮、调整排列顺序；不影响画布内容。" },
         expands: true,
         active: (ctx) => ctx.settingsPanelOpen,
         run: (ctx) => ctx.handlers.onToggleSettingsPanel(),
@@ -102,6 +108,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Trash2 />,
         defaultVisible: true,
         defaultOrder: 90,
+        hover: { tagline: "移除所选内容", description: "移除选中的节点及其连线，可在会话内撤销。", shortcuts: ["delete"] },
         danger: true,
         applicable: (ctx) => ctx.selectedCount > 0,
         run: (ctx) => ctx.handlers.onDeleteSelected(),
@@ -114,6 +121,7 @@ export const mainToolbarTools: ToolDefinition[] = [
         icon: <Eraser />,
         defaultVisible: true,
         defaultOrder: 100,
+        hover: { tagline: "移除全部内容", description: "清空画布上的全部内容，清空前请确认。" },
         danger: true,
         run: (ctx) => ctx.handlers.onClear(),
     },

@@ -1,7 +1,8 @@
 import { defaultImageCapabilityConfig, modelCapabilityConfigFor, normalizeImageValue, normalizeVideoValue, STANDARD_IMAGE_SIZE_VALUES, videoDurationAllowed, type ImageCapabilityConfig } from "@/lib/model-capabilities";
 import { videoResolutionComparisonKey } from "@/lib/video-generation-options";
-import { imageSizePresets } from "@/lib/image-size-presets";
+import { imageQualityTierTarget, imageSizePresets, parseImageQualityTier, resolveTierPlan } from "@/lib/image-size-presets";
 import { modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+import { useCreationPreferencesStore } from "@/stores/use-creation-preferences-store";
 
 export type ModelInputSummary = {
     textCount: number;
@@ -247,16 +248,32 @@ export function mergedImageCapabilityConfig(config: AiConfig, selected: string):
 }
 
 // 切换模型后初始化图片参数为该模型能力默认值，避免旧参数在目标模型族不兼容导致无法切换。
+// O-03 画质档位（一阶段）：用户在创作偏好里设了默认画质档时，按 min(档位, 能力) 吸附覆盖；
+// 档位未设置或吸附不可得（无档位 / 价目档不一致）→ 保持模型默认（零变化）。
 export function defaultImageParamsForModel(config: AiConfig, model: string): Pick<AiConfig, "size" | "quality" | "transparentBackground"> {
     const image = modelCapabilityConfigFor(config, model).image;
     if (!image) return { size: "1:1", quality: "auto", transparentBackground: "false" };
     const sizeValues = image.size.values.filter((value) => value !== "*");
     const sizeDefault = image.size.default !== "*" && image.size.default ? image.size.default : sizeValues[0] || "1:1";
-    return {
+    const defaults = {
         size: sizeDefault,
         quality: image.quality.default || "auto",
         transparentBackground: String(image.transparentBackground.default ?? false),
     };
+    const qualityTier = parseImageQualityTier(useCreationPreferencesStore.getState().preferences.image?.qualityTier);
+    if (!qualityTier) return defaults;
+    const tierPlan = resolveTierPlan(image, imageQualityTierTarget(qualityTier), { priceTiers: imagePriceTiersForModel(config, model) });
+    if (!tierPlan) return defaults;
+    return { ...defaults, size: tierPlan.size, quality: tierPlan.quality ?? defaults.quality };
+}
+
+export type ImageModelPriceTier = NonNullable<NonNullable<AiConfig["channels"][number]["modelCosts"]>[number]["logicalPriceTiers"]>[number];
+
+/** 指定模型（渠道枚举值）的价目档选择器列表；无渠道 / 未配置档位返回空数组（不约束）。 */
+export function imagePriceTiersForModel(config: AiConfig, model: string): ImageModelPriceTier[] {
+    const channel = resolveModelChannel(config, model);
+    const cost = channel.modelCosts?.find((item) => item.model === modelOptionName(model));
+    return cost?.logicalPriceTiers || [];
 }
 
 
