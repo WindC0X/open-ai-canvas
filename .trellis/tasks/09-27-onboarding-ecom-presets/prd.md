@@ -81,3 +81,10 @@ W3 第三轻量枝（控制线 2026-09-27 任务书）：在 `feat/onboarding-ec
 - Bug1（用户三实例实报）：`.canvas-grid-split-picker` 根容器 align-items stretch→flex-start 结构性修复——2026-09-25 的 138px 数字追等式在用户显示环境破相，hover「自定义」棋盘展开撑高容器 → 左列行被拉伸 → 行被推离光标 → 140ms 收/150ms 开循环跳闪。域内文件：canvas-grid-split-picker.css（root 块改一行 + 两处注释升级）；守卫测试语义升级（canvas-split-hover-open：flex-start + 棋盘 absolute 脱流，替代旧数字断言）；真机走查含左列每行 rect 逐像素不变 + L2 零位移复核。
 - Bug2（接上轮 ⚠ 报备，控制线同轮批准）：canvas-node-hover-composer 补 `kind:"tool"` 分支（⚙ / Tool）；SSR + 源级守卫。
 - 范围纪律：零 globals.css、零依赖、门禁四件、双提交不 push；预算 ≤0.4 人日（实际：同轮内完成）。
+
+## 2026-09-28 rider 二轮：宫格残余 a/b + O-03 四刀（控制线回执）
+
+- 残余 b 根因闭合：格点被 unified-buttons 基线 padding-inline（max(12px,--space-3)）撑破网格轨道（24px 最小宽 vs 16.8px 轨道）→ 重叠、板高失真、用户环境呈压扁；修复 = data-icon-only 豁免。复验：cells 16.59² 正方、gap 4、board 99²；像素取证双证。
+- 残余 a：单卡背景包 max(两列高) → 矮列底部露无内容背景块；修复 = 背景下放两列独立成卡 + 根容器透明 + 2px 缝；rider 不变式（行 rect 开合一致、L2 零位移）复验保持。
+- 四刀：预设场景 / 删恢复默认 / 新节点画质+ⓘ 补行 / banner「未达该预设要求（≥…）」；用户文案与单测同步（含 not 平台下限 断言）。
+- 预算 ≤0.5 人日内完成；门禁四件照旧；双提交不 push。
