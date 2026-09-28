@@ -38,6 +38,8 @@ test("business API modules call http instead of axios or request(apiClient)", ()
     expect(offenders).toEqual([]);
 });
 
+// 全 src 快扫描用例耗时受 /mnt/f 慢 IO 影响：实测 5.1-6.3s 越过默认 5s 线（控制线 2026-09-28 独立复现在案），
+// per-test 超时加宽至 20s；断言与扫描口径不变。
 test("axios.create stays in the shared request client", () => {
     const offenders = walkSourceFiles(srcRoot)
         .filter((file) => {
@@ -46,7 +48,7 @@ test("axios.create stays in the shared request client", () => {
         })
         .map((file) => relative(srcRoot, file));
     expect(offenders).toEqual([]);
-});
+}, 20000);
 
 test("copied flush Modal padding lives only in AppModal", () => {
     const banned = [
@@ -61,4 +63,4 @@ test("copied flush Modal padding lives only in AppModal", () => {
         })
         .map((file) => relative(srcRoot, file));
     expect(offenders).toEqual([]);
-});
+}, 20000);
