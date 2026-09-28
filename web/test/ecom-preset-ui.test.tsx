@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { CanvasImageSettingsPopover, imageSettingsPresetView } from "../src/components/canvas/canvas-image-settings-popover";
-import { ImageSettingsPanel, QUALITY_TIER_INFO_LINES, aspectBadgeInfoCard, ecomPresetInfoCard } from "../src/components/image-settings-panel";
+import { ImageSettingsPanel, aspectBadgeInfoCard, ecomPresetInfoCard } from "../src/components/image-settings-panel";
 import { ToolHoverCardMiniContent } from "../src/components/ui/tool-hover-card";
 import { canvasThemes } from "../src/lib/canvas-theme";
 import { defaultImageCapabilityConfig, defaultModelCapabilityConfig, type ImageCapabilityConfig } from "../src/lib/model-capabilities";
@@ -101,7 +101,6 @@ describe("面板预设行 / 角标 / 档位行（SSR）", () => {
                 onApply: () => {},
                 onSelectModel: () => {},
             }}
-            qualityTierControl={{ value: "flagship", onChange: () => {} }}
             aspectBadges={{
                 "1:1": [{ label: "Amazon 主图", pixelRequirement: "1600×1600" }],
                 "3:4": [{ label: "详情长图", pixelRequirement: "1440×1920" }],
@@ -131,13 +130,9 @@ describe("面板预设行 / 角标 / 档位行（SSR）", () => {
         expect(html).not.toContain("电商预设：Amazon 主图");
     });
 
-    test("新节点画质行：三档 + 说明收入 hover 小卡 + 当前档选中", () => {
-        expect(html).toContain("新节点画质");
-        expect(html).toContain("经济");
-        expect(html).toContain("旗舰");
-        expect(html).toContain("查看新节点画质说明");
-        expect(html).not.toContain("新节点与切换模型时按此档吸附");
-        expect(html).toMatch(/aria-pressed="true"[^>]*>旗舰/);
+    test("新节点画质行已整行移除（2026-09-28 微修令：面板入口移除，偏好存 store）", () => {
+        expect(html).not.toContain("新节点画质");
+        expect(html).not.toContain("查看新节点画质说明");
     });
 
     test("不传槽位 → 面板零变化（不含 O-03 元素）", () => {
@@ -148,7 +143,7 @@ describe("面板预设行 / 角标 / 档位行（SSR）", () => {
 });
 
 describe("O-03 polish · 说明行收入 hover 小卡（mini 变体）", () => {
-    test("说明卡构造：已应用 / 默认画质 / 角标释义（预设名 + 最低像素）", () => {
+    test("说明卡构造：已应用 / 角标释义（预设名 + 最低像素）", () => {
         const amazon = ECOM_CHANNEL_PRESETS.find((preset) => preset.id === "amazon-main")!;
         const applied = ecomPresetInfoCard(amazon);
         expect(applied.title).toBe("已应用：Amazon 主图");
@@ -158,10 +153,6 @@ describe("O-03 polish · 说明行收入 hover 小卡（mini 变体）", () => {
         expect(appliedMarkup).toContain("tool-hover-card-mini");
         expect(appliedMarkup).toContain("已应用：Amazon 主图");
         expect(appliedMarkup).toContain("白底主图，品牌/文字向");
-
-        const qualityMarkup = renderToStaticMarkup(<ToolHoverCardMiniContent title="新节点画质" lines={QUALITY_TIER_INFO_LINES} />);
-        expect(qualityMarkup).toContain("新节点与切换模型时按此档吸附；模型不支持时自动回退。");
-        expect(qualityMarkup).toContain("只影响之后新建的节点与切换模型时的吸附，不修改当前节点。");
 
         const badges = aspectBadgeInfoCard([
             { label: "Amazon 主图", pixelRequirement: "1600×1600" },
@@ -207,8 +198,20 @@ describe("静态护栏：接线与取消语义", () => {
         expect(source).toContain("canvas-composer-preset-clear");
         expect(source).toContain("onConfigChange(\"size\", \"auto\")");
         expect(source).toContain("mergedProfile.quality.default || \"auto\"");
-        expect(source).toContain("rememberImageQualityTier");
         expect(source).toContain("plan.status !== \"unconstrained\" && plan.quality");
+    });
+
+    test("微修令：qualityTier 面板入口移除，偏好读写与吸附保留", () => {
+        const panelSource = readFileSync(resolve(import.meta.dir, "../src/components/image-settings-panel.tsx"), "utf8");
+        expect(panelSource).not.toContain("QUALITY_TIER_INFO_LINES");
+        expect(panelSource).not.toContain("新节点画质");
+        const popoverSource = readFileSync(resolve(import.meta.dir, "../src/components/canvas/canvas-image-settings-popover.tsx"), "utf8");
+        expect(popoverSource).not.toContain("qualityTierControl");
+        expect(popoverSource).not.toContain("rememberImageQualityTier");
+        const storeSource = readFileSync(resolve(import.meta.dir, "../src/stores/use-creation-preferences-store.ts"), "utf8");
+        expect(storeSource).toContain("rememberImageQualityTier");
+        const selectionSource = readFileSync(resolve(import.meta.dir, "../src/lib/model-selection.ts"), "utf8");
+        expect(selectionSource).toContain("qualityTier");
     });
 
     test("node prompt panel：换模型建议接线到默认参数重置", () => {

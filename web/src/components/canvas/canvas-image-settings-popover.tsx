@@ -5,14 +5,13 @@ import { Button } from "antd";
 import { usePopoverExit } from "./use-popover-exit";
 import { useExclusiveSettings } from "./use-exclusive-settings";
 
-import { ImageSettingsPanel, imageQualityLabel, imageSizeLabel, type ImageSettingsAspectBadge, type ImageSettingsEcomPresetSlot, type ImageSettingsQualityTierSlot } from "@/components/image-settings-panel";
+import { ImageSettingsPanel, imageQualityLabel, imageSizeLabel, type ImageSettingsAspectBadge, type ImageSettingsEcomPresetSlot } from "@/components/image-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor, normalizeImageValue } from "@/lib/model-capabilities";
 import { ECOM_CHANNEL_PRESETS, planEcomPresetApplication, type EcomChannelPreset, type EcomPresetPlan } from "@/lib/image-size-presets";
 import { configuredModelDisplayName, imagePriceTiersForModel, mergedImageCapabilityConfig } from "@/lib/model-selection";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
-import { useCreationPreferencesStore } from "@/stores/use-creation-preferences-store";
 
 type CanvasImageSettingsPopoverProps = {
     /** 归属供给标注: 打开的气泡面板纳入 hover 归属域(面板/触发器双标), 指针在面板上时
@@ -69,7 +68,6 @@ export function CanvasImageSettingsPopover({ supplyNodeId, config, onConfigChang
     const priceTiers = imagePriceTiersForModel(config, config.model || config.imageModel);
     const presetView = imageSettingsPresetView(config);
     const suggestions = shouldRender && presetView?.plan.status === "short" ? presetModelSuggestions(config, presetView.preset) : undefined;
-    const qualityTierValue = useCreationPreferencesStore((state) => state.preferences.image?.qualityTier ?? null);
     const applyPreset = (id: string) => {
         const preset = ECOM_CHANNEL_PRESETS.find((item) => item.id === id);
         if (!preset) return;
@@ -88,10 +86,6 @@ export function CanvasImageSettingsPopover({ supplyNodeId, config, onConfigChang
         suggestions,
         onApply: applyPreset,
         onSelectModel,
-    };
-    const qualityTierSlot: ImageSettingsQualityTierSlot = {
-        value: qualityTierValue,
-        onChange: (tier) => useCreationPreferencesStore.getState().rememberImageQualityTier(tier),
     };
     const updateOpen = (nextOpen: boolean) => {
         setOpen(nextOpen);
@@ -130,7 +124,7 @@ export function CanvasImageSettingsPopover({ supplyNodeId, config, onConfigChang
         };
     }, [onOpenChange, shouldRender]);
 
-    const panel = shouldRender && buttonRect ? <ImageSettingsPortal supplyNodeId={supplyNodeId} buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} closing={closing} ecomPresets={ecomPresetSlot} qualityTierControl={qualityTierSlot} aspectBadges={ECOM_ASPECT_BADGES} /> : null;
+    const panel = shouldRender && buttonRect ? <ImageSettingsPortal supplyNodeId={supplyNodeId} buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} closing={closing} ecomPresets={ecomPresetSlot} aspectBadges={ECOM_ASPECT_BADGES} /> : null;
 
     if (!hasSettings) return null;
 
@@ -195,7 +189,6 @@ function ImageSettingsPortal({
     closing,
     supplyNodeId,
     ecomPresets,
-    qualityTierControl,
     aspectBadges,
 }: {
     buttonRect: DOMRect;
@@ -207,7 +200,6 @@ function ImageSettingsPortal({
     closing: boolean;
     supplyNodeId?: string;
     ecomPresets: ImageSettingsEcomPresetSlot;
-    qualityTierControl: ImageSettingsQualityTierSlot;
     aspectBadges: Record<string, ImageSettingsAspectBadge[]>;
 }) {
     const gap = 4;
@@ -246,7 +238,7 @@ function ImageSettingsPortal({
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-4" ecomPresets={ecomPresets} qualityTierControl={qualityTierControl} aspectBadges={aspectBadges} />
+            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-4" ecomPresets={ecomPresets} aspectBadges={aspectBadges} />
         </div>,
         document.body,
     );

@@ -6,7 +6,7 @@ import { useToolHoverCard, useToolInfoCard, type ToolHoverCardMini } from "@/com
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { buildImageResolutionOptions, formatImageResolutionSize, imageRatioForSize, imageResolutionChoices, imageResolutionOption, imageSizeForResolution, supportsImageResolutionPresets, type ImageResolutionChoice } from "@/lib/image-resolution-tiers";
-import { hasPriceTierForImageSelection, IMAGE_QUALITY_TIERS, imageResolutionUsesQuality, imageTierAvailable, imageQualityForTier, type EcomChannelPreset, type ImageQualityTier } from "@/lib/image-size-presets";
+import { hasPriceTierForImageSelection, imageResolutionUsesQuality, imageTierAvailable, imageQualityForTier, type EcomChannelPreset, type ImageQualityTier } from "@/lib/image-size-presets";
 import { modelCapabilityConfigFor, normalizeImageValue, type ImageCapabilityConfig } from "@/lib/model-capabilities";
 import { imagePriceTiersForModel, mergedImageCapabilityConfig } from "@/lib/model-selection";
 import { type AiConfig } from "@/stores/use-config-store";
@@ -56,7 +56,8 @@ export type ImageSettingsEcomPresetSlot = {
     onSelectModel?: (id: string) => void;
 };
 
-/** O-03 默认画质档位一行（economy/standard/flagship；写入用户级创作偏好，V1 形态）。 */
+/** O-03 默认画质档位（economy/standard/flagship；2026-09-28 微修令：面板入口移除，
+ *  偏好 store 读写与模型切换吸附保留，新家 = 参数面板 2.0 侧栏「新节点默认档位」。 */
 export type ImageSettingsQualityTierSlot = {
     value: ImageQualityTier | null;
     onChange: (tier: ImageQualityTier) => void;
@@ -81,13 +82,11 @@ type ImageSettingsPanelProps = {
     bypassPriceGuard?: boolean;
     /** O-03：电商场景预设行（可选）。 */
     ecomPresets?: ImageSettingsEcomPresetSlot;
-    /** O-03：默认画质档位控件（可选）。 */
-    qualityTierControl?: ImageSettingsQualityTierSlot;
     /** O-03：比例网格角标（aspect → 预设释义条目；纯展示 + hover 小卡）。 */
     aspectBadges?: Record<string, ImageSettingsAspectBadge[]>;
 };
 
-export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 3, bypassPriceGuard = false, ecomPresets, qualityTierControl, aspectBadges }: ImageSettingsPanelProps) {
+export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 3, bypassPriceGuard = false, ecomPresets, aspectBadges }: ImageSettingsPanelProps) {
     const [snapDimensionToStep, setSnapDimensionToStep] = useState(true);
     const profile = mergedImageCapabilityConfig(config, config.model || config.imageModel);
     const normalized = normalizeImageValue(profile, config);
@@ -197,21 +196,6 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 ))}
                             </div>
                         ) : null}
-                    </div>
-                </div> : null}
-                {qualityTierControl ? <div className="space-y-1.5">
-                    <div className="flex items-center gap-1">
-                        <SettingTitle color={theme.node.groupTitle}>新节点画质</SettingTitle>
-                        <SettingsInfoTrigger card={{ title: "新节点画质", lines: QUALITY_TIER_INFO_LINES }} label="查看新节点画质说明" theme={theme} />
-                    </div>
-                    <div className="canvas-settings-group space-y-1">
-                        <div className="grid grid-cols-3 gap-1.5">
-                            {IMAGE_QUALITY_TIERS.map((tier) => (
-                                <OptionPill key={tier.id} selected={qualityTierControl.value === tier.id} theme={theme} onClick={() => qualityTierControl.onChange(tier.id)}>
-                                    {tier.label}
-                                </OptionPill>
-                            ))}
-                        </div>
                     </div>
                 </div> : null}
                 {availableAspects.length ? <div className="space-y-1.5">
@@ -498,12 +482,6 @@ function SettingTitle({ children, color }: { children: string; color: string }) 
         </div>
     );
 }
-
-/** O-03 polish · 新节点画质说明文案（收入 hover 小卡后不再常驻占高）。 */
-export const QUALITY_TIER_INFO_LINES = [
-    "新节点与切换模型时按此档吸附；模型不支持时自动回退。",
-    "只影响之后新建的节点与切换模型时的吸附，不修改当前节点。",
-];
 
 /** O-03 polish · 「已应用」说明卡：预设名 + hint（原常驻行文案的按需形态）。 */
 export function ecomPresetInfoCard(preset: Pick<EcomChannelPreset, "label" | "hint">): ToolHoverCardMini {
