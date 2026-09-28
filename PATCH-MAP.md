@@ -96,3 +96,5 @@
 | E5 | `37675d30` + `68f59b56` + `4ff30b2d` + `47c9ae5e` | 硬贴回（hardBlend）总账：入库前按 rect 回贴原图像素（缺省开启/8% 失真阈/全降级路径）；Agent 链同源产出几何 rect；提交链写 `metadata.outpaint`；根修=改挂媒体物化漏斗（媒体检查点架构绕过 worker 注入点致贴回从未执行） | B 线账并入总账 | 有意保留（台账证据 75%→0.00%）；随上游同步核对 |
 | E6 | `3b1f49a1` + `43736e44` | S3 渠道改造：教程/反馈去 GitHub 化（邮箱+用户群双通道）；`DOCS_BASE_URL` 空置（`web/src/lib/canvas/canvas-help-links.ts`，教程项禁用态「教程编写中」；产品裁定不暴露仓库） | 产品裁定 | 有意保留 |
 | E7 | `1b3cd2df` + `75acd589` + `d265f86e` | O-03 层1：渠道预设组/交集逻辑/药丸预设态/画质档位；四刀（预设场景 / 删恢复默认 / 新节点画质+ⓘ补行 / banner「未达该预设要求（≥…）」文案）+ 宫格残余 a/b（两列独立成卡/格点豁免统一内边距/文案纠偏）；polish（说明行收入 hover 小卡/比例角标释义） | 组件级 | 有意保留；随上游同步核对 |
+| E8 | `0ce555fa` + `eada7ccb` | hotfix-3（batch-12 三跑 7 红）：hover 卡滞留族修复（状态归零/focus 门控）+ O-03 达标诚实化（实际像素判定）；三文件语义 = `tool-hover-card.tsx` / `canvas-create-menu.tsx` / `image-size-presets.ts`（`canvas-image-settings-popover.tsx` 挂点） | 组件级 | 有意保留；随上游同步核对 |
+| E9 | `0a16cd41` + `c8a32f58` | B 线 micro-rider：扩图硬贴回形状失明归一化（经典协议 images 归一化与失配日志；`task_outpaint_hardblend.go`）+ Agent 链 mask 可选化（跳过合成与预检放行；`cloud_agent_media_outpaint.go`） | B 线（后端） | 有意保留；随上游同步核对 |
