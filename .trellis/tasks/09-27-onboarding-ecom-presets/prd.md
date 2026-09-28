@@ -75,3 +75,9 @@ W3 第三轻量枝（控制线 2026-09-27 任务书）：在 `feat/onboarding-ec
 - 参考截图：主仓 `docs/artifacts/batch11-walkthrough/` 的 `07b*.png`（空画布全页）与 `18*.png`（添加节点菜单全量）。
 - prefill 语义来源：commit `3b3fe456`（自增 id 命令语义，防同一命令被静默去重）。
 - 上游结构参照：commit `2088cf78`（创作入口 Agent 优先，已并入本枝基线）。
+
+## 2026-09-28 rider：宫格切分跳闪修复 + tool 徽章补齐（控制线 rider · 完成即 merge-ready）
+
+- Bug1（用户三实例实报）：`.canvas-grid-split-picker` 根容器 align-items stretch→flex-start 结构性修复——2026-09-25 的 138px 数字追等式在用户显示环境破相，hover「自定义」棋盘展开撑高容器 → 左列行被拉伸 → 行被推离光标 → 140ms 收/150ms 开循环跳闪。域内文件：canvas-grid-split-picker.css（root 块改一行 + 两处注释升级）；守卫测试语义升级（canvas-split-hover-open：flex-start + 棋盘 absolute 脱流，替代旧数字断言）；真机走查含左列每行 rect 逐像素不变 + L2 零位移复核。
+- Bug2（接上轮 ⚠ 报备，控制线同轮批准）：canvas-node-hover-composer 补 `kind:"tool"` 分支（⚙ / Tool）；SSR + 源级守卫。
+- 范围纪律：零 globals.css、零依赖、门禁四件、双提交不 push；预算 ≤0.4 人日（实际：同轮内完成）。
