@@ -963,6 +963,16 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         white-space: nowrap;
     }
 
+    /* 档位文本 chip（扩图「推荐/可用」，2026-09-28）：推荐=前景提亮强调；可用=沿用基础灰底弱提示。 */
+    .canvas-model-picker-chip-text {
+        padding: 0 6px;
+    }
+
+    .canvas-model-picker-chip-text.is-accent {
+        background: color-mix(in srgb, var(--workspace-foreground) 16%, transparent);
+        color: color-mix(in srgb, var(--workspace-foreground) 96%, transparent);
+    }
+
     .canvas-model-picker-search-icon {
         width: 14px;
         height: 14px;

@@ -416,7 +416,11 @@ export function useCanvasGenerationRetry({
                 // 此前只带 dataUrl，每次重试都会重新上传一份 mask，重复占用上传配额且留下无引用
                 // 资源（review 2026-09-21 P3）。resolve 失败仍降级为无 mask 重试 + 警告。
                 let retryMask: Parameters<typeof runBackendCanvasGenerationTask>[0]["mask"];
-                if (node.metadata?.outpaintMaskStorageKey) {
+                // 渠道能力变更后（2026-09-27 用户将 nano 的蒙版编辑关闭），旧节点残留的 maskKey
+                // 不能继续提交：后端能力校验会拒绝「当前图片模型不支持蒙版编辑」→ 重试硬失败。
+                // 按当前能力域恢复 mask：能力关闭时静默降级为无蒙版重试。
+                const retryMaskSupported = Boolean(modelCapabilityConfigFor(generationConfig, generationConfig.model).image?.references.maskSupported);
+                if (retryMaskSupported && node.metadata?.outpaintMaskStorageKey) {
                     try {
                         const maskDataUrl = await resolveImageUrl(node.metadata.outpaintMaskStorageKey, "", { cacheMiss: true });
                         if (maskDataUrl) retryMask = { id: `${node.id}-outpaint-mask`, name: "outpaint-mask.png", type: "image/png", dataUrl: maskDataUrl, storageKey: node.metadata.outpaintMaskStorageKey };
@@ -424,6 +428,11 @@ export function useCanvasGenerationRetry({
                         console.warn("[retry] outpaint mask restore failed; retrying without mask", cause);
                     }
                 }
+                // 硬贴回几何/像素源恢复（F-06 二期 2026-09-27）：重试复用原任务语义，rect 在则贴回必须在
+                // （裁决边界条款）；存量节点无持久字段 → 不带，后端跳过+日志，不报错不阻塞。
+                const retryOutpaint = node.metadata?.edit === "outpaint" && node.metadata?.outpaintSourceStorageKey && node.metadata?.outpaintGeometry
+                    ? { sourceStorageKey: node.metadata.outpaintSourceStorageKey, rect: node.metadata.outpaintGeometry.rect, frame: node.metadata.outpaintGeometry.frame }
+                    : undefined;
                 await runAndConsumeRetry({
                     projectId,
                     nodeId: node.id,
@@ -436,6 +445,7 @@ export function useCanvasGenerationRetry({
                     metadata: {
                         retry: true,
                         sourceNodeId: sourceNode.id,
+                        ...(retryOutpaint ? { outpaint: retryOutpaint } : {}),
                         resolvedCharacterVersions: context?.resolvedCharacterVersions || [],
                         promptTemplateOperation: node.metadata?.promptTemplateOperation,
                         promptTemplateVariables: node.metadata?.promptTemplateVariables,

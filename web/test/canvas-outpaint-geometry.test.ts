@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 
 import {
     describeOutpaintSize,
+    nearestAspectRatioValue,
     relocateOutpaintPadding,
     resolveOutpaintClipHole,
+    resolveOutpaintSubmitGeometry,
     snapOutpaintTargetSize,
     resolveOutpaintPadding,
     resolveOutpaintTargetPx,
@@ -446,5 +448,61 @@ describe("resolveOutpaintClipHole（T2: frame-local 洞坐标）", () => {
         expect(hole.y).toBeCloseTo(37.56, 5);
         expect(hole.width).toBe(560);
         expect(hole.height).toBe(312);
+    });
+});
+
+describe("resolveOutpaintSubmitGeometry（F-06 二期硬贴回几何真源，2026-09-27）", () => {
+    test("target 模式：三单复验真实值钉死（1536×1024 原图 + 204 总 padding → 1536×1024 preset）", () => {
+        const geometry = resolveOutpaintSubmitGeometry(1536, 1024, { left: 102, top: 102, right: 102, bottom: 102 }, { target: { width: 1536, height: 1024 } });
+        expect(geometry).not.toBeNull();
+        // 与 mask 实测一致：原图区 (90,85)-(1445,938) = 1356×854。
+        expect(geometry!.frame).toEqual({ width: 1536, height: 1024 });
+        expect(Math.round(geometry!.rect.x0 * 1536)).toBe(90);
+        expect(Math.round(geometry!.rect.y0 * 1024)).toBe(85);
+        expect(Math.round(geometry!.rect.x1 * 1536)).toBe(1446);
+        expect(Math.round(geometry!.rect.y1 * 1024)).toBe(939);
+    });
+
+    test("free 模式：等比缩放下 frame 与绘制区同比例（maxLongEdge 压缩）", () => {
+        const geometry = resolveOutpaintSubmitGeometry(1536, 1024, { left: 48, top: 48, right: 48, bottom: 48 }, { maxLongEdge: 1536 });
+        expect(geometry).not.toBeNull();
+        expect(geometry!.frame).toEqual({ width: 1536, height: 1054 });
+        // 原图区 = 源图绘制区：left 48×scale、尺寸 1536×scale（scale = 1536/1632）。
+        const scale = 1536 / 1632;
+        expect(geometry!.rect.x0).toBeCloseTo((48 * scale) / 1536, 5);
+        expect(geometry!.rect.y0).toBeCloseTo((48 * scale) / 1054, 5);
+        expect((geometry!.rect.x1 - geometry!.rect.x0) * 1536).toBeCloseTo(1536 * scale, 1);
+    });
+
+    test("target 模式两轴 k 吸收比例差（kx≠ky 时 rect 不居中）", () => {
+        // 3:4 preset 1024×1360（实比 0.7529）配 1.5 框：两轴 k 独立解。
+        const geometry = resolveOutpaintSubmitGeometry(1536, 1024, { left: 0, top: 187, right: 0, bottom: 187 }, { target: { width: 1024, height: 1360 } });
+        expect(geometry!.frame).toEqual({ width: 1024, height: 1360 });
+        // 左右 padding 为 0 → x0=0、x1=1；上下有 padding。
+        expect(geometry!.rect.x0).toBe(0);
+        expect(geometry!.rect.x1).toBe(1);
+        expect(geometry!.rect.y0).toBeGreaterThan(0);
+        expect(geometry!.rect.y1).toBeLessThan(1);
+    });
+
+    test("零 padding 时 rect 即全画幅", () => {
+        const geometry = resolveOutpaintSubmitGeometry(100, 50, { left: 0, top: 0, right: 0, bottom: 0 }, { target: { width: 100, height: 50 } });
+        expect(geometry!.rect).toEqual({ x0: 0, y0: 0, x1: 1, y1: 1 });
+    });
+});
+
+describe("nearestAspectRatioValue", () => {
+    test("原图 3:2 就近取枚举（nano 枚举含 3:2）", () => {
+        expect(nearestAspectRatioValue(["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"], 1.5)).toBe("3:2");
+    });
+
+    test("跳过不可解析值，极端宽比归最近枚举", () => {
+        expect(nearestAspectRatioValue(["auto", "1024x1024", "1:1", "16:9"], 1.9)).toBe("16:9");
+    });
+
+    test("全不可解析或非法输入返回 null", () => {
+        expect(nearestAspectRatioValue(["auto", "1024x1024"], 1.5)).toBeNull();
+        expect(nearestAspectRatioValue([], 1.5)).toBeNull();
+        expect(nearestAspectRatioValue(["1:1"], 0)).toBeNull();
     });
 });

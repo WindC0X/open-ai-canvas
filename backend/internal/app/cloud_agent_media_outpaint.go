@@ -217,16 +217,17 @@ func cloudAgentOutpaintScale(width, height, horizontal, vertical int) float64 {
 	return float64(cloudAgentOutpaintMaxLongEdge) / float64(longEdge)
 }
 
-func cloudAgentOutpaintPaint(src image.Image, padding map[string]int, scale float64, mask bool) ([]byte, int, int, error) {
-	srcW := src.Bounds().Dx()
-	srcH := src.Bounds().Dy()
+// cloudAgentOutpaintLayout 计算合成布局：目标画布尺寸 + 四边 padding（16 对齐取整差全部
+// 吸收进右/下 padding，左/上锚定；极大源图负差锂 0）。paint 与硬贴回几何（materialize 返回
+// 的 rect）共用此函数，防公式漂移（F-06 二期 2026-09-27）。
+func cloudAgentOutpaintLayout(srcW, srcH int, padding map[string]int, scale float64) (targetW, targetH, padLeft, padTop, padRight, padBottom int) {
 	snap16 := cloudAgentOutpaintSnap16
-	padLeft := int(math.Round(float64(padding["left"]) * scale))
-	padTop := int(math.Round(float64(padding["top"]) * scale))
-	padRight := int(math.Round(float64(padding["right"]) * scale))
-	padBottom := int(math.Round(float64(padding["bottom"]) * scale))
-	targetW := snap16(int(math.Round(float64(srcW)*scale)) + padLeft + padRight)
-	targetH := snap16(int(math.Round(float64(srcH)*scale)) + padTop + padBottom)
+	padLeft = int(math.Round(float64(padding["left"]) * scale))
+	padTop = int(math.Round(float64(padding["top"]) * scale))
+	padRight = int(math.Round(float64(padding["right"]) * scale))
+	padBottom = int(math.Round(float64(padding["bottom"]) * scale))
+	targetW = snap16(int(math.Round(float64(srcW)*scale)) + padLeft + padRight)
+	targetH = snap16(int(math.Round(float64(srcH)*scale)) + padTop + padBottom)
 	// 取整差全部吸收进右/下 padding，左/上 padding 保持不变（锚定语义）。
 	// 极大源图（scale ≲0.15）时 snap16 下移吸收可让右/下差为负：负 padding 会让 image.Rect
 	// 坐标翻转、mask 边缘留不透明发丝线（review 2026-09-21 P3）。负值钳 0、差额改收 target。
@@ -240,6 +241,13 @@ func cloudAgentOutpaintPaint(src image.Image, padding map[string]int, scale floa
 		targetH -= padBottom
 		padBottom = 0
 	}
+	return
+}
+
+func cloudAgentOutpaintPaint(src image.Image, padding map[string]int, scale float64, mask bool) ([]byte, int, int, error) {
+	srcW := src.Bounds().Dx()
+	srcH := src.Bounds().Dy()
+	targetW, targetH, padLeft, padTop, padRight, padBottom := cloudAgentOutpaintLayout(srcW, srcH, padding, scale)
 	canvas := image.NewNRGBA(image.Rect(0, 0, targetW, targetH))
 	if !mask {
 		// 底图：白底填满，避免 JPEG 有透明语义歧义。
@@ -272,35 +280,48 @@ func cloudAgentOutpaintPaint(src image.Image, padding map[string]int, scale floa
 	return buffer.Bytes(), targetW, targetH, nil
 }
 
+// cloudAgentOutpaintFrame 硬贴回几何（F-06 二期 2026-09-27）：源图 resource 引用 +
+// 提交画布尺寸 + 原图区归一化矩形。由 materialize 在合成处产出（与 cloudAgentOutpaintLayout
+// 同源），写入任务 metadata.outpaint 供后端贴回。
+type cloudAgentOutpaintFrame struct {
+	SourceStorageKey string
+	Width            int
+	Height           int
+	RectX0           float64
+	RectY0           float64
+	RectX1           float64
+	RectY1           float64
+}
+
 // cloudAgentOutpaintMaterialize 把源参考 + 合成结果物化为 3 个账号资源：
 // 源图重存（保持输入引用语义）、pad 底图（JPEG 压缩走独立 PNG 资源便于重试）、mask（PNG）。
 // 返回的 providerMedia 只带 StorageKey —— 与普通任务的输入形态一致。
 // scaleOverride > 0 时按该系数合成（像素档：目标可能小于源图，必须缩小到目标内）；
-// 0 表示按 padding 自动计算长边上限收缩。
-func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerMedia, padding map[string]int, scaleOverride float64) (padded providerMedia, mask *providerMedia, err error) {
+// 0 表示按 padding 自动计算长边上限收缩。geometry = 硬贴回几何（合成同一口径产出）。
+func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerMedia, padding map[string]int, scaleOverride float64) (padded providerMedia, mask *providerMedia, geometry cloudAgentOutpaintFrame, err error) {
 	if source == nil || !strings.HasPrefix(source.StorageKey, "resource:") {
-		return padded, nil, errors.New("扩图源参考必须是已保存的画布图片资产")
+		return padded, nil, geometry, errors.New("扩图源参考必须是已保存的画布图片资产")
 	}
 	resourceID := strings.TrimPrefix(source.StorageKey, "resource:")
 	_, body, err := s.OpenResource(userID, resourceID)
 	if err != nil {
-		return padded, nil, fmt.Errorf("读取扩图源图失败：%w", err)
+		return padded, nil, geometry, fmt.Errorf("读取扩图源图失败：%w", err)
 	}
 	defer body.Close()
 	var raw bytes.Buffer
 	if _, err := raw.ReadFrom(body); err != nil {
-		return padded, nil, fmt.Errorf("读取扩图源图失败：%w", err)
+		return padded, nil, geometry, fmt.Errorf("读取扩图源图失败：%w", err)
 	}
 	// 像素预检：image/png 无内建解压炸弹防护，一张合法 16384² PNG 解码即产生 ~1GiB NRGBA
 	// 缓冲（review 2026-09-21 P1）。先 DecodeConfig 读声明尺寸，超 40MP 拒绝，不做全量解码。
 	if config, _, configErr := image.DecodeConfig(bytes.NewReader(raw.Bytes())); configErr == nil {
 		if int64(config.Width)*int64(config.Height) > cloudAgentOutpaintMaxPixels {
-			return padded, nil, fmt.Errorf("扩图源图尺寸过大（%dx%d），上限 %d 百万像素", config.Width, config.Height, cloudAgentOutpaintMaxPixels/1_000_000)
+			return padded, nil, geometry, fmt.Errorf("扩图源图尺寸过大（%dx%d），上限 %d 百万像素", config.Width, config.Height, cloudAgentOutpaintMaxPixels/1_000_000)
 		}
 	}
 	src, _, err := image.Decode(bytes.NewReader(raw.Bytes()))
 	if err != nil {
-		return padded, nil, fmt.Errorf("扩图源图解码失败：%w", err)
+		return padded, nil, geometry, fmt.Errorf("扩图源图解码失败：%w", err)
 	}
 	srcW, srcH := src.Bounds().Dx(), src.Bounds().Dy()
 	scale := scaleOverride
@@ -310,27 +331,44 @@ func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerM
 
 	baseBytes, targetW, targetH, err := cloudAgentOutpaintPaint(src, padding, scale, false)
 	if err != nil {
-		return padded, nil, fmt.Errorf("合成扩图底图失败：%w", err)
+		return padded, nil, geometry, fmt.Errorf("合成扩图底图失败：%w", err)
 	}
 	// 幂等 key 必须含目标画幅：合成算法迭代（snap16 对齐等）会改变同一源图的目标尺寸，
 	// 否则命中旧尺寸的陈旧资源，底图/蒙版与提交 size 失配。
 	sizeTag := fmt.Sprintf("%dx%d", targetW, targetH)
 	baseResource, err := s.storeResourceFromBytes(userID, "image", "agent-outpaint-base.png", "image/png", baseBytes, targetW, targetH, "agent:outpaint:base:"+resourceID+":"+sizeTag)
 	if err != nil {
-		return padded, nil, fmt.Errorf("保存扩图底图失败：%w", err)
+		return padded, nil, geometry, fmt.Errorf("保存扩图底图失败：%w", err)
 	}
 	padded = providerMedia{ID: source.ID, Name: "扩图底图", Type: "image", StorageKey: "resource:" + baseResource.ID, MimeType: "image/png", Bytes: int64(len(baseBytes)), Width: targetW, Height: targetH}
 
+	// 硬贴回几何（2026-09-27）：原图绘制区 rect = (padLeft,padTop)-(padLeft+srcW×scale, padTop+srcH×scale)，
+	// 与 paint 绘制同口径（layout 同一函数 + 同一取整）；归一化到提交画布尺寸。
+	_, _, layoutLeft, layoutTop, _, _ := cloudAgentOutpaintLayout(srcW, srcH, padding, scale)
+	drawW := int(math.Round(float64(srcW) * scale))
+	drawH := int(math.Round(float64(srcH) * scale))
+	if drawW < 1 {
+		drawW = 1
+	}
+	if drawH < 1 {
+		drawH = 1
+	}
+	geometry = cloudAgentOutpaintFrame{SourceStorageKey: source.StorageKey, Width: targetW, Height: targetH}
+	geometry.RectX0 = float64(layoutLeft) / float64(targetW)
+	geometry.RectY0 = float64(layoutTop) / float64(targetH)
+	geometry.RectX1 = float64(layoutLeft+drawW) / float64(targetW)
+	geometry.RectY1 = float64(layoutTop+drawH) / float64(targetH)
+
 	maskBytes, maskW, maskH, err := cloudAgentOutpaintPaint(src, padding, scale, true)
 	if err != nil {
-		return padded, nil, fmt.Errorf("合成扩图蒙版失败：%w", err)
+		return padded, nil, geometry, fmt.Errorf("合成扩图蒙版失败：%w", err)
 	}
 	maskResource, err := s.storeResourceFromBytes(userID, "image", "agent-outpaint-mask.png", "image/png", maskBytes, maskW, maskH, "agent:outpaint:mask:"+resourceID+":"+sizeTag)
 	if err != nil {
-		return padded, nil, fmt.Errorf("保存扩图蒙版失败：%w", err)
+		return padded, nil, geometry, fmt.Errorf("保存扩图蒙版失败：%w", err)
 	}
 	mask = &providerMedia{ID: source.ID + "-mask", Name: "扩图蒙版", Type: "image", StorageKey: "resource:" + maskResource.ID, MimeType: "image/png", Bytes: int64(len(maskBytes)), Width: maskW, Height: maskH}
-	return padded, mask, nil
+	return padded, mask, geometry, nil
 }
 
 // storeResourceFromBytes 把内存字节存为账号资源（Agent 合成产物专用）：幂等 uploadIdentity
@@ -392,18 +430,18 @@ func cloudAgentOutpaintRequestedRatio(a cloudAgentMediaArgs) string {
 	return a.OutpaintRatio
 }
 
-func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a cloudAgentMediaArgs) (int, int, error) {
+func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a cloudAgentMediaArgs) (cloudAgentOutpaintFrame, error) {
 	images, _ := refs["referenceImages"].([]any)
 	if len(images) != 1 {
-		return 0, 0, BadAuthRequest("扩图必须恰好引用 1 张图片节点；多图或无图时请改用普通图生图")
+		return cloudAgentOutpaintFrame{}, BadAuthRequest("扩图必须恰好引用 1 张图片节点；多图或无图时请改用普通图生图")
 	}
 	sourceMap, _ := images[0].(map[string]any)
 	if sourceMap == nil {
-		return 0, 0, BadAuthRequest("扩图参考节点无效")
+		return cloudAgentOutpaintFrame{}, BadAuthRequest("扩图参考节点无效")
 	}
 	source := providerMedia{ID: stringValue(sourceMap["id"]), Name: stringValue(sourceMap["name"]), Type: "image", StorageKey: stringValue(sourceMap["storageKey"]), MimeType: stringValue(sourceMap["mimeType"]), Width: cloudAgentMediaInt(sourceMap["width"]), Height: cloudAgentMediaInt(sourceMap["height"])}
 	if source.Width <= 0 || source.Height <= 0 {
-		return 0, 0, BadAuthRequest("扩图参考图缺少真实尺寸")
+		return cloudAgentOutpaintFrame{}, BadAuthRequest("扩图参考图缺少真实尺寸")
 	}
 	// 审批卡选定像素档时以该像素为提交画幅（用户选择生效，与手动扩图 submitTarget 同语义）；
 	// 未选定时维持既有语义：画幅由 Agent 传的 outpaintRatio 推导。
@@ -413,30 +451,30 @@ func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a 
 	if targetW, targetH, hasPixelTarget := cloudAgentOutpaintPixelSize(a.Size); hasPixelTarget {
 		padding, scaleOverride, err = cloudAgentOutpaintPlanForTarget(source.Width, source.Height, targetW, targetH)
 		if err != nil {
-			return 0, 0, err
+			return cloudAgentOutpaintFrame{}, err
 		}
 	} else {
 		ratio, _, _ := cloudAgentOutpaintRatioValue(cloudAgentOutpaintRequestedRatio(a))
 		if ratio <= 0 {
-			return 0, 0, BadAuthRequest("扩图画幅比例无效，请传如 16:9 / 3:2 / 1.5")
+			return cloudAgentOutpaintFrame{}, BadAuthRequest("扩图画幅比例无效，请传如 16:9 / 3:2 / 1.5")
 		}
 		if ratio < cloudAgentOutpaintMinRatio || ratio > cloudAgentOutpaintMaxRatio {
-			return 0, 0, BadAuthRequest("扩图画幅比例超出合理范围（0.2 ~ 5.0），请调整后重试")
+			return cloudAgentOutpaintFrame{}, BadAuthRequest("扩图画幅比例超出合理范围（0.2 ~ 5.0），请调整后重试")
 		}
 		padding, err = cloudAgentOutpaintPlan(source.Width, source.Height, ratio)
 		if err != nil {
-			return 0, 0, err
+			return cloudAgentOutpaintFrame{}, err
 		}
 	}
-	padded, mask, err := s.cloudAgentOutpaintMaterialize(userID, &source, padding, scaleOverride)
+	padded, mask, geometry, err := s.cloudAgentOutpaintMaterialize(userID, &source, padding, scaleOverride)
 	if err != nil {
-		return 0, 0, err
+		return cloudAgentOutpaintFrame{}, err
 	}
 	refs["referenceImages"] = []any{map[string]any{"id": padded.ID, "name": padded.Name, "storageKey": padded.StorageKey, "type": padded.Type, "mimeType": padded.MimeType, "bytes": padded.Bytes, "width": padded.Width, "height": padded.Height}}
 	if mask != nil {
 		refs["mask"] = map[string]any{"id": mask.ID, "name": mask.Name, "storageKey": mask.StorageKey, "type": mask.Type, "mimeType": mask.MimeType, "bytes": mask.Bytes, "width": mask.Width, "height": mask.Height}
 	}
-	return padded.Width, padded.Height, nil
+	return geometry, nil
 }
 
 // cloudAgentMediaInt 宽容解析画布 JSON 里的数值尺寸（float64/int/string）。

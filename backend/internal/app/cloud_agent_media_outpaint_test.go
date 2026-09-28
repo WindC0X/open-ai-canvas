@@ -228,3 +228,74 @@ func TestCloudAgentOutpaintRequestedRatioHonorsCardChoice(t *testing.T) {
 		t.Fatalf("3:2 档位的目标画幅未保持比例：%dx%d", frameW, frameH)
 	}
 }
+
+// F-06 二期（2026-09-27）：layout 与 paint 输出一致，且硬贴回 rect 与 mask 不透明区逐像素对应。
+// 复验基线实测：源图 1536×1024、四边 padding 102、scale=1 → 画布 1744×1228，
+// mask 不透明区 (102,102)-(1536+102-1, 1024+102-1)。
+func TestCloudAgentOutpaintLayoutMatchesPaintAndGeometry(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 1536, 1024))
+	padding := map[string]int{"left": 102, "top": 102, "right": 102, "bottom": 102}
+	targetW, targetH, padLeft, padTop, _, _ := cloudAgentOutpaintLayout(1536, 1024, padding, 1)
+	_, paintW, paintH, err := cloudAgentOutpaintPaint(src, padding, 1, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if targetW != paintW || targetH != paintH {
+		t.Fatalf("layout %dx%d != paint %dx%d", targetW, targetH, paintW, paintH)
+	}
+	if paintW%16 != 0 || paintH%16 != 0 {
+		t.Fatalf("paint 输出未 16 对齐: %dx%d", paintW, paintH)
+	}
+	// mask 不透明区 bbox == rect 映射区（贴回几何与合成同一口径的反向证明）。
+	data, _, _, err := cloudAgentOutpaintPaint(src, padding, 1, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mask, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	minX, minY, maxX, maxY := mask.Bounds().Dx(), mask.Bounds().Dy(), -1, -1
+	for y := 0; y < mask.Bounds().Dy(); y++ {
+		for x := 0; x < mask.Bounds().Dx(); x++ {
+			if _, _, _, a := mask.At(x, y).RGBA(); a > 0x8000 {
+				if x < minX {
+					minX = x
+				}
+				if y < minY {
+					minY = y
+				}
+				if x > maxX {
+					maxX = x
+				}
+				if y > maxY {
+					maxY = y
+				}
+			}
+		}
+	}
+	if minX != padLeft || minY != padTop {
+		t.Fatalf("mask 不透明区起点 (%d,%d) != padLeft/padTop (%d,%d)", minX, minY, padLeft, padTop)
+	}
+	if maxX != padLeft+1536-1 || maxY != padTop+1024-1 {
+		t.Fatalf("mask 不透明区终点 (%d,%d) != 绘制区终点 (%d,%d)", maxX, maxY, padLeft+1535, padTop+1023)
+	}
+	// rect 归一化：与 layout 同源。
+	geometry := cloudAgentOutpaintFrame{Width: paintW, Height: paintH}
+	geometry.RectX0 = float64(padLeft) / float64(paintW)
+	geometry.RectY0 = float64(padTop) / float64(paintH)
+	geometry.RectX1 = float64(padLeft+1536) / float64(paintW)
+	geometry.RectY1 = float64(padTop+1024) / float64(paintH)
+	if got := int(math.Round(geometry.RectX0 * float64(paintW))); got != minX {
+		t.Fatalf("rect.x0 反解 = %d, want %d", got, minX)
+	}
+	if got := int(math.Round(geometry.RectY0 * float64(paintH))); got != minY {
+		t.Fatalf("rect.y0 反解 = %d, want %d", got, minY)
+	}
+	if got := int(math.Round(geometry.RectX1 * float64(paintW))); got != maxX+1 {
+		t.Fatalf("rect.x1 反解 = %d, want %d", got, maxX+1)
+	}
+	if got := int(math.Round(geometry.RectY1 * float64(paintH))); got != maxY+1 {
+		t.Fatalf("rect.y1 反解 = %d, want %d", got, maxY+1)
+	}
+}

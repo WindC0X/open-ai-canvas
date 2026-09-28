@@ -57,6 +57,12 @@ type ModelPickerProps = {
     /** 特化生成场景(如扩图)的候选集合同: 不满足 requirements 的模型直接不进列表, 而非灰显
      *  (扩图里选了也无法执行, 灰显徒增误选成本)。默认 false 保持灰显语义。 */
     hideIncompatible?: boolean;
+    /** 额外候选过滤（如扩图档位白名单，2026-09-28）：不满足的模型直接不进列表；缺省不过滤。 */
+    filterModel?: (model: string) => boolean;
+    /** 行内档位徽章（如扩图「推荐/可用」，2026-09-28）：返回 null 不渲染；缺省不渲染。 */
+    badgeForModel?: (model: string) => { label: string; tone?: "accent" | "muted"; title?: string } | null;
+    /** 空态文案覆盖（如扩图专用「当前没有支持扩图的模型」）；缺省用通用文案。 */
+    emptyLabel?: string;
 };
 
 export function ModelPicker({
@@ -78,6 +84,9 @@ export function ModelPicker({
     searchable = false,
     grouping = "channel",
     hideIncompatible = false,
+    filterModel,
+    badgeForModel,
+    emptyLabel,
 }: ModelPickerProps) {
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const pickerId = useId();
@@ -195,9 +204,10 @@ export function ModelPicker({
     );
     const options = useMemo(() => {
         const base = Array.from(new Set(selectableModelsByCapability(config, capability).filter(Boolean)));
-        if (!hideIncompatible || !selectionRequirements) return base;
-        return base.filter((model) => Boolean(compatibleModelInGroup(config, [model], selectionRequirements)));
-    }, [capability, config, hideIncompatible, selectionRequirements]);
+        const allowed = filterModel ? base.filter((model) => filterModel(model)) : base;
+        if (!hideIncompatible || !selectionRequirements) return allowed;
+        return allowed.filter((model) => Boolean(compatibleModelInGroup(config, [model], selectionRequirements)));
+    }, [capability, config, filterModel, hideIncompatible, selectionRequirements]);
     const optionGroups = useMemo(() => {
         // 分组语法: 前台(创作页)按模型家族聚(产商族, flora Providers 结构的数据诚实版);
         // 画布系统模型按渠道分组。options 已由当前有效渠道重建, 无法解析渠道的旧值直接丢弃。
@@ -422,6 +432,7 @@ export function ModelPicker({
         const pinned = pinnedModels.includes(displayModel);
         const mediaTypes = modelMediaTypes(config, displayModel, capability);
         const priceForChip = showOptionPrices && creditsEnabled ? modelMenuPrice(config, displayModel, capability, true) : null;
+        const rowBadge = badgeForModel?.(displayModel) ?? null;
         return (
             <div key={groupLabel + ":" + modelGroup.key} className="canvas-model-picker-rowgroup">
                 <button
@@ -471,6 +482,14 @@ export function ModelPicker({
                             disabledReason={disabledReason}
                             inlineBadges={(
                                 <>
+                                    {rowBadge ? (
+                                        <span
+                                            className={cn("canvas-model-picker-chip canvas-model-picker-chip-text", rowBadge.tone === "accent" && "is-accent")}
+                                            title={rowBadge.title ?? rowBadge.label}
+                                        >
+                                            {rowBadge.label}
+                                        </span>
+                                    ) : null}
                                     {priceForChip ? <ModelPrice price={priceForChip} chip /> : null}
                                     {mediaTypes.map((item) => (
                                         <span key={item.kind} className="canvas-model-picker-chip canvas-model-picker-chip-icon" title={item.label}>
@@ -659,7 +678,7 @@ export function ModelPicker({
             {MenuBody()}
             {drillMode === "flat" && !visibleGroups.length ? (
                 <div className="canvas-model-picker-empty" style={{ color: theme.node.muted }}>
-                    {emptyModelLabel(config, capability)}
+                    {emptyLabel ?? emptyModelLabel(config, capability)}
                 </div>
             ) : null}
         </div>

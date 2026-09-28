@@ -253,6 +253,11 @@ func (w *taskWorkerCoordinator) processClaimedTask(task *model.Task, globalSlot 
 	}
 	providerSucceeded := routeResult.providerSucceeded
 	if err == nil {
+		// F-06 二期硬贴回（2026-09-27 裁决）：扩图任务在结果入库前把非生成区贴回原图像素；
+		// 失败/缺几何/失真超阈一律原样返回 + 日志，不阻断任务（见 task_outpaint_hardblend.go）。
+		result = s.applyOutpaintHardBlend(task, result)
+	}
+	if err == nil {
 		result, err = s.persistGeneratedMediaResult(task.UserID, result)
 	}
 	if err == nil {

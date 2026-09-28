@@ -185,6 +185,10 @@ func (s *Service) materializeTaskMedia(ctx context.Context, task *model.Task, co
 	if _, err := s.mediaTaskProject(task); err != nil {
 		return nil, &mediaRecoveryError{stage: "register", cause: err}
 	}
+	var hardBlend *outpaintMediaBlend
+	if checkpoint.Mode == "image" {
+		hardBlend = s.prepareOutpaintHardBlend(task)
+	}
 	items := make([]interface{}, 0, len(checkpoint.Items))
 	for index := range checkpoint.Items {
 		item := &checkpoint.Items[index]
@@ -217,6 +221,10 @@ func (s *Service) materializeTaskMedia(ctx context.Context, task *model.Task, co
 				if err := s.saveMediaCheckpoint(task, checkpoint, "download"); err != nil {
 					return nil, err
 				}
+			}
+			// F-06 二期硬贴回：结果图入库前回贴原图区像素（媒体物化唯一漏斗，正常执行与断点恢复共用）。
+			if hardBlend != nil {
+				path, item.MIMEType = s.applyOutpaintHardBlendToMediaFile(task, hardBlend, path, item.MIMEType)
 			}
 			stage := "local_save"
 			_, _, oss, settingErr := s.activeResourceOSSSetting(task.UserID)

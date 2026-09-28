@@ -670,6 +670,8 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	}
 	// 扩图提交画幅（prepare 解出后写进 plan，节点标题/metadata 用真值）。
 	outpaintFrameW, outpaintFrameH := 0, 0
+	// 硬贴回几何（F-06 二期 2026-09-27）：扩图任务写入 metadata.outpaint，执行链据此回贴原图像素。
+	var outpaintHardBlendMeta map[string]any
 	// 扩图：恰好 1 张图片参考时，服务端合成 pad 底图 + mask 并物化为资源后替换参考，
 	// 后续路由/校验/计价/执行与 image_to_image 完全同构（输入只有 resource 引用）。
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
@@ -683,19 +685,25 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 		if capErr := cloudAgentOutpaintCapabilityCheck(spec); capErr != nil {
 			return CreateTaskRequest{}, nil, capErr
 		}
-		targetW, targetH, err := s.applyCloudAgentOutpaint(run.UserID, input, a)
+		frame, err := s.applyCloudAgentOutpaint(run.UserID, input, a)
 		if err != nil {
 			return CreateTaskRequest{}, nil, err
 		}
 		// 扩图目标画幅 = pad 后精确像素（16 倍数对齐），显式覆盖渠道默认 size ——
 		// 上游 edits 端点要 WxH 格式，ratio 形式或渠道默认值都会被拒。
 		if cfg, ok := input["config"].(map[string]any); ok {
-			cfg["size"] = fmt.Sprintf("%dx%d", targetW, targetH)
+			cfg["size"] = fmt.Sprintf("%dx%d", frame.Width, frame.Height)
 		}
-		outpaintFrameW, outpaintFrameH = targetW, targetH
+		outpaintFrameW, outpaintFrameH = frame.Width, frame.Height
 		// 标题按最终画幅生成（用户裁定 2026-09-21）：扩图节点一眼可辨画幅，用户在审批卡改档位
 		// 后标题随 prepare 重新求值而更新；此前沿用 Agent 写的 "扩图结果 16:9"，与真实画幅脱节。
-		a.Title = cloudAgentOutpaintTitle(targetW, targetH)
+		a.Title = cloudAgentOutpaintTitle(frame.Width, frame.Height)
+		// 硬贴回几何：源图 resource 引用 + 原图区归一化 rect + 提交画布尺寸（合成处同源产出）。
+		outpaintHardBlendMeta = map[string]any{
+			"sourceStorageKey": frame.SourceStorageKey,
+			"rect":             map[string]any{"x0": frame.RectX0, "y0": frame.RectY0, "x1": frame.RectX1, "y1": frame.RectY1},
+			"frame":            map[string]any{"width": frame.Width, "height": frame.Height},
+		}
 	}
 	operation := cloudAgentMediaOperation(a.Mode, input)
 	if a.Mode == "image" && strings.TrimSpace(a.OutpaintRatio) != "" {
@@ -707,6 +715,10 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	metadata := map[string]any{"nodeId": a.NodeID, "source": "cloud_agent"}
 	if a.Mode == "video" {
 		metadata["videoEditOperation"] = operation
+	}
+	// 硬贴回（F-06 二期）：仅扩图任务带几何块；缺省即开启，关断仅限 metadata 直写（裁决①）。
+	if outpaintHardBlendMeta != nil {
+		metadata["outpaint"] = outpaintHardBlendMeta
 	}
 	input["metadata"] = metadata
 	transientSnapshot := map[string]cloudAgentTransientReference{}

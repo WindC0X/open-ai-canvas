@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { ModelPicker } from "@/components/model-picker";
 import { CreditSymbol } from "@/constant/credits";
 import { defaultImageParamsForModel } from "@/lib/model-selection";
-import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
+import { isOutpaintEligible, modelCapabilityConfigFor, outpaintTierBadge, outpaintTierRank } from "@/lib/model-capabilities";
 import { modelQuoteRequest, requestCreditCost } from "@/lib/model-pricing";
 import {
     buildImageResolutionOptions,
@@ -14,9 +14,9 @@ import {
     type ImageResolutionChoice,
     type ImageResolutionTier,
 } from "@/lib/image-resolution-tiers";
-import { describeOutpaintSize, parseRatioValue, relocateOutpaintPadding, resolveDragAxis, resolveOutpaintClipHole, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type FrameAxis, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
+import { describeOutpaintSize, nearestAspectRatioValue, parseRatioValue, relocateOutpaintPadding, resolveDragAxis, resolveOutpaintClipHole, resolveOutpaintPadding, resolveOutpaintPaddingForRatio, resolveOutpaintTargetPx, snapOutpaintTargetSize, type FrameAxis, type OutpaintDragEdge, type OutpaintPadding } from "@/lib/canvas/canvas-outpaint-geometry";
 import { CANVAS_NODE_DRAG_PREVIEW_EVENT, subscribeCanvasViewportPreview, type CanvasNodeDragPreview } from "@/lib/canvas/canvas-live-viewport";
-import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
+import { modelOptionName, resolveModelChannel, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { quoteLogicalModel } from "@/services/api/logical-models";
 import type { CanvasNodeData } from "@/types/canvas";
@@ -51,6 +51,8 @@ const ORIGINAL_RATIO_KEY = "original";
 
 // 通用比例组（size.parameter 非 aspect_ratio 的模型走这组，只约束框几何，不进提交参数）。
 const GENERIC_RATIO_OPTIONS = ["1:1", "4:3", "3:4", "16:9", "9:16"];
+// 扩图专属空态/禁用文案（2026-09-28 用户裁定：白名单为空须明示，不静默失败）。
+const NO_ELIGIBLE_OUTPAINT_MESSAGE = "当前没有支持扩图的模型";
 
 const CORNER_HANDLES: Array<{ edge: OutpaintDragEdge; className: string }> = [
     { edge: "topLeft", className: "-left-1.5 -top-1.5 cursor-nwse-resize" },
@@ -155,7 +157,31 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
         expandingTimerRef.current = window.setTimeout(() => setExpanding(false), 420);
     }, []);
     const [ratioKey, setRatioKey] = useState<string>(ORIGINAL_RATIO_KEY);
-    const [model, setModel] = useState<string>(node?.metadata?.model || config.model);
+    // 扩图白名单（2026-09-28 用户裁定）：只有「推荐/可用」档模型进入扩图模型槽（硬过滤）。
+    // 排序：推荐档优先（默认选中第一个=推荐），同档保持配置顺序（sort 稳定）。
+    const eligibleModels = useMemo(
+        () =>
+            selectableModelsByCapability(config, "image")
+                .filter((candidate) => isOutpaintEligible(modelCapabilityConfigFor(config, candidate).image))
+                .sort((a, b) => outpaintTierRank(modelCapabilityConfigFor(config, a).image?.outpaintTier) - outpaintTierRank(modelCapabilityConfigFor(config, b).image?.outpaintTier)),
+        [config],
+    );
+    const filterOutpaintModel = useCallback((candidate: string) => eligibleModels.includes(candidate), [eligibleModels]);
+    const outpaintBadgeForModel = useCallback(
+        (candidate: string) => outpaintTierBadge(modelCapabilityConfigFor(config, candidate).image?.outpaintTier),
+        [config],
+    );
+    const [model, setModel] = useState<string>(() => {
+        for (const candidate of [node?.metadata?.model, config.model]) {
+            if (candidate && eligibleModels.includes(candidate)) return candidate;
+        }
+        return eligibleModels[0] || "";
+    });
+    // 配置异步到达 / 遗留非白名单值时校正选中模型。
+    useEffect(() => {
+        if (!eligibleModels.length) return;
+        if (!model || !eligibleModels.includes(model)) setModel(eligibleModels[0]);
+    }, [eligibleModels, model]);
     const [sizeValue, setSizeValue] = useState<string>("");
     const [qualityValue, setQualityValue] = useState<string>("");
     const [count, setCount] = useState(1);
@@ -171,7 +197,8 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     // 会回落默认能力域，不能用 imageProfile 是否存在判定“已选模型”。
     const hasModel = Boolean(model);
     const imageProfile = useMemo(() => (hasModel ? modelCapabilityConfigFor(config, model).image : undefined), [config, hasModel, model]);
-    const canExecute = hasModel && (imageProfile?.references?.maxImages ?? 0) >= 1;
+    const canExecute = hasModel && (imageProfile?.references?.maxImages ?? 0) >= 1 && isOutpaintEligible(imageProfile);
+    const noEligibleModels = eligibleModels.length === 0;
     const countMax = Math.max(1, Math.min(4, imageProfile?.references?.maxImages ?? 1));
     const countOptions = Array.from({ length: countMax }, (_, index) => index + 1);
     const sizeParameter = imageProfile?.size?.parameter;
@@ -250,8 +277,13 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
     const lockedRatio = lockedRatioKey === ORIGINAL_RATIO_KEY ? contentRatio : parseRatioValue(lockedRatioKey ?? "");
     const submitSize =
         sizeParameter === "aspect_ratio"
-            ? // 原图比例不是模型枚举值 → 提交模型默认；枚举档位直接提交。
-              sizeOptions.includes(lockedRatioKey ?? "") ? (lockedRatioKey as string) : sizeFallback
+            ? // 枚举档位直接提交；「原图比例」不在枚举内时就近取枚举（验收修复 2026-09-27：
+              // 此前回落模型默认，nano 原图 3:2 被静默换成 1:1 出方图），仍无解才回落模型默认。
+              sizeOptions.includes(lockedRatioKey ?? "")
+                  ? (lockedRatioKey as string)
+                  : lockedRatioKey === ORIGINAL_RATIO_KEY
+                    ? (nearestAspectRatioValue(sizeOptions, contentRatio) ?? sizeFallback)
+                    : sizeFallback
             : sizeParameter === "size"
               ? // 比例锁定 + 分辨率档 → 渠道配置的精确像素；自由比例或 auto → 模型自选（auto）。
                 selectedTier !== "auto" && lockedRatioKey
@@ -852,7 +884,12 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                         capability="image"
                         // 扩图合同：模型必须能接收底图参考（maxImages>=1），maxImages=0 的纯文生图
                         // 模型（如 grok-imagine-image-2.0）直接不进列表，而非灰显（2026-09-20 用户反馈）。
+                        // 叠加档位白名单（2026-09-28 用户裁定）：仅「推荐/可用」出现，未认证不进列表。
                         requirements={{ capability: "image", input: { textCount: 1, imageCount: 1, videoCount: 0, audioCount: 0, characterCount: 0 } }}
+                        filterModel={filterOutpaintModel}
+                        badgeForModel={outpaintBadgeForModel}
+                        emptyLabel={NO_ELIGIBLE_OUTPAINT_MESSAGE}
+                        placeholder={noEligibleModels ? NO_ELIGIBLE_OUTPAINT_MESSAGE : undefined}
                         hideIncompatible
                         placement="topRight"
                         variant="creation"
@@ -969,7 +1006,7 @@ export function CanvasNodeOutpaintOverlay({ node, containerRef, config, onClose,
                     disabled={!canExecute}
                     onClick={handleExecute}
                     style={{ "--canvas-composer-submit-action": "var(--primary)", "--canvas-composer-submit-action-fg": "var(--primary-foreground)" } as CSSProperties}
-                    aria-label={canExecute ? `预计消耗 ${credits} 积分，执行扩图` : "当前模型不支持扩图，请更换模型"}
+                    aria-label={canExecute ? `预计消耗 ${credits} 积分，执行扩图` : noEligibleModels ? NO_ELIGIBLE_OUTPAINT_MESSAGE : "当前模型不支持扩图，请更换模型"}
                 >
                     {canExecute && creditsEnabled ? (
                         <span className="canvas-node-composer-submit-cost">

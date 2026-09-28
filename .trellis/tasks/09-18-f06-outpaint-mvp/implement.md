@@ -285,7 +285,7 @@
 
 **A. 前端管线（纯前端，无后端/配置依赖）**
 
-- [ ] **A1 原图硬贴回保真**（收益最大，二期第一项）：结果落图前把原内容像素按 padding 几何硬贴回结果图（diffusers padding_mask_crop/apply_overlay 语义）。扩图保真从"求模型配合"升级为"模型只是扩区内容提供者"；对 maskSupported=false 指令式模型必备；天然免疫渠道改幅（原图区像素我方贴回）。纯 canvas 后处理。
+- [x] **A1 原图硬贴回保真**（2026-09-27 由二期专项落地，**后端链方案**而非纯前端）：结果入库前按任务 `metadata.outpaint`{sourceStorageKey, rect, frame} 硬贴回原图区（diffusers padding_mask_crop/apply_overlay 语义），默认开启 + metadata 关断、无 UI；挂媒体物化漏斗 `app/task_outpaint_hardblend.go`（含 Agent 链同源 rect）。3 真实渠道重跑贴回区 changed 75%→0.00%（证据见 09-27-f06-hardblend/implement.md）；待用户真机主观确认。
 - [ ] A2 渐进外推提示：单边 >40% 短边比或面积 >2x 时参数条提示分次扩图（火山官方文档阈值背书）。
 - [ ] A3 mask 羽化过渡带（padImageToDataUrl mask 模式，ComfyUI feathering 默认 40 为经验锚点，按目标分辨率折算）。
 - [ ] A4 pad 底色升级：0.5 灰/平均色/镜像选项替换默认纯白（依赖 D1 配置化；官方节点填灰 + A1111 平均色实践）。

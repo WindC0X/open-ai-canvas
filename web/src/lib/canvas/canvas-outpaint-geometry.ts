@@ -257,6 +257,25 @@ export function parseRatioValue(value: string): number | null {
     return Number.isFinite(decimal) && decimal > 0 ? decimal : null;
 }
 
+// 「原图比例」在 aspect_ratio 制模型（nano/grok 枚举）下的就近映射（验收修复 2026-09-27）：
+// 之前不在枚举内直接回落模型默认，1.5 的原图会被静默换成 1:1 方图输出。
+// 距离 = |log(候选/目标)|（对数域对称）；跳过不可解析值与非正值；全无解返回 null。
+export function nearestAspectRatioValue(values: string[], ratio: number): string | null {
+    if (!Number.isFinite(ratio) || ratio <= 0) return null;
+    let best: string | null = null;
+    let bestDistance = Infinity;
+    for (const value of values) {
+        const parsed = parseRatioValue(value);
+        if (parsed === null || parsed <= 0) continue;
+        const distance = Math.abs(Math.log(parsed / ratio));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = value;
+        }
+    }
+    return best;
+}
+
 // 拖动图片 = 扩图框内重定位（用户裁定 2026-09-19）：框不跟拖，仅四边 padding 相互转移。
 // 图片右移 dx>0 → left 增、right 减；右 pad 耗尽后差额转为框扩展（贴边续拖 = 框随图扩）。
 // ratio 锁定时外扩总量守恒（只转移不扩展），避免拖图破坏锁定比例。
@@ -326,5 +345,69 @@ export function resolveOutpaintClipHole(params: {
         y: params.nodeRect.top - params.containerRect.top - params.frameOffset.top,
         width: params.nodeRect.width,
         height: params.nodeRect.height,
+    };
+}
+
+// ── 硬贴回几何（F-06 二期 2026-09-27）─────────────────────────────────────────
+// 原图区在提交画布中的归一化矩形 + 提交画布尺寸，任务 metadata.outpaint 的几何真源。
+// 必须与 padImageToDataUrl（canvas-image-data.ts）的取整逐项一致：后端按 rect×结果尺寸
+// 反解贴回区域，合成与描述漂移会直接表现为贴回边界错位（2px 过渡带只能吸收取整差）。
+export type OutpaintSubmitGeometry = {
+    frame: { width: number; height: number };
+    rect: { x0: number; y0: number; x1: number; y1: number };
+};
+
+export function resolveOutpaintSubmitGeometry(
+    imageWidth: number,
+    imageHeight: number,
+    padding: OutpaintPadding,
+    options?: { target?: { width: number; height: number } | null; maxLongEdge?: number },
+): OutpaintSubmitGeometry | null {
+    const imageW = Math.max(1, Math.round(imageWidth));
+    const imageH = Math.max(1, Math.round(imageHeight));
+    const left = Math.max(0, Math.round(padding.left));
+    const top = Math.max(0, Math.round(padding.top));
+    const right = Math.max(0, Math.round(padding.right));
+    const bottom = Math.max(0, Math.round(padding.bottom));
+    const fullWidth = imageW + left + right;
+    const fullHeight = imageH + top + bottom;
+    const target = options?.target;
+    let frameW: number;
+    let frameH: number;
+    let dx: number;
+    let dy: number;
+    let dw: number;
+    let dh: number;
+    if (target && target.width > 0 && target.height > 0) {
+        // target 模式（与 padImageToDataUrl 同源）：两轴 k 分别解，取整差吸收进画布右/下。
+        const kx = target.width / fullWidth;
+        const ky = target.height / fullHeight;
+        frameW = Math.max(1, Math.round(target.width));
+        frameH = Math.max(1, Math.round(target.height));
+        dx = Math.round(left * kx);
+        dy = Math.round(top * ky);
+        dw = Math.max(1, Math.round(imageW * kx));
+        dh = Math.max(1, Math.round(imageH * ky));
+    } else {
+        // free 模式：整体等比缩（context.scale(scale) + drawImage(image, left, top)，绘制区为浮点）。
+        const maxLongEdge = options?.maxLongEdge ?? 0;
+        const scale = maxLongEdge > 0 ? Math.min(1, maxLongEdge / Math.max(fullWidth, fullHeight)) : 1;
+        frameW = Math.max(1, Math.round(fullWidth * scale));
+        frameH = Math.max(1, Math.round(fullHeight * scale));
+        dx = left * scale;
+        dy = top * scale;
+        dw = imageW * scale;
+        dh = imageH * scale;
+    }
+    if (!frameW || !frameH) return null;
+    const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+    return {
+        frame: { width: frameW, height: frameH },
+        rect: {
+            x0: clamp01(dx / frameW),
+            y0: clamp01(dy / frameH),
+            x1: clamp01((dx + dw) / frameW),
+            y1: clamp01((dy + dh) / frameH),
+        },
     };
 }

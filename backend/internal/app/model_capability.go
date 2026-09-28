@@ -40,6 +40,13 @@ type TextReferenceConfig struct {
 	MaxVideoBytes  int64 `json:"maxVideoBytes"`
 }
 
+// 扩图工具白名单档位（2026-09-28 用户裁定：白名单硬过滤，仅推荐/可用进入扩图模型槽）。
+const (
+	ImageOutpaintTierRecommended = "recommended"
+	ImageOutpaintTierCapable     = "capable"
+	ImageOutpaintTierUncertified = "uncertified"
+)
+
 type ImageCapabilityConfig struct {
 	References            ImageReferenceConfig `json:"references"`
 	Size                  ImageSizeConfig      `json:"size"`
@@ -48,6 +55,8 @@ type ImageCapabilityConfig struct {
 	ResponseFormat        ParameterSupport     `json:"responseFormat"`
 	OutputFormat          ParameterSupport     `json:"outputFormat"`
 	MaxOutputs            int                  `json:"maxOutputs"`
+	// OutpaintTier 扩图档位；空值=未认证（不进扩图列表），非空值为显式档位（normalize 不覆写）。
+	OutpaintTier string `json:"outpaintTier,omitempty"`
 }
 
 type ImageReferenceConfig struct {
@@ -137,6 +146,22 @@ func videoDurationSupported(value *VideoCapabilityConfig) bool {
 	return value == nil || value.DurationSupported == nil || *value.DurationSupported
 }
 
+// applyOutpaintTierSeed 按模型名播种扩图档位：nano 族默认「推荐」（2026-09-28 实测主体保持与
+// 扩展区最佳；nano-banana-2 ≡ gemini-3.1-flash-image 同底归一）；其余保持空=未认证。
+// 非空值视为显式档位，不覆写。
+func applyOutpaintTierSeed(image *ImageCapabilityConfig, modelName string) {
+	if image == nil || strings.TrimSpace(image.OutpaintTier) != "" {
+		return
+	}
+	normalized := strings.ToLower(strings.TrimSpace(modelName))
+	for _, name := range []string{"nano-banana-2", "nano-banana2", "gemini-3.1-flash-image"} {
+		if strings.Contains(normalized, name) {
+			image.OutpaintTier = ImageOutpaintTierRecommended
+			return
+		}
+	}
+}
+
 func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapabilityConfig {
 	image := &ImageCapabilityConfig{
 		References:            ImageReferenceConfig{PromptMaxChars: 32000, MaxImages: 16, MaxImageBytes: 30 * 1024 * 1024, MaskSupported: true},
@@ -190,6 +215,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.OutputFormat = ParameterSupport{Supported: false}
 		image.MaxOutputs = 1
 	}
+	applyOutpaintTierSeed(image, modelName)
 	return image
 }
 
@@ -348,6 +374,7 @@ func NormalizeModelCapabilityConfigForModel(capability string, protocol string, 
 		if input == nil || input.Image == nil {
 			return nil, BadAuthRequest("请配置图片模型能力参数")
 		}
+		applyOutpaintTierSeed(input.Image, modelName)
 		value := &ModelCapabilityConfig{Version: 1, Image: input.Image}
 		if err := validateImageCapabilityConfig(value.Image); err != nil {
 			return nil, err
@@ -566,6 +593,11 @@ func validateTextCapabilityConfig(value *TextCapabilityConfig) error {
 }
 
 func validateImageCapabilityConfig(value *ImageCapabilityConfig) error {
+	switch value.OutpaintTier {
+	case "", ImageOutpaintTierRecommended, ImageOutpaintTierCapable, ImageOutpaintTierUncertified:
+	default:
+		return BadAuthRequest("扩图档位仅支持 recommended、capable 或 uncertified")
+	}
 	if value.References.PromptMaxChars < 1 || value.References.PromptMaxChars > 1000000 {
 		return BadAuthRequest("提示词最大字符数必须在 1-1000000 之间")
 	}

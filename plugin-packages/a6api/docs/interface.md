@@ -18,7 +18,7 @@ POST `https://api.a6api.com/images/generations`
 
 请求体：`model`、`prompt`、`n`、`size`、`quality`、`response_format`。
 
-响应 `data[].url` 或 `data[].b64_json`。
+响应 `data[].url` 或 `data[].b64_json`；部分转售渠道以 chat 兼容壳返回（`choices[0].message.content` 为图片 URL），插件在无标准 `data` 时自动兼容。
 
 ## 图像编辑
 
@@ -473,35 +473,63 @@ GET `https://api.a6api.com/models`
         "response": {
           "status": "succeeded",
           "images": {
-            "$map": {
-              "from": {
-                "$ref": "response.data"
-              },
-              "as": "item",
-              "in": {
-                "url": {
-                  "$omitEmpty": {
-                    "$ref": "item.url"
-                  }
-                },
-                "dataUrl": {
-                  "$if": {
-                    "condition": {
-                      "$ref": "item.b64_json"
+            "$concatArrays": [
+              {
+                "$map": {
+                  "from": {
+                    "$ref": "response.data"
+                  },
+                  "as": "item",
+                  "in": {
+                    "url": {
+                      "$omitEmpty": {
+                        "$ref": "item.url"
+                      }
                     },
-                    "then": {
-                      "$concat": [
-                        "data:image/png;base64,",
-                        {
+                    "dataUrl": {
+                      "$if": {
+                        "condition": {
                           "$ref": "item.b64_json"
-                        }
-                      ]
-                    },
-                    "else": null
+                        },
+                        "then": {
+                          "$concat": [
+                            "data:image/png;base64,",
+                            {
+                              "$ref": "item.b64_json"
+                            }
+                          ]
+                        },
+                        "else": null
+                      }
+                    }
                   }
                 }
+              },
+              {
+                "$if": {
+                  "condition": {
+                    "$and": [
+                      {
+                        "$not": {
+                          "$ref": "response.data"
+                        }
+                      },
+                      {
+                        "$ref": "response.choices.0.message.content"
+                      }
+                    ]
+                  },
+                  "then": [
+                    {
+                      "url": {
+                        "$ref": "response.choices.0.message.content"
+                      }
+                    }
+                  ],
+                  "else": []
+                }
               }
-            }
+            ]
           },
           "usage": {
             "$ref": "response.usage"

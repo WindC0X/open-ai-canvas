@@ -45,7 +45,7 @@ import { buildVideoFrameNodes } from "@/lib/canvas/canvas-video-frame-nodes";
 import { mergeVideos, type MergeVideoProgress } from "@/lib/canvas/canvas-video-merge";
 import { extractVideoAudio, trimVideoSegment } from "@/lib/canvas/canvas-video-segment";
 import { generationErrorMessage } from "@/lib/generation-error";
-import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
+import { isOutpaintEligible, modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import { defaultImageParamsForModel } from "@/lib/model-selection";
 import { navigateToSettings } from "@/lib/settings-navigation";
 import { storeGeneratedVideo } from "@/services/api/video";
@@ -843,6 +843,10 @@ export function useCanvasMediaTools({
             message.error("当前图片模型不支持扩图，请选择支持图像编辑的模型");
             return;
         }
+        if (!isOutpaintEligible(selectedImageProfile)) {
+            message.error("当前模型未认证扩图，请在渠道管理中调整扩图档位");
+            return;
+        }
         const generationConfig = {
             ...baseGenerationConfig,
             ...payload.generationConfig,
@@ -872,10 +876,12 @@ export function useCanvasMediaTools({
         // rejection —— 无提示、扩图聚焦态卡死（review 2026-09-21 P2）。
         let paddedSource: string;
         let maskDataUrl: string | undefined;
+        let outpaintGeometry: Awaited<ReturnType<typeof buildOutpaintSubmitVariants>>["geometry"] = null;
         try {
             const variants = await buildOutpaintSubmitVariants(node.metadata.content, payload.paddingPx, maskSupported, { target: payload.submitTarget });
             paddedSource = variants.source;
             maskDataUrl = variants.mask;
+            outpaintGeometry = variants.geometry;
         } catch (cause) {
             setOutpaintNodeId(null);
             message.error(cause instanceof Error ? cause.message : "扩图底图合成失败");
@@ -897,14 +903,28 @@ export function useCanvasMediaTools({
         // 任务中心重试降级成无蒙版整图编辑，语义静默丢失 — review 2026-09-21 P2）。
         let maskUpload: Awaited<ReturnType<typeof uploadImage>> | null = null;
         try {
-            maskUpload = maskDataUrl ? await uploadImage(maskDataUrl) : null;
-        } catch (cause) {
+            maskUpload = maskDataUrl ? await uploadImage(maskDataUrl) : null;        } catch (cause) {
             // 可见提示：maskSupported 路径的提示词承诺"仅生成透明新增区域"，静默降级成整图编辑
             // 与用户预期不符，且重试链也拿不到 mask（review 2026-09-21 P3）。
             console.warn("[outpaint] mask upload failed; retry will degrade", cause);
             message.warning("蒙版上传失败：本次按整图编辑提交，扩图重试也无法恢复蒙版");
         }
         const source = { id: node.id, name: `outpaint-${node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: paddedSource, storageKey: paddedUpload.storageKey };
+        // 硬贴回像素源（F-06 二期 2026-09-27）：节点已有 resource 引用直接复用（零上传）；
+        // 无引用（如纯 dataUrl 粘贴节点）才物化一次。失败不回滚提交——贴回缺失由后端跳过+日志，
+        // 但正常路径（本链）必须保证带上，否则重试链/主链贴回都不会发生。
+        let outpaintSourceStorageKey = node.metadata.storageKey || "";
+        if (outpaintGeometry && !outpaintSourceStorageKey) {
+            try {
+                const sourceUpload = await uploadImage(node.metadata.content);
+                outpaintSourceStorageKey = sourceUpload.storageKey;
+            } catch (cause) {
+                console.warn("[outpaint] source upload failed; hardblend geometry omitted", cause);
+            }
+        }
+        const outpaintMetadata = outpaintGeometry && outpaintSourceStorageKey
+            ? { sourceStorageKey: outpaintSourceStorageKey, rect: outpaintGeometry.rect, frame: outpaintGeometry.frame }
+            : undefined;
         const styleExecution = resolveImageEditStyle(node, prompt, generationConfig);
         if (!styleExecution) return;
         const { prompt: effectivePrompt, metadata: styleMetadata } = styleExecution;
@@ -949,6 +969,9 @@ export function useCanvasMediaTools({
                 manualSize: true,
                 // mask 物化引用：重试链从 metadata 恢复蒙版，语义不降级（review 2026-09-21）。
                 outpaintMaskStorageKey: maskUpload?.storageKey,
+                // 硬贴回几何与像素源（F-06 二期 2026-09-27）：重试链恢复 metadata.outpaint 用，不丢贴回。
+                outpaintSourceStorageKey: outpaintMetadata?.sourceStorageKey,
+                outpaintGeometry: outpaintGeometry ?? undefined,
             },
         };
         const childNodes: CanvasNodeData[] = childIds.map((id, index) => ({
@@ -969,6 +992,8 @@ export function useCanvasMediaTools({
                 edit: "outpaint",
                 manualSize: true,
                 outpaintMaskStorageKey: maskUpload?.storageKey,
+                outpaintSourceStorageKey: outpaintMetadata?.sourceStorageKey,
+                outpaintGeometry: outpaintGeometry ?? undefined,
             },
         }));
         setRunningNodeId(rootId);
@@ -993,7 +1018,7 @@ export function useCanvasMediaTools({
                         referenceImages: [source],
                         ...(maskDataUrl ? { mask: { id: `${node.id}-outpaint-mask`, name: "outpaint-mask.png", type: "image/png", dataUrl: maskDataUrl } } : {}),
                         signal: controller.signal,
-                        metadata: { sourceNodeId: node.id, edit: "outpaint", ...styleMetadata },
+                        metadata: { sourceNodeId: node.id, edit: "outpaint", ...(outpaintMetadata ? { outpaint: outpaintMetadata } : {}), ...styleMetadata },
                         onTaskCreated: (task) => bindGenerationTask(targetId, task),
                     });
                     const image = result.images?.find((item) => item?.dataUrl);
