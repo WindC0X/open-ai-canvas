@@ -117,3 +117,10 @@ W3 第三轻量枝（控制线 2026-09-27 任务书）：在 `feat/onboarding-ec
 - 修三件：① useToolHoverCard suppression 状态归零（清三计时器 + setState(initial)）；② create-menu 按钮 :focus-visible 门控 + mousedown 清焦（防 focused 滞留）；③ O-03：size 模型实际像素判达标 + 不支持比例 short 诚实提示 + applyPreset 绝不静默写 size。
 - 守卫 5 项 + 真机 09 场景闭环（创建节点 cards:0、可点击、撤销复原）；门禁照旧。
 - 去向：批内 merge 进 merge-v1.5.9 → 测试线 VRT 重跑 + 基线重采裁定。
+
+## 2026-09-28 rider：选中态预设 chip 遮 dock「添加节点」（micro-fix）
+
+- 缺陷：选中图片节点 → composer 挂件（z150）压过 dock 带（z30），面板行拦截「添加节点」点击（测试线 55+ 重试全被拦；B 项连续创建失败同源）。
+- 侦察：拦截者随几何变化（header 空带 / textarea 边 / 预设 chip 三种实测）；单元素 pe 修正不满足验收不变式；z 对拍禁止；带裁切伤 footer → 面板层让位修法。
+- 修：CanvasNodePanelOverlay 让位（clampPanelTopAboveDock；--canvas-dock-popover-offset − 6 安全缝）；update()/wait 拍双接线。
+- 验证：真机不变式成立 + 菜单真点 + ✕ 可用 + 像素取证；门禁照旧。去向：批内 merge 后测试线复验 A/B。
