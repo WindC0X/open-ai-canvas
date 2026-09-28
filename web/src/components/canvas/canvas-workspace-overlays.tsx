@@ -97,31 +97,6 @@ export function CanvasSelectionToolbar({ anchorRef, containerRef, count, childre
     );
 }
 
-/** rider（选中态遮挡 dock 修复，控制线 2026-09-28）：dock 带偏移的回退值，与 globals --canvas-dock-popover-offset 同源。 */
-const DOCK_BAND_OFFSET_FALLBACK = 50;
-/** rider：挂件底缘与 dock 带之间保留的安全缝。 */
-const DOCK_BAND_CLEARANCE = 6;
-
-/** rider：dock 带以上的可占据底缘 = 容器高 − dock 偏移 − 安全缝。 */
-export function resolvePanelDockClearBottom(containerHeight: number, dockBandOffset: number): number {
-    return containerHeight - (Number.isFinite(dockBandOffset) ? dockBandOffset : DOCK_BAND_OFFSET_FALLBACK) - DOCK_BAND_CLEARANCE;
-}
-
-/**
- * rider（选中态遮挡 dock 修复，控制线 2026-09-28 令）：挂件自然落点底缘越过 dock 带时上抬让位。
- * 根因：选中态 composer 挂件（z 高于 dock 带）下探到 dock 热区时，面板任意行（header 空带 / textarea 边 /
- * 预设 chip 等）都会拦截 dock 按钮的命中（elementFromPoint 命中面板而非按钮）。让位在「面板」层完成：
- * 面板本体不裁切、不降 z、不牺牲 footer 控件；dock 全局工具（添加节点等）在面板贴附时仍可点击。
- */
-export function clampPanelTopAboveDock(attachedTop: number, panelHeight: number, containerHeight: number, dockBandOffset: number): number {
-    return Math.min(attachedTop, Math.max(0, resolvePanelDockClearBottom(containerHeight, dockBandOffset) - panelHeight));
-}
-
-/** rider：读取当前 dock 带偏移（消费既有 CSS 变量，不引入新数字）。 */
-function readDockBandOffset(): number {
-    return Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--canvas-dock-popover-offset"));
-}
-
 export function CanvasNodePanelOverlay({
     node,
     viewport,
@@ -176,13 +151,6 @@ export function CanvasNodePanelOverlay({
             panel.style.transition = "none";
             panel.style.width = `${initialNodeWidth}px`;
             panel.style.opacity = "0";
-            // rider（选中态遮挡 dock 修复）：最终落点在 wait 拍即按真实高度定死（含 dock 让位），
-            // reveal/settle 全程零位移，避免 settle 才让位造成的入场跳变。
-            const waitContainer = containerRef.current;
-            if (waitContainer) {
-                const dockSafeTop = clampPanelTopAboveDock(initialPosition.top, panel.offsetHeight, waitContainer.clientHeight, readDockBandOffset());
-                panel.style.transform = `translate3d(${initialPosition.left}px, ${dockSafeTop}px, 0) translateX(-50%)`;
-            }
             const timer = window.setTimeout(() => setEnterPhase("reveal"), PENDANT_WAIT_MS);
             return () => window.clearTimeout(timer);
         }
@@ -222,8 +190,6 @@ export function CanvasNodePanelOverlay({
             const position = nodeElement
                 ? getAttachedNodePanelPosition(nodeElement, container, nextWidth)
                 : getNodePanelPosition(node, nextViewport, viewportSize, nextWidth, panelHeight, liveDragOffset);
-            // rider（选中态遮挡 dock 修复）：底缘越带时上抬让位（拖拽/缩放/尺寸变化全程 live 重算）。
-            const dockSafeTop = clampPanelTopAboveDock(position.top, panel.offsetHeight, container.clientHeight, readDockBandOffset());
             // [2026-09-25 用户对照商业参考(LibTV/TapNow/上游)拍板] 纯贴附: 挂件不夹回视口、不因
             // 中心出界隐藏——节点移出时随节点滑出、被画布容器自然裁切(clamp+隐藏方案整体退役)。
             // position.left 是中心锚点(getAttached/getNode 均返回 centerX): translateX(-50%) 让宽度变化对称展开,
@@ -231,7 +197,7 @@ export function CanvasNodePanelOverlay({
             // enterPhase 非 settle 时跳过 transform: fall/expand 拍的 inline transition 正在驱动同一属性,
             // 视口/拖拽更新在此期间覆写会与动画竞争造成落点跳变(P1 修复 2026-09-17), 落定后交还 layout 驱动。
             if (enterPhaseRef.current === "settle") {
-                panel.style.transform = `translate3d(${position.left}px, ${dockSafeTop}px, 0) translateX(-50%)`;
+                panel.style.transform = `translate3d(${position.left}px, ${position.top}px, 0) translateX(-50%)`;
             }
         };
         update(viewport);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode, type Ref } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode, type Ref, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { HelpCircle } from "lucide-react";
 
@@ -11,6 +11,8 @@ import "./tool-hover-card.css";
 export const TOOL_HOVER_CARD_SHOW_DELAY = 200;
 /** 离开触发器/卡片后的宽限（ms）——供指针移入卡片，不闪断 */
 export const TOOL_HOVER_CARD_LEAVE_GRACE = 140;
+/** rider-2（控制线 2026-09-28）：hover 卡看门狗宽限（ms）——指针既不在卡也不在触发器内，连续未命中超此值即关卡。 */
+export const TOOL_HOVER_CARD_WATCHDOG_MISS_MS = 300;
 /** 卡片与触发器的间距（px），同时保证卡片不遮挡触发器 */
 const CARD_TRIGGER_GAP = 8;
 /** 卡片与视口边缘的最小留白（px） */
@@ -53,6 +55,16 @@ export function reduceToolHoverCardState(state: ToolHoverCardState, event: ToolH
 
 export function isToolHoverCardOpen(state: ToolHoverCardState) {
     return !state.dismissed && (state.hovered || state.focused || state.cardHovered);
+}
+
+export type ToolHoverCardRect = { left: number; top: number; right: number; bottom: number };
+
+/**
+ * rider-2（控制线 2026-09-28 令 · hover 卡看门狗）：指针是否落在任一保留矩形内（卡片 / 触发器）。
+ * 纯函数供单元级「模拟指针序列」断言；实机判定消费 pointermove/pointerdown 的 client 坐标。
+ */
+export function toolHoverCardPointerHit(x: number, y: number, rects: Array<ToolHoverCardRect | null>): boolean {
+    return rects.some((rect) => rect !== null && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom);
 }
 
 /* ---------------------------------------------------------------------------
@@ -226,10 +238,13 @@ type ToolHoverCardProps = {
     onCardEnter: () => void;
     onCardLeave: () => void;
     onEscape: () => void;
+    /** rider-2：外部（useToolHoverCard 看门狗）读取卡片矩形用；未传时用内部 ref。 */
+    cardElRef?: RefObject<HTMLDivElement | null>;
 };
 
-export function ToolHoverCard({ open, anchorEl, data, mini, label, icon, onCardEnter, onCardLeave, onEscape }: ToolHoverCardProps) {
-    const cardRef = useRef<HTMLDivElement>(null);
+export function ToolHoverCard({ open, anchorEl, data, mini, label, icon, onCardEnter, onCardLeave, onEscape, cardElRef }: ToolHoverCardProps) {
+    const internalCardRef = useRef<HTMLDivElement>(null);
+    const cardRef = cardElRef ?? internalCardRef;
     const [position, setPosition] = useState<ToolHoverCardPosition | null>(null);
     const [entered, setEntered] = useState(false);
 
@@ -345,6 +360,7 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
 export function useToolHoverCard({ data, mini, label, icon }: { data?: ToolHoverCardData; mini?: ToolHoverCardMini; label: string; icon?: ReactNode }) {
     const [state, setState] = useState(initialToolHoverCardState);
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const cardElRef = useRef<HTMLDivElement | null>(null);
     const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const cardLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -445,6 +461,59 @@ export function useToolHoverCard({ data, mini, label, icon }: { data?: ToolHover
         return () => toolHoverCardExclusivity.release(closeForExclusivity);
     }, [open, closeForExclusivity]);
 
+    // rider-2（控制线 2026-09-28 令）：hover 卡看门狗——结构性自愈，替代逐路径追事件丢失。
+    // 卡 open 期间 document 级 pointermove/pointerdown：指针既不在卡矩形也不在触发器矩形内，
+    // 连续未命中超宽限（TOOL_HOVER_CARD_WATCHDOG_MISS_MS）→ 按 escape 语义关卡。
+    // focused 态（键盘焦点开卡，WCAG 1.4.13）不受看门狗影响；可见性/失焦清场见下一条 effect。
+    useEffect(() => {
+        if (!open || state.focused) return;
+        let missTimer: ReturnType<typeof setTimeout> | null = null;
+        const clearMiss = () => {
+            if (missTimer) {
+                clearTimeout(missTimer);
+                missTimer = null;
+            }
+        };
+        const rectFor = (element: HTMLElement | null): ToolHoverCardRect | null => {
+            if (!element) return null;
+            const rect = element.getBoundingClientRect();
+            return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+        };
+        const onPointer = (event: PointerEvent) => {
+            if (toolHoverCardPointerHit(event.clientX, event.clientY, [rectFor(cardElRef.current), rectFor(anchorEl)])) {
+                clearMiss();
+                return;
+            }
+            if (missTimer) return;
+            missTimer = setTimeout(() => {
+                missTimer = null;
+                onEscape();
+            }, TOOL_HOVER_CARD_WATCHDOG_MISS_MS);
+        };
+        document.addEventListener("pointermove", onPointer, true);
+        document.addEventListener("pointerdown", onPointer, true);
+        return () => {
+            clearMiss();
+            document.removeEventListener("pointermove", onPointer, true);
+            document.removeEventListener("pointerdown", onPointer, true);
+        };
+    }, [open, state.focused, anchorEl, onEscape]);
+
+    // rider-2：可见性变化 / 窗口失焦清场（后台冻结、切 tab、失焦一律关卡，防常驻残留）。
+    useEffect(() => {
+        if (!open) return;
+        const sweep = () => onEscape();
+        const onVisibilityChange = () => {
+            if (document.visibilityState === "hidden") sweep();
+        };
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        window.addEventListener("blur", sweep);
+        return () => {
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+            window.removeEventListener("blur", sweep);
+        };
+    }, [open, onEscape]);
+
     return {
         enabled,
         setAnchor: setAnchorEl,
@@ -452,7 +521,7 @@ export function useToolHoverCard({ data, mini, label, icon }: { data?: ToolHover
         onLeave,
         onFocus,
         onBlur,
-        card: enabled ? <ToolHoverCard open={open} anchorEl={anchorEl} data={data} mini={mini} label={label} icon={icon} onCardEnter={onCardEnter} onCardLeave={onCardLeave} onEscape={onEscape} /> : null,
+        card: enabled ? <ToolHoverCard open={open} anchorEl={anchorEl} data={data} mini={mini} label={label} icon={icon} onCardEnter={onCardEnter} onCardLeave={onCardLeave} onEscape={onEscape} cardElRef={cardElRef} /> : null,
     };
 }
 

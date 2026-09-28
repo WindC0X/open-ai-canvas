@@ -64,6 +64,14 @@
 - 其余杂项（500a16ca 安静化令牌=A 类代表〔已 2026-09-27 外置至 flora-tokens.css〕、852d8e3d 字号、b8f50813/composer 底栏批等）。
 - 回填排期：不阻塞族 3；在下次上游同步仪式（双周/事件触发）前完成二分登记，外置重构（W3 起）动工前必须全量回填。
 
+## 批内直接编辑登记（E 系列 · 2026-09-28，控制线令）
+
+> 用途：本批（batch-12）经控制线解禁的 globals.css 直接编辑逐条登记；编号由控制线指定，随上游同步时对照处理。
+
+| # | 语义（改了什么/为什么） | 分类 | 外置化归宿 |
+|---|---|---|---|
+| E11 | z 梯级表增量（控制线 2026-09-28 rider-2 令）：新增 `--z-global-tools: 160`（全局工具带——dock 带抬到画布浮层 150 之上，画布内容从其下穿过；dock z 挂点 `canvas-toolbar.tsx` 消费） | A（纯令牌值增量） | flora-tokens.css 覆盖吸收（token 级） |
+
 ## 行为层意图性分歧登记（非 globals.css；随上游同步核对）
 
 > S1 v3.2（2026-09-27）：组合胶囊「静默挂载」曾为对上游 #608 消息行为的意图性分歧。
@@ -76,12 +84,13 @@
 
 ## 形态偏离登记（组件级 · 非 globals.css）
 
-> 范围说明：本节登记 fork 在**组件级样式**（不在 globals.css 账本口径内）对上游 / flora 参照的有意偏离，随上游同步核对。S2.1（2026-09-28，控制线批准）两处：
+> 范围说明：本节登记 fork 在**组件级样式**（不在 globals.css 账本口径内）对上游 / flora 参照的有意偏离，随上游同步核对。S2.1（2026-09-28，控制线批准）两处，另含 D3（2026-09-29 用户裁定追加）：
 
 | # | 参照 | 偏离语义（改了什么 / 为什么） | 分类 | 处理 |
 |---|---|---|---|---|
 | D1 | flora.ai 实测（`docs/artifacts/s2-hover-upgrade/flora-hover-spec.md`） | 卡片次级灰 #7B7B7B → #949494：flora 原值对比度 3.87:1 不达 WCAG AA，fork 提亮至 ≥4.6:1 | 组件级（`web/src/components/ui/tool-hover-card.css` 本地值） | 有意保留；外置化/同步时以 AA 为准，不回收 |
 | D2 | 同上 | 快捷脚注句式中文化（flora 英文句式 →「按 {kbd} {动作}」） | 组件级（同上） | 有意保留；随组件文件走 |
+| D3 | 本仓层级秩序（2026-09-29 用户裁定追加） | 默认 hover 卡 z 定 1150（压过设置浮层 `--z-dialog-popover` 1100）：rider-2 曾取 `--z-tooltip` 1000，被设置弹层水平切卡；与 mini 卡既有语义对齐（1100 之上、1200 之下） | 组件级（`web/src/components/ui/tool-hover-card.css` 本地值） | 有意保留；卡族统一 1150 |
 
 ## 批次增量登记：merge-v1.5.9（2026-09-28 · 三枝合入总账）
 
@@ -98,4 +107,4 @@
 | E7 | `1b3cd2df` + `75acd589` + `d265f86e` | O-03 层1：渠道预设组/交集逻辑/药丸预设态/画质档位；四刀（预设场景 / 删恢复默认 / 新节点画质+ⓘ补行 / banner「未达该预设要求（≥…）」文案）+ 宫格残余 a/b（两列独立成卡/格点豁免统一内边距/文案纠偏）；polish（说明行收入 hover 小卡/比例角标释义） | 组件级 | 有意保留；随上游同步核对 |
 | E8 | `0ce555fa` + `eada7ccb` | hotfix-3（batch-12 三跑 7 红）：hover 卡滞留族修复（状态归零/focus 门控）+ O-03 达标诚实化（实际像素判定）；三文件语义 = `tool-hover-card.tsx` / `canvas-create-menu.tsx` / `image-size-presets.ts`（`canvas-image-settings-popover.tsx` 挂点） | 组件级 | 有意保留；随上游同步核对 |
 | E9 | `0a16cd41` + `c8a32f58` | B 线 micro-rider：扩图硬贴回形状失明归一化（经典协议 images 归一化与失配日志；`task_outpaint_hardblend.go`）+ Agent 链 mask 可选化（跳过合成与预检放行；`cloud_agent_media_outpaint.go`） | B 线（后端） | 有意保留；随上游同步核对 |
-| E10 | `4dc8c251` + `5a5ac8f1` | dock 让位 rider（batch-12）：`canvas-workspace-overlays.tsx` 面板让位语义——选中态挂件（预设 chip/面板行）不遮 dock 全局工具「添加节点」热区 | 组件级（布局避让） | 有意保留；随上游同步核对 |
+| E10 | `4dc8c251` + `5a5ac8f1` | dock 让位 rider（batch-12）：`canvas-workspace-overlays.tsx` 面板让位语义——选中态挂件（预设 chip/面板行）不遮 dock 全局工具「添加节点」热区 | 组件级（布局避让） | **已被 E11 取代**：纯贴附恢复 + dock 全局工具带（保留登记不删除） |

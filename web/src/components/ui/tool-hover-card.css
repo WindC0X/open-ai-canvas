@@ -2,7 +2,9 @@
 
 .tool-hover-card {
     position: fixed;
-    z-index: var(--tool-hover-card-z, 150);
+    /* rider-2（控制线 2026-09-28 令）→ 2026-09-29 用户裁定：默认卡与 mini 卡同语义——
+       置于设置浮层（--z-dialog-popover 1100）之上、全屏加载（1200）之下；卡压挂件且不被设置弹层水平切卡。 */
+    z-index: var(--tool-hover-card-z, 1150);
     pointer-events: auto;
     box-sizing: border-box;
     display: flex;
