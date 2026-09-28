@@ -110,3 +110,10 @@ W3 第三轻量枝（控制线 2026-09-27 任务书）：在 `feat/onboarding-ec
 - 修复：`floating-dock.tsx` 卡 data 条件加 `!command.active`（面板展开期不出卡，收起恢复）；定位函数不动（hotfix-1 侧移不变式保留，两层互补）。
 - 真机双场景证据 + 挂点核对（菜单内部条目卡不受影响）；门禁照旧。
 - 去向：合入 batch 树，A 线 merge 带入 merge-v1.5.9。
+
+## 2026-09-28 hotfix-3：hover 卡滞留族（第三条路径）+ O-03 诚实化
+
+- 根因（测试线 06bc4a1c 三跑 VRT 7 红）：hotfix-2 只挡卡数据未重置状态机——菜单关后 data 恢复、旧状态 open → 卡重开在鼠标下方 → pointerenter 锁存 → 卡永不关闭遮 composer 点击。归属控制线（S2 清单未定义 expands active 态卡状态）。
+- 修三件：① useToolHoverCard suppression 状态归零（清三计时器 + setState(initial)）；② create-menu 按钮 :focus-visible 门控 + mousedown 清焦（防 focused 滞留）；③ O-03：size 模型实际像素判达标 + 不支持比例 short 诚实提示 + applyPreset 绝不静默写 size。
+- 守卫 5 项 + 真机 09 场景闭环（创建节点 cards:0、可点击、撤销复原）；门禁照旧。
+- 去向：批内 merge 进 merge-v1.5.9 → 测试线 VRT 重跑 + 基线重采裁定。
