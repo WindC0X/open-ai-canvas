@@ -417,6 +417,18 @@ export function useToolHoverCard({ data, mini, label, icon }: { data?: ToolHover
     );
 
     const enabled = Boolean(data || mini);
+
+    // hotfix-3（batch-12 滞留族 · 测试线 06bc4a1c 实证）：suppression（data 消失 / active / disabled 等）
+    // 时必须同步清三个 timer 并把状态归零——仅渲染门控会让 data 恢复后旧状态立刻重开卡
+    //（鼠标所在位置 pointerenter → cardHovered 锁存，卡永不关闭，遮住 composer 点击）。
+    useEffect(() => {
+        if (enabled) return;
+        clearTimer(showTimerRef);
+        clearTimer(leaveTimerRef);
+        clearTimer(cardLeaveTimerRef);
+        setState(initialToolHoverCardState);
+    }, [enabled, clearTimer]);
+
     const open = enabled && Boolean(anchorEl) && isToolHoverCardOpen(state);
 
     const closeForExclusivity = useCallback(() => {

@@ -226,6 +226,12 @@ function preferredPresetRatio(profile: ImageCapabilityConfig, aspect?: string): 
 }
 
 /** 单档取参：比例模型 = 比例 + quality 承载档（imageTierRequestQuality）；尺寸模型 = 该档精确像素成员，缺成员按标准换算兜底。 */
+/** hotfix-3（三模型 review 收敛）：预设比例对目标模型是否可安全下发——aspect_ratio 模型需在其 values 内或允许自定义。 */
+export function imageAspectSelectable(profile: ImageCapabilityConfig, aspect: string): boolean {
+    if (profile.size.parameter !== "aspect_ratio") return true;
+    return profile.size.allowCustom === true || profile.size.values.includes(aspect);
+}
+
 export function imageTierSelection(profile: ImageCapabilityConfig, tier: ImageResolutionTier, aspect?: string): { size: string; quality?: string } {
     const ratio = preferredPresetRatio(profile, aspect);
     if (profile.size.parameter === "aspect_ratio") {
@@ -263,11 +269,26 @@ export function planEcomPresetApplication(input: { profile?: ImageCapabilityConf
     if (!profile || profile.size.parameter === "none" || (!profile.size.values.length && !profile.size.presets?.length)) {
         return { status: "unconstrained", size: preset.aspect, note: "当前模型未提供尺寸能力信息，仅按比例应用" };
     }
+    // hotfix-3：aspect_ratio 模型不支持该比例且不可自定义 → 绝不静默写非支持值；按 short 态诚实提示（含换模型建议）。
+    if (!imageAspectSelectable(profile, preset.aspect)) {
+        const tiers = imageAvailableTiers(profile);
+        const bestTier = tiers[tiers.length - 1] ?? preset.desiredResolution;
+        return {
+            status: "short",
+            size: preset.aspect,
+            quality: imageTierRequestQuality(profile, bestTier),
+            tier: bestTier,
+            gap: `当前模型不支持 ${preset.aspect} 比例，未达该预设要求（≥${preset.minPixels.width}×${preset.minPixels.height}px）`,
+            suggestModelIds: suggestModelIdsForPreset(input.catalog, preset),
+        };
+    }
     const resolved = resolveTierPlan(profile, preset.desiredResolution, { priceTiers: input.priceTiers, aspect: preset.aspect });
     if (!resolved) {
         return { status: "unconstrained", size: preset.aspect, note: "当前模型无可用分辨率档位，仅按比例应用" };
     }
-    const pixels = imagePresetForRatio(resolved.tier, preset.aspect);
+    const standardPixels = imagePresetForRatio(resolved.tier, preset.aspect);
+    // hotfix-3：size 参数模型按 resolved.size 实际像素判定达标（如实际 1536×1536 的「2K」不得假报已满足）；比例模型仍用标准表。
+    const pixels = profile.size.parameter === "size" ? (buildImageResolutionOptions([resolved.size])[0] ?? standardPixels) : standardPixels;
     const meetsMinimum = pixels.width >= preset.minPixels.width && pixels.height >= preset.minPixels.height;
     if (resolved.tier === preset.desiredResolution && meetsMinimum) {
         return { status: "full", size: resolved.size, quality: resolved.quality, tier: resolved.tier };

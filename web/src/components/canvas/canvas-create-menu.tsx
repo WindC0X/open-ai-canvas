@@ -80,9 +80,16 @@ function ProjectCommandButton({ command, theme }: { command: CanvasCreateCommand
             title={command.hover ? undefined : command.label}
             onMouseEnter={hoverCard.onEnter}
             onMouseLeave={hoverCard.onLeave}
-            onFocus={hoverCard.onFocus}
+            onFocus={(event) => {
+                // hotfix-3：仅键盘可见焦点持续出卡（与 floating-dock 同范式）——鼠标点击聚焦交由 pointer 流程接管，防 focused 滞留。
+                if (event.currentTarget.matches(":focus-visible")) hoverCard.onFocus();
+            }}
             onBlur={hoverCard.onBlur}
-            onMouseDown={(event) => event.stopPropagation()}
+            onMouseDown={(event) => {
+                event.stopPropagation();
+                // hotfix-3：鼠标按下即清聚焦态——点击这些按钮后鼠标移开，卡必须关闭。
+                hoverCard.onBlur();
+            }}
             onClick={command.onClick}
         >
             {command.icon}
@@ -114,9 +121,16 @@ function GridCommandButton({ command, variant, theme, reducedMotion }: { command
             title={command.hover ? undefined : command.label}
             onMouseEnter={hoverCard.onEnter}
             onMouseLeave={hoverCard.onLeave}
-            onFocus={hoverCard.onFocus}
+            onFocus={(event) => {
+                // hotfix-3：仅键盘可见焦点持续出卡（与 floating-dock 同范式）——鼠标点击聚焦交由 pointer 流程接管，防 focused 滞留。
+                if (event.currentTarget.matches(":focus-visible")) hoverCard.onFocus();
+            }}
             onBlur={hoverCard.onBlur}
-            onMouseDown={(event) => event.stopPropagation()}
+            onMouseDown={(event) => {
+                event.stopPropagation();
+                // hotfix-3：鼠标按下即清聚焦态——点击这些按钮后鼠标移开，卡必须关闭。
+                hoverCard.onBlur();
+            }}
             onClick={command.onClick}
         >
             {variant === "node" ? (

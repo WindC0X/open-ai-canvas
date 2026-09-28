@@ -357,6 +357,26 @@ describe("S2 hover 说明卡 · a11y（WCAG 1.4.13 三件套）", () => {
         // 定位函数不动：本条抑制与 hotfix-1 侧移互补，不在同层。
         expect(dockSource).not.toContain("computeToolHoverCardPosition");
     });
+
+    test("hotfix-3（滞留族）：suppression 状态归零——data 恢复后不得重开旧卡（源级 + 契约）", () => {
+        const src = readFileSync(new URL("../src/components/ui/tool-hover-card.tsx", import.meta.url), "utf8");
+        const resetBlock = src.slice(src.indexOf("if (enabled) return"), src.indexOf("setState(initialToolHoverCardState)"));
+        expect(resetBlock).toContain("clearTimer(showTimerRef)");
+        expect(resetBlock).toContain("clearTimer(leaveTimerRef)");
+        expect(resetBlock).toContain("clearTimer(cardLeaveTimerRef)");
+        expect(src).toContain("setState(initialToolHoverCardState)");
+        // 契约：归零态不得视作 open；只有全新的 enter 才重新武装（鼠标下方 pointerenter 锁存的结构性拦截）。
+        expect(isToolHoverCardOpen(initialToolHoverCardState)).toBe(false);
+        expect(isToolHoverCardOpen(reduceToolHoverCardState(initialToolHoverCardState, "trigger-enter"))).toBe(true);
+    });
+
+    test("hotfix-3：create-menu 按钮鼠标点击不置 focused（:focus-visible 门控 + mousedown 清焦）", () => {
+        const src = readFileSync(new URL("../src/components/canvas/canvas-create-menu.tsx", import.meta.url), "utf8");
+        const gates = src.match(/if \(event\.currentTarget\.matches\(":focus-visible"\)\) hoverCard\.onFocus\(\);/g) ?? [];
+        expect(gates.length).toBe(2); // ProjectCommandButton + GridCommandButton
+        expect((src.match(/hoverCard\.onBlur\(\);/g) ?? []).length).toBeGreaterThanOrEqual(2);
+        expect(src).not.toContain("onFocus={hoverCard.onFocus}");
+    });
 });
 
 describe("S2.1 hover 卡 · 全局单卡不变式（节流环境双卡残留加固）", () => {
