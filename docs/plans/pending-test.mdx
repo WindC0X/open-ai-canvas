@@ -4020,3 +4020,10 @@ Agent 面板新对话态新增 4 张电商 starter 卡（白底产品图 / 3:4 �
 - [x] 参数化单测：下缘菜单 / 左缘 dock × 768×1024 / 1024×768 / 2320×1287 三视口，卡矩形 ∩ 锚点矩形 = 空。
 - [x] 真机复现（:3010 缩窗 1000×696）：菜单在下缘 hover 图片项 → placement=side、gap 8、elementFromPoint 命中菜单项；像素核验卡缘 x=476 无覆盖。
 - [ ] 待测试线以 HEAD 复验 batch-12（addImageNode 场景不再卡点击）。
+
+### hotfix-2：expands 命令 active 态禁卡（batch-12 重跑 5 红根因，2026-09-28）
+
+- [x] `floating-dock.tsx` 卡 data 条件加 `!command.active`：面板展开期不出卡（卡遮子菜单点击 + 信息冗余），收起恢复；普通命令无 active 语义不受影响。
+- [x] 波及面：hover 卡 + active 交集仅三个 expands 命令；菜单内部条目的 item 级卡不受影响（挂点核对）。
+- [x] 真机双场景：active 态 hover 无卡（A 图）/ 收起后恢复出卡（B 图）；证据 `.local/hoverfix-walkthrough/`。
+- [ ] 待测试线以 HEAD 复验 batch-12。

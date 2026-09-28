@@ -345,6 +345,18 @@ describe("S2 hover 说明卡 · a11y（WCAG 1.4.13 三件套）", () => {
         expect(widePos.placement).toBe("above");
         expect(intersects(widePos, wideAnchor, wide)).toBe(false);
     });
+
+    test("hotfix-2（batch-12 阻断）：expands 命令 active 态不出卡，收起后恢复", () => {
+        const dockSource = readFileSync(new URL("../src/components/ui/aceternity/floating-dock.tsx", import.meta.url), "utf8");
+        // 挂点层抑制：active（面板展开）期间 data 置空 → 不出卡；条件里保留 ? command.hoverCard : undefined 即收起即恢复。
+        expect(dockSource).toContain("data: !showLabel && cardsEnabled && !command.disabled && !command.active ? command.hoverCard : undefined");
+        expect(dockSource).toContain("hotfix-2");
+        // 三个 expands 命令的 active 来源仍在（tool-add 为 batch-12 场景主角）。
+        const mainTools = readFileSync(new URL("../src/lib/canvas/tool-registry/definitions/main-toolbar-tools.tsx", import.meta.url), "utf8");
+        expect(mainTools).toContain("active: (ctx) => ctx.addPanelOpen");
+        // 定位函数不动：本条抑制与 hotfix-1 侧移互补，不在同层。
+        expect(dockSource).not.toContain("computeToolHoverCardPosition");
+    });
 });
 
 describe("S2.1 hover 卡 · 全局单卡不变式（节流环境双卡残留加固）", () => {

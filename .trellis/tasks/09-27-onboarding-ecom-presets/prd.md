@@ -103,3 +103,10 @@ W3 第三轻量枝（控制线 2026-09-27 任务书）：在 `feat/onboarding-ec
 - 不变式 + 单测：任意视口×锚点参数化（下缘菜单/左缘 dock × 768×1024/1024×768/2320×1287），卡矩形 ∩ 锚点矩形 = 空。
 - 真机复现（:3010）：侧移落位 gap 8、elementFromPoint 命中菜单项、像素核验无覆盖（证据 .local/hoverfix-walkthrough/）。
 - 去向：合入 batch 树（feat/onboarding-ecom-presets 提交，控制线让 A 线 merge 带入 merge-v1.5.9）。
+
+## 2026-09-28 hotfix-2：expands 命令 active 态禁卡
+
+- batch-12 重跑 5 红根因：tool-add（expands, active=addPanelOpen）hover 卡（above 放得下）与 420px 菜单几乎全重叠 → 移向菜单项必经卡内 → 点击被吃；归属控制线（S2 清单未定义 expands active 态卡行为）。
+- 修复：`floating-dock.tsx` 卡 data 条件加 `!command.active`（面板展开期不出卡，收起恢复）；定位函数不动（hotfix-1 侧移不变式保留，两层互补）。
+- 真机双场景证据 + 挂点核对（菜单内部条目卡不受影响）；门禁照旧。
+- 去向：合入 batch 树，A 线 merge 带入 merge-v1.5.9。
