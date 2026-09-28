@@ -95,3 +95,11 @@ W3 第三轻量枝（控制线 2026-09-27 任务书）：在 `feat/onboarding-ec
 - 数据与吸附逻辑不动：creation-preferences store 读写保留、model-selection 吸附消费保留——已有偏好继续生效，仅面板入口移除。
 - 去向备注：该偏好的新家 = 修缮期参数面板 2.0（侧栏方案）侧栏底部「新节点默认档位」行；过渡期无修改入口，属可接受空窗（低频偏好）。
 - 证据：面板活体照 s10-quality-row-removed.png（预设场景/药丸 ✕/banner 三刀仍在 + 画质行不存在）；单测更新 + 护栏；门禁 2366 → 15 红逐名=基线。
+
+## 2026-09-28 hotfix：hover 卡 clamp 分支遮挡（batch-12 阻断项）
+
+- 背景：create-menu 位于视口下缘时，408px hover 卡夹紧后覆盖菜单项吃掉点击（addImageNode 15s 死循环）；S2.1 定位升级引入，控制线认账验收盲区。
+- 修复：`computeToolHoverCardPosition` 侧移优先（above → below → 侧移空间大侧 + 8px gap → 缩高内滚兜底）；above/below 分支与指针入卡语义未动。
+- 不变式 + 单测：任意视口×锚点参数化（下缘菜单/左缘 dock × 768×1024/1024×768/2320×1287），卡矩形 ∩ 锚点矩形 = 空。
+- 真机复现（:3010）：侧移落位 gap 8、elementFromPoint 命中菜单项、像素核验无覆盖（证据 .local/hoverfix-walkthrough/）。
+- 去向：合入 batch 树（feat/onboarding-ecom-presets 提交，控制线让 A 线 merge 带入 merge-v1.5.9）。
