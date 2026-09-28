@@ -293,12 +293,14 @@ type cloudAgentOutpaintFrame struct {
 	RectY1           float64
 }
 
-// cloudAgentOutpaintMaterialize 把源参考 + 合成结果物化为 3 个账号资源：
+// cloudAgentOutpaintMaterialize 把源参考 + 合成结果物化为账号资源（2~3 个：源图重存、
+// pad 底图、mask——模型不支持蒙版时跳过 mask，2026-09-28 micro-rider）：
 // 源图重存（保持输入引用语义）、pad 底图（JPEG 压缩走独立 PNG 资源便于重试）、mask（PNG）。
 // 返回的 providerMedia 只带 StorageKey —— 与普通任务的输入形态一致。
 // scaleOverride > 0 时按该系数合成（像素档：目标可能小于源图，必须缩小到目标内）；
 // 0 表示按 padding 自动计算长边上限收缩。geometry = 硬贴回几何（合成同一口径产出）。
-func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerMedia, padding map[string]int, scaleOverride float64) (padded providerMedia, mask *providerMedia, geometry cloudAgentOutpaintFrame, err error) {
+// withMask=false（maskSupported=false 模型）：只物化 pad 底图，mask 返回 nil。
+func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerMedia, padding map[string]int, scaleOverride float64, withMask bool) (padded providerMedia, mask *providerMedia, geometry cloudAgentOutpaintFrame, err error) {
 	if source == nil || !strings.HasPrefix(source.StorageKey, "resource:") {
 		return padded, nil, geometry, errors.New("扩图源参考必须是已保存的画布图片资产")
 	}
@@ -359,6 +361,11 @@ func (s *Service) cloudAgentOutpaintMaterialize(userID string, source *providerM
 	geometry.RectX1 = float64(layoutLeft+drawW) / float64(targetW)
 	geometry.RectY1 = float64(layoutTop+drawH) / float64(targetH)
 
+	// mask 为可选通道（2026-09-28 micro-rider，deepseek review）：maskSupported=false 的模型
+	// 与手动链同语义——跳过蒙版合成，仅白底 pad 直扩（refs 不写 mask，admission 同口径放行）。
+	if !withMask {
+		return padded, nil, geometry, nil
+	}
 	maskBytes, maskW, maskH, err := cloudAgentOutpaintPaint(src, padding, scale, true)
 	if err != nil {
 		return padded, nil, geometry, fmt.Errorf("合成扩图蒙版失败：%w", err)
@@ -414,7 +421,8 @@ func (s *Service) storeResourceFromBytes(userID, kind, fileName, mimeType string
 }
 
 // applyCloudAgentOutpaint 把扩图请求的参考字段就地替换为合成产物：
-// 恰好 1 张图片参考 → pad 底图 + mask（都已是账号资源）；mode/prompt/config 等其余键原样保留。
+// 恰好 1 张图片参考 → pad 底图（+ mask，模型支持蒙版时；2026-09-28 micro-rider）；
+// mode/prompt/config 等其余键原样保留。
 // 返回 pad 后目标画幅（像素），调用方用它显式提交 config.size。
 // cloudAgentOutpaintRequestedRatio 决定扩图画幅比例：审批卡选定比例档时以卡片为准（用户选择优先），
 // 否则用 Agent 请求的 outpaintRatio。
@@ -430,7 +438,7 @@ func cloudAgentOutpaintRequestedRatio(a cloudAgentMediaArgs) string {
 	return a.OutpaintRatio
 }
 
-func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a cloudAgentMediaArgs) (cloudAgentOutpaintFrame, error) {
+func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a cloudAgentMediaArgs, withMask bool) (cloudAgentOutpaintFrame, error) {
 	images, _ := refs["referenceImages"].([]any)
 	if len(images) != 1 {
 		return cloudAgentOutpaintFrame{}, BadAuthRequest("扩图必须恰好引用 1 张图片节点；多图或无图时请改用普通图生图")
@@ -466,7 +474,7 @@ func (s *Service) applyCloudAgentOutpaint(userID string, refs map[string]any, a 
 			return cloudAgentOutpaintFrame{}, err
 		}
 	}
-	padded, mask, geometry, err := s.cloudAgentOutpaintMaterialize(userID, &source, padding, scaleOverride)
+	padded, mask, geometry, err := s.cloudAgentOutpaintMaterialize(userID, &source, padding, scaleOverride, withMask)
 	if err != nil {
 		return cloudAgentOutpaintFrame{}, err
 	}
@@ -494,13 +502,11 @@ func cloudAgentMediaInt(value any) int {
 }
 
 // cloudAgentOutpaintCapabilityCheck 在 prepare（审批前）校验所选模型是否满足扩图隐含能力：
-// mask 输入（合成 mask 无条件写入 refs）与自定义 size（pad 后精确像素 WxH 下发）。
+// 画幅能力为硬要求（pad 后精确像素 WxH 下发）；mask 为可选通道（2026-09-28 micro-rider，
+// deepseek review）——模型支持蒙版时 pad+mask，不支持时跳过合成、白底直扩，与手动链同语义。
 // 此前缺失该预检时，LLM 选中固定档/非 mask 模型会在审批计费后才于 admission 爆破
 // （review 2026-09-21 P2）。
 func cloudAgentOutpaintCapabilityCheck(spec CapabilitySpec) error {
-	if spec.Inputs["mask"].Max < 1 {
-		return BadAuthRequest("当前模型不支持蒙版输入，不能执行扩图；请选择支持蒙版编辑的图片模型")
-	}
 	if spec.ImageSize == nil {
 		return BadAuthRequest("当前模型未声明画幅能力，不能执行扩图；请选择支持自定义尺寸的图片模型")
 	}
