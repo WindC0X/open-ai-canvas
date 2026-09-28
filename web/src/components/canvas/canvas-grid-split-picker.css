@@ -138,7 +138,10 @@
 
 .canvas-grid-split-picker {
     display: flex;
-    align-items: stretch;
+    /* [2026-09-28 rider·用户三实例复现] 跳闪根因：stretch 下棋盘展开撑高容器 → 左列行被拉伸
+       → 「自定义」行被推离光标 → 140ms 收/150ms 开循环。结构性修复：flex-start 下左列保持自然高，
+       棋盘允许向下延伸（overflow: visible）；开合前后每行 rect 逐像素不变（守卫测试锁定）。 */
+    align-items: flex-start;
     overflow: visible;
     /* [2026-09-24] 统一画布浮层玻璃规范（与模型菜单 L2 flyout 同源）:
        旧值 = --dock-border(透明)/--dock-radius(14px)/--dock-surface(#181818 实底)/elevation 阴影 ——
@@ -180,9 +183,9 @@
     cursor: pointer;
 }
 
-/* [2026-09-25 二改·用户拍板] 「自定义」展开不应改变左列行高（也不留空槽）: 右板按左列自然高
-   (≈138px = 5×26 + 上下 4px) 反算收缩至同高（格点 23→17px, 面板宽 156→117px）, 两列天然等高;
-   保留 flex:1 仅吸收亚像素/字体渲染差（不再承担齐高职责）。 */
+/* [2026-09-25 二改·用户拍板 / 2026-09-28 rider] 「自定义」展开不应改变左列行高（也不留空槽）：
+   齐高职责已移交根容器结构性 flex-start（2026-09-25 的 138px 数字反算在用户显示环境破相、
+   三实例复现跳闪，废弃）；此处 flex:1 仅吸收亚像素/字体渲染差。 */
 .canvas-grid-split-presets > .canvas-grid-split-item {
     flex: 1 1 auto;
 }
@@ -210,8 +213,8 @@
     opacity: 0.72;
 }
 
-/* [2026-09-25 二改] 高度反算: padding 12→8 + gap 8→6 + 棋盘 131→101（格点 17）≈ 左列自然高 138,
-   展开/收起时左列行高不再变化。 */
+/* [2026-09-25 二改 / 2026-09-28 rider] 尺寸为视觉规格（贴左列自然高）；展开/收起时左列行高不变
+   由根容器 flex-start 结构性保证（数字相等不再承担该职责）。 */
 .canvas-grid-split-custom {
     display: flex;
     width: 7.3125rem;

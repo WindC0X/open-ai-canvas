@@ -64,6 +64,13 @@ describe("CanvasNodeHoverComposer 渲染(静态标记)", () => {
         expect(markup).not.toContain("<img");
     });
 
+    test("工具引用：⚙ 符号 + Tool 副标（2026-09-28 rider：不再落 T/Image 缺省）", () => {
+        const markup = html(true, [reference({ kind: "tool", label: "九宫格切分" })]);
+        expect(markup).toContain("⚙");
+        expect(markup).toContain(">Tool<");
+        expect(markup).not.toContain("<img");
+    });
+
     test("引用行容器挂 mask 类(左右渐隐按类名锚定, 不随 JSX 层级漂移)", () => {
         expect(html(true, [reference({ kind: "image", previewUrl: "blob:img" })])).toContain("canvas-node-hover-composer-refs-mask");
     });
@@ -86,5 +93,11 @@ describe("控制线域外授权 2026-09-28 · 技能 chip 修复守卫", () => {
         const source = readFileSync(new URL("../src/components/canvas/canvas-node-hover-composer.tsx", import.meta.url), "utf8");
         expect(source).toContain('"✦"');
         expect(source).toContain('"Skill"');
+    });
+
+    test("hover composer 源级工具分支守卫（⚙ / Tool，2026-09-28 rider 批准）", () => {
+        const source = readFileSync(new URL("../src/components/canvas/canvas-node-hover-composer.tsx", import.meta.url), "utf8");
+        expect(source).toContain('"⚙"');
+        expect(source).toContain('"Tool"');
     });
 });

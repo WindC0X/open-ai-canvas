@@ -3993,3 +3993,9 @@ Agent 面板新对话态新增 4 张电商 starter 卡（白底产品图 / 3:4 �
 
 - [x] 修复（canvas-core，控制线域外授权 2026-09-28，根因报告在案）：node 级引用表不再混入技能引用（技能仅保留在 Agent 对话 composer 面）；hover composer 补 skill 分支（✦ / Skill），不再落 T/Image 缺省。守卫：节点 hover 引用条零 skill chip（真机 65 节点 22 条引用全量扫描 0 命中）+ Agent 面来源不动。
 - [ ] 待用户真机复核：装技能后悬停任意有引用节点，引用条不应出现技能 chip；Agent 对话以 / 或 、 引用技能路径照旧。
+
+### 宫格切分跳闪修复 + kind:"tool" 徽章补齐（2026-09-28 rider，用户实报三实例）
+
+- [x] Bug1 结构性修复：宫格切分根容器 `align-items: stretch → flex-start`（2026-09-25 的 138px 数字追等式在用户显示环境破相导致 hover「自定义」跳闪循环，废弃）；棋盘允许向下延伸；守卫测试锁定（flex-start 断言 + 棋盘 absolute 脱流，`canvas-split-hover-open.test.ts`）；真机走查：hover「自定义」3 秒稳定展开、开合前后左列每行 rect 逐像素不变、L2 菜单零位移。
+- [x] Bug2 tool 徽章：hover 引用条补 `kind:"tool"` 显式分支（⚙ / Tool），消灭 T/Image 误导缺省；SSR 用例 + 源级守卫。
+- [ ] 待用户真机复核：① 宫格切分「自定义」hover 停留不闪、扫过预设行正常；② 引用条中工具类引用显示 ⚙ Tool（原 T/Image）。
