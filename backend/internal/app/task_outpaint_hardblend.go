@@ -55,10 +55,16 @@ func (s *Service) applyOutpaintHardBlend(task *model.Task, result map[string]int
 		s.logOutpaintHardBlend(task, "info", "扩图硬贴回已关断（metadata.outpaint.hardBlend=false）")
 		return result
 	}
-	images, ok := result["images"].([]interface{})
-	if !ok || len(images) == 0 {
+	images, err := normalizeOutpaintHardBlendImages(result["images"])
+	if err != nil {
+		// 形状失明必须留痕（2026-09-28 micro-rider，glm review：经典内置协议曾在此静默跳过）。
+		s.logOutpaintHardBlend(task, "warn", "扩图硬贴回跳过："+err.Error())
 		return result
 	}
+	if len(images) == 0 {
+		return result
+	}
+	result["images"] = images
 	source, err := s.loadOutpaintHardBlendSource(task.UserID, meta.sourceStorageKey)
 	if err != nil {
 		s.logOutpaintHardBlend(task, "warn", "扩图硬贴回跳过："+err.Error())
@@ -68,6 +74,7 @@ func (s *Service) applyOutpaintHardBlend(task *model.Task, result map[string]int
 	for index, item := range images {
 		entry, ok := item.(map[string]interface{})
 		if !ok {
+			s.logOutpaintHardBlend(task, "warn", fmt.Sprintf("扩图硬贴回第 %d 张跳过：结果项形状无法识别（%T）", index+1, item))
 			continue
 		}
 		dataURL, _ := entry["dataUrl"].(string)
@@ -86,6 +93,29 @@ func (s *Service) applyOutpaintHardBlend(task *model.Task, result map[string]int
 		s.logOutpaintHardBlend(task, "info", fmt.Sprintf("扩图硬贴回完成：%d 张结果已回贴原图区像素", blended))
 	}
 	return result
+}
+
+// normalizeOutpaintHardBlendImages 把结果 images 归一化为 []interface{}（元素 map[string]interface{}）：
+// 声明式协议路径已经是 []interface{}，原样保留；经典内置协议（openai-image / gemini-image / grok /
+// volcengine-ark，见 provider_image.go imageDataURLs）返回 []map[string]string，经 JSON 归一化统一
+// （persist 侧最终同样走 JSON 序列化）；其余形状返回错误，由调用方记日志——形状失明不得静默
+// （2026-09-28 micro-rider，glm review）。
+func normalizeOutpaintHardBlendImages(value interface{}) ([]interface{}, error) {
+	if value == nil {
+		return nil, nil
+	}
+	if images, ok := value.([]interface{}); ok {
+		return images, nil
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("结果 images 形状无法识别（%T）：%v", value, err)
+	}
+	var images []interface{}
+	if err := json.Unmarshal(raw, &images); err != nil {
+		return nil, fmt.Errorf("结果 images 形状无法识别（%T）", value)
+	}
+	return images, nil
 }
 
 // outpaintMediaBlend 媒体物化阶段的贴回上下文（元数据 + 原图，每任务加载一次）。
