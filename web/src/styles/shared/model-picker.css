@@ -1358,3 +1358,13 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     min-height: 58px;
     border-radius: 12px;
 }
+
+/* 标签行占位统一行高（2026-09-29 裁决②·任务书修项3）：无标签行保留同高，混排行高一致、
+   logo 与价格徽章锚定不漂移。27px = chip 21px（fs-tiny 10px×1.5 + padding 4px + border 2px）
+   + .model-tags margin-top 6px；flex 列布局钉住子元素 margin（防 margin 折叠逃逸出占位盒，
+   实测逃逸会多出 6px）；标签样式变更时同步此值（model-tags.css 同源）。 */
+.canvas-model-picker-tags-slot {
+    display: flex;
+    flex-direction: column;
+    min-height: 27px;
+}

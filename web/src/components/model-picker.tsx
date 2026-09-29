@@ -864,7 +864,10 @@ export function ModelLabel({
                 >
                     <span className="canvas-model-picker-subtitle-inner">{capabilitySummary}</span>
                 </span>
-                <ModelTags tags={logicalCost?.tags} />
+                {/* 标签行占位统一行高（2026-09-29 ②）：无标签行保留同高，全列表行高一致、锚点不漂移。 */}
+                <span className="canvas-model-picker-tags-slot">
+                    <ModelTags tags={logicalCost?.tags} />
+                </span>
             </span>
             {showPrice ? <ModelPrice price={modelMenuPrice(config, model, capability, true)} chip /> : null}
         </span>

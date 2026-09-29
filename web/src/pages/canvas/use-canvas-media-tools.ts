@@ -1026,9 +1026,7 @@ export function useCanvasMediaTools({
                     const uploaded = await uploadImage(image.dataUrl);
                     // 占位框 = 几何合同（2026-09-20 实测修复）：这里的 node 是【源图节点】而非占位，
                     // 用它的框当 bounds 会把横版扩图结果錧进竖版源图宽度（720×404 占位 → 成功后缩到源图宽）。
-                    // 成功后保持占位框；错幅由下方 outpaintSizeMismatch 角标明示，不静默改框。
                     const placeholder = nodesRef.current.find((item) => item.id === targetId);
-                    const size = placeholder && placeholder.width > 0 ? { width: placeholder.width, height: placeholder.height } : fitNodeSize(uploaded.width, uploaded.height);
                     const currentNode = nodesRef.current.find((item) => item.id === targetId);
                     if (!currentNode) throw new Error("扩图节点已被删除");
                     // 结果尺寸校验明示（第十八轮）：上游中转不保证按提交 size 出图（实测
@@ -1037,6 +1035,13 @@ export function useCanvasMediaTools({
                     const submittedSize = payload.submitTarget ?? { width: targetPixelSize.width, height: targetPixelSize.height };
                     const ratioDrift = Math.abs(Math.log((uploaded.width / uploaded.height) / (submittedSize.width / submittedSize.height)));
                     const sizeMismatch = ratioDrift > 0.02 ? { submitted: `${submittedSize.width}x${submittedSize.height}`, actual: `${uploaded.width}x${uploaded.height}` } : undefined;
+                    // 偏差场景 = 结果即事实（2026-09-29 裁决②a 修订，与任务同步链同口径）：提交框
+                    // 合同让位、节点按实返图比例重算（角标继续亮、承担解释）；非偏差保持占位框合同，
+                    // 人工尺寸（userResized/freeResize）仍受保护。
+                    const mismatchRefit = sizeMismatch && !currentNode.metadata?.userResized && !currentNode.metadata?.freeResize;
+                    const size = mismatchRefit
+                        ? fitNodeSize(uploaded.width, uploaded.height)
+                        : placeholder && placeholder.width > 0 ? { width: placeholder.width, height: placeholder.height } : fitNodeSize(uploaded.width, uploaded.height);
                     const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: { ...currentNode.metadata, ...imageMetadata(uploaded), prompt: effectivePrompt, ...generationMetadata, ...(sizeMismatch ? { outpaintSizeMismatch: sizeMismatch } : { outpaintSizeMismatch: undefined }) } };
                     setNodes((current) => current.map((item) => {
                         if (item.id === targetId) return finalizedNode;
