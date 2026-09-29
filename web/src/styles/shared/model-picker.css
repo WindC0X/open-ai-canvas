@@ -1236,10 +1236,11 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     .canvas-model-picker-flyout {
         position: fixed;
         z-index: 1200;
-        /* 宽度跟随内容(单模型组不再渲染成 384px 孤立长条, 2026-09-19 用户实测), 上限仍 384。 */
+        /* 宽度跟随内容(单模型组不再渲染成 384px 孤立长条, 2026-09-19 用户实测); 上限 432
+           (2026-09-30 T 行宽裕量: 384 时行内仅 362, 最长验收名+necessary 同轨元素物理溢出)。 */
         width: max-content;
         min-width: max(var(--canvas-model-picker-trigger-width, 0px), 260px);
-        max-width: 384px;
+        max-width: 432px;
         /* [2026-09-24 G7] 420→480: 53px 行高下 8 行(约440)曾被 420 cap 裁底行; 480 容纳整表, 更高仍滚动。 */
         max-height: min(480px, calc(100vh - 32px));
         overflow-y: auto;
@@ -1295,6 +1296,21 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
        .canvas-model-picker-option:focus-visible 2px 规则承担, 此处不再置 outline:none。 */
     .canvas-model-picker-option:focus-visible {
         background: color-mix(in srgb, var(--workspace-accent) 13%, transparent) !important;
+    }
+
+    /* T 右轨行宽裕量（2026-09-30 真机返工，必须在层内）：creation 变体的 flyout 被本层
+       .canvas-model-picker-menu / 首层 .creation-model-picker-menu 的 384 !important 钉宽
+       → 行内仅 362px，T 六元素同轨 + 最长验收名（sunburst 191/Windows 字宽 ~205）物理溢出：
+       Linux 实测 shrink 边界 196 vs 名宽 191（5px 零裕量）且 caps 尾 283.4 > 价格左缘 280.6
+       （重叠 2.8px）；Windows 字宽 +6~10px → 截断 + 图标压价格（用户真机实锤）。
+       修复：L2 flyout 384 → 432（行内 410，名宽预算 244，真裕量 ~39px；ddcat 长名 209 亦全显）。
+       L1 菜单保持 384。层叠依据：important 声明下层间反序、非分层隐式末层最弱，
+       故必须置本层内、且特异性(0,2,0)压过 384 规则(0,1,0)；agent 域(canvas-cloud-agent.css
+       非分层 !important)反序下不敌分层声明，再补一档高特异性选择器双保险。 */
+    .canvas-model-picker-flyout.creation-model-picker-menu,
+    .agent-model-picker-popover .canvas-model-picker-flyout.creation-model-picker-menu {
+        width: min(432px, calc(100vw - 24px)) !important;
+        max-width: min(432px, calc(100vw - 24px)) !important;
     }
 
 }

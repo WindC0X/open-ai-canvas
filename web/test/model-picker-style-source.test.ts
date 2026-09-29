@@ -120,6 +120,9 @@ test("模型行变体 T：右轨锚标题行 + 两行流式区 + 无 grid pin �
     expect(styles).not.toContain("grid-template-columns: minmax(0, 1fr) auto");
     const rowgroupRule = styles.match(/\.canvas-model-picker-rowgroup \{([^}]+)\}/)?.[1] || "";
     expect(rowgroupRule).toContain("position: relative");
+    // flyout 钉宽 432（T 行宽裕量：384 时六元素同轨 + 最长名物理溢出，Windows 字宽实锤）
+    const flyoutWide = styles.match(/\.canvas-model-picker-flyout\.creation-model-picker-menu,[\s\S]*?\{([^}]+)\}/)?.[1] || "";
+    expect(flyoutWide).toContain("width: min(432px, calc(100vw - 24px)) !important");
     // 右轨存在且绝对定位、锚标题行（top=上下文 padding + 标题行高带）
     expect(component).toContain('className="canvas-model-picker-rail"');
     const railRule = styles.match(/\.canvas-model-picker-rail \{([^}]+)\}/)?.[1] || "";

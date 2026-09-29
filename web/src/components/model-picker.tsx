@@ -128,9 +128,9 @@ export function ModelPicker({
         // 横向锚定用 L1 菜单容器(而非行): Provider 行在部分变体下不满宽, 行右缘落在 L1 的
         // 空白列里, L2 会直接叠进 L1(2026-09-19 用户实测)。容器右缘才是 L1 的真实边界。
         const menuRect = menuRef.current?.getBoundingClientRect() || anchor.getBoundingClientRect();
-        // [收口A2 2026-09-24] 宽度用实测值: 2026-09-19 起飞层宽度已改 max-content(实测 260),
-        // 固定 384 会让左翻场景在飞层与 L1 之间留下 ~124px 悬空缝(实测 126px)。
-        const flyoutWidth = flyoutRef.current?.offsetWidth || 384;
+        // [收口A2 2026-09-24] 宽度用实测值: 飞层宽度为 max-content/钉宽 432(2026-09-30 T 行宽裕量),
+        // 预估值仅首帧前的左翻估算, 挂载后立即以 offsetWidth 校正。
+        const flyoutWidth = flyoutRef.current?.offsetWidth || 432;
         // 缝隙 2px(2026-09-19 用户拍板): flora 二级菜单视觉上贴住 L1, 8px 分离缝被读成两个断开面板。
         const x = menuRect.right + 2 + flyoutWidth > window.innerWidth - 12 ? menuRect.left - flyoutWidth - 2 : menuRect.right + 2;
         // y 初值=顶边贴 anchor; 首开时 ref 尚未挂载读不到真实高度(读恒为 0, 永远判"放得下"),
@@ -179,7 +179,7 @@ export function ModelPicker({
             setFlyoutPos((pos) => {
                 const mr = menuRef.current?.getBoundingClientRect() || ar;
                 // [收口A2] 左翻判定同样用实测宽度(挂载后 el 已可用), 保 2px 贴合缝。
-                const fw = el.offsetWidth || 384;
+                const fw = el.offsetWidth || 432;
                 const x = Math.max(12, mr.right + 2 + fw > window.innerWidth - 12 ? mr.left - fw - 2 : mr.right + 2);
                 const y = flyoutClampedY(ar.top);
                 if (Math.abs(pos.x - x) < 1 && Math.abs(pos.y - y) < 1) { stable += 1; return pos; }
