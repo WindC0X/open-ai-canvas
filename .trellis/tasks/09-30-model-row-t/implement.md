@@ -73,3 +73,36 @@
 ## 回滚点
 
 - revert 提交1 即回 3b 形态（顶部锚定混排）；守卫随提交恢复。
+
+---
+
+# 返工记录（2026-09-30 · 真机截断返工：flyout 384→432）
+
+## 用户真机反馈（两轮截图，:3002 硬刷后）
+
+- sunburst 选中行名 `gpt-image-2.5-sunburst · a...` **截断**；能力图标与价格徽章 `0.06` **贴叠**。
+- 像素级复核确认渲染的**就是 T 结构**（zone 内联 mini chip ✓、右轨价格/✓ ✓）——问题不是旧码，是**宽度裕量为零**。
+
+## 根因（量化）
+
+- 行内可用宽 = flyout 384 − 内衬 22 = **362**；实测 shrink 边界 **196** vs sunburst 名宽 191（Linux 无头 Chromium）——**仅 5px 裕量**；且 caps 尾 283.4 > 价格左缘 280.6（**Linux 上已重叠 2.8px**，首轮验收误读为"2px 间隙"——更正）。
+- Windows 真机字体度量比 Linux 宽 +6~10px → 名宽 ~205 > 196 → 截断 + caps 压价格（用户截图实锤）。
+- 物理结论：**T 六元素同轨（logo+名+能力图标+价格+✓+pin）在 384 宽装不下最长验收名**——验收方法论缺陷：把"恰好放下"当"放下"，未留跨平台字宽裕量。
+
+## 修复
+
+- L2 flyout 钉宽 384 → **432**（行内 410；shrink 边界 196→**244**，Windows 名宽 ~205 仍有 **39px 真裕量**；caps-价格间隙 **45px**）。L1 菜单保持 384。
+- 层叠坑（记档）：**非分层 !important 在层间反序下不敌分层 !important**（unlayered = 隐式末层，important 反序后最弱）——覆盖规则必须写进被覆盖者所在的 @layer utilities 层内且特异性更高（0,2,0 vs 0,1,0）；agent 域（canvas-cloud-agent.css 非分层 !important）反序下自动让位，另补 0,3,0 选择器双保险。
+- 基础（非 creation）flyout max-width 384→432；JS 定位 fallback 字面量 384→432 两处（挂载后仍以 offsetWidth 实测为准）；anchor 测试字面量同步。
+
+## 复验（:3002，/tmp/f06t-audit.py + measure3 + repro，证据 .local/f06t-evidence/f06t-measure-after432.log）
+
+- a6api：GPT/nano 54.6、sunburst 选中行 58（min-height 保留）——**全名 191/191 不截断**、六元素全 17.8 同轨、caps-价格 45px 间隙。
+- **ddcat：8 行长名（含 198/209）全部不截断**（432 附带收益，原 384 下截断）；8×54.6、scroll 467/467 无滚动。
+- L1 置顶行 / 扩图浮层（无价格行 36 让位）/ 选中行 ✓+pin 并列（gap 5）全保持；行高 54.6/71.6 不变。
+- 门禁：tsc/eslint 绿；web 全量 2288/15（15 红逐名=冻结基线）；build ✓。
+
+## 教训（升 spec 候选）
+
+- 跨平台 UI 验收：文字宽度类断言必须留字体度量裕量（Linux 无头 ≈ 下限，Windows 真机偏宽），"恰好放下"=必炸。
+- 首轮报告的"caps 尾 279 vs 价格 281（2px 间隙）"实为重叠 2.8px（rounding 误读）——数值断言应以代数符号判定（end ≤ left − gap），不做目视差值。
