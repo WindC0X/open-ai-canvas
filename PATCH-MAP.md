@@ -50,7 +50,7 @@
 
 | # | 改动面（本批） | 上游相交面 | 预判 | 处置建议 |
 |---|---|---|---|---|
-| C1 | `web/src/components/model-picker.tsx`（ModelLabel 根锚顶 + 撤 3a 占位槽）+ `web/src/styles/shared/model-picker.css`（option-body/✓/logo 顶部锚定规则，unlayered 段） | 上游模型标签 UI（`b8eefdad` 彩色标签系统；origin/main 同文件同区域） | **高**：本文件 fork 侧已大幅分叉（vs origin/main 860+ 行差异），3b 再动行锚定结构——fork 顶部锚定混排（非上游三行固定结构） | 同步时以 fork 结构为底，逐条并入上游 tags/价格行新变更；model-tags.css/tsx 零改动（上游文件不动，冲突面收敛） |
+| C1 | `web/src/components/model-picker.tsx`（renderModelRow 右轨/流式区结构 + ModelLabel line1/zone）+ `web/src/styles/shared/model-picker.css`（rail/pin/zone/zone-tag/line1 让位与锚定，unlayered T 段）+ 守卫 `web/test/model-picker-style-source.test.ts` | 上游模型标签 UI（`b8eefdad` 彩色标签系统；origin/main 同文件同区域） | **高**：行内结构已 fork 专有（右轨 absolute 锚标题行 + 两行流式区 zone + pin 退出文档流），上游无同构 | 同步时以 fork 结构为底，上游 tags/价格行变更手工映射进 zone/右轨；model-tags.css/tsx 零改动（上游文件不动，冲突面收敛） |
 | C2 | `web/src/lib/canvas/canvas-generation-task-sync.ts`（偏差节点尺寸让位重算） | 上游近期未动（HEAD..origin/main 无该文件） | 低 | 正常核对 |
 | C3 | `web/src/pages/canvas/use-canvas-media-tools.ts`（直连写回同口径） | 上游近期未动 | 低 | 正常核对 |
 | C4 | `backend/internal/app/task_outpaint_hardblend.go`（贴回阈值 0.08→0.02）+ 测试 | 无（hardblend 为 B 线独有） | 无 | — |
