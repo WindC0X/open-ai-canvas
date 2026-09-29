@@ -53,3 +53,35 @@
 ## 回滚点
 
 - 提交1 / 提交2 各自独立 revert。
+
+---
+
+# 修项3b 执行记录（2026-09-29 微令 · 顶部锚定混排）
+
+## 改动（提交1 `fix(canvas)`）
+
+- `model-picker.tsx`：撤 3a 占位槽（`canvas-model-picker-tags-slot` 元素删除，`ModelTags` 裸渲染）；ModelLabel 根 `items-center` → `items-start`（行内容顶部锚定）。
+- `model-picker.css`：
+  - 删 `.canvas-model-picker-tags-slot` 规则（3a 等高占位）。
+  - `option-body`（两处重复 align-items 收敛为一）与 `option > span:first-child` 旧结构规则均改 `align-items: flex-start`。
+  - unlayered 段新增锚定补偿（TOP 位压过分层旧规）：`.canvas-model-picker-logo { margin-top: calc(var(--fs-body) * 0.7 - 12px) }`（24px logo 居中 19.6px 标题行）；`.canvas-model-picker-option-check { align-self: flex-start; margin-top: calc(var(--fs-body) * 0.7 - 7px) }`（14px ✓ 居中标题行）。补偿按 `--fs-body × 1.4` 推导，字号变时自适应。
+- `model-picker-style-source.test.ts` 追加守卫：无 slot（tsx+css）、根级 items-start、option-body 无 center、✓/logo 锚顶补偿存在、hover transition 仅 background-color 且无 height/padding（果冻防线）。drift 相关测试未动。
+
+## 验证（:3002 本枝 vite 热更 ↔ :8484 控制线验证栈，会话复用 3a 签发）
+
+- **a6api flyout（工具栏选择器，与 3a 对照同表面）**：行高混排回归——GPT Image 2.5（无标签）53.6 紧凑两行 / nano（双标签）80.6 / sunburst（单标签）80.6；**logo 圆心全 17.8、chips 圆心全 17.8、titleTop 全 8**（跨行锚顶零漂移）。
+- **✓ 锚顶**（扩图浮层选中行实测）：check top = titleTop + 2.8、cy 20 = logoCy 20 = chipsCy 20（恰为标题行几何中心）。
+- **ddcat 全无标签 flyout**：8 行全 53.6 紧凑两行，锚定值同上。
+- 目视复核：a6api 混排三行 + ddcat 八行截图（`.local/f06drift-evidence/f063b-*.png`）。
+- 守卫测试 7/7（style-source 全文件）；tsc rc=0；eslint rc=0（css 文件不在 eslint 配置内，warning 无害）。
+- 备注：选中行 `min-height: 58px` 为既有规则（当前模型行略高于未选中 53.6，锚定不受影响——补偿挂标题行不挂行盒），3b 未动。
+- 证据：`.local/f06drift-evidence/f063b-measure.json`、`f063b-measure2.json`、`f063b-flyout-*.png`、`f063b-toolbar-flyout-*.png`。
+
+## 门禁与提交
+
+- web 全量 + build 见下（收口节）；go 侧无改动（3b 纯前端 CSS/TSX）。
+- 提交1 `fix(canvas)`：tsx + css + 守卫测试；提交2 `chore(trellis)`：本卡 prd 附2（微令原文）+ 本记录 + PATCH-MAP C1 同步（"同构上游三行固定"→"fork 顶部锚定混排"）。双提交不 push。
+
+## 回滚点
+
+- revert 提交1 即回 3a 等高占位形态（slot 规则随提交恢复）。
