@@ -42,3 +42,15 @@
 - W1/W2 同步卫生 3 条（2cc4f313/76e28952/065ecf13 的 globals 裁决段，C 类）;
 - 其余杂项（500a16ca 安静化令牌=A 类代表、852d8e3d 字号、b8f50813/composer 底栏批等）。
 - 回填排期：不阻塞族 3；在下次上游同步仪式（双周/事件触发）前完成二分登记，外置重构（W3 起）动工前必须全量回填。
+
+## 冲突预判登记：merge-v1.6.0（B线 · 2026-09-29 扩图画幅偏差批）
+
+> 用途：控制线任务书 2026-09-29 要求——本批改动面与上游 origin/main 积压 27 commits 的相交预判，随上游同步时优先核对。
+> 注：本段基于本枝 PATCH-MAP 快照（fork 时点）；并入批次时请随主版（含 E 系列 / 形态偏离 / merge-v1.5.9 总账）合并处置。
+
+| # | 改动面（本批） | 上游相交面 | 预判 | 处置建议 |
+|---|---|---|---|---|
+| C1 | `web/src/components/model-picker.tsx`（ModelLabel 标签行占位槽）+ `web/src/styles/shared/model-picker.css`（slot min-height 规则） | 上游模型标签 UI（`b8eefdad` 彩色标签系统；origin/main 同文件同区域） | **高**：本文件 fork 侧已大幅分叉（vs origin/main 860+ 行差异），本批再动 tags 行邻近区块 | 同步时以 fork 结构为底，逐条并入上游 tags/价格行新变更；model-tags.css/tsx 零改动（上游文件不动，冲突面收敛） |
+| C2 | `web/src/lib/canvas/canvas-generation-task-sync.ts`（偏差节点尺寸让位重算） | 上游近期未动（HEAD..origin/main 无该文件） | 低 | 正常核对 |
+| C3 | `web/src/pages/canvas/use-canvas-media-tools.ts`（直连写回同口径） | 上游近期未动 | 低 | 正常核对 |
+| C4 | `backend/internal/app/task_outpaint_hardblend.go`（贴回阈值 0.08→0.02）+ 测试 | 无（hardblend 为 B 线独有） | 无 | — |
