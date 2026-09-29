@@ -167,7 +167,8 @@ export async function loadCanvasProjectForEditing(id: string, options: { latest?
         }
         let remote: CanvasProject;
         try {
-            remote = (await getRemoteCanvasProject(id)).project;
+            const knownRemote = verifiedProjects.has(id) ? acknowledgedProjects.get(id) : undefined;
+            remote = (await getRemoteCanvasProject(id, knownRemote)).project;
         } catch (error) {
             if (epoch !== sessionEpoch) throw new Error("账号已切换，请重新打开画布");
             const local = openLocalProject(id);
@@ -265,7 +266,8 @@ export async function refreshCanvasAfterAgent(id: string) {
     const epoch = sessionEpoch;
     return withRemoteUserDataSyncExclusive(async () => {
         if (!activeRemoteUserId) throw new Error("请先登录再刷新 Agent 画布结果");
-        const { project } = await getRemoteCanvasProject(id);
+        const knownRemote = verifiedProjects.has(id) ? acknowledgedProjects.get(id) : undefined;
+        const { project } = await getRemoteCanvasProject(id, knownRemote);
         if (epoch !== sessionEpoch) throw new Error("账号已切换");
         const current = useCanvasStore.getState().projects.find((candidate) => candidate.id === id);
         const baseline = acknowledgedProjects.get(id);
@@ -1046,6 +1048,30 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
                 if (pending) syncQueued = true;
             } catch (error) {
                 const conflict = error instanceof ApiError && error.reason !== "canvas_history_resources_missing" && (error.status === 409 || error.status === 428);
+                // 合并口径（2026-09-30 序4 rider）：上游新增的「云端内容一致 → 自动校准版本」前置分支。
+                // 用 fork 的水位门访问器 openLocalProject（而非上游的 useCanvasStore.getState().openProject）
+                // 保持一致：水位门维护 acknowledgedProjects/verifiedProjects，校准结果必须同步写入两者。
+                if (conflict) {
+                    try {
+                        const { project: remote } = await getRemoteCanvasProject(source.id);
+                        const current = openLocalProject(source.id);
+                        if (current && sameCanvasContent(current, remote)) {
+                            const hash = await canvasContentHash(remote);
+                            if (current === openLocalProject(source.id)) {
+                                const reconciled = { ...remote, viewport: current.viewport, remoteContentHash: hash };
+                                acknowledgedProjects.set(source.id, reconciled);
+                                watermarkProjects.set(source.id, remote.updatedAt);
+                                verifiedProjects.add(source.id);
+                                useCanvasStore.setState((state) => ({ projects: state.projects.map((project) => project.id === source.id ? reconciled : project) }));
+                                await flushCanvasStorePersistence();
+                                useSyncProgressStore.getState().setProjectProgress(source.id, { phase: "done", message: "云端内容一致，已自动校准版本" });
+                                continue;
+                            }
+                        }
+                    } catch {
+                        // 校准失败时保留原冲突，继续走下方草稿保护。
+                    }
+                }
                 useSyncProgressStore.getState().setProjectProgress(source.id, {
                     phase: conflict ? "conflict" : "error",
                     message: error instanceof Error ? error.message : "云端同步失败，等待重试",

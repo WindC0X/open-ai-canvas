@@ -3030,6 +3030,8 @@ function InfiniteCanvasPage() {
                             <CanvasCloudAgentPanel
                                 canvasId={projectId}
                                 domainProjectId={currentProject?.projectId}
+                                canvasNodes={nodes}
+                                runningNodeId={runningNodeId}
                                 nodeCount={nodes.length}
                                 selectedNodeIds={Array.from(selectedNodeIds)}
                                 references={agentMentionReferences}
@@ -3043,7 +3045,6 @@ function InfiniteCanvasPage() {
                                     const currentNodes = nodesRef.current;
                                     const target = currentNodes.find((node) => node.id === nodeId);
                                     if (!target) { message.info("该节点已删除或尚未同步到画布"); return; }
-
                                     const parent = target.parentId ? currentNodes.find((node) => node.id === target.parentId) : null;
                                     if (parent?.metadata?.frame?.collapsed) toggleFrameCollapsed(parent.id);
 

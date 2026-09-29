@@ -39,7 +39,8 @@ import {
 } from "@/services/api/agent";
 import { agentApprovalPresentation } from "@/lib/canvas/agent-approval-presentation";
 import { buildAgentFeedSegments } from "@/lib/canvas/agent-operation-feed";
-import { agentApprovalMatchesSettings, agentImageApproval } from "@/lib/canvas/agent-media-approval";
+import { AGENT_APPROVAL_SUPERSEDED_BY_NODE, agentApprovalMatchesSettings, agentApprovalTargetGenerating, agentImageApproval } from "@/lib/canvas/agent-media-approval";
+import type { CanvasNodeData } from "@/types/canvas";
 import type { AgentMediaSettings } from "@/services/api/agent";
 import { CanvasAgentImageApprovalSettings } from "./canvas-agent-image-approval-settings";
 import { addSkill, listAddedSkills, listSkillLibraryCategories, listSkills, listSkillPresets, type Skill, type SkillCategory, type SkillLibraryCategory, type SkillPreset } from "@/services/api/skills";
@@ -88,12 +89,29 @@ import { live2DModelURL } from "@/services/api/appearance";
 import { Live2DAvatar } from "./live2d-avatar";
 import "./canvas-cloud-agent.css";
 
-type CloudAgentPanelProps = { canvasId: string; domainProjectId?: string; nodeCount: number; selectedNodeIds: string[]; references: CanvasResourceReference[]; open: boolean; prefillPrompt?: string; prefillPromptId?: number; onOpen: () => void; onCollapse: () => void; onFocusNode?: (nodeId: string) => void; panelLayout: ReturnType<typeof useAgentPanelLayout> };
+type CloudAgentPanelProps = {
+    canvasId: string;
+    domainProjectId?: string;
+    nodeCount: number;
+    selectedNodeIds: string[];
+    references: CanvasResourceReference[];
+    open: boolean;
+    prefillPrompt?: string;
+    /** fork 增量：prefill 幂等标识（同 id 不重复注入，避免重复请求重新预填）。 */
+    prefillPromptId?: number;
+    onOpen: () => void;
+    onCollapse: () => void;
+    onFocusNode?: (nodeId: string) => void;
+    /** 画布节点快照：用于识别审批目标节点是否已被用户直接提交生成。 */
+    canvasNodes?: readonly CanvasNodeData[];
+    runningNodeId?: string | null;
+    /** fork 增量：面板布局由父组件 lift 注入（HUD 让位依赖），非内部 hook。 */
+    panelLayout: ReturnType<typeof useAgentPanelLayout>;
+};
 type ApprovalState = { approvalId: string; detail: Record<string, unknown>; reason: string };
 type AgentPanelView = "chat" | "history" | "settings";
 
-export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, selectedNodeIds, references, open, prefillPrompt, prefillPromptId, onOpen, onCollapse, onFocusNode, panelLayout }: CloudAgentPanelProps) {
-    const userId = useUserStore((state) => state.user?.id);
+export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, selectedNodeIds, references, open, prefillPrompt, prefillPromptId, onOpen, onCollapse, onFocusNode, canvasNodes, runningNodeId, panelLayout }: CloudAgentPanelProps) {    const userId = useUserStore((state) => state.user?.id);
     // Agent 浮窗与节点面板等同属"最后交互置顶"的画布浮层体系: 点击/聚焦面板即 bringToFront,
     // 否则固定 z-modal-overlay(110) 的 Agent 会被交互后置顶(150)的节点面板永久压住(用户实测层级问题)。
     const { bringToFront: bringAgentToFront, zIndex: agentZIndex } = useCanvasOverlayLayer("agent-panel", "var(--z-modal-overlay)");
@@ -711,7 +729,6 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
             const result = submission.parentRunId ? await sendAgentMessage(submission.parentRunId, request) : await createAgentRun(request);
             accepted = true;
             if (currentScope.current === scope) {
-                setContextUsage(emptyAgentContextUsage(result.run.id));
                 setRun(result.run);
             }
             await clearCloudAgentPendingSubmission(canvasId, activeConversationId);
@@ -1117,6 +1134,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                         references={[...references, ...buildSkillMentionReferences(installedSkills)]}
                                         busy={busy || running}
                                         approval={approval}
+                                        approvalTargetGenerating={approval ? agentApprovalTargetGenerating(approval.detail, canvasNodes, runningNodeId) : undefined}
                                         nodeCount={nodeCount}
                                         approvalSubmitting={approvalSubmitting || connectionStatus !== "connected"}
                                         onChooseSkill={() => setSkillsOpen(true)}
@@ -1131,6 +1149,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                             theme={theme}
                                             minimized={planMinimized}
                                             terminal={planTerminal || Boolean(run && ["completed", "failed", "cancelled", "rejected"].includes(run.status))}
+                                            waitingUser={Boolean(pendingQuestion)}
                                             onToggle={() => setPlanMinimized((value) => !value)}
                                         />
                                     ) : null}
@@ -1362,7 +1381,7 @@ function AgentContextRing({ view }: { view: AgentContextUsageView }) {
             getPopupContainer={(trigger) => trigger.closest<HTMLElement>(".canvas-agent-panel") ?? document.body}
             content={
                 <div className="agent-context-panel" data-phase={view.phase}>
-                    <span className="agent-context-eyebrow">下一次请求</span>
+                    <span className="agent-context-eyebrow">下一次请求 · 上下文窗口占用</span>
                     <div className="agent-context-panel-head">
                         <strong>{usageHeading}</strong>
                         {view.phase !== "ok" ? <span className={`agent-context-phase is-${view.phase}`}>{phaseLabel}</span> : null}
@@ -1382,7 +1401,7 @@ function AgentContextRing({ view }: { view: AgentContextUsageView }) {
                         )}
                     </div>
                     <div className="agent-context-progress-head">
-                        <span>输入预算占用</span>
+                        <span>上下文窗口占用</span>
                         <strong>{percent}</strong>
                     </div>
                     <div className="agent-context-progress" role="progressbar" aria-label={`上下文已用 ${percent}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={view.ratio === undefined ? undefined : Math.round(view.ratio * 100)}>
@@ -1533,6 +1552,7 @@ function AgentConversation({
     references,
     busy,
     approval,
+    approvalTargetGenerating,
     approvalSubmitting,
     nodeCount,
     onChooseSkill,
@@ -1547,6 +1567,7 @@ function AgentConversation({
     references: CanvasResourceReference[];
     busy: boolean;
     approval: ApprovalState | null;
+    approvalTargetGenerating?: CanvasNodeData;
     approvalSubmitting: boolean;
     nodeCount: number;
     onChooseSkill: () => void;
@@ -1607,7 +1628,19 @@ function AgentConversation({
                         <AgentChatMessage key={segment.key} item={segment.item} theme={theme} references={references} onFocusNode={onFocusNode} isStreaming={busy && !approval && segment.item.streaming === true && segment.item === lastMessage} />
                     ),
                 )}
-                {approval ? <ApprovalCard key={approval.approvalId} approval={approval} theme={theme} submitting={approvalSubmitting} onFocusNode={onFocusNode} onReasonChange={onApprovalReasonChange} onApprove={onApprove} onReject={onReject} /> : null}
+                {approval ? (
+                    <ApprovalCard
+                        key={approval.approvalId}
+                        approval={approval}
+                        theme={theme}
+                        submitting={approvalSubmitting}
+                        targetGenerating={approvalTargetGenerating}
+                        onFocusNode={onFocusNode}
+                        onReasonChange={onApprovalReasonChange}
+                        onApprove={onApprove}
+                        onReject={onReject}
+                    />
+                ) : null}
                 {busy && !approval ? <AgentWorkingMessage theme={theme} label="正在处理当前画布" /> : null}
             </div>
         </div>
@@ -1684,6 +1717,7 @@ function ApprovalCard({
     approval,
     theme,
     submitting,
+    targetGenerating,
     onFocusNode,
     onReasonChange,
     onApprove,
@@ -1692,6 +1726,8 @@ function ApprovalCard({
     approval: ApprovalState;
     theme: CanvasTheme;
     submitting: boolean;
+    /** 目标节点已在画布上直接生成：禁用“同意执行”，等待后端关闭本次审批。 */
+    targetGenerating?: CanvasNodeData;
     onFocusNode?: (nodeId: string) => void;
     onReasonChange: (value: string) => void;
     onApprove: (settings?: AgentMediaSettings) => void;
@@ -1708,7 +1744,7 @@ function ApprovalCard({
                     <ShieldCheck className="size-4" />
                 </span>
                 <h3>{action.title}</h3>
-                <span className="canvas-agent-approval-badge">等待你的确认</span>
+                <span className="canvas-agent-approval-badge">{targetGenerating ? "已在节点中生成" : "等待你的确认"}</span>
             </div>
             <p className="canvas-agent-approval-description" style={{ color: theme.node.muted }}>
                 {action.description}
@@ -1744,13 +1780,18 @@ function ApprovalCard({
                     disabled={submitting}
                 />
             ) : null}
+            {targetGenerating ? (
+                <p className="canvas-agent-approval-description" role="status" style={{ color: theme.node.muted }}>
+                    你已在节点《{targetGenerating.title || "未命名节点"}》上直接提交了生成，Agent 不会重复提交；本次审批会自动关闭。
+                </p>
+            ) : null}
             <div className="canvas-agent-approval-actions">
                 <button type="button" className="canvas-agent-approval-reject" disabled={submitting} onClick={onReject}>
                     暂不执行
                 </button>
-                <button type="button" className="canvas-agent-approval-approve" disabled={submitting} onClick={() => onApprove(mediaSettings)}>
+                <button type="button" className="canvas-agent-approval-approve" disabled={submitting || Boolean(targetGenerating)} onClick={() => onApprove(mediaSettings)}>
                     {submitting ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Check className="size-4" aria-hidden="true" />}
-                    {submitting ? "正在提交" : "同意执行"}
+                    {submitting ? "正在提交" : targetGenerating ? "已在节点中生成" : "同意执行"}
                 </button>
             </div>
         </section>
@@ -1896,6 +1937,16 @@ function applyAgentEvent(
     }
     if (event.type === "approval_decided") {
         setApproval(null);
+        if (payload.decision === AGENT_APPROVAL_SUPERSEDED_BY_NODE) {
+            setMessages((current) =>
+                appendUniqueMessage(current, {
+                    id: event.eventId,
+                    role: "system",
+                    text: text || "你已在画布节点上直接提交了生成，本次审批已自动关闭；Agent 不会重复提交或扣费。",
+                }),
+            );
+            return;
+        }
         if (payload.decision === "reject") {
             setMessages((current) =>
                 appendUniqueMessage(current, {

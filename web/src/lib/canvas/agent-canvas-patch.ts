@@ -103,10 +103,26 @@ export function mergeAgentCanvasEditor(previous: CanvasProject, incoming: Canvas
         const removals = basis.filter((item) => !afterIds.has(item.id)).map((item) => ({ before: byId.get(item.id) ?? item, after: null }));
         return [...removals, ...after.filter((item) => !equal(item, byId.get(item.id))).map((item) => ({ before: byId.get(item.id) ?? null, after: item }))];
     };
-    return applyAgentCanvasPatch({ ...previous, nodes, connections }, {
-        canvasId: previous.id,
-        updatedAt: incoming.updatedAt,
-        nodes: changes(previous.nodes, incoming.nodes, nodes),
-        connections: changes(previous.connections, incoming.connections, connections),
-    });
-}
+    const projected = applyAgentCanvasPatch(
+        { ...previous, nodes, connections },
+        {
+            canvasId: previous.id,
+            updatedAt: incoming.updatedAt,
+            nodes: changes(previous.nodes, incoming.nodes, nodes),
+            connections: changes(previous.connections, incoming.connections, connections),
+        },
+    );
+    // 合并口径（2026-09-30 序4 rider）：上游 387d3562 新增的 project 顶层字段三方合并
+    // （title/timeline/…，排除 id/revision/updatedAt/remoteContentHash/viewport/nodes/connections）
+    // 与 fork 的 basis 删除判定**双保**——前者管非节点字段、后者管节点增删，作用域不重叠。
+    const merged = { ...projected } as CanvasProject & Record<string, unknown>;
+    const before = previous as CanvasProject & Record<string, unknown>;
+    const after = incoming as CanvasProject & Record<string, unknown>;
+    const editor = { ...previous, nodes, connections } as CanvasProject & Record<string, unknown>;
+    for (const key of new Set([...Object.keys(before), ...Object.keys(after), ...Object.keys(editor)])) {
+        if (["id", "revision", "updatedAt", "remoteContentHash", "viewport", "nodes", "connections"].includes(key)) continue;
+        const value = mergeValue(editor[key], before[key], after[key]);
+        if (value === undefined) delete merged[key];
+        else merged[key] = value;
+    }
+    return { ...merged, revision: incoming.revision, updatedAt: incoming.updatedAt, viewport: editor.viewport } as CanvasProject;}

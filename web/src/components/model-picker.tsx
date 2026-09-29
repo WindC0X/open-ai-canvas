@@ -2,7 +2,6 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSP
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, ChevronRight, Coins, Image as ImageIcon, Info, ListMusic, Pin, Search, Type as TypeIcon, Video as VideoIcon } from "lucide-react";
 import { Popover, Tooltip } from "antd";
-
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor, normalizeModelCapabilityConfig, videoDurationOptions } from "@/lib/model-capabilities";
 import { formatPriceRange, modelQuoteRequest, normalizeTierResolution, priceTierSummaryLabel, priceTiersForCurrentSelection, modelQuoteDescription } from "@/lib/model-pricing";
@@ -93,6 +92,7 @@ export function ModelPicker({
     const rawTheme = useActiveTheme();
     const theme = (canvasThemes[rawTheme as keyof typeof canvasThemes] ?? canvasThemes.dark) as CanvasTheme;
     const [open, setOpen] = useState(false);
+    const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
     // 收起动画期间不得注入 ant-popover-hidden(display:none 会瞬间抹掉 canvas-panel-out 收起动画,
     // 模型菜单"关=瞬闪消失"); hidden 必须走 props 注入(rc-motion 启动 leave 时按 props 重算 root
     // className, DOM 副作用加的类会被整体抹掉), 因此用 afterOpenChange 门控: 动画走完再隐。
@@ -193,7 +193,6 @@ export function ModelPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- flyoutClampedY 读 ref, 非响应式; y 写入不入依赖防回环
     }, [flyoutGroup, flyoutPos.x]);
     // flora Providers 二级语法: L1=渠道/产商行钻取, L2=该组模型列表; 单组直接 L2, 搜索态展开全部
-    const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     // 参数档位会在选中模型后由调用方归一到其能力配置，不能因为旧模型留下的参数而禁止切换。
@@ -283,16 +282,6 @@ export function ModelPicker({
     const quoteRequest = useMemo(() => modelQuoteRequest(config, current, capability, requirements), [capability, config, current, requirements]);
     const [routeQuote, setRouteQuote] = useState<LogicalModelQuote | undefined>();
     const creationVariant = variant === "creation";
-
-    useLayoutEffect(() => {
-        const trigger = triggerRef.current;
-        if (!trigger) return;
-        const updateTriggerWidth = () => setTriggerWidth(Math.ceil(trigger.getBoundingClientRect().width));
-        updateTriggerWidth();
-        const observer = new ResizeObserver(updateTriggerWidth);
-        observer.observe(trigger);
-        return () => observer.disconnect();
-    }, [className, fullWidth, showSelectedPrice, variant, value]);
 
     useEffect(() => {
         if (!showSelectedPrice || !creditsEnabled || !quoteRequest) {
@@ -635,17 +624,16 @@ export function ModelPicker({
         <div
             ref={menuRef}
             data-canvas-no-zoom
-            // 上游 v1.3 的两级品牌双栏菜单(is-brand-list/is-model-list)与我们 flora flyout 分组菜单在同一区域平行演进,
-            // merge 冲突已取我们侧 —— 此处恢复我们侧根 className, 剔除上游泄漏的 className 三元, 避免两套布局 CSS 杂交。
+            // fork 权威（PATCH-MAP C1 登记）：flora flyout 分组菜单；上游 v1.3 品牌双栏
+            // (is-brand-list/is-model-list)在本仓未接线（无 canvas-model-picker-brand 渲染），
+            // 故保留 fork 根 className，不引入上游三元。
             className={cn("canvas-model-picker-menu max-w-[calc(100vw-24px)]", creationVariant ? "creation-model-picker-menu w-[360px]" : "w-[var(--panel-width-compact)]")}
             style={
                 {
                     /* 背景不在此层: 容器层(surface)承载 flora .9 玻璃, 内容层实色会把毛玻璃糊死(亮底不透的根因之一) */
                     color: theme.node.text,
-                    "--canvas-model-picker-trigger-width": triggerWidth ? String(triggerWidth) + "px" : undefined,
                 } as CSSProperties
-            }
-            role="listbox"
+            }            role="listbox"
             aria-label={placeholder}
             onKeyDown={handleMenuKeyDown}
             onMouseDown={(event) => event.stopPropagation()}
