@@ -61,8 +61,10 @@ test("model rows preserve multiple promotional labels and colors without alterin
     config.channels[0].modelCosts![0].tags = [{ text: "限时特价", color: "purple" }, { text: "官方1折", color: "gold" }];
     for (const theme of [canvasThemes.light, canvasThemes.dark]) {
         const markup = renderToStaticMarkup(<ModelLabel config={config} model={config.model} capability="video" theme={theme} creationVariant showConfiguredModelName={false} showPrice showDescription />);
-        expect(markup).toContain('data-color="purple">限时特价');
-        expect(markup).toContain('data-color="gold">官方1折');
+        // 2026-09-29 变体 T：标签改入两行流式区 zone（mini chip，data-tone 音色），意图不变：多标签+色保留+价格不动
+        expect(markup).toContain('data-tone="purple">限时特价');
+        expect(markup).toContain('data-tone="gold">官方1折');
+        expect(markup).toContain('canvas-model-picker-zone-tag');
         expect(markup).toContain("0.1-0.2 /秒");  // 同上：格式差异，语义断言保持
     }
     config.channels[0].modelCosts![0].tags = [];

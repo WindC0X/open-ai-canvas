@@ -128,3 +128,15 @@
 | F7 | `backend/internal/app/task_outpaint_hardblend.go` | 上游新增 `numberValue(value any, fallback float64)`（`cloud_agent_director.go:253`） | fork 版 `numberValue(value interface{}) float64` | **同名重声明冲突**处置：删除 fork 版，6 处调用点（rect x0/y0/x1/y1、frame width/height）改传 `fallback=0` 调上游版（语义一致，上游版经 `cloudAgentSafeNumber` 规范化） |
 
 **本批上游入树核验**：`2cedc4c6..origin/main` 221 文件已入 215；6 个未落地全部合法——`backend/internal/{service,skills}/seed/skills.json` 是上游 `49a73316` 技能库 Markdown 包迁移**主动删除**的旧路径，4 个 `docs/content/docs/**` 属仓库 `.gitignore` 惯例下的 untracked 工作稿。
+
+## 冲突预判登记：merge-v1.6.0（B线 · 2026-09-29 扩图画幅偏差批）
+
+> 用途：控制线任务书 2026-09-29 要求——本批改动面与上游 origin/main 积压 27 commits 的相交预判，随上游同步时优先核对。
+> 注：本段基于本枝 PATCH-MAP 快照（fork 时点）；并入批次时请随主版（含 E 系列 / 形态偏离 / merge-v1.5.9 总账）合并处置。
+
+| # | 改动面（本批） | 上游相交面 | 预判 | 处置建议 |
+|---|---|---|---|---|
+| C1 | `web/src/components/model-picker.tsx`（renderModelRow 右轨/流式区结构 + ModelLabel line1/zone）+ `web/src/styles/shared/model-picker.css`（rail/pin/zone/zone-tag/line1 让位与锚定，unlayered T 段）+ 守卫 `web/test/model-picker-style-source.test.ts` | 上游模型标签 UI（`b8eefdad` 彩色标签系统；origin/main 同文件同区域） | **高**：行内结构已 fork 专有（右轨 absolute 锚标题行 + 两行流式区 zone + pin 退出文档流），上游无同构 | 同步时以 fork 结构为底，上游 tags/价格行变更手工映射进 zone/右轨；model-tags.css/tsx 零改动（上游文件不动，冲突面收敛） |
+| C2 | `web/src/lib/canvas/canvas-generation-task-sync.ts`（偏差节点尺寸让位重算） | 上游近期未动（HEAD..origin/main 无该文件） | 低 | 正常核对 |
+| C3 | `web/src/pages/canvas/use-canvas-media-tools.ts`（直连写回同口径） | 上游近期未动 | 低 | 正常核对 |
+| C4 | `backend/internal/app/task_outpaint_hardblend.go`（贴回阈值 0.08→0.02）+ 测试 | 无（hardblend 为 B 线独有） | 无 | **已并入（2026-09-30 序3）**：阈值 0.02 在树、`TestHardBlendOutpaintImageDriftBoundary`（0.021 跳过 / 0.019 贴回）通过；与本批 F7 的 `numberValue` 处置同文件不同函数，无交叠（控制线观察点复验通过） |

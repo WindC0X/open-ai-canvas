@@ -157,18 +157,7 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
         const resultWidth = image.storageKey && !hasReportedImageSize && requestedImageSize ? requestedImageSize.width : uploaded.width;
         const resultHeight = image.storageKey && !hasReportedImageSize && requestedImageSize ? requestedImageSize.height : uploaded.height;
         const normalizedImage = resultWidth === uploaded.width && resultHeight === uploaded.height ? uploaded : { ...uploaded, width: resultWidth, height: resultHeight };
-        const imageSize =
-            // 尺寸合同链（任一命中就沿用现框，不改写）：扩图占位 manualSize（上游不按提交像素出图是
-            // 常态，偏差走 outpaintSizeMismatch 角标，用户实测 2026-09-20）；用户拉过的框
-            // userResized/manualSize 与自由比例 freeResize（与 hydrate 定尺寸守卫同源，尊重人工尺寸）；
-            // edit+auto 沿用现框（提交框已是按比例建立的几何）。
-            // 其余（生成结果无人工尺寸）按【全局媒体标准】fitNodeSize 回写：不传边界盒 = 720×520 上限
-            // + 420×236 地板，与扩图占位/上传/hydrate 同一条规则——同比例同一尺寸（用户实测 2026-09-21）。
-            node.metadata?.manualSize || node.metadata?.freeResize || node.metadata?.userResized
-                || (node.metadata?.generationType === "edit" && !requestedImageSize)
-                ? { width: node.width || imageConfig.width, height: node.height || imageConfig.height }
-                : fitNodeSize(resultWidth, resultHeight);
-        // 扩图合同（manualSize）回写链也重算画幅偏差角标：此前只在直连成功路径计算，
+        // 扩图合同（manualSize）回写链一律重算画幅偏差角标：此前只在直连成功路径计算，
         // hydrate/任务中心重试回写后角标静默丢失（review 2026-09-21 P3）。提交尺寸取任务
         // input.config.size（WxH 串）；解析失败或非扩图节点不写角标。
         const submittedSize = (() => {
@@ -180,6 +169,22 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
         })();
         const ratioDrift = submittedSize ? Math.abs(Math.log((uploaded.width / uploaded.height) / (submittedSize.width / submittedSize.height))) : 0;
         const sizeMismatch = submittedSize && ratioDrift > 0.02 ? { submitted: `${submittedSize.width}x${submittedSize.height}`, actual: `${uploaded.width}x${uploaded.height}` } : undefined;
+        // 尺寸合同链（任一命中就沿用现框，不改写）：扩图占位 manualSize（上游不按提交像素出图是
+        // 常态，偏差走 outpaintSizeMismatch 角标，用户实测 2026-09-20）；用户拉过的框
+        // userResized/manualSize 与自由比例 freeResize（与 hydrate 定尺寸守卫同源，尊重人工尺寸）；
+        // edit+auto 沿用现框（提交框已是按比例建立的几何）。
+        // 其余（生成结果无人工尺寸）按【全局媒体标准】fitNodeSize 回写：不传边界盒 = 720×520 上限
+        // + 420×236 地板，与扩图占位/上传/hydrate 同一条规则——同比例同一尺寸（用户实测 2026-09-21）。
+        // 偏差场景 = 结果即事实（2026-09-29 裁决②a 修订）：mismatch（漂移 >0.02，角标亮）时
+        // 提交框合同让位，节点按实返图比例重算，避免 object-contain 两侧空缺；人工尺寸
+        // （userResized/freeResize）仍受保护；非偏差路径零改动。
+        const mismatchRefit = sizeMismatch && !node.metadata?.userResized && !node.metadata?.freeResize;
+        const imageSize = mismatchRefit
+            ? fitNodeSize(uploaded.width, uploaded.height)
+            : node.metadata?.manualSize || node.metadata?.freeResize || node.metadata?.userResized
+              || (node.metadata?.generationType === "edit" && !requestedImageSize)
+                ? { width: node.width || imageConfig.width, height: node.height || imageConfig.height }
+                : fitNodeSize(resultWidth, resultHeight);
         return {
             ...node,
             type: CanvasNodeType.Image,

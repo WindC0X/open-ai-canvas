@@ -29,8 +29,9 @@ import (
 const (
 	// 过渡带：提交画布坐标系 2px，随映射因子缩放（裁决②b，防偏差单硬接缝）。
 	outpaintHardBlendFeatherBasePx = 2.0
-	// 纵横比失真阈值（log 域，与前端尺寸角标 0.02 同量纲）：超阈放弃贴回（裁决②a）。
-	outpaintHardBlendMaxAspectDelta = 0.08
+	// 纵横比失真阈值（log 域，与前端画幅偏差角标同源同值 0.02，单一事实）：角标亮 = 不贴回
+	// （裁决②a 语义修订 2026-09-29——[0.02,0.08) 盲区带内贴回会在偏差构图上制造新缺陷）。
+	outpaintHardBlendMaxAspectDelta = 0.02
 	// 原图解码像素上限（对齐 cloudAgentOutpaintMaxPixels，防解压炸弹）。
 	outpaintHardBlendMaxSourcePixels = 40_000_000
 )
@@ -318,7 +319,7 @@ type hardBlendOutpaintParams struct {
 
 // hardBlendOutpaintImage（纯函数层，可单测）：把原图像素贴回结果图的非生成区。
 // ① 结果尺寸不变（画布 = 生成图原尺寸）；② rect 映射结果坐标系（裁决②：直接映射）；
-// ③ 纵横比失真 |log(ar_result/ar_frame)| > 0.08 → 放弃（调用方跳过+日志）；
+// ③ 纵横比失真 |log(ar_result/ar_frame)| > 0.02（与前端角标同阈，2026-09-29 裁决②a 修订）→ 放弃（调用方跳过+日志）；
 // ④ 过渡带 = 提交画布坐标系 2px（随映射因子缩放），带内生成图→原图线性过渡防硬接缝。
 func hardBlendOutpaintImage(generated image.Image, source image.Image, params hardBlendOutpaintParams) (*image.RGBA, error) {
 	if generated == nil || source == nil {
@@ -335,7 +336,7 @@ func hardBlendOutpaintImage(generated image.Image, source image.Image, params ha
 	aspectResult := float64(width) / float64(height)
 	aspectFrame := float64(params.frameWidth) / float64(params.frameHeight)
 	if math.Abs(math.Log(aspectResult/aspectFrame)) > outpaintHardBlendMaxAspectDelta {
-		// 裁决②a：纵横比失真超阈放弃贴回——该单前端角标本来就会亮，不用拉伸贴图制造新缺陷。
+		// 裁决②a（2026-09-29 修订）：角标亮 = 不贴回——纵横比失真超阈放弃贴回，不用拉伸贴图制造新缺陷。
 		return nil, fmt.Errorf("纵横比失真超阈（结果 %dx%d / 提交 %dx%d）", width, height, params.frameWidth, params.frameHeight)
 	}
 	canvas := image.NewRGBA(image.Rect(0, 0, width, height))

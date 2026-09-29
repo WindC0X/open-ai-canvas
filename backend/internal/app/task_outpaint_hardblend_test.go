@@ -127,12 +127,30 @@ func TestHardBlendOutpaintImageRejectsAspectDistortion(t *testing.T) {
 	if err == nil {
 		t.Fatal("纵横比失真 1.25 倍应放弃贴回")
 	}
-	// 8% 以内（1.06 倍）允许。
-	ok, err := hardBlendOutpaintImage(hardBlendTestSolid(106, 80, color.RGBA{A: 255}), source, hardBlendOutpaintParams{
+	// 阈值收紧（2026-09-29 裁决②a 修订，0.08 → 0.02 与前端角标同源）后，此前"8% 以内允许"的
+	// 1.06 倍偏差（drift≈0.058）必须拒；边界用例见 TestHardBlendOutpaintImageDriftBoundary。
+	if _, err := hardBlendOutpaintImage(hardBlendTestSolid(106, 80, color.RGBA{A: 255}), source, hardBlendOutpaintParams{
 		x0: 0.1, y0: 0.1, x1: 0.9, y1: 0.9, frameWidth: 100, frameHeight: 80,
+	}); err == nil {
+		t.Fatal("1.06 倍偏差（drift ≈0.058）在 0.02 阈值下应放弃贴回")
+	}
+}
+
+// 阈值边界（2026-09-29 裁决②a 修订）：drift≈0.021 跳过、≈0.019 贴回——替换旧 0.08 边界用例。
+func TestHardBlendOutpaintImageDriftBoundary(t *testing.T) {
+	source := hardBlendTestSolid(50, 40, color.RGBA{A: 255})
+	// frame 1000×800（1.25）；2043×1600 → drift = ln((2043/1600)/1.25) ≈ 0.0213 → 跳过。
+	if _, err := hardBlendOutpaintImage(hardBlendTestSolid(2043, 1600, color.RGBA{A: 255}), source, hardBlendOutpaintParams{
+		x0: 0.1, y0: 0.1, x1: 0.9, y1: 0.9, frameWidth: 1000, frameHeight: 800,
+	}); err == nil {
+		t.Fatal("drift ≈0.021（>0.02）应放弃贴回")
+	}
+	// 2039×1600 → drift = ln((2039/1600)/1.25) ≈ 0.0193 → 贴回。
+	got, err := hardBlendOutpaintImage(hardBlendTestSolid(2039, 1600, color.RGBA{A: 255}), source, hardBlendOutpaintParams{
+		x0: 0.1, y0: 0.1, x1: 0.9, y1: 0.9, frameWidth: 1000, frameHeight: 800,
 	})
-	if err != nil || ok == nil {
-		t.Fatalf("8%% 内等比偏差应允许贴回: %v", err)
+	if err != nil || got == nil {
+		t.Fatalf("drift ≈0.019（<0.02）应允许贴回: %v", err)
 	}
 }
 
