@@ -820,12 +820,6 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         font-weight: 350;
     }
 
-    .creation-model-picker-menu .canvas-model-picker-subtitle {
-        margin-top: 2px;
-        font-size: 12px;
-        opacity: .72;
-    }
-
     /* 模型菜单即时开合: 动画时长归零(0s transition 同步派发 transitionend, 不依赖 rAF/帧推进)。
        根因: rc-motion leave 等 transitionend, 后台 tab 帧冻结时选行后菜单 DOM 残留直到下次外部点击
        (2026-09-08 实测)。flora P51-030 模型菜单亦无开合动画证据。 */
@@ -1085,11 +1079,6 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         font-weight: 350;
     }
 
-    .canvas-model-picker-subtitle {
-        font-size: 12px;
-        line-height: 16px;
-    }
-
     /* option-body: option 内唯一弹性主体(logo + 文本列 + ✓), 旧 nth-child 结构选择器已废;
        3b 顶部锚定: ModelLabel 与 ✓ 都锚行顶, 不随标签行纵向居中漂移 */
     .canvas-model-picker-option-body {
@@ -1172,43 +1161,12 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         background: transparent;
     }
 
-    /* subtitle hover 溢出滚动(flora marquee 语法) */
-    .canvas-model-picker-subtitle {
-        position: relative;
-        overflow: hidden;
-    }
-
-    .canvas-model-picker-subtitle.is-overflow .canvas-model-picker-subtitle-inner {
-        display: inline-block;
-        min-width: 100%;
-    }
-
-    .canvas-model-picker-subtitle.is-overflow:hover .canvas-model-picker-subtitle-inner {
-        animation: canvas-model-picker-subtitle-scroll 9s linear 0.6s infinite;
-    }
-
-    @keyframes canvas-model-picker-subtitle-scroll {
-        0% { transform: translateX(0); }
-        45% { transform: translateX(calc(-100% + 0px)); }
-        50% { transform: translateX(calc(-100% + 0px)); }
-        95% { transform: translateX(0); }
-        100% { transform: translateX(0); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .canvas-model-picker-subtitle.is-overflow:hover .canvas-model-picker-subtitle-inner {
-            animation: none;
-        }
-    }
-
-    /* 行组: 主行 + pin 兄弟(hover 整显, flora 渐进披露) */
+    /* 行组(2026-09-29 任务书·变体 T): 弃 grid 双列, 仅作定位上下文(rail/pin 锚)与 hover 胶囊;
+       pin 退出文档流改行组绝对定位(见下), option 独占整行宽。 */
     .canvas-model-picker-rowgroup {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
+        position: relative;
         min-width: 0;
         border-radius: 12px;
-        padding: 0 2px 0 0;
         transition: background-color var(--motion-instant) ease-out;
     }
 
@@ -1220,16 +1178,24 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         background: color-mix(in srgb, var(--workspace-accent) 6%, transparent);
     }
 
-    .canvas-model-picker-rowgroup .canvas-model-picker-pin {
-        width: 26px;
-        height: 26px;
-        margin-right: 6px;
+    /* pin: T 右轨最右(行组绝对定位, 20×20, 锚标题行中心; 选中行 ✓ 与 pin 并列由 rail 右衬 35 保证)。
+       top 按上下文 option padding 推导: 基础 6 / creation-menu 8, 均随字号自适应。 */
+    .canvas-model-picker-pin {
+        position: absolute;
+        right: 10px;
+        top: calc(6px + var(--fs-body) * 0.7 - 10px);
+        width: 20px;
+        height: 20px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
+        border-radius: 6px;
         opacity: 0;
         transition: opacity var(--motion-instant) ease-out, background-color var(--motion-instant) ease-out;
+    }
+
+    .creation-model-picker-menu .canvas-model-picker-pin {
+        top: calc(8px + var(--fs-body) * 0.7 - 10px);
     }
 
     .canvas-model-picker-rowgroup:hover .canvas-model-picker-pin,
@@ -1359,15 +1325,90 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     border-radius: 12px;
 }
 
-/* 3b 顶部锚定混排（2026-09-29 微令·修项3b，替代同位已撤的 3a 等高占位槽）：
-   无标签行回紧凑两行、有标签行自然第三行；行内容锚顶，跨行 logo 圆心/价格徽章/✓ 一致。
-   补偿按标题行高（--fs-body × 1.4）推导：logo 24px 居中标题行 → ×0.7−12px；
-   ✓ 14px 居中标题行 → ×0.7−7px；锚定规则写在本 unlayered 段以 TOP 位压过分层旧规。 */
-.canvas-model-picker-logo {
-    margin-top: calc(var(--fs-body) * 0.7 - 12px);
+/* ── 变体 T：右轨 + 两行流式区（2026-09-29 任务书；权威规格=卡附件 proto-model-row-planA2.html）──
+   标题行让位实测反推为 66px（原型示意值 96 按最宽价格推导，实测装不下验收要求的
+   sunburst 全名 191px：96 时可用 166，66 时可用 194 ≥ 191；且 ✓（轨内右衬 35+14）与
+   pin（右衬 10+20）恒在让位带之外零压名）。残留：≥6 字价格芯片极端行存在 ≤14px
+   静态贴边风险（价格左缘 vs 截断名尾部），登记待观察。
+   zone 吃满宽（rail 只占标题带）。行高自然流：8+19.6+2+17+8 = 54.6（一行）/ 71.6（两行）
+   → 任务书 54/71 口径。锚定按标题行带（高度 --fs-body×1.4）推导，
+   双上下文 top（基础 padding 6 / creation-menu 8）。 */
+.canvas-model-picker-line1 {
+    margin-right: 66px;
 }
 
-.canvas-model-picker-option-check {
-    align-self: flex-start;
-    margin-top: calc(var(--fs-body) * 0.7 - 7px);
+/* 无价格行（扩图浮层/积分关闭）：右轨仅 ✓(+pin hover)，让位收窄 36
+   （pin 左缘 286 vs line1 右缘 280，6px 余量；✓ 左缘 267 仅在名+徽章+图标>267 的
+   极端截断行有重叠窗口——当前白名单模型均<256，实测安全） */
+.canvas-model-picker-option.no-rail-price .canvas-model-picker-line1 {
+    margin-right: 36px;
+}
+
+/* 选中行 min-height 58（既有规则不动）下的内容对位：option 改顶对齐，
+   内容带恒从 padding 顶起 → 标题行中心恒 17.8，与 rail/pin 锚点零漂移
+   （原 center 会在 58 行把内容下推 ~2.2px，实测 19.5 vs 17.8）。 */
+.canvas-model-picker-option {
+    align-items: flex-start;
+}
+
+.canvas-model-picker-zone {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 350;
+    line-height: 17px;
+    opacity: .72;
+    min-width: 0;
+}
+
+/* 标签 mini chip：16px 高（11px 字 × lh1 + 2×2 padding），音色 ink 复制 model-tags.css 六音色
+   （弱背景 color-mix 14%），dark 提亮同源；model-tags.css/tsx 仍零改动（C1 收敛）。 */
+.canvas-model-picker-zone-tag {
+    --zone-tag-ink: #6850a1;
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-right: 5px;
+    vertical-align: 1px;
+    background: color-mix(in srgb, var(--zone-tag-ink) 14%, transparent);
+    color: var(--zone-tag-ink);
+}
+.canvas-model-picker-zone-tag[data-tone="blue"] { --zone-tag-ink: #3562b1; }
+.canvas-model-picker-zone-tag[data-tone="green"] { --zone-tag-ink: #26745b; }
+.canvas-model-picker-zone-tag[data-tone="gold"] { --zone-tag-ink: #886310; }
+.canvas-model-picker-zone-tag[data-tone="orange"] { --zone-tag-ink: #a75321; }
+.canvas-model-picker-zone-tag[data-tone="pink"] { --zone-tag-ink: #a43e76; }
+.dark .canvas-model-picker-zone-tag { --zone-tag-ink: #c8b6ed; }
+.dark .canvas-model-picker-zone-tag[data-tone="blue"] { --zone-tag-ink: #a3c3f5; }
+.dark .canvas-model-picker-zone-tag[data-tone="green"] { --zone-tag-ink: #94d6b9; }
+.dark .canvas-model-picker-zone-tag[data-tone="gold"] { --zone-tag-ink: #e6cb83; }
+.dark .canvas-model-picker-zone-tag[data-tone="orange"] { --zone-tag-ink: #edb08b; }
+.dark .canvas-model-picker-zone-tag[data-tone="pink"] { --zone-tag-ink: #e8acce; }
+
+/* 右轨（价格+✓）：absolute 锚标题行带（高度=标题行高，align-center → 中心随上下文 17.8/15.8，
+   跨行高恒定）；右衬 35px = pin 让位（10+20+5）。CB=行组(relative)，逃逸 option-body 的
+   overflow:hidden（CB 链不含裁剪者）。✓ 不再需要 3b 的 margin-top 补偿（轨内居中）。 */
+.canvas-model-picker-rail {
+    position: absolute;
+    right: 35px;
+    top: 6px;
+    height: calc(var(--fs-body) * 1.4);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.creation-model-picker-menu .canvas-model-picker-rail {
+    top: 8px;
+}
+
+/* logo 标题行对位（3b 遗产，T 保留）：24px logo 居中 19.6px 标题行 */
+.canvas-model-picker-logo {
+    margin-top: calc(var(--fs-body) * 0.7 - 12px);
 }

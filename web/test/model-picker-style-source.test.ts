@@ -111,30 +111,56 @@ test("模型弹层去 creation 泄漏层（L1 菜单不再叠暗、L2 恢复玻�
     expect(styles).toContain("background: rgba(25, 27, 32, .7) !important;");
 });
 
-test("模型行 3b 顶部锚定混排：无占位槽、icon/✓ 锚顶补偿、hover 无果冻补间", async () => {
+test("模型行变体 T：右轨锚标题行 + 两行流式区 + 无 grid pin 列", async () => {
     const [component, styles] = await Promise.all([
         Bun.file(new URL("../src/components/model-picker.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/styles/shared/model-picker.css", import.meta.url)).text(),
     ]);
-    // 3b 撤 3a 等高占位槽：无标签行回紧凑两行、有标签行自然第三行（混排回归）
-    expect(component).not.toContain("canvas-model-picker-tags-slot");
-    expect(styles).not.toContain(".canvas-model-picker-tags-slot");
-    // 根级顶部锚定：ModelLabel 根与 option-body 两个层级都不再垂直居中
-    expect(component).toContain('className="flex flex-1 min-w-0 items-start gap-2 py-0"');
-    for (const rule of styles.match(/\.canvas-model-picker-option-body \{[^}]*\}/g) || []) {
-        expect(rule).not.toContain("align-items: center");
-    }
-    const firstChildRule = styles.match(/\.canvas-model-picker-option > span:first-child \{([^}]+)\}/)?.[1] || "";
-    expect(firstChildRule).toContain("align-items: flex-start");
-    // ✓ 与 logo 的锚顶补偿：对齐标题行几何中心（--fs-body × 1.4 推导，跨行一致）；
-    // check 存在新旧两规（旧 :flex/尺寸 + 新 unlayered 锚定），聚合后断言
-    const checkBlocks = [...styles.matchAll(/\.canvas-model-picker-option-check \{([^}]+)\}/g)].map((m) => m[1]);
-    expect(checkBlocks.length).toBeGreaterThan(1);
-    expect(checkBlocks.join("\n")).toContain("align-self: flex-start");
-    expect(checkBlocks.join("\n")).toContain("margin-top: calc(var(--fs-body) * 0.7 - 7px)");
+    // 无 grid pin 列（T：行组弃双列，pin 退出文档流改绝对定位）
+    expect(styles).not.toContain("grid-template-columns: minmax(0, 1fr) auto");
+    const rowgroupRule = styles.match(/\.canvas-model-picker-rowgroup \{([^}]+)\}/)?.[1] || "";
+    expect(rowgroupRule).toContain("position: relative");
+    // 右轨存在且绝对定位、锚标题行（top=上下文 padding + 标题行高带）
+    expect(component).toContain('className="canvas-model-picker-rail"');
+    const railRule = styles.match(/\.canvas-model-picker-rail \{([^}]+)\}/)?.[1] || "";
+    expect(railRule).toContain("position: absolute");
+    expect(railRule).toContain("top: 6px");
+    expect(railRule).toContain("height: calc(var(--fs-body) * 1.4)");
+    const railCreation = styles.match(/\.creation-model-picker-menu \.canvas-model-picker-rail \{([^}]+)\}/)?.[1] || "";
+    expect(railCreation).toContain("top: 8px");
+    // pin 绝对定位让出文档流（行组层，锚标题行同轨）
+    const pinRule = styles.match(/\.canvas-model-picker-pin \{([^}]+)\}/)?.[1] || "";
+    expect(pinRule).toContain("position: absolute");
+    expect(pinRule).toContain("right: 10px");
+    // 价格在右轨、标题行（inlineBadges）无价格
+    const railBlock = component.match(/canvas-model-picker-rail">([\s\S]*?)<\/span>/)?.[1] || "";
+    expect(railBlock).toContain("priceForChip");
+    expect(railBlock).toContain("selected ? <Check");
+    const badgesBlock = component.match(/inlineBadges=\{\(<>([\s\S]*?)<\/>\)\}/)?.[1] || "";
+    expect(badgesBlock).not.toContain("priceForChip");
+    expect(badgesBlock).not.toContain("ModelPrice");
+    // zone：mini chip 内联 + 2 行 clamp；标题行让位 96、zone 吃满
+    expect(component).toContain("canvas-model-picker-zone-tag");
+    const zoneRule = styles.match(/\.canvas-model-picker-zone \{([^}]+)\}/)?.[1] || "";
+    expect(zoneRule).toContain("-webkit-line-clamp: 2");
+    expect(zoneRule).toContain("line-height: 17px");
+    const zoneTagRule = styles.match(/\.canvas-model-picker-zone-tag \{([^}]+)\}/)?.[1] || "";
+    expect(zoneTagRule).toContain("font-size: 11px");
+    expect(zoneTagRule).toContain("padding: 2px 5px");
+    expect(zoneTagRule).toContain("border-radius: 3px");
+    const line1Rule = styles.match(/\.canvas-model-picker-line1 \{([^}]+)\}/)?.[1] || "";
+    expect(line1Rule).toContain("margin-right: 66px");
+    // 无价格行让位收窄 + 选中行（min-height 58）顶对齐零漂移
+    const noPriceRule = styles.match(/\.canvas-model-picker-option\.no-rail-price \.canvas-model-picker-line1 \{([^}]+)\}/)?.[1] || "";
+    expect(noPriceRule).toContain("margin-right: 36px");
+    expect(styles.match(/\.canvas-model-picker-option \{[^}]*align-items: flex-start[^}]*\}/)).toBeTruthy();
+    // 3b 遗产保留：logo 锚顶补偿；✓ 补偿已撤（改轨锚）
     const logoBlocks = [...styles.matchAll(/\.canvas-model-picker-logo \{([^}]+)\}/g)].map((m) => m[1]);
     expect(logoBlocks.join("\n")).toContain("margin-top: calc(var(--fs-body) * 0.7 - 12px)");
-    // hover 只补间背景/边框/颜色：禁 height/padding 补间（果冻感防线）
+    expect(styles).not.toContain("margin-top: calc(var(--fs-body) * 0.7 - 7px)");
+    expect(component).not.toContain("canvas-model-picker-tags-slot");
+    expect(styles).not.toContain(".canvas-model-picker-tags-slot");
+    // hover 只补间背景/边框/颜色：禁 height/padding 补间（果冻感红线，跨任务书保持）
     const optionRules = styles.match(/\.canvas-model-picker-option[^{,]*\{[^}]*transition[^}]*\}/g) || [];
     expect(optionRules.length).toBeGreaterThan(0);
     for (const rule of optionRules) {
