@@ -110,3 +110,35 @@ test("模型弹层去 creation 泄漏层（L1 菜单不再叠暗、L2 恢复玻�
     // 泄漏源（工作台层 .7 暗蓝）仍在原处——覆盖依赖其存在，若上游移除本测试提示清理覆盖。
     expect(styles).toContain("background: rgba(25, 27, 32, .7) !important;");
 });
+
+test("模型行 3b 顶部锚定混排：无占位槽、icon/✓ 锚顶补偿、hover 无果冻补间", async () => {
+    const [component, styles] = await Promise.all([
+        Bun.file(new URL("../src/components/model-picker.tsx", import.meta.url)).text(),
+        Bun.file(new URL("../src/styles/shared/model-picker.css", import.meta.url)).text(),
+    ]);
+    // 3b 撤 3a 等高占位槽：无标签行回紧凑两行、有标签行自然第三行（混排回归）
+    expect(component).not.toContain("canvas-model-picker-tags-slot");
+    expect(styles).not.toContain(".canvas-model-picker-tags-slot");
+    // 根级顶部锚定：ModelLabel 根与 option-body 两个层级都不再垂直居中
+    expect(component).toContain('className="flex flex-1 min-w-0 items-start gap-2 py-0"');
+    for (const rule of styles.match(/\.canvas-model-picker-option-body \{[^}]*\}/g) || []) {
+        expect(rule).not.toContain("align-items: center");
+    }
+    const firstChildRule = styles.match(/\.canvas-model-picker-option > span:first-child \{([^}]+)\}/)?.[1] || "";
+    expect(firstChildRule).toContain("align-items: flex-start");
+    // ✓ 与 logo 的锚顶补偿：对齐标题行几何中心（--fs-body × 1.4 推导，跨行一致）；
+    // check 存在新旧两规（旧 :flex/尺寸 + 新 unlayered 锚定），聚合后断言
+    const checkBlocks = [...styles.matchAll(/\.canvas-model-picker-option-check \{([^}]+)\}/g)].map((m) => m[1]);
+    expect(checkBlocks.length).toBeGreaterThan(1);
+    expect(checkBlocks.join("\n")).toContain("align-self: flex-start");
+    expect(checkBlocks.join("\n")).toContain("margin-top: calc(var(--fs-body) * 0.7 - 7px)");
+    const logoBlocks = [...styles.matchAll(/\.canvas-model-picker-logo \{([^}]+)\}/g)].map((m) => m[1]);
+    expect(logoBlocks.join("\n")).toContain("margin-top: calc(var(--fs-body) * 0.7 - 12px)");
+    // hover 只补间背景/边框/颜色：禁 height/padding 补间（果冻感防线）
+    const optionRules = styles.match(/\.canvas-model-picker-option[^{,]*\{[^}]*transition[^}]*\}/g) || [];
+    expect(optionRules.length).toBeGreaterThan(0);
+    for (const rule of optionRules) {
+        expect(rule).not.toMatch(/transition:[^;}]*(height|padding)/i);
+    }
+    expect(optionRules.join("\n")).toContain("transition: background-color");
+});

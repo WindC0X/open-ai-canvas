@@ -314,7 +314,8 @@ html:not(.dark) .creation-model-picker.canvas-composer-model-picker[aria-expande
         min-width: 0;
         overflow: hidden;
         display: flex;
-        align-items: center;
+        /* 3b：行内容顶部锚定（icon/标题行/✓ 跨行一致，不随标签行漂移） */
+        align-items: flex-start;
         width: 100%;
     }
 
@@ -1089,16 +1090,15 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         line-height: 16px;
     }
 
-    /* option-body: option 内唯一弹性主体(logo + 文本列 + ✓), 旧 nth-child 结构选择器已废 */
+    /* option-body: option 内唯一弹性主体(logo + 文本列 + ✓), 旧 nth-child 结构选择器已废;
+       3b 顶部锚定: ModelLabel 与 ✓ 都锚行顶, 不随标签行纵向居中漂移 */
     .canvas-model-picker-option-body {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 8px;
         flex: 1 1 auto;
         min-width: 0;
         overflow: hidden;
-        display: flex;
-        align-items: center;
         width: 100%;
     }
 
@@ -1359,12 +1359,15 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     border-radius: 12px;
 }
 
-/* 标签行占位统一行高（2026-09-29 裁决②·任务书修项3）：无标签行保留同高，混排行高一致、
-   logo 与价格徽章锚定不漂移。27px = chip 21px（fs-tiny 10px×1.5 + padding 4px + border 2px）
-   + .model-tags margin-top 6px；flex 列布局钉住子元素 margin（防 margin 折叠逃逸出占位盒，
-   实测逃逸会多出 6px）；标签样式变更时同步此值（model-tags.css 同源）。 */
-.canvas-model-picker-tags-slot {
-    display: flex;
-    flex-direction: column;
-    min-height: 27px;
+/* 3b 顶部锚定混排（2026-09-29 微令·修项3b，替代同位已撤的 3a 等高占位槽）：
+   无标签行回紧凑两行、有标签行自然第三行；行内容锚顶，跨行 logo 圆心/价格徽章/✓ 一致。
+   补偿按标题行高（--fs-body × 1.4）推导：logo 24px 居中标题行 → ×0.7−12px；
+   ✓ 14px 居中标题行 → ×0.7−7px；锚定规则写在本 unlayered 段以 TOP 位压过分层旧规。 */
+.canvas-model-picker-logo {
+    margin-top: calc(var(--fs-body) * 0.7 - 12px);
+}
+
+.canvas-model-picker-option-check {
+    align-self: flex-start;
+    margin-top: calc(var(--fs-body) * 0.7 - 7px);
 }

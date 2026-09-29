@@ -847,7 +847,7 @@ export function ModelLabel({
     return (
         // flex-1(basis 0%+grow)而非 w-full: 上游合并带入 option-body 的 width:100% 后, flex 嵌套两层时
         // 百分比 width 解析失效(indefinite), w-full 塌到 min-content 32px, title 被裁 0(模型名不可见, 徽标挤到行左);  flex-1 脱离百分比链, 实测恢复。
-        <span className="flex flex-1 min-w-0 items-center gap-2 py-0">
+        <span className="flex flex-1 min-w-0 items-start gap-2 py-0">
             <span className="canvas-model-picker-logo grid size-6 shrink-0 place-items-center overflow-hidden rounded-[8px]" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
                 <ModelIcon config={config} model={model} />
             </span>
@@ -864,10 +864,10 @@ export function ModelLabel({
                 >
                     <span className="canvas-model-picker-subtitle-inner">{capabilitySummary}</span>
                 </span>
-                {/* 标签行占位统一行高（2026-09-29 ②）：无标签行保留同高，全列表行高一致、锚点不漂移。 */}
-                <span className="canvas-model-picker-tags-slot">
-                    <ModelTags tags={logicalCost?.tags} />
-                </span>
+                {/* 3b 修订（2026-09-29 微令·真机反馈+Gemini 咨询）：撤 3a 等高占位槽，无标签行回紧凑两行、
+                    有标签行自然第三行；行内容改根级顶部锚定（items-start），logo/✓ 的标题行对位补偿见
+                    model-picker.css unlayered 锚定规则。 */}
+                <ModelTags tags={logicalCost?.tags} />
             </span>
             {showPrice ? <ModelPrice price={modelMenuPrice(config, model, capability, true)} chip /> : null}
         </span>
