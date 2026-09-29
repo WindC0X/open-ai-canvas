@@ -141,9 +141,10 @@ describe("canvas resource mention editor", () => {
         expect(component).toContain('chip.style.setProperty("--canvas-skill-mention-color", skillMentionColor(reference))');
         expect(chat).toContain('sendOnEnter={canSubmit ? "both" : false}');
         expect(chat).toContain("agent-composer-resize-handle");
-        // 合并口径（2026-09-26）: 上游 98f1b31e 同提交移除发送提示链（chat-ui 块 + send-hint-full/compact css），
-        // 以 submitAccessory 槽位取代；旧三断言按合并语义撤销（真机复核项：composer 发送区）。
+        // 合并口径（2026-09-26 / 复核 2026-09-30）: 上游以 submitAccessory 槽位取代旧发送提示链；
+        // 本轮上游 PR#624 族回归了三断言对象（submitAccessory + 发送按钮 title/aria 三元式并存），全收。
         expect(chat).toContain("{submitAccessory}");
+        expect(chat).toContain('title={canStop ? "插话：Agent 下一次开口时看到它"');
         expect(css).toContain(".agent-composer-prompt-scroll");
         expect(css).not.toContain(".agent-tool-row:hover");
     });

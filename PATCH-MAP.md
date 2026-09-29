@@ -108,3 +108,23 @@
 | E8 | `0ce555fa` + `eada7ccb` | hotfix-3（batch-12 三跑 7 红）：hover 卡滞留族修复（状态归零/focus 门控）+ O-03 达标诚实化（实际像素判定）；三文件语义 = `tool-hover-card.tsx` / `canvas-create-menu.tsx` / `image-size-presets.ts`（`canvas-image-settings-popover.tsx` 挂点） | 组件级 | 有意保留；随上游同步核对 |
 | E9 | `0a16cd41` + `c8a32f58` | B 线 micro-rider：扩图硬贴回形状失明归一化（经典协议 images 归一化与失配日志；`task_outpaint_hardblend.go`）+ Agent 链 mask 可选化（跳过合成与预检放行；`cloud_agent_media_outpaint.go`） | B 线（后端） | 有意保留；随上游同步核对 |
 | E10 | `4dc8c251` + `5a5ac8f1` | dock 让位 rider（batch-12）：`canvas-workspace-overlays.tsx` 面板让位语义——选中态挂件（预设 chip/面板行）不遮 dock 全局工具「添加节点」热区 | 组件级（布局避让） | **已被 E11 取代**：纯贴附恢复 + dock 全局工具带（保留登记不删除） |
+
+---
+
+## 合并处置登记（F 系列 · merge-v1.6.0 上游同步 · 2026-09-30）
+
+> 本批为 fork ⇄ origin/main 上游同步（merge-base `2cedc4c6`，范围 27 commits / 221 files）。
+> F 系列登记 fork 侧语义在上游重写面的**逐 hunk 重新落位**结果，以及合并中发现的
+> 上游误删 / 双挂载类结构问题处置。判据：fork 语义在场 + 上游新架构在场。
+
+| # | 涉及面 | 上游意图 | fork 语义（必须在场） | 处置 |
+|---|---|---|---|---|
+| F1 | `canvas-cloud-agent-panel.tsx` | +628/−263 重写：公共轴对齐、三档层级、操作记录折叠（链 `0d6f2291`→`993580a7`，含 merge `48e6a705` PR #624） | `panelLayout` 由父组件 lift 注入（HUD 让位依赖，非上游内部 hook）；`prefillPromptId` | 上游结构为基 + fork 增量逐 hunk 重新落位（无整文件取边）；我方 2169 行 vs 上游 2055 行，`panelLayout` 9 处 / `prefillPromptId` 4 处在场 |
+| F2 | `canvas-cloud-agent-chat-ui.tsx` | +738/−136 重写：图标抽 helper（`agentToolCategoryIcon()` 等）+ 操作记录折叠 + `AgentQuestionBar` 增强 | `AgentUndoBar`（上游无此组件）；fork 引用条 skill chip 注入面收窄 | 上游版为基（helper 化纯 refactor 无 fork 独有逻辑）+ fork `AgentUndoBar` 段保留；我方 1910 行 vs 上游 1800 行 |
+| F3 | `canvas-cloud-agent.css` | +936/−183 重写 | fork 面板容器样式增量 | 上游 CSS 变量法为基 + fork rounded/border/zIndex 保留；**合并中修复**：fork 段 `@media (prefers-reduced-motion)` 块闭合丢失导致 `CssSyntaxError: Unclosed block`（build 红），补回 `}` |
+| F4 | `web/src/pages/canvas/project.tsx` | 仅 2 handler（Markdown 节点类型检查、collapse/批量展开联动） | fork 的 `agentPanelLayout` lift 注入、`onFocusNode` 节点存在性校验 | 上游 2 handler 语义并入；**合并中修复**：`CanvasToolbar`/`InfiniteCanvas` 结构错位与 `CanvasCloudAgentPanel` **双挂载**去重（保留 fork 侧含 `panelLayout`/`prefillPromptId` 的实例，并把上游 `onFocusNode` 的帧折叠/批次展开联动逻辑融合进该实例） |
+| F5 | `web/src/components/canvas/canvas-node-content.tsx` | 上游新增 +126/−42（缩略图批，`resolveMediaUrl` 取代 `scheduleResourceBlobCache`） | fork 视频节点循环播放 `loop`（`b9a087ce`/`24f08487`，对齐 flora 证据，loop 经 provider 命令式应用） | 上游结构为基；`loop` 属性**保留**但移到 `preload="metadata"` 之后，以同时满足上游守卫断言 `hasAudio=… autoPlay preload="metadata"` 的相邻匹配（语义等价） |
+| F6 | `web/src/styles/unified-buttons.css` | `5df5e09c` 重写本文件时**删除了** `data-icon-only` 豁免规则 | 该规则为 **fork 专有**（`2ce50bbb` 引入）：`:where(button:not(.ant-btn-icon-only):not([data-icon-only]), .ant-btn:…)` `padding-inline: max(12px, var(--space-3))`；`canvas-grid-split-picker.tsx` 依赖其豁免，否则格点 padding 撑破网格轨道 | **恢复 fork 规则**（上游删除属误删，非有意废弃）——否则 `canvas-split-hover-open.test.ts` 残余 B 守卫转红 |
+| F7 | `backend/internal/app/task_outpaint_hardblend.go` | 上游新增 `numberValue(value any, fallback float64)`（`cloud_agent_director.go:253`） | fork 版 `numberValue(value interface{}) float64` | **同名重声明冲突**处置：删除 fork 版，6 处调用点（rect x0/y0/x1/y1、frame width/height）改传 `fallback=0` 调上游版（语义一致，上游版经 `cloudAgentSafeNumber` 规范化） |
+
+**本批上游入树核验**：`2cedc4c6..origin/main` 221 文件已入 215；6 个未落地全部合法——`backend/internal/{service,skills}/seed/skills.json` 是上游 `49a73316` 技能库 Markdown 包迁移**主动删除**的旧路径，4 个 `docs/content/docs/**` 属仓库 `.gitignore` 惯例下的 untracked 工作稿。

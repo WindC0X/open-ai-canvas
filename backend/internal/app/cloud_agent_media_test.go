@@ -85,8 +85,19 @@ func agentMediaRun(t *testing.T, s *Service, a cloudAgentMediaArgs, permission s
 func approveAgentMediaDraft(t *testing.T, s *Service, runID string) {
 	t.Helper()
 	run, err := s.CloudAgentRun("user", runID)
-	if err != nil || run.Approval == nil || run.Status != "waiting_approval" {
-		t.Fatalf("media must wait for approval even in auto mode: %v", err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Status != "waiting_approval" || run.Approval == nil {
+		stored, loadErr := s.repo.CloudAgent("user", runID)
+		state, decodeErr := cloudAgentDecode(stored)
+		if loadErr != nil {
+			decodeErr = loadErr
+		}
+		if decodeErr != nil || state.MediaTaskID == "" {
+			t.Fatalf("media generation was neither approved nor auto-submitted: status=%s task=%s err=%v", run.Status, state.MediaTaskID, decodeErr)
+		}
+		return
 	}
 	if err := s.DecideCloudAgentApproval("user", runID, run.Approval.ID, "approve", ""); err != nil {
 		t.Fatal(err)
@@ -198,7 +209,6 @@ func TestCloudAgentMediaReferenceAndSnapshotGuards(t *testing.T) {
 		{"existing node", func(v *cloudAgentMediaArgs) { v.NodeID = "cat" }},
 		{"mixed selection", func(v *cloudAgentMediaArgs) { v.LogicalModelID = "made-up" }},
 		{"duration budget", func(v *cloudAgentMediaArgs) { v.Duration = 25 }},
-		{"missing aspect ratio", func(v *cloudAgentMediaArgs) { v.Size = "" }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			bad := a
@@ -236,7 +246,7 @@ func TestCloudAgentImageCreatesReferencedNode(t *testing.T) {
 	a.Mode, a.ChannelModelKey, a.Duration, a.VideoGenerateAudio = "image", "grok-image", 0, nil
 	a.Size, a.Quality, a.NodeID = "1:1", "2k", "image-shot-1"
 	a.ReferenceNodeIDs = []string{"cat"}
-	run, _ := agentMediaRun(t, s, a, "auto")
+	run, _ := agentMediaRun(t, s, a, "request_approval")
 	if err := s.advanceCloudAgentByID("user", run.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +411,7 @@ func TestCloudAgentMediaFillsMissingSnapshotHash(t *testing.T) {
 
 func TestCloudAgentMediaFailedTaskUpdatesNode(t *testing.T) {
 	s, db, a := agentMediaFixture(t)
-	run, _ := agentMediaRun(t, s, a, "auto")
+	run, _ := agentMediaRun(t, s, a, "request_approval")
 	if err := s.advanceCloudAgentByID("user", run.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -547,7 +557,7 @@ func TestCloudAgentMediaDraftReuseLifecycle(t *testing.T) {
 
 func TestCloudAgentMediaPreviousDraftRequiresNewApproval(t *testing.T) {
 	s, db, a := agentMediaFixture(t)
-	run, state := agentMediaRun(t, s, a, "auto")
+	run, state := agentMediaRun(t, s, a, "request_approval")
 	if err := s.advanceCloudAgentTool(run, &state); err != nil {
 		t.Fatal(err)
 	}
@@ -566,7 +576,7 @@ func TestCloudAgentMediaPreviousDraftRequiresNewApproval(t *testing.T) {
 	}
 	a.SnapshotHash = cloudAgentContentHash(doc)
 	a.ReferenceNodeIDs = []string{"hero"}
-	next, nextState := agentMediaRun(t, s, a, "auto", "resume-draft-next-turn")
+	next, nextState := agentMediaRun(t, s, a, "request_approval", "resume-draft-next-turn")
 	if next.ID == run.ID {
 		t.Fatal("expected a distinct run")
 	}
@@ -607,11 +617,141 @@ func TestCloudAgentMediaPreviousDraftRequiresNewApproval(t *testing.T) {
 	}
 }
 
-func TestCloudAgentAutoMediaDraftRequiresExplicitApproval(t *testing.T) {
+func TestCloudAgentAutoMediaSubmitsWithoutApproval(t *testing.T) {
+	s, db, a := agentMediaFixture(t)
+	// Omitted size and duration should be filled by the selected model's catalog
+	// defaults during admission instead of producing a repair turn.
+	a.Size = ""
+	a.Duration = 0
+	run, _ := agentMediaRun(t, s, a, "auto")
+	var ordersBefore int64
+	if err := db.Model(&model.BillingOrder{}).Count(&ordersBefore).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := s.advanceCloudAgentByID("user", run.ID); err != nil {
+		t.Fatal(err)
+	}
+	run, _ = s.repo.CloudAgent("user", run.ID)
+	state, err := cloudAgentDecode(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Status == "waiting_approval" || state.Approval != nil {
+		t.Fatalf("auto mode unexpectedly requested approval: status=%s approval=%+v", run.Status, state.Approval)
+	}
+	if state.MediaTaskID == "" {
+		t.Fatalf("auto mode did not submit a media task: %+v", state.Events)
+	}
+	for _, event := range state.Events {
+		if event.Type == "approval_requested" {
+			t.Fatal("auto mode emitted an approval event")
+		}
+	}
+	task, err := s.repo.TaskForUser("user", state.MediaTaskID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input canvasGenerationInput
+	if err := json.Unmarshal([]byte(task.InputJSON), &input); err != nil {
+		t.Fatal(err)
+	}
+	if input.Config.Size == "" || input.Config.VideoSeconds == "" {
+		t.Fatalf("model defaults were not resolved: %+v", input.Config)
+	}
+	canvas, _ := s.repo.CanvasProjectForUser("user", "agent-canvas")
+	doc, _ := creationDocument(canvas.PayloadJSON)
+	nodes, _ := creationObjects(doc["nodes"])
+	meta, _ := nodes[a.NodeID]["metadata"].(map[string]any)
+	if meta["status"] != "loading" || meta["taskId"] != task.ID || meta["agentDraftRunId"] != nil {
+		t.Fatalf("auto submission did not finalize the draft: %+v", meta)
+	}
+	var tasks, orders int64
+	if err := db.Model(&model.Task{}).Where("type = ?", "canvas_video").Count(&tasks).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Model(&model.BillingOrder{}).Count(&orders).Error; err != nil {
+		t.Fatal(err)
+	}
+	if tasks != 1 || orders != ordersBefore+1 {
+		t.Fatalf("auto submission created unexpected records: tasks=%d orders=%d before=%d", tasks, orders, ordersBefore)
+	}
+	// Re-entering a submitted call is idempotent and must not reserve/submit a
+	// second generation.
+	if err := s.advanceCloudAgentByID("user", run.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Model(&model.Task{}).Where("type = ?", "canvas_video").Count(&tasks).Error; err != nil {
+		t.Fatal(err)
+	}
+	if tasks != 1 {
+		t.Fatalf("re-entering auto media duplicated task: %d", tasks)
+	}
+
+	// Admission failures are still non-billed tool failures and do not create an
+	// approval or a draft task.
+	invalidService, invalidDB, invalidArgs := agentMediaFixture(t)
+	invalidArgs.ChannelModelKey = "removed-model"
+	invalidRun, _ := agentMediaRun(t, invalidService, invalidArgs, "auto")
+	var invalidOrdersBefore int64
+	if err := invalidDB.Model(&model.BillingOrder{}).Count(&invalidOrdersBefore).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := invalidService.advanceCloudAgentByID("user", invalidRun.ID); err != nil {
+		t.Fatal(err)
+	}
+	invalidRun, _ = invalidService.repo.CloudAgent("user", invalidRun.ID)
+	invalidState, err := cloudAgentDecode(invalidRun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invalidTasks, invalidOrders int64
+	if err := invalidDB.Model(&model.Task{}).Where("type = ?", "canvas_video").Count(&invalidTasks).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := invalidDB.Model(&model.BillingOrder{}).Count(&invalidOrders).Error; err != nil {
+		t.Fatal(err)
+	}
+	if invalidTasks != 0 || invalidOrders != invalidOrdersBefore || invalidState.Approval != nil {
+		t.Fatalf("invalid auto admission created side effects: tasks=%d orders=%d before=%d approval=%+v", invalidTasks, invalidOrders, invalidOrdersBefore, invalidState.Approval)
+	}
+
+	approvalService, approvalDB, approvalArgs := agentMediaFixture(t)
+	approvalRun, _ := agentMediaRun(t, approvalService, approvalArgs, "request_approval")
+	var approvalOrdersBefore int64
+	if err := approvalDB.Model(&model.BillingOrder{}).Count(&approvalOrdersBefore).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := approvalService.advanceCloudAgentByID("user", approvalRun.ID); err != nil {
+		t.Fatal(err)
+	}
+	approvalRun, _ = approvalService.repo.CloudAgent("user", approvalRun.ID)
+	approvalState, err := cloudAgentDecode(approvalRun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if approvalRun.Status != "waiting_approval" || approvalState.Approval == nil {
+		t.Fatalf("request_approval stopped bypassing approval: status=%s approval=%+v", approvalRun.Status, approvalState.Approval)
+	}
+	var approvalTasks, approvalOrders int64
+	if err := approvalDB.Model(&model.Task{}).Where("type = ?", "canvas_video").Count(&approvalTasks).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := approvalDB.Model(&model.BillingOrder{}).Count(&approvalOrders).Error; err != nil {
+		t.Fatal(err)
+	}
+	if approvalTasks != 0 || approvalOrders != approvalOrdersBefore {
+		t.Fatalf("request_approval submitted before decision: tasks=%d orders=%d before=%d", approvalTasks, approvalOrders, approvalOrdersBefore)
+	}
+}
+
+// 合并口径（2026-09-30）：上游把 permissionMode=auto 改为「服务端准入后直接提交、不再二次审批」；
+// fork 原 TestCloudAgentAutoMediaDraftRequiresExplicitApproval 的语义（审批模式下草稿不收费、
+// 不入队、外国 run 不可接管）在 request_approval 模式仍然成立，故改为该模式后保留。
+func TestCloudAgentApprovalMediaDraftRequiresExplicitApproval(t *testing.T) {
 	for _, decision := range []string{"approve", "reject", "cancel"} {
 		t.Run(decision, func(t *testing.T) {
 			s, db, a := agentMediaFixture(t)
-			run, _ := agentMediaRun(t, s, a, "auto")
+			run, _ := agentMediaRun(t, s, a, "request_approval")
 			var ordersBefore int64
 			db.Model(&model.BillingOrder{}).Count(&ordersBefore)
 			if err := s.advanceCloudAgentByID("user", run.ID); err != nil {
@@ -702,7 +842,7 @@ func TestCloudAgentMediaPromptCountsUnicodeCharacters(t *testing.T) {
 
 func TestCloudAgentMediaCancellationUpdatesNode(t *testing.T) {
 	s, _, a := agentMediaFixture(t)
-	run, _ := agentMediaRun(t, s, a, "auto")
+	run, _ := agentMediaRun(t, s, a, "request_approval")
 	if err := s.advanceCloudAgentByID("user", run.ID); err != nil {
 		t.Fatal(err)
 	}

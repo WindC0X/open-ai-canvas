@@ -14,6 +14,8 @@
 /* 带文字的按钮不要贴着左边缘。纯图标按钮保持正方形，不额外加水平内边距。
    :has 只能识别 svg 是直接唯一子元素的情况；图标被动画 span、角标、sr-only 等
    wrapper 包住时检测不到，这类按钮用 data-icon-only 显式声明豁免。 */
+/* 合并口径（2026-09-30）：本规则为 fork 专有（2ce50bbb 引入），上游 5df5e09c 重写本文件时
+   删除了它，但 fork 的 canvas-grid-split-picker 等仍依赖 data-icon-only 豁免；按 fork 语义恢复。 */
 :where(button:not(.ant-btn-icon-only):not([data-icon-only]), .ant-btn:not(.ant-btn-icon-only):not([data-icon-only])):not(:has(> svg:only-child)) {
     padding-inline: max(12px, var(--space-3));
 }

@@ -224,10 +224,10 @@ func (s *Service) outpaintHardBlendMetadata(task *model.Task) (*outpaintHardBlen
 	if rect == nil {
 		return nil, errors.New("缺少 rect")
 	}
-	meta.x0 = numberValue(rect["x0"])
-	meta.y0 = numberValue(rect["y0"])
-	meta.x1 = numberValue(rect["x1"])
-	meta.y1 = numberValue(rect["y1"])
+	meta.x0 = numberValue(rect["x0"], 0)
+	meta.y0 = numberValue(rect["y0"], 0)
+	meta.x1 = numberValue(rect["x1"], 0)
+	meta.y1 = numberValue(rect["y1"], 0)
 	if !(meta.x0 >= 0 && meta.y0 >= 0 && meta.x1 <= 1 && meta.y1 <= 1 && meta.x1 > meta.x0 && meta.y1 > meta.y0) {
 		return nil, fmt.Errorf("rect 非法（%v,%v,%v,%v）", meta.x0, meta.y0, meta.x1, meta.y1)
 	}
@@ -235,7 +235,7 @@ func (s *Service) outpaintHardBlendMetadata(task *model.Task) (*outpaintHardBlen
 	if frame == nil {
 		return nil, errors.New("缺少 frame")
 	}
-	meta.frameWidth, meta.frameHeight = int(numberValue(frame["width"])), int(numberValue(frame["height"]))
+	meta.frameWidth, meta.frameHeight = int(numberValue(frame["width"], 0)), int(numberValue(frame["height"], 0))
 	if meta.frameWidth <= 0 || meta.frameHeight <= 0 {
 		return nil, errors.New("frame 非法")
 	}
@@ -387,21 +387,9 @@ func (s *Service) logOutpaintHardBlend(task *model.Task, level string, message s
 	_ = s.log(task.UserID, task.ID, level, message, "")
 }
 
-func numberValue(value interface{}) float64 {
-	switch number := value.(type) {
-	case float64:
-		return number
-	case int:
-		return float64(number)
-	case int64:
-		return float64(number)
-	case json.Number:
-		parsed, _ := number.Float64()
-		return parsed
-	default:
-		return 0
-	}
-}
+// 合并口径（2026-09-30）：本文件原自带 numberValue(interface{}) 与上游新增的
+// numberValue(any, float64)（cloud_agent_director.go）同名冲突；两者语义一致（上游版带 fallback，
+// 经 cloudAgentSafeNumber 规范化），故删除本地版本，调用点改用上游版并显式传 fallback=0。
 
 func clampInt(value, low, high int) int {
 	if value < low {
