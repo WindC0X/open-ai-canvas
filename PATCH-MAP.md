@@ -140,3 +140,22 @@
 | C2 | `web/src/lib/canvas/canvas-generation-task-sync.ts`（偏差节点尺寸让位重算） | 上游近期未动（HEAD..origin/main 无该文件） | 低 | 正常核对 |
 | C3 | `web/src/pages/canvas/use-canvas-media-tools.ts`（直连写回同口径） | 上游近期未动 | 低 | 正常核对 |
 | C4 | `backend/internal/app/task_outpaint_hardblend.go`（贴回阈值 0.08→0.02）+ 测试 | 无（hardblend 为 B 线独有） | 无 | **已并入（2026-09-30 序3）**：阈值 0.02 在树、`TestHardBlendOutpaintImageDriftBoundary`（0.021 跳过 / 0.019 贴回）通过；与本批 F7 的 `numberValue` 处置同文件不同函数，无交叠（控制线观察点复验通过） |
+
+---
+
+## 序4 rider 处置登记（G 系列 · merge-v1.6.0 · 2026-09-30）
+
+> 上游 `f9b8c5a4 → e0a2697c`（24 commits / 916 files，其中 737 为 builtin 技能包新增，
+> 与 fork 零交集）的 rider 合并处置。判据同 F 系列：fork 语义在场 + 上游新架构在场。
+
+| # | 涉及面 | 上游意图 | fork 语义 | 处置 |
+|---|---|---|---|---|
+| G1 | `agent-media-policy.md` v4→v5、`cloud_agent_tools.go` generate_media 文案、`cloud_agent_media_test.go` | **产品语义反转**：auto 免审批收回——「图片、视频在所有权限模式下都先创建草稿 → 界面独立审批，auto 只豁免其他画布修改」；测试 `TestCloudAgentAutoMediaSubmitsWithoutApproval` → `TestCloudAgentAutoMediaRequiresApprovalBeforeSubmit` | fork 的扩图（outpaintRatio）能力描述 | 取上游新审批语义；fork 扩图段保留并融入新文案（policy 三处 + tools 一处） |
+| G2 | `cloud_agent_runtime.go` cloudAgentRuntime 结构体 | Pi 运行时字段族：`PiAssistantResponses`（Pi runtime 成功 assistant 计数，不得以 Node 干净退出推断完成）、`IsGenerating`、`LastError` | fork `StepFullSnapshotHash`（双口径，W1 铁律域裁决 2026-09-26） | **双保**：上游字段族全收 + fork 双口径字段插于 Events 前 |
+| G3 | `canvas-cloud-agent-panel.tsx` props、`project.tsx` 挂载点 | 新增 `canvasNodes` / `runningNodeId`（识别审批目标节点是否已被用户直接提交生成，配合 10ea9d3f 的 superseded_by_node） | fork `prefillPromptId`（prefill 幂等）、`panelLayout`（父组件 lift 注入） | **双保**：两侧 props 全在场，`project.tsx` 用 fork 多行格式承载 |
+| G4 | `agent-canvas-patch.ts` mergeAgentCanvasEditor | `387d3562` 新增 project 顶层字段三方合并（`editor[key]` 循环，排除 id/revision/updatedAt/remoteContentHash/viewport/nodes/connections） | fork 的 `basis` 删除判定（P3 漏删修复，上游版无此逻辑） | **双保**：作用域不重叠（前者管非节点字段、后者管节点增删） |
+| G5 | `user-data-sync.ts` saveRemoteUserDataBatch 冲突分支 | 新增「云端内容一致 → 自动校准版本」前置分支（409/428 冲突时先比对内容，一致则就地校准并 continue）；另两处 `getRemoteCanvasProject(id, knownRemote)` 条件读取 | fork 水位门访问器 `openLocalProject` / `watermarkProjects`（卡06 域） | **双保**：上游前置分支采用 fork 访问器实现（校准结果同步写 `acknowledgedProjects` + `watermarkProjects` + `verifiedProjects`）；条件读取已自动合并 |
+| G6 | `cloud_agent_batch_table.go` / `cloud_agent_storyboard.go` | 节点级快照哈希（`cloudAgentNodeSnapshotMatches` / `cloudAgentNodeHash`）取代全画布内容哈希，实现细粒度并发控制；`creationConflict` → `cloudAgentFieldError(..., "stale_snapshot", ...)` | fork 无独有语义 | 取上游（新架构，函数已在树） |
+| G7 | `model-picker.tsx` / `model-picker.css` | 弹窗宽度限制（固定宽度机制 → `max-width` 弹性）+ 新结构 `canvas-model-picker-option-heading` / `-option-name` / `-option-price`（价格内联进标题行） | fork flyout 分组架构（`canvas-model-picker-flyout`，PATCH-MAP C1 登记为 fork 专有）；`--canvas-model-picker-trigger-width` 机制 | 跟随上游删除 `triggerWidth`（TSX 注入 + `.canvas-model-picker-menu` 消费点）；fork 的 `ModelLabel` T 行结构与 flyout 段保留；`.canvas-model-picker-flyout` 的 `min-width` 待观察（原消费已废变量，退化为 0 时由 `max-content` 兜底） |
+| G8 | `cloud_agent_step_hash.go`（**合并中修复**） | 上游 `a0f025aa` 统一日志出口（`log.Printf` → `slog`） | fork 的 `cloudAgentRepairSnapshotHashAgainst` 修复日志 | 自动合并把 fork 的 `log.Printf` 留在已改 `slog` 的文件中（`undefined: log` 编译错），按上游惯例改 `slog.Debug` |
+| G9 | `.env.example` / `CHANGELOG.md` / `pending-test.mdx` / `code-map.mdx` | 日志变量组、v1.5.8.2/1 版本记录、三项待测（后端日志/弹窗视口/分镜画幅）、Pi runtime 代码地图 | fork 会话 cookie 变量、Unreleased、F-06 扩图待测、扩图模块描述 | **keep-both**（code-map 融合：上游 Pi runtime 段 + fork `cloud_agent_media_outpaint.go` 段） |
