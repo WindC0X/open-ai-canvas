@@ -172,6 +172,13 @@
 | H1 | `cloud_agent_tools.go` `opProperties` | `canvas_apply_ops` 在 Pi 路径下**永不进入审批门**：Node 侧探针铁证 `Validation failed for tool "canvas_apply_ops": ops.0.x: schema is false / ops.0.y: schema is false / ops.0: must not have additional properties` → SDK `prepareToolCall` 校验失败返回 immediate error，`execute` 从未进入，Go 侧 `/tool` 桥不被调用 | 序2 处置该工具描述时误删 `opProperties` 的 `"x"`/`"y"` 两行（上游 `e0a2697c` 有），并把描述从上游的「可给 x/y 指定位置；省略坐标时服务端按画布内容自动落位」改成「不要传 x/y」——schema 与描述同时偏离上游，而 `cloud_agent_runtime_e2e_test.go` 的测试参数仍传 `x:24,y:48` | 补回 `x`/`y`（与上游逐行一致）+ 描述恢复上游措辞；当前该文件与上游差异仅剩 fork 扩图段（F 系列有意保留） |
 | H2 | `cloud_agent_runtime_e2e_test.go` deadline | 两条 Pi runtime e2e（`TestCloudAgentRuntimeCompletesToolRoundTrip` / `ApprovalWriteRoundTrip`）在 /mnt/f 上必超时 | drvfs 下 Pi 依赖树导入 65907ms vs ext4 729ms（90 倍），60s 窗口不足 | 控制线裁决 b：60s→150s，两处均加注释说明 drvfs 环境适配 + ext4 CI 无影响 + 上游同步重评估提示 |
 
+| I16 | `model_capability_defaults.go` / `_validate.go` | `applyOutpaintTierSeed` 调用（Default 入口）、`OutpaintTier` 白名单校验、`validateGPTImage2CustomSize` 具象文案（c51c8fa7） | 上游拆分新文件均未带 | E4 咽喉三处恢复；go 全量首跑 3 红 → 绿 |
+| I17 | `cloud_agent_runtime_errors.go` | `upstream_address_blocked` 分支（SSRF 拒绝映射） | 上游拆分未带 | 恢复；go 全量首跑 1 红 → 绿 |
+
+**系统核验方法（本批新增，供下批复用）**：上游按域拆分文件时，**逐注释/逐 case/逐中文文案**全树比对
+（`git diff merge-base..HEAD -- <file>` 取 fork 新增行，在全树 grep 存在性）。本批该方法命中 4 处
+静默丢失（E4 三处 + SSRF 映射一处），仅靠函数名比对无法发现（函数名都在，增量在函数体内）。
+
 **教训（供下批 task book 参考）**：合并中修改工具 schema 时，schema 的 `properties`
 与工具描述文案是**两个独立的事实面**，改一处必须核另一处；上游测试文件里出现
 "参数违反本仓 schema" 类失败时，优先怀疑合并期对 schema 的误删而非测试过时。
