@@ -83,7 +83,12 @@ func TestCloudAgentRuntimeCompletesToolRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deadline := time.Now().Add(60 * time.Second)
+	// deadline 2026-09-30 60s→150s（控制线裁决 b）：本仓在 /mnt/f（drvfs）上开发，
+	// Pi runtime 依赖树（backend/agent-runtime/pi/node_modules，203M/24962 文件）
+	// 的 Node 模块导入耗时 65907ms，而 ext4 上仅 729ms（90 倍）。60s 窗口下导入即耗尽，
+	// 与断言语义无关。上游 CI（GitHub Actions，ext4）导入 ~1s，150s 对它零影响；
+	// 上游同步时若该窗口再变，需重新评估（本行为本仓环境适配，非上游语义）。
+	deadline := time.Now().Add(150 * time.Second)
 	var execution *model.CloudAgentExecution
 	for time.Now().Before(deadline) {
 		execution, err = s.repo.CloudAgent("user", run.ID)
@@ -253,7 +258,9 @@ func TestCloudAgentRuntimeApprovalWriteRoundTrip(t *testing.T) {
 
 func waitCloudAgentStatus(t *testing.T, s *Service, runID, want string) *CloudAgentRun {
 	t.Helper()
-	deadline := time.Now().Add(60 * time.Second)
+	// deadline 2026-09-30 60s→150s（控制线裁决 b，同 TestCloudAgentRuntimeCompletesToolRoundTrip）：
+	// /mnt/f drvfs 下 Pi runtime 依赖导入 65907ms vs ext4 729ms，60s 窗口不足。
+	deadline := time.Now().Add(150 * time.Second)
 	for time.Now().Before(deadline) {
 		execution, err := s.repo.CloudAgent("user", runID)
 		if err != nil {
