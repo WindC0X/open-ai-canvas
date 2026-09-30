@@ -6,8 +6,8 @@
 
 ## 一、被测对象与栈切换
 
-- **批树**：`/mnt/f/CODE/Project/oac-wt-merge-v161`（branch merge-v1.6.1 @ `5e14fbc5`）
-- twin 栈切换：:3400 web 的 vite cwd 从 oac-wt-test 切到 oac-wt-merge-v161/web（同 fc8337f9 系后端 :8482 不变；twin db 沿用现库，无需重新迁移数据）
+- **批树**：`/mnt/f/CODE/Project/oac-wt-merge-v161`（branch merge-v1.6.1 @ `5e14fbc5`，web/node_modules 已就位）
+- twin 栈切换：:3400 web 的 vite cwd 从 oac-wt-test/web 切到 /mnt/f/CODE/Project/oac-wt-merge-v161/web（同 fc8337f9 系后端 :8482 不变；twin db 沿用现库，无需重新迁移数据）
 - 切换后先跑一次 auth + 首屏 smoke 确认起服务
 
 ## 二、S1 twin 数据冒烟（拆分域聚焦）
@@ -18,17 +18,18 @@ v1.6.0 的 S1 已证 748 画布零丢失；本批聚焦**拆分重构触碰的�
 2. 媒体节点：视频节点（loop 属性落 media-content）重开画布后循环播放仍生效；音频节点设置面板（14 键情感族）打开/保存/重开不丢
 3. Agent 面板拆分域：已有会话的历史消息渲染完整（panel-parts/events/composer/attachments 四拆分文件拼接后无消息丢失/错位）
 
-## 三、S2 行为回归（S1-S7 五跑门，ext4 上）
+## 三、S2 行为回归（S1-S7 五轮，ext4 上）
 
-- S1-S7 全套五轮（Playwright 五跑行为位/守卫 35 口径不变；S4 SPECIAL 维持 skip 口径，S4 spec 已能力化）
-- 背景：A线 在 drvfs 上 Go e2e 族串行第 4 条超时（v1.6.0 同位先例），五跑门必须在 ext4 上复证
+- S1-S7 七个行为 spec 全套五轮（测试线 PLAN.md 五轮口径；S4 SPECIAL 维持 skip 口径，S4 spec 已能力化）
+- 背景：A线 在 drvfs 上 Go e2e 族串行第 4 条超时（v1.6.0 同位先例），五轮必须在 ext4 上复证
 - 重点行为位：Agent 审批链（反转语义 + H1 x/y 审批门）、撤销条、starter 命令、prefill 幂等
 
-## 四、VRT 三面重采（本批核心价值面）
+## 四、VRT 重采（本批核心价值面）
 
-1. **Agent 面板面（必采）**——panel.tsx −1033 拆分是本批最大重写，视觉基线必须重采
-2. 画布缩略图面、工作台 Agent 面（按 drift 触发）
-3. 用 backup+delete 后重采法（playwright --update 不覆写既有基线——序6 教训）
+- VRT 三 spec 24 基线（暗 11 / 亮 11 / 工作台 2），照 序6 惯例本轮只重采**拆分敏感视图**：
+  1. **Agent 面板视图（06-agent-panel，暗+亮双套，必采）**——panel.tsx −1033 拆分是本批最大重写
+  2. 其余视图先跑对比，drift 超阈才重采（backup+delete 后重采法；playwright --update 不覆写既有基线——序6 教训）
+  3. 出现 drift：截图 + 归因到 commit，不就地修复
 
 ## 五、e2e 门复证（可选加分项）
 
