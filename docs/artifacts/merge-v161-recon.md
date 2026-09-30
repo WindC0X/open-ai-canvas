@@ -1,0 +1,80 @@
+# merge-v1.6.1 recon — rider 2（e0a2697c..eb13f736）
+
+> 控制线侦察档，2026-09-30。用户已拍板：v1.6.1 W4 初执行、先于 F-01 开枝。
+> 上游自 09-30 fetch 后无新增（origin/main 仍 eb13f736，本文写作时复核）。
+
+## 一、范围
+
+12 commits / 227 files。主体 = `7f5d87ef` 平台架构拆分（后端领域模块 + 画布前端组件）；
+其余 11 笔 = v1.5.9/v1.5.9.1 两笔发布 + Agent 思考误判修复 + 媒体恢复 + IndexTTS2 情感参数
++ 角色卡三视图 ×2 + 分镜拆镜契约 ×2 + Web 检查格式化。
+
+## 二、拆分结构（落位目标）
+
+7f5d87ef 产出 7 个直接相关新文件：
+
+| 新文件 | 抽自 | 体量 |
+|---|---|---|
+| `canvas-cloud-agent-panel-parts.tsx` | panel.tsx（−1033）| +685 |
+| `canvas-cloud-agent-events.ts` | panel/chat-ui | +348 |
+| `canvas-cloud-agent-composer.tsx` | panel/chat-ui（chat-ui −607）| +539 |
+| `canvas-cloud-agent-attachments.ts` | chat-ui | +21 |
+| `canvas-node-media-content.tsx` | node-content.tsx（−825）| — |
+| `canvas-node-status-content.tsx` | node-content.tsx | — |
+| `services/user-data-sync-media.ts` | user-data-sync.ts | +123 |
+
+另：`canvas-script-node-parts.tsx`（script-node −122）、`model-capabilities-workflow.ts`
+（model-capabilities −501，workflow 字段族）、后端领域模块族（`cloud_agent_runtime.go` −2389，
+struct 定义保留原文件 :118）。
+
+**card06 域整文件迁移**：`web/src/pages/canvas/user-data-sync.ts` → `web/src/services/user-data-sync.ts`
+（旧路径在 origin/main 已不存在）。
+
+## 三、fork 增量逐域落位表（merge 执行的操作面）
+
+| 域 | fork 增量（批树位置） | 上游新家 | 落位策略 |
+|---|---|---|---|
+| F1 panel | panelLayout ×9：:109 类型 / :114 签名 / :119-122 pointerHandlers / :183 架构注释（组件根）；**:1016 style spread / :1034 onResizeKeyDown / :1116 onResetLayout（渲染段）**；prefillPromptId ×4 | 渲染段随 −1033 抽入 panel-parts；组件根仍在 panel.tsx | 根部 5 处原位；渲染段 3 处落 parts；G3 的 canvasNodes/runningNodeId 双保不变 |
+| F2 chat-ui | AgentUndoBar（chat-ui:1022 定义 / panel:75 import / panel:1159 渲染点）| chat-ui 仍在；渲染段去处 = parts | 定义原位；渲染点落位后核 |
+| F4 project | agentPanelLayout lift + 双挂载去重成果 | project.tsx 仍在（83 行变化）| 原位落位 |
+| F5 node-content | loop 属性行（:618，preload 之后）| → `canvas-node-media-content.tsx` | 迁移 + 守卫断言路径同步 |
+| G2 runtime | StepFullSnapshotHash（:172-175 注释+字段 / :1149 赋值）| struct 仍在 runtime.go:118 | 原位插回，双口径语义不变 |
+| E4 咽喉 | outpaintTier（model-capabilities.ts :67 / :214-217 / :223）| modelCapabilityConfigFor 仍在 :408；迁走的只有 workflow 族 | 原位落位，无上游交叉 |
+| card06 | 水位门访问器 openLocalProject/watermarkProjects + G5 校准分支 | **services/user-data-sync.ts 新家** + media 键族在 user-data-sync-media.ts | 路径重定位 + 访问器/校准分支落新家；水位门逻辑本体未被 rider 触碰（media.ts 抽的是键收集/上传函数）|
+| F3 CSS | canvas-cloud-agent.css fork 增量 | **rider 2 零触碰**（范围 diff 无此文件）| 零冲突直接保留 |
+
+## 四、11 笔 rider 逐笔定级
+
+| commit | 主题 | fork 交集（实证） | 处置 |
+|---|---|---|---|
+| eb13f736 | Agent 思考误判（pi_model + runtime.mjs + truncated_args_test）| 无 | 取上游 |
+| 4c0aa682 | 媒体恢复音频多结果 | 无 | 取上游 |
+| b0806745 | IndexTTS2 情感参数 | 无（config-store/generation-task 域零 fork 增量）| 取上游 |
+| d01e60d8 + 6bbc2849 | 角色卡三视图 | **零交集**：E1/E2 域 = grid-split-picker.css + use-canvas-render-model.ts + 2 test；角色卡动 character-reference / resource-references | 取上游 |
+| e2a05390 + 45e51b1d | 分镜拆镜输出契约 | script-node 无 fork 登记增量（M1 域）；拆镜契约亦上游侧 | 取上游；M1 结论不受影响 |
+| fda3b842 | Web 检查格式化 + 源码断言修正 | 触 3 个 web/test（create-library-button / director-template-mode-wiring / zz-frame-check −11），均非 fork 守卫 | 取上游；守卫回归风险见 §五 |
+| 123c7cd2 + 74e7ebed | v1.5.9 / v1.5.9.1 发布 | CHANGELOG/版本记录 | keep-both（G9 惯例）|
+| b2184a6e | 部署 updater 兼容 | 无 | 取上游 |
+
+## 五、守卫测试面（隐蔽成本，任务书必含）
+
+12+ fork 守卫测试引用被拆/迁文件：agent-panel-overlay-zorder / agent-send-prefill-command /
+agent-canvas-refresh / agent-interjection / agent-model-picker / agent-starter-command /
+agent-tool-retry / canvas-media-node-initial-size / canvas-media-performance /
+canvas-model-policy / agnes-video / asset-batch-delete。
+凡断言锚在被抽走代码段的，需同步迁移断言路径/锚文本。**门禁清单新增一项：守卫全量跑 + 断言锚点迁移表**。
+
+## 六、门禁与测试线计划
+
+- 门禁：v1.6.0 全套（tsc / eslint / build / web bun 全量 / go 全量 / e2e 五跑门 / 聚焦守卫）**+ 守卫锚点迁移项**
+- 测试线：S1 迁移冒烟 + S2 五跑 + VRT 三面（Agent 面板 = 拆分敏感面，必采）
+- 顺序（已拍板）：W4 初 merge → 全绿 → F-01 从干净底座开枝
+
+## 七、估算
+
+| 项 | 量 |
+|---|---|
+| merge 落位 | 序2 规模 hunk 映射，0.5-1 人日（7 域落位 + 守卫锚点迁移）|
+| gates 机器时间 | ~2-3 小时串行（build 1m06s 实测 / go internal-app 24min 实测 / web 全量 / e2e）|
+| 测试线整轮 | ~3 小时（序6 实测 12:37→15:25 含补跑）|
+| 全批 wall-clock | **1.5-2 天**（对照 v1.6.0 三天 1143 文件）|
