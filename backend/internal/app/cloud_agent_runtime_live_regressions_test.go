@@ -110,7 +110,13 @@ func startLiveAgentService(t *testing.T, upstream *liveUpstream, permissionMode 
 
 func waitLiveAgentTerminal(t *testing.T, s *Service, runID string) *model.CloudAgentExecution {
 	t.Helper()
-	deadline := time.Now().Add(90 * time.Second)
+	// deadline 2026-09-30 90s→420s（控制线裁决 b，同 cloud_agent_runtime_e2e_test.go）：
+	// /mnt/f drvfs 下 Pi runtime 依赖导入 65907ms vs ext4 729ms（90 倍）。本组 live 测试
+	// 每条会经历多次模型步骤（重试场景 mock 前 2 次 500、第 3 次成功），而每个模型步骤
+	// 都新起一个 Node 进程（导入 66s + 运行），实测单条 208s 稳定触顶；420s 覆盖
+	// 「3 步 × (66s 导入 + 运行余量)」的最坏情况。上游 CI（ext4）导入 ~1s，420s 对它
+	// 零影响；上游同步时若该窗口再变需重新评估（本行为本仓环境适配，非上游语义）。
+	deadline := time.Now().Add(420 * time.Second)
 	for time.Now().Before(deadline) {
 		execution, err := s.repo.CloudAgent("user", runID)
 		if err != nil {
