@@ -211,7 +211,7 @@ codeBlockDefinition = { kind:"codeBlock", schema: ({nodeData}) => ({
 - **自动保存**，无保存按钮；上限 `200 rows`
 - 状态机：`Draft → Generating → Completed`
 
-## 3.4 Director（仅截图证据，官方文档未覆盖）
+## 3.4 Director（★ 机制级确认，详见 `imagine-tools-deep-dive.md`）
 
 - 全屏流式台，标题 `Director` + `New`，副标题 `Direct a previz stream.`
 - 中央 `Set the scene` 输入卡：prompt 框（含 `tab` 补全提示）+ 麦克风
@@ -219,7 +219,7 @@ codeBlockDefinition = { kind:"codeBlock", schema: ({nodeData}) => ({
 - **首尾帧锚定**：`First frame` / `End frame` + `Audio`
 - `▶ Start` 绿色按钮（live prompts 连续 previz 流）
 
-## 3.5 Pose（仅截图证据）
+## 3.5 Pose（★ 机制级确认，详见 `imagine-tools-deep-dive.md`）
 
 - 双视窗：左 **3D 骨架编辑器**（色球关节：黄=头/骨盆、红=右肢、蓝=左肢），右**实时渲染流**
 - 底部姿势预设：`Stand / T-pose / Wave / Walk / Run / Sit / Jump` + 镜像 + 视角复位
@@ -231,7 +231,7 @@ codeBlockDefinition = { kind:"codeBlock", schema: ({nodeData}) => ({
 - 底部生成 dock：prompt + `tab` 补全 + 麦克风 + token 计数 + Stop
 - **两个自动注入开关**：`Pose-aware template`、`Auto pose words`（勾选后 "Your prompt, expanded with the pose, appears here."）
 
-## 3.6 Realtime（仅截图证据）
+## 3.6 Realtime（★ 机制级确认，详见 `imagine-tools-deep-dive.md`）
 
 - 双视窗：左 `Camera`（输入摄像头）/ 右 `Restyled`（输出）
 - 底部 prompt + `Mirror view` 勾选 + `▶ Play` 绿色按钮
@@ -271,5 +271,5 @@ codeBlockDefinition = { kind:"codeBlock", schema: ({nodeData}) => ({
 - 图 JSON：`graph-artwork-to-physical.json`（20 节点 / 13 边，运行态提取）
 - 官方文档：`docs.flora.ai`（`llms.txt` 索引 / `llms-full.txt` 全量 384,872 chars / 页面 `.md` 版 / `?ask=` 问答接口）
 - 前端逆向：148 chunks 静态扫描（关键词 `runTechnique` / `FLORA_FUNCTIONS_BY_ID` / `NodeTypes` / `techniqueListings` / `codeBlockDefinition`）+ React fiber `memoizedProps.nodes/edges`
-- **证据分级**：架构/端点/schema/官方文档 = 一手实测；Director/Pose/Realtime = **仅截图，无官方文档**（该三节结论为界面观察，非机制确认）
+- **证据分级**：架构/端点/schema/官方文档 = 一手实测；Director/Pose/Realtime = **bundle 逐字反解，机制级确认**（见 `imagine-tools-deep-dive.md`：端点 `fal-ai/flux-2/klein` / `minimax/h3-max/director` / `decart/lucy-2-5/realtime`，协议字段与计费公式全部读出）
 - 待补：`run-technique` 请求体、credit 计算规则、technique 表完整 Convex schema、Examples/Quick Canvas 细节、Studios 是否只有 Fashion Studio
