@@ -1,0 +1,466 @@
+[
+ {
+  "technique": "Product Lookbook Grid",
+  "slug": "product-lookbook-grid",
+  "nodeId": "203e6c61-d1a0-43e4-9323-e55a7833e8cb",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "PROMPT (use the 2 provided reference images: lipstick product + model portrait)\nCreate a single 4:3 canvas containing a 2x2 storyboard grid of 4 equal panels with NO borders/gutters/lines between panels (seamless edge-to-edge quadrants). High-end editorial studio series for a designer branding portfolio. Use the reference images as strict anchors.\n\nGLOBAL LOCKS (apply to ALL 4 panels)\n- Product lock: EXACT same lipstick as the product reference: identical chrome/silver tube, identical red bullet shape, identical cap form, identical proportions, identical surface finish and reflections. Do not alter the product design in any way. The product must be clearly recognizable in every panel.\n- Identity lock: keep branding/labeling exactly as reference (do not invent new logos or text; if the reference has no visible label text, add none). No relocating or retyping any text. No random typography.\n- Model lock: Use the model from the portrait reference with the same facial features, expression, skin texture, freckles/flush, makeup look, and hair styling. Do not change identity-defining features. If an edge case results in two models, incorporate BOTH models consistently across the grid (both present in each relevant panel; do not add additional people beyond those two).\n- Style lock: curated editorial, design-driven, minimal, calm, confident, studio logic. Consistent neutral studio background language across all panels (soft pale grey/green tint allowed, matching the product reference vibe). Consistent lighting direction, color palette, and visual rhythm across the full 2x2 grid.\n- Camera lock: real camera look, ultra-high quality studio photography, controlled depth of field, precise specular highlights on chrome, accurate materials and reflections, no CGI look.\n- Composition lock: each panel is self-contained; nothing bleeds/crosses into adjacent panels. No duplicated frames. No collage artifacts.\n\nPANEL LAYOUT (2x2 grid, equal quadrants, 4:3 overall)\nPanel 1 (top-left): Front-facing hero shot. Product is the main focus. Clean studio setup, neutral background, balanced composition. Include the model in-frame (upper body or portrait) with calm confident presence; product positioned prominently in the foreground or beside the model, front facing, sharply in focus. Minimal props (prefer none). Lighting soft, premium, with crisp chrome reflections.\n\nPanel 2 (top-right): Micro close-up. Extreme close shot centered on the middle section of the lipstick (chrome barrel and seam details) with an interesting angle. The model is wearing the lipstick; include a partial crop of the model (mouth/cheek/side of face) near the product, but keep the product center-frame and dominant. Shallow depth of field: product details tack sharp, model softly falls off. No extra hands unless absolutely necessary.\n\nPanel 3 (bottom-left): Product interaction/in use on neutral background. Model minimally interacts with the lipstick in a restrained, editorial way (e.g., holding near lips or just after application). Hands minimal and elegant; only the model’s hands if shown, correct anatomy, no extra fingers. Product remains clearly visible and recognizable, with consistent chrome reflections.\n\nPanel 4 (bottom-right): Motion blur mid-use. Model using the lipstick with smooth controlled motion blur (intentional, clean, premium). Background remains neutral and consistent. Keep the product readable despite blur: preserve recognizable silhouette, chrome highlights streak subtly, no messy smears. Motion blur only where appropriate (hand/product movement), avoid full-frame blur.\n\nTECHNICAL / FINISH\n- 4:3 aspect ratio final image, 2x2 grid, no borders, no watermark.\n- Cohesive series: same set, same palette, same lighting logic across all four panels.\n- Ultra-detailed skin texture and chrome reflections; accurate specular highlights; subtle filmic tone curve; editorial sharpness.\n\nNEGATIVE PROMPT\n- No borders, no gutters, no white grid lines, no frames, no panel separators.\n- No random text, no captions, no extra logos, no invented branding, no misplaced label text, no typography overlays.\n- No extra people, no crowd, no additional faces; if two models appear due to generation, keep only those two and integrate both consistently (do not add a third).\n- No extra hands/arms, no extra fingers, no malformed anatomy, no floating limbs.\n- No product redesign: do not change lipstick color, bullet shape, tube geometry, cap design, proportions, finish, reflections, or any packaging details.\n- No lifestyle props (phones, flowers, jewelry, clothing distractions), no busy backgrounds, no environmental scenes.\n- No cross-panel bleeding/overlap, no duplicated product fragments, no collage artifacts.\n- No low-res, no blur except intentional motion blur in panel 4, no noise, no compression artifacts, no CGI/plastic look, no over-smoothing.\n- No extreme color shifts, no harsh shadows inconsistent with studio lighting, no inconsistent perspective across panels."
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "normal-map",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "Generate a flat, seamless, tileable tangent-space normal map texture for a heavily embossed silver metal material featuring baroque floral relief carving with roses, acanthus scrolls, and filigree ornamentation.\n\nTwo reference images are provided:\n- Image 1: A photorealistic PBR preview sphere showing the embossed silver material under studio lighting, used as the sole source of surface relief depth, emboss height, carving structure, and micro-detail logic.\n- Image 2: The flat Base Color / Albedo map for the same material, used as the exact layout anchor. The normal map output must be perfectly pixel-aligned to this albedo map.\n\nSurface relief extraction rules (from the sphere only):\n- Raised elements: rose bloom petals and centers sit at high elevation with smooth rounded forms, acanthus leaf scrolls curl upward with strong emboss height, stem and vine elements are rounded ridges above the base plate, filigree curls have tight raised edges with soft inner slopes\n- Recessed elements: engraved line details between scrolls sit below the surrounding relief, the flat base metal plate is the lowest depth level, carved shadow channels along petal edges and leaf veins define edge depth transitions\n- Micro-detail: faint brushed metal directionality on flat base areas, fine engraved crosshatch or line texturing inside recessed channel zones, subtle surface grain across all areas\n- Depth hierarchy from lowest to highest: base plate < engraved channels < flat relief ground < scroll bodies < leaf forms < rose petal layers < rose center peak\n\nNormal map generation rules:\n- Use the albedo map as the strict layout anchor. Every carved element, rose, scroll, leaf, and filigree curl in the albedo must have a correctly oriented normal deflection in the output.\n- Do not preserve the circular sphere boundary. Flatten and unwrap the surface logic into a seamless rectangular tile.\n- Remove all sphere curvature normals. Remove all 3D globe shading or radial depth bowing caused by the sphere form.\n- Remove all lighting, shadows, specular highlights, reflections, ambient occlusion, and any baked illumination.\n- Do not invent depth or shapes not supported by the albedo layout or sphere surface observation.\n- Do not convert color variation alone into false depth unless it clearly corresponds to confirmed physical relief.\n- Ensure the output tiles seamlessly on all four edges with no visible seams, no edge-specific lighting discontinuities, and no border artifacts. The pattern must repeat cleanly horizontally and vertically.\n\nOutput specification:\n- Format: one single flat texture image, full tile, no sphere shape, no background, no labels, no borders, no multiple views\n- Color space: standard OpenGL tangent-space normal map encoding\n  - Flat surface normals pointing straight up encode as RGB (128, 128, 255) mid blue-purple\n  - Left-facing surface normals shift red channel low\n  - Right-facing surface normals shift red channel high\n  - Down-facing normals shift green channel low\n  - Up-facing normals shift green channel high\n  - Deep emboss peaks have high blue-green intensity, steep carved walls show strong red-green deflection\n- The dominant base tone of the output should be the flat-normal mid blue-purple (128, 128, 255) where the base plate is flat\n- Strong red-green channel deflection along all emboss edges, scroll curves, petal slopes, and leaf forms\n- High blue channel saturation at the tops of raised rose centers and scroll peaks\n- Sharp normal transitions at engraved channel edges, smooth gradient slopes across petal and leaf body surfaces\n- Seamless and tileable on all edges\n- Production-ready, game-engine compatible, PBR workflow standard\n- No lighting information baked into the output\n- No ambient occlusion encoded in the output"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "0c247fee-8f40-489b-bae6-52d92faa5f25",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "Enhance this exact image with full PBR material rendering — do not alter composition, framing, angle, background, or any design element — this is a extreme close-up hero shot of an ornate Renaissance-era full plate armor torso and pauldron assembly, captured at a three-quarter angle with soft diffuse overhead lighting casting deep ambient occlusion shadows into every engraved channel and relief valley, with broad specular highlights sweeping across the convex breastplate dome and the curved outer rim of the pauldron, the composition filling the frame with the central breastplate occupying the dominant left-center zone covered in deeply embossed high-relief floral engraving featuring three large fully-bloomed rose bosses at varying scales with tightly spiraled petal layers rendered in [MATERIAL: polished mirror steel with anisotropic surface sheen] where raised relief peaks catch bright specular light and recessed channels fall into deep shadow with ambient occlusion pooling, the surrounding acanthus scroll and foliate arabesque engraving filling every negative space with intricately tooled curvilinear vine work, feather motifs, and tendril loops all rendered in [MATERIAL: engraved relief steel with satin-brushed recessed ground and polished raised embossment], the pauldron visible in the upper right with a circular medallion center featuring an eight-petaled flower boss surrounded by dense acanthus scroll all in [MATERIAL: high-polish convex mirror steel plate with rolled beveled edge rim in burnished silver], the fauld and waist lame band running horizontally across the lower frame featuring geometric diamond-point etched border panels interspersed with floral spray cartouches rendered in [MATERIAL: flat-ground etched steel with bright-cut line detail], the partial gorget and right-side arm harness plates visible at frame right displaying additional dense foliate engraving in [MATERIAL: polished steel plate with anisotropic metal sheen and engraved relief silver surface], the sword grip and crossguard partially visible at lower left with the grip wrapped in [MATERIAL: dark aged leather wrap with tight lozenge crosshatch texture and visible cord binding in linen over-wrap] and the guard in [MATERIAL: aged darkened steel with worn surface patina], small floral rivet bosses visible at the fauld lower edge in [MATERIAL: polished steel dome rivets], fine wire or thread visible at the lower corner in [MATERIAL: aged twisted cord fiber], the background neutral mid-gray in [MATERIAL: flat ambient studio neutral], photorealistic PBR materials, ultra detailed, production quality, 8K, preserve exact lighting direction from upper left diffuse source, preserve exact shadow fall into all engraved relief channels, preserve broad specular sweep across breastplate convex dome and pauldron outer rim, ambient occlusion depth in all foliate recesses, surface micro-detail visible including tool mark directionality on engraved ground, facet angles on petal relief surfaces, edge bevel geometry on plate borders, and rivet dome curvature, exact composition preservation, exact proportions, exact decorative details including every rose petal spiral, every acanthus curl, every scroll termination and foliate tip, no new elements, no simplification of engraving or relief detail, hero prop quality."
+ },
+ {
+  "technique": "Sketch to Photorealistic Product Renderer",
+  "slug": "sketch-to-photorealistic-product-renderer",
+  "nodeId": "a0852c0d-2785-4204-9801-6ea52d64a5d4",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imagesToText",
+  "prompt": "Photorealistic product render based on the uploaded \r\nsketch. Analyze the inspiration reference image and \r\nextract what is relevant: material finishes, surface \r\ntextures, color palettes, lighting mood, design \r\nlanguage, and overall aesthetic direction. Apply \r\nthese qualities to the product render.\r\n\r\nDo not copy the shape or form of the reference — \r\nthe product design comes exclusively from the sketch. \r\nOnly absorb visual qualities: materials, colors, \r\nsurface behavior, reflections, tones, and \r\nphotographic style.\r\n\r\nMatch the sketch exact camera angle, product position, \r\nscale and proportions — the silhouette of the render \r\nmust overlap the silhouette of the sketch perfectly. \r\nDo not rotate, shift, resize, stretch, or reframe \r\nthe product in any way.\r\n\r\nIgnore all handwritten annotations, material labels, \r\nand text in the sketch — render only the product form.\r\n\r\n─────────────────────────────────────────\r\nPRODUCT FOUNDATION\r\n─────────────────────────────────────────\r\n- Identify the overall silhouette, primary form \r\n  language (geometric, organic, angular, rounded), \r\n  and product category\r\n- Document dominant structural axes, proportions, \r\n  height-to-width ratio, depth, and scale references\r\n- Note wall thickness, component hierarchy, symmetry \r\n  or asymmetry, cutouts, ribs, flanges, or \r\n  reinforcements\r\n- List all visually indicated materials, transitions, \r\n  and joining points\r\n- Map all functional features: handles, buttons, \r\n  ports, hinges, seams, clasps, openings, and \r\n  ergonomic zones\r\n\r\n─────────────────────────────────────────\r\nSTYLE & AESTHETIC DIRECTION\r\n─────────────────────────────────────────\r\n- Define the unified design language from the \r\n  inspiration reference (e.g. refined industrial \r\n  minimalism, soft luxury, utilitarian precision)\r\n- Extract recurring visual themes: negative space, \r\n  tonal material stacking, sharp-to-soft edge \r\n  transitions, restrained detailing\r\n- Apply color palette with finish descriptors: \r\n  primary, secondary, and accent tones (e.g. matte \r\n  black, warm off-white, brushed gold, raw concrete, \r\n  gloss ceramic)\r\n- Define lighting mood: direction, quality, atmosphere \r\n  (e.g. soft diffused studio light with subtle warm \r\n  fill, dramatic side-lit shadows, clean white \r\n  cyclorama)\r\n- Detail surface quality: grainy, smooth, embossed, \r\n  woven, polished, or oxidized\r\n\r\n─────────────────────────────────────────\r\nCLEAN RENDER RULES\r\n─────────────────────────────────────────\r\n- Full aesthetic mood from the inspiration reference \r\n  applied throughout\r\n- Color palette, finish quality, lighting direction, \r\n  surface texture, and material feel carried through\r\n- Strictly excluded:\r\n  × No brand names or logos\r\n  × No text or typographic elements\r\n  × No labels or markings from the reference\r\n  × No stickers, badges, or printed graphics\r\n\r\n─────────────────────────────────────────\r\nOUTPUT\r\n─────────────────────────────────────────\r\nSingle hero render. Front-facing, perfectly centered.\r\nClean neutral background — white or very light grey.\r\nStudio lighting consistent with the mood of \r\nthe inspiration reference.\r\nProduct fills 80% of the frame.\r\nUltra high detail, 8K, commercial photography quality.\r\nLabel-free, production-ready.\r\nForm, material and finish speak entirely on their own.\n"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "ambient-occlusion-map",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "Generate a flat, seamless, tileable grayscale Ambient Occlusion map for a highly ornate embossed silver metal material featuring baroque floral relief — large sculpted roses with layered petals, sweeping acanthus leaf scrolls, curved stems, and dense filigree botanical patterning deeply raised above a flat metal base.\n\nThis is an image-to-image generation task. You are provided with:\n- A photorealistic PBR sphere preview of the material (reference for surface relief and occlusion logic)\n- A flat Base Color / Albedo map of the same material (use as layout anchor for pattern placement and tiling structure)\n\nYour output must be a single flat grayscale AO texture reconstructed from the surface logic observed across both inputs.\n\nSURFACE OCCLUSION LOGIC TO EXTRACT:\n- Deep occlusion in the tight spiral centers of each sculpted rose, where overlapping petals create enclosed cavities\n- Strong occlusion in the undersides of curling acanthus leaf tips and volute scroll terminations where the relief curls back under itself\n- Medium-dark occlusion along the narrow channels and grooves between adjacent raised stems, scrolls, and leaf forms where geometry crowds together\n- Moderate occlusion at the base of all raised relief elements where embossed forms meet the recessed flat metal background plate\n- Subtle occlusion along the inner edges of each petal layer transition and leaf rib where surfaces fold slightly inward\n- The flat recessed background metal plate between all relief elements should be light grey, slightly darkened only immediately adjacent to raised forms\n- The highest exposed peaks of rose petals, outer scroll edges, and upward-facing leaf surfaces should be near white — fully unoccluded\n- Maintain smooth gradient falloff from occluded crevices to exposed peaks — no hard edges, no banding\n\nWHAT TO STRICTLY EXCLUDE:\n- No directional lighting or shading baked in from the sphere render\n- No specular highlights or metallic reflections\n- No broad spherical shading gradient from the preview render\n- No cast shadows from one element onto another surface\n- No circular sphere boundary or cropped composition\n- No dark areas caused by the sphere's edge falloff\n- No color — pure grayscale only\n- No labels, borders, frames, or watermarks\n- No invented deep occlusion on areas that are geometrically flat\n\nOUTPUT SPECIFICATIONS:\n- Format: Single flat square texture image\n- Mode: Grayscale only (no color channels)\n- Value mapping: White (255) = fully exposed, unoccluded surface peak / Black (0) = deepest enclosed cavity or tight crevice / Mid grey = recessed background plate between relief\n- Pattern layout: Aligned to the provided albedo map — the roses, scrolls, and leaf forms must occupy the same relative positions\n- Tileability: Fully seamless and tileable on all four edges — no visible seams, no edge-specific darkening, no lighting discontinuities at borders\n- Relief intensity: High — this material has strong, deep sculptural relief with significant height variation, so the AO map should show clear contrast between recessed crevices and exposed peaks, while the flat background plate remains a consistent mid-to-light grey\n- Production standard: Clean, game-ready, PBR pipeline compatible ambient occlusion map with no lighting baked in"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "roughness-map",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "Generate a flat, seamless, tileable grayscale PBR Roughness map for a heavily engraved oxidized silver metal material featuring baroque floral relief work with roses, acanthus scrolls, and ornate botanical motifs.\n\nYou will receive two inputs:\n- A photorealistic PBR preview sphere of the engraved oxidized silver material\n- A flat Base Color / Albedo map of the same material as the exact layout and alignment anchor\n\nYour task is to produce a single flat black and white roughness map perfectly aligned to the provided albedo map.\n\nMATERIAL SURFACE ROUGHNESS LOGIC TO FOLLOW based on the sphere reference:\n\n- Raised polished high points on relief elements such as the tops of rose petals, the crowns of acanthus scroll curves, the uppermost ridges of leaf forms, and the peaks of decorative volutes: these are the most burnished and reflective zones, render them as very dark gray to near black (roughness value approximately 0.05 to 0.15)\n- Smooth flowing mid-relief surfaces on stems, large petal faces, broad leaf surfaces, and curved scroll bodies where the metal is polished but not at peak highlight: render as dark gray (roughness approximately 0.15 to 0.30)\n- Flat background field areas between the relief motifs where the metal surface is more uniform but slightly less burnished than raised peaks: render as mid dark gray (roughness approximately 0.30 to 0.45)\n- Recessed grooves, undercut tool marks, engraving channels, and the deep valleys between relief elements where oxidation and tarnish accumulate and polishing tools cannot reach: render as medium to light gray (roughness approximately 0.55 to 0.72)\n- Deeply recessed areas, tight inner curves of rose centers, the innermost recesses of scroll volutes, narrow engraved line work, and zones where oxidation patina is fully settled and the surface is matte: render as light gray to near white (roughness approximately 0.72 to 0.88)\n- Any micro-abrasion, brushed tool marks, or surface irregularity visible in broad open areas: render as subtle mid-tone gray variation (roughness approximately 0.40 to 0.55)\n\nCRITICAL OUTPUT RULES:\n- Output must be a pure black and white grayscale image only, no color tint whatsoever\n- Darker pixels mean smoother and more reflective surface\n- Lighter pixels mean rougher and more matte surface\n- Do not bake in any lighting, shading, shadows, ambient occlusion, specular highlights, or reflected environment\n- Do not preserve the circular boundary of the sphere in any way\n- Do not include any background, border, label, or compositional element from the sphere render\n- Flatten all surface roughness information into a straight-on seamless tile perfectly matching the albedo map layout\n- The texture must tile seamlessly and repeat cleanly on all four edges with no visible seams, no edge lighting discontinuities, and no artifacts\n- Do not invent roughness variation not supported by the material observed on the sphere\n- Do not confuse bright lit areas on the sphere with smooth surface, read only the material finish logic\n- The output must be production-ready and game-engine compatible for standard PBR metallic roughness workflow\n- Single image output only, no multiple views, no annotations, no guides"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "a0500d59-146e-47e5-83d8-49b437e17f6c",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Create a prompt to transform this photorealistic PBR material preview sphere into a flat Metallic map for the same material.\r\n\r\nThe generated prompt should assume it will receive:\r\n- the photorealistic PBR material preview sphere\r\n- the matching flat Base Color / Albedo map for the same material, when useful for identifying region-specific metallic variation\r\n\r\nGoal:\r\nExtract only the material’s real metallic behavior for a standard PBR workflow.\r\n\r\nInstructions:\r\n- use the sphere only as reference for whether the material behaves as a metal, non-metal, or contains localized metallic variation due to coating, oxidation, patina, plating loss, exposed substrate, or mixed-surface construction\r\n- use the flat Base Color / Albedo map only when needed to help place region-specific metallic variation correctly\r\n- if the material is uniformly metallic, output a nearly uniform metallic map and do not invent pattern-based variation just to match the albedo\r\n- if the material is uniformly non-metallic, output a nearly uniform non-metallic map\r\n- only introduce spatial metallic variation when it is materially real and supported by the inputs\r\n- remove all lighting, shading, shadows, specular highlights, reflections, and background\r\n- flatten the sphere into a straight-on reusable texture output\r\n- preserve only the true metallic behavior of the material\r\n- keep metallic differences caused by coating loss, oxidation layers, painted regions, contamination, exposed substrate, or intentionally mixed metallic and non-metallic surface treatment if they are part of the material itself\r\n- do not include any 3D sphere shading\r\n- do not include any ambient occlusion\r\n- do not include any rendered depth cues caused by lighting\r\n- do not include labels, borders, or multiple views\r\n- do not preserve the circular sphere form\r\n- do not invent metallic patterning that is not supported by the material\r\n- do not confuse brightness from lighting with metallic information\r\n\r\nOutput requirements:\r\n- one FLAT texture image only, make sure it is really flat\r\n- standard game-ready grayscale metallic map\r\n- aligned to the provided albedo map only when needed for real region placement\r\n- brighter values = metallic\r\n- darker values = non-metallic\r\n- if the material is all metal, the map should be almost entirely bright with only subtle reduction where physically justified\r\n- if the material does not need pattern-based variation, keep the map simple and uniform\r\n- no lighting information baked in\r\n- clean, production-ready, PBR workflow compatible\r\n\r\nAll generated material maps must be tileable and seamless on all edges.\r\n\r\nThe texture must repeat cleanly horizontally and vertically with no visible seams, borders, lighting discontinuities, or edge-specific artifacts.\r\nDo not preserve the circular sphere boundary or any composition from the preview render.\r\nReconstruct the metallic information as a seamless repeating texture based on the observed material logic, and only use the albedo layout where actual metallic region separation is needed.\n"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "65134f05-69a7-4751-87dd-f6bdb5810fcc",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Generate a JSON prompt to TRANSFORM this 3D render into a real photograph. Separate identity (WHAT - preserve) from transform (HOW - change to photographic). Be aggressive—a real photo looks different from a render. \"material_reality\": {\r\n  \"philosophy\": \"Every surface must read as a physically scanned \r\n  material — not rendered, not painted. If you could reach into \r\n  the image and touch it, it would have texture, temperature, \r\n  weight, and history.\",\r\n\r\n  \"metal\": \"Photographed metal with full PBR fidelity: \r\n  anisotropic brushed grain catching directional light, \r\n  micro-abrasion scratches layered over base polish, \r\n  edge wear where geometry meets edge — brighter, more \r\n  exposed metal at corners and ridges. Fingerprint oil \r\n  smears near grip areas. Oxidation and tarnish pooling \r\n  in recesses and engravings. Environmental reflections \r\n  distorted by surface imperfection. No procedural CG \r\n  scratch overlays — real accumulated wear.\",\r\n\r\n  \"fabric\": \"Photographed cloth: individual thread weave \r\n  visible under raking light, yarn tension creating micro \r\n  surface topology, loose fibers catching rim light at \r\n  edges, fabric memory where it folds — compressed \r\n  threads at crease points, stretched at tension points. \r\n  Subtle pilling, dust caught in weave, wear patterns \r\n  at contact zones.\",\r\n\r\n  \"leather\": \"Photographed leather: pore structure visible \r\n  across grain, natural crease lines where material flexes, \r\n  scuff marks at high-contact edges, oil darkening at \r\n  handle zones from use, stitching thread raised above \r\n  surface with shadow underneath each stitch.\",\r\n\r\n  \"skin\": \"Photographed human skin: visible pore topology \r\n  under directional light, subsurface blood flow warming \r\n  shadows, natural oil sheen on nose bridge and forehead, \r\n  peach fuzz catching rim light, micro-texture asymmetry — \r\n  nothing too smooth, nothing too uniform.\",\r\n\r\n  \"stone_ceramic\": \"Photographed stone: subsurface light \r\n  scatter in translucent areas, crystalline grain structure \r\n  in polished zones, micro-chipping at edges, dust \r\n  collecting in surface pits, matte vs gloss variation \r\n  across the same face.\",\r\n\r\n  \"crystalline_gem\": \"Photographed crystal: internal \r\n  refraction caustics projecting onto surrounding surfaces, \r\n  prismatic color splitting at facet edges, micro-chips \r\n  and scratches on facet faces, depth and internal \r\n  inclusions visible, surface condensation if cold \r\n  environment implied.\",\r\n\r\n  \"wood\": \"Photographed wood: grain direction visible as \r\n  topology not just color, end grain darker and more \r\n  absorbent, finish wearing through at high-contact zones \r\n  revealing raw wood underneath, micro-cracks along grain \r\n  lines in aged pieces.\",\r\n\r\n  \"universal_rule\": \"Every material has a roughness story: \r\n  polished zones, worn zones, dirty zones, and damaged zones \r\n  coexisting on the same surface. A sword that has been used \r\n  looks different from a sword that has been displayed. \r\n  Read the object and apply the correct wear history.\"\r\n}\n"
+ },
+ {
+  "technique": "Product Lookbook Grid",
+  "slug": "product-lookbook-grid",
+  "nodeId": "616194fb-61b7-444a-afc7-271c8ac49f2b",
+  "model": "GPT-5.2",
+  "mode": "imagesToText",
+  "prompt": "Give me a prompt to create a grid of high quality editorial images, using this image as a reference. The product image attached is the main focus of this ad. The lean 4:3 aspect ratio storyboard grid with 4 equal sized panels. \n\nUse the reference image as the base product reference. Keep the same product, packaging, design, branding, text, colors, proportions and overall identity across all 4 panels exactly as the reference. The product must remain clearly recognizable in every frame. The label, logo and proportions myst stay exactly the same. \n\nThis storyboard is a high-end designer mockup presentation for a branding portfolio. The focus is on form, composition, materiality and visual rhythm rather than realism or lifestyle narrative. The overall look should feel curated, editorial and design driven. DO NOT remove any elements of the model image.. \n\nFrame 1: \nFront facing hero shot of the product and the model in a clean studio setup. Neutral background, balanced composition and calm and confident presentation of the product. \n\nFrame 2:\nClose up shot with the focus centered in the middle of the product. Make this a micro shot, an interesting angle. The model is wearing this, but zoom in on the angle of the model with the product. \n\nFrame 3: \nProduct shown  in use or interaction on a neutral background, by the model. Hands and interaction elements are minimal and restrained. the look matches the style of the image. \n\nFrame 4:\nMotion blur of the product being used by the model, mid-use. Smooth colors, textures, and a clean motion blur of rapid movement. Neutral background\n\nCamera style:\nUltra high quality studio imagery with a real camera look. Different camera angles and framings across frames. COntrolled depth of field, precise lighting, accurate aterials and reflectioins. Lighting logic, color palteete, and visual language must remain consistent across all 4 panels as one cohesive series. \n\nOutput:\n2x2 grid with no borders. No watermarks. Keep all elements of the reference image, including all details of the expression. \n\nGive me also a negative prompt to avoid any unnecessary prompts or elements that randomly get added in. Add in the prompt that if there are two models (edge case), incorporate both in the image. \nDO NOT take any text from the reference images and place it where it is not needed. NO additional hands or humans or any external element that is unnecessary. This is important. No image in the grid should bleed into the other section of the grid. Make sure that the product is naturally blended into each image. USE THE REFERENCE IMAGES ACCURATELY. MAKE THIS AS EXPLICIT AS POSSIBLE. make sure that there's no random text. And there should be no white grid of any sort in between the 4 images. "
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "dcba3cb5-333f-4ec5-a2aa-cec463711e5d",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Create a prompt to transform this photorealistic PBR material preview sphere into a flat Ambient Occlusion map for the same material.\r\n\r\nThe generated prompt should assume it will receive:\r\n- the photorealistic PBR material preview sphere\r\n- the matching flat Base Color / Albedo map for the same material, so the ambient occlusion map can follow the same layout when needed\r\n\r\nGoal:\r\nExtract only the material’s self-occlusion information for a standard PBR workflow.\r\n\r\nInstructions:\r\n- use the sphere only as reference for recessed areas, engraved cavities, embossed valleys, creases, pores, layered relief, and other true geometric self-occlusion features of the material\r\n- use the flat Base Color / Albedo map as the layout anchor when needed so the AO map follows the same pattern distribution\r\n- remove all lighting, shading, shadows, specular highlights, reflections, and background\r\n- flatten the sphere into a straight-on reusable texture output\r\n- preserve only true ambient occlusion caused by the material’s own surface relief\r\n- keep occlusion in engraved lines, embossed recesses, deep filigree cuts, pores, woven gaps, cracks, or layered material crevices if they are part of the material itself\r\n- do not include broad rendered shading from the sphere\r\n- do not include directional light shadows\r\n- do not include cast shadows\r\n- do not include specular information\r\n- do not include labels, borders, or multiple views\r\n- do not preserve the circular sphere form\r\n- do not invent deep occlusion where the material is actually flat\r\n- do not confuse dark albedo color with ambient occlusion\r\n\r\nOutput requirements:\r\n- one FLAT texture image only, make sure it is really flat\r\n- standard game-ready grayscale (usually mostly white with shadows) ambient occlusion map\r\n- aligned to the provided albedo map when needed for real pattern placement\r\n- brighter values = exposed / unoccluded areas\r\n- darker values = recessed / occluded areas\r\n- if the material has minimal relief, keep the AO map subtle and close to white\r\n- no lighting information baked in\r\n- clean, production-ready, PBR workflow compatible\r\n\r\nAll generated material maps must be tileable and seamless on all edges.\r\n\r\nThe texture must repeat cleanly horizontally and vertically with no visible seams, borders, lighting discontinuities, or edge-specific artifacts.\r\nDo not preserve the circular sphere boundary or any composition from the preview render.\r\nUse the albedo map as the layout anchor only where needed, and reconstruct the ambient occlusion information as a seamless repeating texture based on the observed surface logic.\n"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "95d62132-6fb0-4293-b1ac-ee863c7a49c5",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Create a prompt to transform this photorealistic PBR material preview sphere into a flat Roughness map for the same material.\r\n\r\nThe generated prompt should assume it will receive:\r\n- the photorealistic PBR material preview sphere\r\n- the matching flat Base Color / Albedo map for the same material, so the roughness map is perfectly aligned to it\r\n\r\nGoal:\r\nExtract only the material’s real surface reflectivity variation for a standard PBR workflow.\r\n\r\nInstructions:\r\n- use the sphere only as reference for finish variation, polish breakup, matte vs glossy zones, oxidation, tarnish, wear, and micro-surface reflectivity behavior\r\n- use the flat Base Color / Albedo map as the exact layout anchor so the roughness map matches it perfectly\r\n- remove all lighting, shading, shadows, specular highlights, reflections, and background\r\n- flatten the sphere into a straight-on reusable texture output\r\n- preserve only the true roughness variation of the material\r\n- keep roughness differences caused by polishing, oxidation, patina, tarnish, abrasion, scratches, coating breakup, worn areas, brushed zones, or recessed vs raised surface treatment if they are part of the material itself\r\n- do not include any 3D sphere shading\r\n- do not include any ambient occlusion\r\n- do not include any rendered depth cues caused by lighting\r\n- do not include labels, borders, or multiple views\r\n- do not preserve the circular sphere form\r\n- do not invent roughness variation that is not supported by the material\r\n- do not confuse brightness from lighting with true surface roughness information\r\n\r\nOutput requirements:\r\n- one FLAT texture image only, make sure it is really flat\r\n- standard game-ready grayscale roughness map\r\n- perfectly aligned to the provided albedo map\r\n- brighter values = rougher / more diffuse surface\r\n- darker values = smoother / glossier surface\r\n- no lighting information baked in\r\n- clean, production-ready, PBR workflow compatible\r\n\r\nAll generated material maps must be tileable and seamless on all edges.\r\n\r\nThe texture must repeat cleanly horizontally and vertically with no visible seams, borders, lighting discontinuities, or edge-specific artifacts.\r\nDo not preserve the circular sphere boundary or any composition from the preview render.\r\nUse the albedo map as the layout anchor and reconstruct the roughness information as a seamless repeating texture based on the observed surface logic. make sure that the more reflective areas are darker and the more matte areas are lighter...make it a black and white image always\n"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "albedo-color-map",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "Texture extraction and distortion correction task. Use this sphere as a material reference only. Reconstruct the surface pattern as a perfectly flat, undistorted, seamless tile. Correct for all spherical warping, perspective distortion, and surface curvature. The material is a polished and satin-finished cast silver or pewter-toned metal surface featuring a densely packed baroque and Victorian-style high-relief embossed floral and foliate pattern. The primary motifs are large fully-bloomed roses with layered spiral petals arranged in clusters of three to four blooms, surrounded by sweeping acanthus leaf scrollwork with curling volutes, pointed serrated leaf forms, and interlocking S-curve and C-curve vine stems that fill all negative space with flowing organic tendrils. The repeat structure appears to be a diagonal flowing all-over repeat with no strict grid, the foliage and rose clusters cascading from upper-center toward lower-left and branching symmetrically outward. All relief embossing, engraving detail, and raised surface articulation must be preserved as flat color variation only — raised petal and leaf surfaces rendered as lighter neutral-tone values, recessed grooves and undercut shadow zones rendered as darker tone values, with zero actual depth, zero specularity, and zero three-dimensional shading. Extract intrinsic color values from the mid-tone equatorial neutral zones of the sphere only, ignoring all highlight and shadow poles: the base metal mid-tone color is approximately RGB(145, 145, 148), a cool neutral blue-grey silver; the recessed engraved groove color is approximately RGB(88, 88, 92), a darker cool charcoal-grey; the raised embossed surface peak color is approximately RGB(178, 178, 181), a lighter warm-neutral silver-grey. No oxidation tints, no warm yellowing, no patina coloration — the metal is clean polished pewter-silver throughout. Render in perfectly orthographic view, telecentric lens, zero perspective, zero foreshortening, zero vanishing points, straight down flat view. Remove all lighting, shadows, specular highlights, reflections, ambient occlusion, depth cues, and background. The reconstructed tile must be seamlessly tileable on all four edges, fill canvas edge to edge, no background, no border, no vignette, no sphere silhouette, no circular boundary, no curvature — if any spherical artifact remains the result is invalid, game-ready albedo map, production quality, 8K."
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "eb39a43c-6d30-4171-afcd-f82d9d0c5ffc",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Generate a single image-generation prompt that transforms the following structured PBR material description into a photorealistic material preview sphere render.\r\n\r\nYour job is to convert the JSON material data into one clean, high-quality prompt for a model like Nano Banana.\r\n\r\nThe output should be:\r\n- one single prompt only\r\n- written as a direct image-generation prompt\r\n- optimized for a professional PBR material-ball preview\r\n- based entirely on the provided material JSON\r\n- focused on rendering only the material on a sphere, not the original object\r\n\r\nInstructions:\r\n- read the JSON and preserve the material’s physically important characteristics\r\n- translate the material into a reusable lookdev / game-art material preview\r\n- include the material’s base color behavior, metallicness, roughness variation, normal-map character, embossing depth, surface treatment, and wear/aging story\r\n- preserve important visual features like engraving, tarnish, oxidation, polish variation, relief depth, scratches, grain, or other micro-surface information if present in the JSON\r\n- do not mention the original object category unless needed to explain the surface itself\r\n- do not output JSON\r\n- do not explain the prompt\r\n- do not include multiple prompt options\r\n- do not include any markdown\r\n\r\nThe generated image prompt must specify:\r\n- a single centered sphere\r\n- neutral medium-gray background\r\n- soft studio lighting\r\n- photorealistic PBR material preview look\r\n- high surface readability\r\n- physically plausible shading\r\n- no extra objects\r\n- no text\r\n- no labels\r\n- no collage\r\n- no environment scene\r\n- no floor plane\r\n- no stylized illustration look\r\n\r\nPrompt-writing rules:\r\n- write in dense but readable natural language\r\n- prioritize the surface read over cinematic atmosphere\r\n- make the material look production-ready, like a professional lookdev material-ball render\r\n- if the JSON describes relief, engraving, embossing, filigree, or height variation, make sure the generated prompt clearly tells the image model to show that surface depth on the sphere\r\n- if the JSON describes roughness variation or two-tone aging, make sure that is visible in the material preview\r\n- if the JSON includes numeric values, translate them into visual language instead of repeating raw numbers unless helpful\r\n\r\nInput JSON:\r\n{{material_json}}\n"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "dc770d7f-f95e-4d76-b699-f3a8b890b756",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "You are a PBR texture map extraction prompt engineer for Nano Banana Pro. When given a photorealistic PBR material preview sphere, your sole output is a single render-ready prompt that will extract a flat seamless albedo/base color map from that sphere. No preamble, no explanation, no commentary.\nANALYZE the input sphere and extract:\n\n\nThe material type and surface character — metal, fabric, stone, organic, etc.\nThe pattern, motif, and repeat structure visible on the surface\nThe intrinsic color values — base tone, recessed zone colors, raised surface colors, patina or oxidation tints\nThe degree of spherical distortion and perspective warp present that must be corrected\nAny engraving, embossing, or relief detail that must be preserved as flat color variation only\n\n\nBUILD a prompt that instructs Nano Banana to:\n\n\nOpen with: \"Texture extraction and distortion correction task. Use this sphere as a material reference only. Reconstruct the surface pattern as a perfectly flat, undistorted, seamless tile. Correct for all spherical warping, perspective distortion, and surface curvature.\"\nDescribe the specific material pattern, colors, and surface motifs extracted from the sphere so NB knows exactly what to reconstruct\nSpecify: \"perfectly orthographic view, telecentric lens, zero perspective, zero foreshortening, zero vanishing points, straight down flat view\"\nSpecify: \"remove all lighting, shadows, specular highlights, reflections, ambient occlusion, depth cues, and background\"\nSpecify intrinsic color values only: describe the exact base color, recess color, and raised surface color using RGB approximations extracted from the sphere\nClose with: \"seamlessly tileable on all four edges, fill canvas edge to edge, no background, no border, no vignette, no sphere silhouette, no circular boundary, no curvature — if any spherical artifact remains the result is invalid, game-ready albedo map, production quality, 8K\"\n\n\nHARD CONSTRAINTS:\n\n\nOutput is a single unbroken paragraph\nNo line breaks, no bullet points, no markdown\nThe prompt must describe the material explicitly — do not use vague references like \"the material shown\"\nThe prompt must instruct distortion correction explicitly, not just flattening\nThe RGB values must be extracted from the sphere's neutral mid-tone zones only, not from highlight or shadow areas"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "c4829503-98be-469e-af8f-34170233bb74",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Create a prompt to transform this photorealistic PBR material preview sphere into a flat Normal map for the same material.\r\n\r\nThe generated prompt should assume it will receive:\r\n- the photorealistic PBR material preview sphere\r\n- the matching flat Base Color / Albedo map for the same material, so the normal map is perfectly aligned to it\r\n\r\nGoal:\r\nExtract only the material’s real surface relief information for a standard PBR workflow.\r\n\r\nInstructions:\r\n- use the sphere only as reference for depth, embossing, engraving, surface structure, and micro-detail\r\n- use the flat Base Color / Albedo map as the exact layout anchor so the normal map matches it perfectly\r\n- remove all lighting, shading, shadows, specular highlights, reflections, and background\r\n- flatten the sphere into a straight-on reusable texture output\r\n- preserve only the true surface relief information of the material\r\n- keep engraved, embossed, filigree, scratched, brushed, hammered, worn, woven, porous, or raised/recessed surface structure if it is part of the material itself\r\n- do not include any 3D sphere shading\r\n- do not include any ambient occlusion\r\n- do not include any rendered depth cues caused by lighting\r\n- do not include labels, borders, or multiple views\r\n- do not preserve the circular sphere form\r\n- do not invent large shapes that are not supported by the material\r\n- do not turn color variation alone into fake depth unless it clearly corresponds to real relief\r\n\r\nOutput requirements:\r\n- one FLAT texture image only, make sure it is really flat\r\n- standard game-ready tangent-space normal map\r\n- perfectly aligned to the provided albedo map\r\n- no lighting information baked in\r\n- clean, production-ready, PBR workflow compatible\r\n\r\nAll generated material maps must be tileable and seamless on all edges.\r\n\r\nThe texture must repeat cleanly horizontally and vertically with no visible seams, borders, lighting discontinuities, or edge-specific artifacts.\r\nDo not preserve the circular sphere boundary or any composition from the preview render.\r\nUse the albedo map as the layout anchor and reconstruct the normal information as a seamless repeating texture based on the observed surface logic.\n"
+ },
+ {
+  "technique": "Dieline to 3D Package",
+  "slug": "dieline-to-3d-package",
+  "nodeId": "package-dieline",
+  "model": "GPT Image 2",
+  "mode": "textToImage",
+  "prompt": "Use the reference dieline image as the exact structural template. Keep the exact same box shape, panel layout, flap configuration, proportions, fold lines, cut lines, and overall dieline composition. Redesign it as a FLORA branded sunscreen carton dieline. Preserve the same front-facing flattened packaging layout, but replace all existing branding, icons, and copy with a clean FLORA identity.\n\nDesign direction:\n- black and white only\n- minimal, premium, modern\n- simple editorial packaging\n- lots of negative space\n- crisp vector look\n- flat 2D dieline presentation\n- no mockup perspective\n- no extra colors, gradients, textures, shadows, or photos\n- maintain the exact same dieline silhouette as the reference\n\nBranding:\n- use the exact FLORA logo provided\n- place the FLORA logo prominently on the main front panel\n- do not redraw or reinterpret the logo\n- keep logo proportions accurate\n\nCopy swap:\n- replace the original product name with FLORA SUNSCREEN\n- minimal supporting text only\n- use concise brand-aligned copy such as:\n  - Broad Spectrum SPF 30\n  - Mineral Formula\n  - Lightweight Protection\n  - 50 ml\n- optional tiny side-panel utility text in a minimal layout\n- no dense ingredient paragraphs\n- no long benefits list\n- no decorative marketing clutter\n\nLayout guidance by panel:\n- main center panel: exact FLORA logo, FLORA SUNSCREEN, Broad Spectrum SPF 30, 50 ml\n- side panels: very sparse utility copy only, such as Mineral Formula and Lightweight Protection\n- top and bottom flaps: small FLORA logo or leave mostly blank\n- keep typography restrained and balanced\n\nVisual tone:\n- sophisticated, fashion-forward sunscreen packaging\n- monochrome black ink on white background or white ink on black background, whichever reads clearest in dieline format\n- refined and highly legible\n- simple line details only if needed\n- no botanical illustrations unless extremely minimal\n\nImportant constraints:\n- same shape as the reference dieline box image\n- same panel structure\n- same flattened packaging orientation\n- transformed into a FLORA sunscreen dieline\n- black and white only\n- exact FLORA logo\n- minimal text\n- clean vector packaging artwork"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "937ee858-ab60-47fa-ac1b-355d1a36743d",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "You are a prompt engineer specializing in Nano Banana Pro renders. When given an input image of a prop, weapon, or object, your sole output is a single render-ready prompt. No preamble, no explanation, no commentary.\nREAD the input image carefully and extract:\n\n\nWhat the object is — weapon, prop, tool, artifact\nEvery distinct component and surface zone visible\nAll existing material, texture, and surface detail present — do not invent, only observe\nThe exact lighting conditions, shadows, and reflections already in the image\nThe exact composition, framing, angle, and background\nIf zoomed or partial: identify which zone is visible and extract micro-surface detail — scratch patterns, engraving depth, facet angles, surface grain, edge bevels\n\n\nBUILD a prompt that does the following:\n\n\nOpens with: \"Enhance this exact image with full PBR material rendering — do not alter composition, framing, angle, background, or any design element\"\nUpgrades every visible surface to its physical material equivalent tagged as [MATERIAL: descriptor] — polished mirror steel, brushed silver, anisotropic metal sheen, worn leather wrap, linen cord binding, faceted gemstone with subsurface glow, engraved relief silver, aged bronze patina\nSpecifies: \"photorealistic PBR materials, ultra detailed, production quality, 8K, preserve exact lighting direction, preserve exact shadows, ambient occlusion, surface micro-detail visible\"\nFor sketches or linework: \"resolve sketch marks into physical surfaces, infer material depth and relief height, do not render linework or pencil texture\"\nCloses with: \"exact composition preservation, exact proportions, exact decorative details, no new elements, no simplification of engraving or relief detail, hero prop quality\"\n\n\nHARD CONSTRAINTS:\n\n\nOutput is a single unbroken paragraph\nNo line breaks, no bullet points, no markdown\nThis is a material enhancement pass only — nothing moves, nothing changes shape, nothing gets added or removed\nPreserve every existing detail and upgrade its physical rendering fidelity only\n"
+ },
+ {
+  "technique": "Illustration Branding Design",
+  "slug": "illustration-branding-design",
+  "nodeId": "display-case",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "CORE DIRECTIVE: DISPLAY THE REFERENCE IMAGE INSIDE A WALL-MOUNTED DISPLAY CASE\n\n\nTASK: The uploaded reference image IS the poster/content. Place it inside the \n\n\ndisplay case frame exactly as shown in the base scene. The reference image must \n\n\nbe fully visible through the glass, replacing the existing poster content entirely.\n\n\nSTEP 1: REFERENCE IMAGE PLACEMENT (MOST CRITICAL)\n\n\nThe uploaded reference image must be reproduced in full inside the display case frame.\n\n\n- The reference image fills the entire interior of the aluminium display case\n\n\n- DO NOT alter, crop, simplify, or reinterpret the reference image content\n\n\n- Reproduce it 100% as if it were a printed poster placed inside the case\n\n\n- The content must remain fully legible and visible through the glass\n\n\n- Slight perspective warp to match the viewing angle of the frame — subtle only,\n\n\n  the case is viewed nearly straight-on with minimal distortion\n\n\n- The poster sits flat against the back of the case, no curling or floating\n\n\n\n\n\n\nSTEP 2: INTEGRATION\n\n\n- The interior of the case may have a very slight darkening/cool cast \n\n\n  from the glass filtering the light — consistent with the original photo\n\n\n- No HDR, no over-sharpening, no digital composite look\n\n\n- The final result must look like a real photograph of this display case\n\n\n  with a different poster inside it\n\n\nNEGATIVE PROMPT:\n\n\nreference image missing or altered inside frame, poster content simplified,\n\n\nframe altered or replaced, corrugated wall changed, screws removed,\n\n\nflat digital overlay on glass, no glass reflection, perfect clean glass \n\n\n(must show glare), glare too heavy obscuring full content, floating poster,\n\n\nposter not filling full interior, added elements not in original scene,\n\n\nchanged lighting direction, removed shadows, oversaturated, HDR effect\n"
+ },
+ {
+  "technique": "Beadify",
+  "slug": "beadify",
+  "nodeId": "53bedaed-ac46-4bc9-8c33-38b1ccd5cc23",
+  "model": "Claude Sonnet 5",
+  "mode": "textToText",
+  "prompt": "Convert the attached object into a physical Perler bead (fuse bead) mosaic sculpture, then present it isolated on a pure white background like a studio product photo.\n\n\nSTYLE: Rebuild the entire object out of uniformly sized cylindrical plastic Perler beads arranged in a low-resolution pixel grid. Each bead is extremely small relative to the object, with a tiny visible hole in its center. Every bead retains a clearly defined round hole, a slight beveled edge, and a semi-matte plastic texture — not glossy, not fully matte. Simplify the object's real colors into a limited, high-saturation, toy-like palette. Leave small, consistent gaps between beads so the grid structure stays visible.\n\n\nPRESERVE FROM REFERENCE: the object's exact silhouette, proportions, pose, and camera angle as shown in the reference image. Keep the same directional lighting and cast shadow shape as the original, re-rendered as soft studio lighting across the bead texture — highlights should catch the bevel of each bead, shadows should fall between beads and beneath the object.\n\n\nBACKGROUND: remove the original background completely and place the finished bead object on a seamless, pure white background (#FFFFFF). Add only a soft, subtle contact shadow directly under the object to ground it — no other background elements, gradients, props, or textures.\n\n\nCONSTRUCTION QUALITY: beads must be perfectly aligned to a consistent grid. Avoid any smearing, blurring, melting, or warping between beads. Avoid scattered, floating, or misaligned beads — every bead sits flush against its neighbors in a clean, physically buildable pattern, as if it could be assembled on a real pegboard. You may add or remove a small number of edge beads to keep the silhouette crisp, but the overall shape must stay faithful to the reference.\n"
+ },
+ {
+  "technique": "Illustration Branding Design",
+  "slug": "illustration-branding-design",
+  "nodeId": "sign-design",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "CORE DIRECTIVE: APPLY USER DESIGN TO EXISTING SIGN IMAGE\nTASK: Using the provided sign image as the base, apply the user's design onto the sign face exactly as it appears — no alterations.\nSTEP 1: USER DESIGN PRESERVATION (CRITICAL)\n\n\nDisplay user's design 100% pixel-identical on the sign face\nZero alterations to colors, layout, text, or composition\nDesign fills entire sign face edge to edge\nFull design visible — nothing cropped\n\n\nSTEP 2: SIGN SURFACE — PROFESSIONAL PASTE (CRITICAL)\nThe surface looks professionally installed — clean and smooth:\nOverall appearance:\n\n\nSmooth, professionally applied surface — design reads clearly and cleanly\nNOT rough, NOT peeling, NOT amateur\nLooks like a real sign you'd walk past and not think twice about\n\n\nSubtle paper panel seams:\n\n\n3–4 very subtle horizontal seam lines crossing the full sign width\nSeams are barely visible — only noticeable on close inspection\nNo shadows, no curling, no lifting edges\nPanels are near-perfectly aligned — professional installation quality\nSeams appear as hairline breaks in the surface — like panels of wallpaper professionally hung\n\n\nSurface texture:\n\n\nVery slight matte paper texture over the printed surface — not glossy screen, not rough newsprint\nSubtle large-format print texture — slight visible dot structure at close inspection only\nUniform across entire face\n\n\nNEGATIVE PROMPT: peeling paper, torn edges, heavy visible seams, amateur paste job, overlapping paper corners visible, wrinkled or bubbled surface, digital LED screen, glossy screen look, flat sticker appearance, design cropped or altered, dramatic shadows across sign face, heavy paper texture (must be smooth), missing subtle seam lines entirely, overly perfect seamless digital render (needs to feel physical but professional)"
+ },
+ {
+  "technique": "Illustration Branding Design",
+  "slug": "illustration-branding-design",
+  "nodeId": "849c3327-c565-4fe5-94e7-0d91f4430742",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "PROMPT: HEAVY CHISEL MARKER (Super Peach Style) CORE DIRECTIVE: BOLD BLOCKY MARKER ILLUSTRATION TASK:\nRender the subject using exclusively an ultra-wide chisel-tip permanent marker. The style must be\nheavy, clunky, and aggressive. STEP 1: THE \"HEAVY HAND\" TECHNIQUE Tool Physics: Simulate a marker\nwith a 20mm wide tip. No Fine Lines: Do NOT draw thin outlines. Every stroke must be thick and\nmassive. Blocky Shapes: Simplify the subject into bold, solid black shapes. Instead of outlining an\narm, draw it as one thick black stroke. High Contrast: Eliminate all details. Eyes might just be\nblack dots. Hair is a solid black mass. Imperfection: The edges of the strokes must be rough and\njagged (bleeding ink). Show the \"dry drag\" texture where the marker moved too fast and didn't cover\nthe paper 100%. STEP 2: NAIVE FILLING (NO SHADING) Solid Black: Fill areas completely with black ink.\nDo not hatch. Negative Space: Leave the rest pure white. Look: It should look like a punk-zine\ngraphic or a crude stamp, not a refined drawing. STEP 3: SINGULAR SPOT COLOR (OPTIONAL) Palette:\nBlack & White dominates. Accent: Use ONE of the strictly defined colors (#1A65FF, #FFCD2E, #FE342C)\nfor a single element (e.g., a background shape or one clothing item). Style: Apply the color as a\nsolid, flat block, possibly slightly misaligned with the black contours (offset printing error look).\nSTEP 4: TEXTURE Paper: Rough, absorbent paper texture. The ink edges should look \"fuzzy\" (capillary\naction). NEGATIVE PROMPT: thin lines, ballpoint pen, sketching, gray shading, gradients, fine\ndetails, realistic proportions, smooth vector edges, clean art, digital look, cross-hatching, pencil.\n"
+ },
+ {
+  "technique": "Texture Match",
+  "slug": "texture-matchers",
+  "nodeId": "55008915-056d-4f59-a08b-eac1c0803cc0",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "- Prompt: Create a clean, modern 3D brand symbol based on reference image 1: a glossy spherical icon with minimal geometry, evenly spaced small rounded nubs around the perimeter, and a simple clock-hand motif on the front. Keep the silhouette, proportions, and arrangement true to reference 1. Apply ONLY the surface texture characteristics from reference image 2 (not its colors): fine hair-like linear striations, wispy grass-fiber crosshatch, layered semi-transparent strokes, soft diffused edges in the micro-surface, subtle motion-blur feel, organic painterly abrasion embedded into the material as micro-grooves. The texture should read as tactile surface detail on the object, not as a background image.\n- Color / material: Use the color palette from reference 1 only (deep saturated blue sphere + soft coral/pink accents). Do NOT import any greens, lavenders, browns, or tones from the texture reference. Preserve high-end product-render lighting with soft studio reflections; keep the object glossy but with the fibrous striation texture visible in highlights.\n- Composition: Centered icon on a clean white background, lots of negative space, symmetrical, crisp edges, premium brand mark, no text.\n- Negative prompt: no green tint, no meadow colors, no background texture, no painterly color bleed from texture reference, no extra objects, no environment, no grain/noise overlay, no clutter, no typography, no photoreal grass"
+ },
+ {
+  "technique": "Illustration Branding Design",
+  "slug": "illustration-branding-design",
+  "nodeId": "image-composition",
+  "model": "Nano Banana 2",
+  "mode": "imagesToImage",
+  "prompt": "**Take two input images and merge them into a single, well-designed composition.**\n\n\n**Image 1 (text image)** becomes the background. Remove anything that is not part of the actual design (e.g. table surface, shadows, borders, or unwanted edges). The result must be a clean, pure white background with the original text preserved exactly as it is — no modifications, no repositioning, no styling changes.\n\n\n**Image 2 (illustration)** is placed on top. The illustration must remain completely unchanged in its original form.\n\n\n**Allowed transformations:**\n- Uniform scaling (only proportional resizing, no stretching)\n- Rotation\n- Positioning\n\n\n**Strictly forbidden:**\n- Adding any text to the illustration\n- Cropping or cutting any part of the illustration\n- Distorting (no stretching in width or height)\n- Editing shapes, colors, or details in any way\n\n\n**Positioning instruction:**\nScale the illustration up so it becomes a strong visual element. **Position it centrally in the large whitespace area located in the lower half of the composition** — specifically, the area between the \"Pen and Paper\" tagline and the bottom thin rule/bottom row. The illustration must not overlap or obstruct any text.\n\n\n**The final composition should feel intentional and balanced:** clean white background, untouched text, and a prominently but carefully integrated illustration placed in the lower whitespace zone.\n"
+ },
+ {
+  "technique": "Rosé Rambler",
+  "slug": "rose-rambler",
+  "nodeId": "260bf128-6ee0-4ebb-a939-730c3cad68e6",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Hyperrealistic high-end fashion editorial portrait, shot on medium format, shallow depth of field, clean editorial color grading — absurdist luxury realism. Photorealistic rendering of a cartoonishly chibi-proportioned subject. Clean image, no grain, no noise, no texture overlay.\n\n\nA chibi-proportioned executive with an enormously oversized head sits at a cafe table, their head fully submerged from the chin up inside a comically oversized glass of pale rosé wine. Gentle bubbles rise around their face. No part of the head extends above the rim of the glass.\n\n\nThe stem of the wine glass replaces their neck, entering the collar of their shirt where the neck would normally be and disappearing into their clothing. The wine glass is not resting on the table — it is fused to the body via the stem.\n\n\nThey are styled in sharp summer attire, seated at a sun-drenched open-air marble café table along the French Riviera coastline. Gleaming white yachts float on the turquoise Mediterranean behind them. One hand rests limply on the marble tabletop; the other clutches a large flagship smartphone with the weary confidence of someone on their fourteenth Zoom call of the day. Scattered around them: a leather portfolio, a lanyard badge face-down, an untouched espresso.\n\n\nNegative: no branding, no text, no logos, no laptop, no film grain, no noise overlay, no texture pass, no second-image composite."
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "068841b7-3733-45cf-9b24-ade93e1e2dcd",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Generate a strict JSON description of the FIRST primary material visible in this 3D render for use in a standard PBR workflow.\n\n\nFocus only on the first most dominant physically distinct material.\nDo not describe the whole object.\nDo not describe lighting, shadow, reflections, background, or camera effects as material properties.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nThe goal is to extract one clean, production-ready material description that can later be used to generate a material preview sphere and PBR texture maps.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nRules:\n- identify the single most visually dominant real material in the render\n- treat embossed, engraved, brushed, woven, coated, chipped, oxidized, polished, matte, glossy, rough, soft, translucent, or worn behavior as part of the material description when relevant\n- ignore differences caused only by illumination or view angle\n- use physically grounded surface language\n- optimize for game-ready PBR material recreation\n- be specific and decisive, not vague\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nReturn only valid JSON in this format:\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n{\n  \"material_index\": 1,\n  \"material_name\": \"string\",\n  \"material_class\": \"metal | painted_metal | plastic | rubber | glass | ceramic | stone | wood | leather | fabric | organic | composite | other\",\n"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "0891b94d-9abc-42d6-9f26-6d4106dc349c",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Generate a JSON prompt to ANALYZE this 3D render and extract its main physically distinct materials for a standard PBR material workflow.\r\n\r\nThe generated JSON prompt should instruct a downstream model to:\r\n- identify the minimum clean set of distinct materials needed to recreate the asset\r\n- ignore lighting, shadows, reflections, and camera-induced color shifts\r\n- separate materials only when they differ in material class, finish, coating, wear state, or surface treatment\r\n- describe each material using PBR-relevant attributes:\r\n  - id\r\n  - name\r\n  - material class\r\n  - coverage / region\r\n  - physical description\r\n  - base color / albedo\r\n  - metallic\r\n  - roughness\r\n  - normal / micro-surface detail\r\n  - optional height / embossing\r\n  - surface finish / treatment\r\n  - wear / aging story\r\n  - reason for separation\r\n\r\nThe generated JSON prompt must optimize for:\r\n- game-ready asset workflows\r\n- physically grounded surface language\r\n- minimal but sufficient material count\r\n- strict JSON output\r\n\r\nIt should be generalized for any 3D render and formatted as a reusable extraction prompt.\n"
+ },
+ {
+  "technique": "Sketch to Photorealistic Product Renderer",
+  "slug": "sketch-to-photorealistic-product-renderer",
+  "nodeId": "macro-product-photography",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Minimal product photography, extreme close up \r\nmacro shot of the most visually interesting \r\nsurface texture or material detail on the product, \r\ncamera positioned inches from the surface, \r\ncentered composition with generous white space \r\nsurrounding it, clean seamless white background, \r\nprecise raking side light from a single direction \r\nto reveal maximum surface relief, texture depth, \r\ngrain and material character, subtle realistic \r\nshadow on one edge for grounding, balanced margins \r\non all sides, high-end commercial product \r\nphotography, 85mm macro lens look, razor sharp \r\nfocus across the entire texture surface, natural \r\nreflections catching material finish, ultra clean \r\npremium aesthetic, no props, no clutter.\r\n\r\nEvery fibre, grain, stitch, pore, ridge, weave \r\nor surface mark visible at maximum resolution. \r\nMaterial finish consistent — matte stays matte, \r\ngloss stays gloss, brushed stays brushed. \r\nLighting reveals depth not flattens it.\r\n4K. Production-ready."
+ },
+ {
+  "technique": "Illustration Branding Design",
+  "slug": "illustration-branding-design",
+  "nodeId": "t-shirt-design",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "Print the reference design image onto the back of the t-shirt, replacing the green square placeholder exactly — same size, same position.\nDesign placement: place the design in the first image legibly inside the print area of the second image. Do not crop, alter, or simplify anything. The print should look screen-printed onto the fabric — subtle fabric grain visible through it, edges softened by the weave, natural warping along folds. Not a flat sticker overlay.\nAdditional text: Replace all small text on the shirt outside the main print with a single period \".\". Scatter these loosely across upper left back, lower left back, lower right back, lower center back, and left sleeve — same small size, same screen-print softness.\nAvoid: Green square still visible, design altered or missing, flat digital composite look, sharp or glossy edges, print not matching the green square's size and placement."
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "32e8ee86-2e85-4154-94ca-2e7bdad03a6d",
+  "model": "GPT-5.5",
+  "mode": "imageToText",
+  "prompt": "Using the creative brief below, write a detailed 12 item list of image generation prompt for a capsule collection drop based on the magazine issue referenced in @[any-magazine-cover] and the brief @[56fc405f-74ab-4e20-b0e8-6754c0e79b04] . Also search online for additional context and inspiration on the brand before writing the list. No item is identical. Think creatively what each item should be. Lean on unexpected. Describe each item as a clean top-down flat-lay PDP product shot, laid flat on a seamless solid-color sweep background. Pull the background color directly from the dominant or signature color of the magazine cover referenced in the brief, so the product sits on a backdrop that matches the issue's palette. Soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography. Output only the image prompts, nothing else.\n"
+ },
+ {
+  "technique": "Sketch to Photorealistic Product Renderer",
+  "slug": "sketch-to-photorealistic-product-renderer",
+  "nodeId": "underside-product-photography",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Minimal product photography, pure underside view \r\n— camera positioned directly beneath the product \r\nlooking straight up at 90 degrees, product \r\nsuspended or elevated revealing the complete base \r\nand underside, centered composition with generous \r\nwhite space surrounding it, clean seamless white \r\nbackground, soft perfectly even diffused lighting \r\nfrom below, no harsh shadows, balanced margins \r\non all sides, high-end commercial product \r\nphotography, 85mm lens look, sharp focus across \r\nentire underside surface, natural reflections, \r\nultra clean premium aesthetic, no props, \r\nno clutter.\r\n\r\nComplete underside visible — all base textures, \r\ngrip patterns, rubber feet, ventilation, structural \r\nribs, material joins, base plate details and \r\nany underside components preserved at maximum \r\nclarity.\r\n4K. Production-ready."
+ },
+ {
+  "technique": "Sketch to Photorealistic Product Renderer",
+  "slug": "sketch-to-photorealistic-product-renderer",
+  "nodeId": "product-photography-setup",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Minimal product photography, camera elevated high \r\nabove and tilted at a steep 70-degree downward \r\nangle — not fully overhead but close, creating \r\na compressed top-down perspective where the front \r\nface of the product is barely visible beneath the \r\ndominant top surface, product centered with \r\ngenerous white space surrounding it, clean seamless \r\nwhite background, soft perfectly even diffused \r\nlighting, subtle realistic shadow directly beneath \r\nthe product, balanced margins on all sides, \r\nhigh-end commercial product photography, 85mm \r\nlens look, sharp focus, natural reflections, \r\nultra clean premium aesthetic, no props, no clutter.\r\n\r\nDominant top surface with a sliver of front face \r\nvisible beneath. All top textures, components \r\nand surface details preserved.\r\n4K. Production-ready."
+ },
+ {
+  "technique": "Illustration Branding Design",
+  "slug": "illustration-branding-design",
+  "nodeId": "window-vinyl-design",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "Apply the user's design as white vinyl on a store window facade.\nDesign prep: Remove the background. Convert everything to white. Keep all original shapes, lines, and typography exactly — only the color changes.\nPlacement: Place one complete, unclipped instance of the design per window panel. Scale it to fit comfortably with breathing room on all sides. Same size and position across every panel.\nGlass effect: The white print should be semi-opaque, sitting flat on the glass, with the store interior and street reflections visible through it.\nAvoid: Cropped designs, solid opaque white, color remaining, inconsistent scaling between panels, design floating off the glass, or any elements from the original being simplified or missing."
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "56fc405f-74ab-4e20-b0e8-6754c0e79b04",
+  "model": "GPT-5.5",
+  "mode": "imageToText",
+  "prompt": "Analyze this magazine cover image @[any-magazine-cover] in detail. Extract and describe:\n1. MOOD & TONE — emotional register, energy, atmosphere\n2. COLOR PALETTE — exact colors, dominant hues, accent colors, contrast levels\n3. CULTURAL REFERENCES — subcultures, eras, movements, aesthetics (streetwear, luxury, punk, etc.)\n4. TYPOGRAPHY & GRAPHIC LANGUAGE — style, weight, editorial feel\n5. PHOTOGRAPHY / VISUAL STYLE — lighting, composition, textures\n6. KEY MOTIFS — recurring symbols, shapes, patterns\n\nAlso search online for additional context and inspiration on the brand before analysis. Output only the analysis. No preamble."
+ },
+ {
+  "technique": "Product Animator",
+  "slug": "product-animator",
+  "nodeId": "16c3fde6-8f0c-4a83-b343-cfeb0c585adf",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "write this out exactly:\n\n- write a prompt that can interpolate the given 2 image inputs smoothly\n- include professional cinematography terminology such as camera movement \n- figure out the best camera movement that would not distort the product \n- avoid ridiculous visual errors like warping or distorting the original product that no real product campaign video would show. be objective and monitor yourself\n- refrain from verbosely describing the visual traits of the inputs. be descriptive on the camera movement instead\n- try to maintain the elements in the inputs and not add artifacts in the middle of interpolating frames "
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-12",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Top-down flat-lay PDP product shot of a limited creative kit containing three black paint markers, one silver-white hair comb, a cobalt enamel four-petal pin, adhesive pixel letter patches spelling FLORA and FAUNA, and a folded mini manifesto zine with dot-grid cover, all arranged in precise modular grid formation, seamless pale blue-gray #DCE7F1 sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography."
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-11",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Top-down flat-lay PDP product shot of a silk square scarf flattened with crisp edges, icy blue and white gradient field, black dot-grid system, one corner featuring a calligraphic botanical F dissolving into pixel blocks, opposite corner covered in rough graffiti brush strokes and tiny chrome zipper illustrations, seamless ice white #F3F7FA sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography."
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-9",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Top-down flat-lay PDP product shot of futuristic low-top sneakers in white leather and deep royal blue patent overlays, chunky translucent icy outsole, black modular flower icon on the tongue, dotted coordinate grid printed along the laces, hand-painted The New Creative Class scrawl wrapping the heel tabs, seamless soft steel mist #C9D5E0 sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography."
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-7",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Top-down flat-lay PDP product shot of a pair of asymmetrical studio gloves, left glove in porcelain white leather with black brush-painted FLORA lettering, right glove in patent cobalt with tiny pale dot-grid print, chrome snap closures, index finger conductive silver tip for canvas control, seamless pale blue-gray #DCE7F1 sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography."
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-10",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Top-down flat-lay PDP product shot of a rigid laptop sleeve and creative canvas folio set, smooth cold white vegan leather shell, black pixel FLORA masthead across the front, four black rounded petal modules as magnetic corner closures, interior pale blue-gray suede with node-grid embossing, seamless cold fog gray #E7EEF4 sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography."
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-1",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "A hand-painted moto-varsity jacket laid flat and buttoned, split-panel design with FLORA graffiti lettering on the left chest and FAUNA on the right, cobalt-blue leather collar, glossy white and black paneling, silver snap buttons and zipper. Clean top-down flat-lay PDP product shot on a seamless platinum-grey sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography."
+ },
+ {
+  "technique": "Sketch to Photorealistic Product Renderer",
+  "slug": "sketch-to-photorealistic-product-renderer",
+  "nodeId": "minimal-product-photography",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "minimal product photography of a single product placed slightly far from the camera, centered composition with generous white space surrounding it, clean seamless white background, soft diffused studio lighting, subtle realistic shadow directly beneath the product, balanced margins on all sides, high-end commercial product photography, 85mm lens look, sharp focus, natural reflections, ultra clean premium aesthetic, no props, no clutter"
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-2",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "7. Top-down flat-lay PDP product shot of a collectible vinyl designer toy of two helmeted riders on a sculptural chrome-and-purple winged mecha vehicle covered in tiny smiling flowers, displayed in its clear blister packaging with futuristic outlined typography, laid flat on a seamless deep metallic purple sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography"
+ },
+ {
+  "technique": "Sketch to Photorealistic Product Renderer",
+  "slug": "sketch-to-photorealistic-product-renderer",
+  "nodeId": "minimal-product-photography-2",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "minimal product photography of a single product slightly tilted at a controlled angle for a dynamic composition, placed slightly far from the camera with generous white space around it, clean white seamless background, soft diffused studio lighting, subtle soft shadow beneath, high-end commercial product photography, sharp focus, natural reflections, premium minimal aesthetic, no props"
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-4",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Top-down flat-lay PDP product shot of a black oversized tee with a dot-matrix data-grid graphic across the chest and a pixelated 8-bit FLORA masthead print, folded crisply into a square, cool steel-blue accent stitching, on a seamless icy platinum-silver sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography."
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-5",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Top-down flat-lay PDP product shot of gorpcore-futurist cargo pants in cool platinum grey ripstop with cobalt buckle straps, black graffiti FAUNA tag on the thigh, reflective piping, laid flat and folded at the knee, on a seamless icy platinum-silver sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography."
+ },
+ {
+  "technique": "Texture Match",
+  "slug": "texture-matchers",
+  "nodeId": "e471571a-5db0-4441-9ea7-de6d500f3be7",
+  "model": "Claude Opus 4.6",
+  "mode": "imageToText",
+  "prompt": "i want an image prompt for creating a brand symbol using the 1st image as the visual reference, 2nd image as texture reference. give me an image prompt that transfers the texture attributes referring to the 2nd image \n\n- make sure to replicate only the surface texture from the texture reference image, not the color. \n- the color should NOT come from the texture reference"
+ },
+ {
+  "technique": "Cover to Capsule Collection",
+  "slug": "cover-to-capsule-collection",
+  "nodeId": "piece-3",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Top-down flat-lay PDP product shot of a teardrop-flame pendant necklace, iridescent teal-lilac shimmer gemstone set in polished platinum, delicate silver chain coiled into a clean spiral, on a seamless icy platinum-silver sweep background, soft even catalog lighting, no harsh shadows, true-to-life color, ultra-detailed e-commerce product photography."
+ },
+ {
+  "technique": "Dieline to 3D Package",
+  "slug": "dieline-to-3d-package",
+  "nodeId": "rendered-package",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "Assemble the dieline into a flawless 3D box with accurate panels, clean folds, undistorted type, and artwork preserved exactly. shoot it upright at a refined side angle in a minimal premium studio setting with a soft neutral background, diffused light, subtle shadows, no props, true colours, matte paperboard texture, and realistic editorial detail"
+ },
+ {
+  "technique": "Studio Shot",
+  "slug": "studio-shot",
+  "nodeId": "1d505ebc-6fff-4790-9750-212365c5b5a5",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Rewrite this exactly: \n\n- identify the actual product in the image and produce a clean shot on white background \n- follow the factual details of the product provided according to the input image and the searchable data from the internet\n- place the product at the angle best showing the overall details and profile of the product "
+ },
+ {
+  "technique": "Studio Shot",
+  "slug": "studio-shot",
+  "nodeId": "c380c10f-5e7e-4ada-ad8e-f7187b77130a",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "rewrite this exactly:\n\n figure out the best way to advertise this product and create a product campaign shot using the input \n- maintain the visual details of the actual product \n- avoid ridiculous visual errors like body/face distortion, text distortion and typos \n- contain minimal text "
+ },
+ {
+  "technique": "Photo Wireframe",
+  "slug": "wireframe",
+  "nodeId": "aa6bed81-fd69-4df8-b1f8-b5b19d7307fd",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Prompt for a A neon wireframe render of [Subject] or [Pose], glowing Light blue against a dark background, in the style of a futuristic blueprint or holographic projection.\n\nDo not label anything or add in any text. Make the background entirely black. \n\nShould work with others as well."
+ },
+ {
+  "technique": "Studio Shot",
+  "slug": "studio-shot",
+  "nodeId": "28fd6d47-9bc1-4741-9062-b0ad361a9d3c",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "rewrite this exactly:\n\n do not change anything else but aspect ratio of input\n- reframe the input adaptively, not simply extending the background and stretching the image. zoom in adaptively \n- DO NOT cropping the original product"
+ },
+ {
+  "technique": "Illustration Branding Design",
+  "slug": "illustration-branding-design",
+  "nodeId": "3ce79be9-4e78-497e-9751-5c3292709f6c",
+  "model": "Gemini 3.1 Pro",
+  "mode": "imageToText",
+  "prompt": "using the text input as branding reference, and the image for reference on the structure of the text, write me a prompt that will replace the text in the image with words that pertain to the thematic inspiration"
+ },
+ {
+  "technique": "Beadify",
+  "slug": "beadify",
+  "nodeId": "object-photo",
+  "model": "Nano Banana Pro",
+  "mode": "textToImage",
+  "prompt": "12. Classic slot machine lever and reels exploded view, floating chunky mechanical parts, glossy casing, warm red and orange palette, minimal light gray background, Y2K retro CGI"
+ },
+ {
+  "technique": "Texture Match",
+  "slug": "texture-matchers",
+  "nodeId": "f58dd44f-2406-443f-81b6-094e9be8f055",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "I want to use this as a texture reference. make an analyzation and give me some context to use this in an image generating prompt afterwards"
+ },
+ {
+  "technique": "Illustration Branding Design",
+  "slug": "illustration-branding-design",
+  "nodeId": "brand-name-info",
+  "model": "Gemini 3.1 Pro",
+  "mode": "textToText",
+  "prompt": "Cerberus, the \"hound of Hades,\" is a monstrous, usually three-headed dog in Greek mythology that guards the underworld's gates"
+ },
+ {
+  "technique": "Texture Pack Extractor",
+  "slug": "texture-pack-extractor",
+  "nodeId": "c7b76fe6-74a2-4585-8e37-eb25643545c0",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Generate a prompt for any details of the material that must be included (details like lacing, engraving, wear and tear, etc.)"
+ },
+ {
+  "technique": "Rosé Rambler",
+  "slug": "rose-rambler",
+  "nodeId": "selfie-or-profile-picture",
+  "model": "Krea 2 Large",
+  "mode": "textToImage",
+  "prompt": "- Effortless headshot selfie of a young mixed-race woman with curly hair and dewy skin, soft shade lighting"
+ }
+]

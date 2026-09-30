@@ -1,0 +1,442 @@
+[
+ {
+  "technique": "Brand Extension Generator",
+  "slug": "brand-extension-generator",
+  "nodeId": "35407d4f-9bee-4eaa-8e65-3b509eb33d7f",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "Here is your scalable system prompt template for generating brand identity boards:\n\n---\n\nSYSTEM PROMPT: BRAND IDENTITY BOARD GENERATOR\n\nYou are a brand identity board generator. Given the following inputs, produce a single cohesive brand identity board image composed of 7 rounded-corner panels arranged in a 2-row grid on a light neutral background.\n\nINPUTS (replace per project):\n- {{BRAND_NAME}}: The name of the brand\n- {{LOGO_DESCRIPTION}}: Describe the logo mark (e.g., radial sunburst petal icon)\n- {{COLOR_PALETTE}}: List of 4-6 hex codes extracted from the reference product or mood (e.g., #FAFAFA, #FCFAF5, #ECE7DC, #CBBA8F, #CABFA5, #CBAC8B)\n- {{PRIMARY_FONT}}: Display/headline typeface (e.g., Clash Display Bold)\n- {{SECONDARY_FONT}}: Body/supporting typeface (e.g., TASA Orbiter Regular)\n- {{PRODUCT_REFERENCE}}: Description of the hero product or visual anchor (e.g., metallic gold sneaker with cream stripes and gum sole)\n- {{BRAND_TONE}}: Mood keywords (e.g., luxurious, minimal, sporty, warm)\n- {{TAGLINE}}: A short marketing headline (e.g., Born to Shine)\n\nLAYOUT STRUCTURE:\n\nRow 1 — 4 equally spaced panels, left to right:\n1. Panel 1 (Logo): Render the logo mark centered on a background color selected from {{COLOR_PALETTE}}. The logo color should contrast with the chosen background. No text labels.\n2. Panel 2 (Color): Display the full {{COLOR_PALETTE}} as vertical stripes or gradient bands filling the panel. No hex codes, no text labels.\n3. Panel 3 (Mobile Mockup): A smartphone screen mockup showing a realistic app or mobile landing page for {{BRAND_NAME}}. Use {{COLOR_PALETTE}}, {{PRIMARY_FONT}} for headlines, {{SECONDARY_FONT}} for body, and incorporate the logo. Design should reflect {{BRAND_TONE}}. No text labels.\n4. Panel 4 (Poster Mockup): A print poster or editorial layout mockup for {{BRAND_NAME}}. Feature the logo, {{TAGLINE}} in {{PRIMARY_FONT}}, and imagery inspired by {{PRODUCT_REFERENCE}}. Use {{COLOR_PALETTE}} throughout. No text labels.\n\nRow 2 — 3 panels (first panel spans wider, remaining two equal):\n5. Panel 5 (Marketing Headline): Display {{TAGLINE}} as large typographic art using {{PRIMARY_FONT}}. Choose a background and text color pairing from {{COLOR_PALETTE}} that creates strong contrast. No text labels.\n6. Panel 6 (Graphic Pattern): Generate a seamless repeating pattern or texture inspired by the logo shape, {{COLOR_PALETTE}}, and {{BRAND_TONE}}. Abstract, geometric, or organic depending on the brand feel. No text labels.\n7. Panel 7 (Apparel Mockup): A t-shirt or apparel mockup featuring the logo and/or pattern from Panel 6, rendered in colors from {{COLOR_PALETTE}}. Shirt color should be one of the palette tones. No text labels.\n\nSTYLE RULES:\n- All panels have uniform rounded corners (approx 20px radius)\n- Small consistent gap/gutter between all panels\n- Overall board background: lightest value from {{COLOR_PALETTE}} or near-white\n- Maintain visual cohesion — every panel must feel like it belongs to the same brand\n- Photorealistic mockups for mobile, poster, and shirt panels\n- Typography must be clean and legible\n- Do NOT include any descriptor labels, watermarks, or placeholder text on any panel\n- The board should feel like a professional agency deliverable\n\nOUTPUT: A single unified image containing all 7 panels arranged as described, ready for client presentation.\n\n---\n\nTo use this template, simply swap out the {{VARIABLE}} fields with your specific brand inputs and feed the entire prompt to your image generation model. The structure stays locked while the creative direction flexes with each new brand."
+ },
+ {
+  "technique": "Logo to Brand Identity",
+  "slug": "logo-to-brand-identity",
+  "nodeId": "492b2d30-861c-4424-ab4f-4f000ac40291",
+  "model": "Gemini Flash 3.8",
+  "mode": "imageToText",
+  "prompt": "You are a brand identity director. Given the attached logo, research or infer everything you need about the brand behind it (name, category, audience, personality, visual language, aesthetic codes), then output a single finished brand identity showcase board prompt with every bracket filled in.\n\n\nResearch pass (internal, do not output):\n- Read the logo: letterforms, construction, weight, contrast, curvature, color, texture, finish, any marks or motifs.\n- Identify the brand or, if unknown, infer the most plausible category and positioning from the logomark alone.\n- Lock in brand traits, industry, audience, mood, type style, shape language, color direction, and aesthetic references that actually match what the logo is doing. No defaults. No safe-good. If the logo is sharp and industrial, the prompt is sharp and industrial. If it's soft and editorial, the prompt is soft and editorial.\n\n\nOutput the following prompt, fully filled in, and nothing else:\n\n\nCreate a high-end brand identity showcase board for a brand called [BRAND NAME].\n\n\nThe brand should feel [BRAND TRAITS / PERSONALITY].\nIt operates in [INDUSTRY / CATEGORY] and should appeal to [TARGET AUDIENCE].\nThe overall mood should be [MOOD WORDS].\n\n\nDesign a polished modular grid of multiple tiles, each showing a different application of one cohesive visual identity system. Include a variety of brand assets such as:\n- logo explorations\n- wordmarks\n- app icon variations\n- editorial posters\n- product cards\n- landing page fragments\n- packaging concepts\n- typography specimens\n- interface snippets\n- color palette presentations\n- sticker systems\n- patterns\n- branded mockups\n- motion-inspired graphic compositions\n\n\nEvery tile should feel different in format and purpose, but all should clearly belong to the same brand world.\n\n\nVisual direction:\nUse [TYPOGRAPHY STYLE], [SHAPE LANGUAGE], and [COLOR DIRECTION].\nInclude [VISUAL ELEMENTS: gradients / grain / glossy surfaces / minimal UI / photography / 3D objects / patterns / etc.].\nThe design should feel [STYLE KEYWORDS].\n\n\nAesthetic references:\n[AESTHETIC REFERENCES: premium creative studio, editorial, futuristic startup, playful retail, Swiss-inspired, fashion-forward, etc.]\n\n\nComposition:\n- tightly arranged modular grid\n- multiple tiles\n- dense but elegant layout\n- clean spacing\n- sharp alignment\n- strong hierarchy\n- visually cohesive system\n\n\nThe final result should feel original, professionally composed, and extremely polished, like a real branding presentation created by a top-tier design studio, not generic AI graphics.\n\n\nOutput requirements:\n- high resolution\n- ultra clean\n- premium presentation quality\n- cohesive identity system\n- modern, memorable, art-directed brand design\n\n\nRules:\n- Every bracket must be filled. No placeholders left behind.\n- Choices must be grounded in the logo, not generic branding vocabulary. If you name a typography style, it has to be specifically justified by what you see.\n- Do not explain your reasoning. Do not add commentary before or after. Output the finished prompt only."
+ },
+ {
+  "technique": "3D Subject Render",
+  "slug": "3d-subject-render",
+  "nodeId": "prismatic-acrylic",
+  "model": "Nano Banana 2",
+  "mode": "textToImage",
+  "prompt": "Ultra-detailed technical visualization of a translucent frosted-glass human hand, centered perfectly against a pure solid deep black background with absolutely no gradients, texture, lighting variation, or environmental detail.\n\nThe hand floats in space like a futuristic scientific specimen captured through an advanced X-ray imaging system — fingers slightly spread in a natural, relaxed anatomical pose, every joint and digit fully visible.\n\nA precise technical blueprint overlay system covers the background:\n- Subtle dotted matrix grid in cool silver-grey\n- Thin CAD-style edge lines tracing phalanges, metacarpals, and carpal bone alignments\n- Symmetrical registration marks in all four corners\n- Minimal scientific interface detailing with measurement callouts along the fingers and wrist\n\nOverlay color rendered in muted steel blue to complement the dark background while remaining subtle and technical.\n\nThe hand appears semi-transparent with layered frosted-glass depth revealing realistic internal anatomy — all 27 bones of the human hand precisely positioned: distal, middle, and proximal phalanges, five metacarpal shafts, the eight carpal bones nestled at the wrist. Tendons thread like luminous filaments along each finger. Vascular networks branch delicately through the translucent flesh layers. Ligaments and joint capsules glow faintly between articulations.\n\nInside the hand, luminous spectral gradients flow naturally through the transparent structure:\n- Deep electric blue concentrated at the fingertips and upper knuckles\n- Transitioning into bright cyan through the mid-phalanges\n- Soft white highlights along tendon sheaths\n- Evolving into yellow through the metacarpal region\n- Warm orange pooling at the palm center\n- Coral spreading toward the thenar eminence\n- Deep crimson red settling into the wrist and lower-right regions\n\nThese gradients exist only inside the hand while the background remains perfectly solid and uniform.\n\nMultiple translucent glass layers create dimensional depth — skin as outermost frost, muscular tissue as mid-layer haze, bone as innermost crystalline structure — producing optical refraction and holographic specimen realism. Subtle illuminated edges enhance transparency while maintaining sharp technical precision.\n\nLighting resembles scientific laboratory imaging, medical specimen photography, high-end CAD visualization, futuristic museum display lighting, and cinematic X-ray documentation.\n\nComposition: full complete hand visible from wrist to fingertips, perfectly centered, balanced negative space on all sides, nothing touching frame edges, minimalist scientific presentation.\n\nStyle: technical blueprint surrealism crossed with futuristic X-ray visualization crossed with CAD-inspired editorial rendering crossed with cinematic specimen photography.\n\nUltra-photorealistic, 8K UHD, Octane Render style, physically accurate translucency, advanced glass rendering, macro-detail precision, cinematic scientific realism."
+ },
+ {
+  "technique": "3D Subject Render",
+  "slug": "3d-subject-render",
+  "nodeId": "b53158b9-fce6-4554-b689-e18a5d5da66e",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Ultra-premium studio render of [SUBJECT] reconstructed as a suspended industrial glass sculpture composed entirely of multiple separated vertical acrylic slices. Each layer is a perfectly flat transparent panel cut from the subject silhouette and spaced apart with precise visible air gaps, creating a floating exploded-view architectural form.\n\n\nThe entire structure is held together only by polished stainless steel through-bolts running front-to-back through every acrylic layer. Hardware features hyper-detailed exposed Allen hexagonal socket heads with macro-level machining precision, adding an engineered industrial aesthetic.\n\n\nEvery acrylic layer remains strictly vertical:\nno curved shells,\nno molded forms,\nno horizontal slabs,\nonly clean upright planar slices suspended in perfect alignment.\n\n\nMaterial behavior resembles ultra-clear optical acrylic fused with holographic prism glass. Light refracts aggressively through the layered panels, producing spectral rainbow dispersion, thin-film interference, chromatic edge splitting, and sharp caustic highlights across the transparent surfaces.\n\n\nEdges glow with subtle iridescent spectral reflections:\ncyan,\nmagenta,\nviolet,\nlime,\namber,\nand electric blue interference tones appearing naturally through refraction.\n\n\nThe subject floats weightlessly against a completely seamless PURE SOLID BLACK background (#000000) with absolutely no floor, platform, pedestal, horizon line, surface reflections, environmental shadows, gradients, or visible ground plane. The composition exists inside an infinite black void.\n\n\nCamera perspective:\nwide studio framing,\nfull subject visibility,\nslightly angled eye-level perspective revealing the dimensional spacing between layers,\ndeep depth of field maintaining crystal-clear hardware detail throughout the composition.\n\n\nLighting is sharp, architectural, and highly cinematic:\nprecision studio rim lighting,\nhigh-contrast spectral caustics,\nglass refraction bloom,\nluxury industrial reflections,\nclean optical highlights.\n\n\nAesthetic:\nindustrial prism futurism × architectural acrylic minimalism × luxury hardware sculpture × technical glass surrealism × engineered optical design.\n\n\nRendered in Octane Render style, ultra-photorealistic 8K UHD, physically accurate refraction, ray-traced transparency, macro-detail precision, luxury commercial rendering quality.\n\n\nNegative prompts:\ncolored background, green background, gray background, gradients, floor plane, pedestal, table, shadows on ground, reflective ground, horizon line, horizontal slabs, fused layers, touching panels, curved shells, molded plastic, matte materials, weak transparency, blurry bolts, cheap CGI, cropped composition, low contrast, dirty reflections, noisy rendering."
+ },
+ {
+  "technique": "3D Subject Render",
+  "slug": "3d-subject-render",
+  "nodeId": "2dd79fa6-da26-413c-a4f8-a0e3cdf3653b",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Ultra-detailed technical visualization of a translucent frosted-glass [SUBJECT], centered perfectly against a customizable PURE SOLID [BACKGROUND_COLOR] background with absolutely no gradients, texture, lighting variation, or environmental detail.\n\n\nThe object floats in space like a futuristic scientific specimen captured through an advanced X-ray imaging system.\n\n\nA precise technical blueprint overlay system covers the background:\nsubtle dotted matrix grid,\nthin CAD-style edge lines,\nsymmetrical registration marks in all four corners,\nminimal scientific interface detailing.\n\n\nOverlay color automatically adapts to complement the chosen background color while remaining subtle and technical.\n\n\nThe object appears semi-transparent with layered frosted-glass depth revealing realistic internal anatomy and authentic structural composition. Internal details must accurately match the real interior of the object — organic subjects remain biological, mechanical subjects remain engineered.\n\n\nInside the object, luminous spectral gradients flow naturally through the transparent structure:\ndeep electric blue concentrated at the center-top,\ntransitioning into bright cyan,\nsoft white highlights,\nthen evolving into yellow,\nwarm orange,\ncoral,\nand deep crimson red toward the lower-right regions.\n\n\nThese gradients exist ONLY inside the object while the background remains perfectly solid and uniform.\n\n\nMultiple translucent glass layers create dimensional depth, optical refraction, and holographic specimen realism. Subtle illuminated edges enhance transparency while maintaining sharp technical precision.\n\n\nLighting resembles:\nscientific laboratory imaging,\nmedical specimen photography,\nhigh-end CAD visualization,\nfuturistic museum display lighting,\ncinematic X-ray documentation.\n\n\nComposition:\nfull complete object visible,\nperfectly centered,\nbalanced negative space on all sides,\nnothing touching frame edges,\nminimalist scientific presentation.\n\n\nStyle:\ntechnical blueprint surrealism × futuristic X-ray visualization × CAD-inspired editorial rendering × cinematic specimen photography.\n\n\nUltra-photorealistic, 8K UHD, Octane Render style, physically accurate translucency, advanced glass rendering, macro-detail precision, cinematic scientific realism.\n\n\nNegative prompts:\ncropped object, incomplete composition, gradients in background, textured background, environmental scenery, cluttered layout, opaque materials, weak transparency, missing technical overlay, low contrast, muddy colors, flat lighting, cheap CGI, blurry details, unrealistic internals, background glow, busy composition."
+ },
+ {
+  "technique": "3D Subject Render",
+  "slug": "3d-subject-render",
+  "nodeId": "3ed43280-7df3-4aa3-86c3-b29dad76e648",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "\r\n\r\nA complete full-view [OBJECT] rendered as a translucent frosted glass sculpture with an intricate internal vascular network flowing throughout its entire structure. The object is fully visible in frame from top to bottom, floating against a perfectly flat #FEFEFE background with absolutely no gradients and no cast shadows anywhere outside the object.\r\n\r\nInside the object is ONLY a connected branching cardiovascular-style vessel system — delicate arteries, veins, and capillary-like structures organically spreading through the entire form. No organs, no heart shapes, no lungs, no anatomical structures — only abstract vascular branching patterns.\r\n\r\nThe vascular network follows a natural hierarchy:\r\nmain vessels glowing in soft bright blue (#8DBCE4), medium vessels in muted blue (#84AED2), and fine capillaries in pale blue (#BED1E9). All vessels remain fully connected in a continuous flowing system with no disconnected segments.\r\n\r\nThe object surface has a frosted translucent glass appearance with soft milky diffusion. Internal structures are partially visible through the material with gentle internal luminescence glowing from within. The lighting feels ethereal, scientific, and elegant.\r\n\r\nSoft blue-toned contour shadows appear ONLY on the object itself to define depth, curves, and sculptural dimensionality. No drop shadows or external shadows exist on the background. The object must feel volumetric and deeply three-dimensional — never flat.\r\n\r\nLighting setup:\r\nsoft internal glow, subtle backlight for translucency, diffused ambient studio lighting, smooth contour definition, clinical futuristic atmosphere.\r\n\r\nAesthetic:\r\nmedical visualization meets luxury futuristic sculpture, scientific beauty, anatomical abstraction, ethereal biomedical design, ultra-clean editorial minimalism.\r\n\r\nComposition:\r\nentire object fully visible, centered with balanced spacing, sharp focus on vascular details, uncluttered frame, premium studio presentation.\r\n\r\nColor palette:\r\nONLY shades of blue —\r\n#BED1E9,\r\n#84AED2,\r\n#8DBCE4\r\n\r\nNo purple, pink, red, yellow, green, or orange tones.\r\n\r\nUltra-photorealistic, 8K medical-art rendering, translucent material realism, intricate vessel detail, futuristic scientific luxury aesthetic.\r\n\r\nNegative prompts:\r\nhearts, organs, anatomical structures, cropped object, partial visibility, background shadows, drop shadows, gradients, purple tones, pink tones, disconnected veins, flat object, CGI look, harsh lighting, opaque material, weak contrast, cluttered composition.\r\n\n"
+ },
+ {
+  "technique": "3D Subject Render",
+  "slug": "3d-subject-render",
+  "nodeId": "9f21a270-338c-446d-9f09-52ab3d5fd901",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Ultra-high fidelity cinematic render of [SUBJECT] levitating in complete isolation against a pure solid black void (#000000). The object is perfectly centered in frame, fully visible from edge to edge with zero cropping, suspended weightlessly in dark three-dimensional space.\r\n\r\nThe material resembles deep translucent obsidian glass with infinite internal depth, combining ultra-glossy liquid smoothness with holographic spectral luminosity. The surface behaves like polished black crystal infused with iridescent energy.\r\n\r\nIntense spectral iridescence flows dynamically across the object like neon oil-slick reflections:\r\nelectric blue,\r\ndeep magenta,\r\nviolet,\r\ncyan,\r\ncrimson,\r\nand holographic rainbow interference patterns shifting naturally across contours and edges.\r\n\r\nInternal volumetric lighting glows from within the object itself, creating ethereal light diffusion, atmospheric scattering, and dimensional radiance trapped inside the translucent material. The object appears internally illuminated rather than externally lit.\r\n\r\nEdges exhibit high-index optical refraction with cinematic prismatic color splitting, chromatic aberration, caustic dispersion, and razor-sharp holographic highlights. Reflections are crisp, ray-traced, and physically accurate, resembling luxury CGI photographed in a dark void.\r\n\r\nThe lighting setup feels futuristic and surreal:\r\ninvisible cinematic light sources,\r\nsharp spectral rim lighting,\r\nhyper-real reflective bloom,\r\nhigh-contrast darkness,\r\ndeep glossy reflections,\r\npremium sci-fi editorial illumination.\r\n\r\nThe object must feel:\r\nexpensive,\r\nalien,\r\nethereal,\r\nhyper-real,\r\nfuturistic,\r\nand impossibly polished.\r\n\r\nAesthetic:\r\nobsidian holographic surrealism × futuristic luxury CGI × spectral hyperchrome × cinematic sci-fi product photography × ultra-premium optical rendering.\r\n\r\nRendered in Octane Render style, 8K UHD, physically accurate ray tracing, ultra-detailed material realism, cinematic macro precision, luxury commercial quality, impossible optical fidelity.\r\n\r\nNegative prompts:\r\nplatforms, floors, softboxes, lightboxes, props, text, watermarks, pedestals, environmental scenery, visible support structures, surface shadows, matte textures, dull reflections, low contrast, blurry rendering, cheap CGI appearance, noisy image, weak iridescence, flat lighting, cropped composition.\r\n\n"
+ },
+ {
+  "technique": "3D Subject Render",
+  "slug": "3d-subject-render",
+  "nodeId": "1ba76278-0f69-4230-ac99-d0cc8ea8684b",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Ultra-premium cinematic render of [SUBJECT] reconstructed entirely from suspended volumetric cloud-glass layers floating inside an infinite black void. The structure is composed of multiple separated vertical translucent slices made from condensed atmospheric cloud material fused with ultra-clear optical acrylic.\n\n\nEach vertical layer appears like sculpted frozen vapor:\nsoft cloud density trapped inside crystal-clear prism glass,\nwith visible air gaps between every suspended slice.\n\n\nThe layers are held together only by polished stainless steel through-bolts with exposed Allen hex socket heads, creating a contrast between ethereal atmospheric softness and engineered industrial precision.\n\n\nMaterial behavior combines:\ncondensed volumetric clouds,\ntransparent acrylic glass,\nspectral holographic refraction,\nthin-film interference,\niridescent prism reflections,\ndiamond-polished optical edges.\n\n\nInternal cloud formations swirl naturally inside the transparent layers like frozen weather systems suspended in glass architecture.\n\n\nLighting creates:\nvolumetric glow diffusion,\nspectral rainbow caustics,\nelectric cyan edge highlights,\ndeep violet refractions,\nsoft atmospheric bloom,\nsharp reflective prism flares.\n\n\nThe subject floats weightlessly against a PURE SOLID BLACK background (#000000) with absolutely no floor, platform, surface, reflections, horizon line, environmental detail, or gradients. Only infinite black space surrounds the composition.\n\n\nCamera perspective:\nwide cinematic framing,\nfull subject visibility,\nslightly angled eye-level perspective,\ndeep depth of field preserving cloud texture and hardware precision simultaneously.\n\n\nAesthetic:\natmospheric prism futurism × industrial cloud surrealism × luxury volumetric sculpture × holographic weather architecture × cinematic optical minimalism.\n\n\nRendered in Octane Render style, ultra-photorealistic 8K UHD, physically accurate volumetric lighting, ray-traced transparency, cinematic cloud simulation, luxury commercial rendering quality.\n\n\nNegative prompts:\nsolid opaque materials, colored background, floor plane, horizon line, fused cloud layers, horizontal slabs, matte surfaces, weak reflections, blurry bolts, low contrast, cluttered composition, cheap CGI, cropped framing, environmental scenery, visible supports."
+ },
+ {
+  "technique": "3D Subject Render",
+  "slug": "3d-subject-render",
+  "nodeId": "holographic-glass",
+  "model": "Nano Banana 2",
+  "mode": "textToImage",
+  "prompt": "Ultra-clean luxury product photography of a sculpted human hand with elegantly posed fingers, levitating mid-air against a seamless pure white #FFFFFD studio background. The hand appears suspended weightlessly with a soft diffused shadow beneath proving elevation and floating realism. The fingers are slightly spread in a graceful, editorial gesture — poised like a living sculpture.\n\nThe hand has a DARK CENTER BODY with high contrast holographic RIM LIGHTING only on the EDGES of each finger and knuckle ridge — not covering the entire skin surface. Sharp defined contours of each digit glow with vibrant iridescent gradients wrapping around the form naturally, tracing the anatomy like luminous veins of light.\n\nGradient color flow:\nbright cyan and deep blue tracing the fingertips → purple, magenta, and pink flowing through the upper knuckles and mid-phalanges → warm golden yellow and orange near the wrist and lower palm edges → subtle turquoise and mint accents flickering between the finger gaps.\n\nThe fingertips are more opaque and dark, gradually transitioning into a frosted translucent quality toward the wrist. The lower palm and wrist have a soft frosted acrylic/glass appearance with subtle internal light visible through the material, as though the bones and tendons beneath emit a dreamy illuminated interior diffusion.\n\nLighting is soft, ethereal, and editorial with cinematic luxury studio quality. Strong edge contrast creates luminous holographic rim lighting along each finger silhouette while maintaining darker interior skin surfaces. Minimal atmospheric glow — emphasis on SHARP glowing edges rather than blurry bloom. Each nail catches a single prismatic highlight.\n\nComposition is tightly cropped with the hand filling most of the frame, photographed at a slight elegant three-quarter angle to emphasize the dimensionality and sculptural architecture of each finger.\n\nAesthetic:\nfuturistic luxury editorial campaign, surreal beauty photography, high-end skincare and nail advertising, dreamy holographic minimalism, sophisticated fashion campaign energy.\n\nUltra-photorealistic, 8K, premium studio rendering, soft diffused lighting, magical levitation, seamless clean background, subtle skin surface micro-reflection, elegant futuristic atmosphere."
+ },
+ {
+  "technique": "Mood Board Maker",
+  "slug": "moodboard-maker",
+  "nodeId": "c9951477-1128-4ace-939f-9e00aabe0269",
+  "model": "Recraft V4 Pro",
+  "mode": "textToImage",
+  "prompt": "A mood board comprised of a collection of images arranged in an eclectic editorial collage layout, no text or words anywhere on the board. The collection includes:\n\nA close-up photograph of a sage green frosted glass perfume bottle with a round spherical stopper, soft matte surface catching diffused rosy light, sitting on a dusty pink linen cloth with fine woven texture\n\nA dreamy motion-blurred macro photograph of red and white poppy flowers mid-bloom, petals dissolving at the edges into a soft rosy fog, shot against a warm blush pink background with a film grain overlay\n\nA textural flat-lay image of aged rose-pink linen fabric with visible woven grain, slightly faded and warm, evoking a quiet tactile intimacy\n\nA cinematic still-life photograph of small sculptural ceramic vessels in sage green and dusty mauve, rounded organic forms with matte glazed surfaces, arranged on a soft pink stone surface under diffused overcast light\n\nA blurred impressionistic photograph of a garden scene with poppies and wild grasses, deep reds and soft whites dissolving into a hazy pink-rose atmosphere, low contrast and deeply soft\n\nA close-up photograph of a translucent green glass orb or sphere resting on a textured rose-pink surface, light refracting softly through it casting gentle warm shadows\n\nA moody editorial fashion photograph of a figure in a flowing sage green silk garment, photographed from behind in soft diffused light, surrounded by a hazy blush environment with subtle film grain\n\nA macro photograph of red poppy petals against a dusty mauve surface, petals slightly transparent and backlit, soft and painterly with a grainy analog quality\n\nA still-life photograph of a small rounded green ceramic object beside dried pale pink botanicals on a linen surface, everything bathed in warm diffused rosy light\n\nAll images stitched together in an overlapping collage grid with organic asymmetric placement, some images bleeding into each other at the edges, unified by a consistent dusty rose and sage green palette, soft film grain across the entire board, low contrast dreamy lighting, and a quiet emotionally poetic atmosphere that feels like memory and fragrance combined"
+ },
+ {
+  "technique": "3D Subject Render",
+  "slug": "3d-subject-render",
+  "nodeId": "bc5414f9-f01d-4ad2-8f3c-c6c34ac31648",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "\r\n\r\nUltra-clean luxury product photography of [OBJECT], levitating mid-air against a seamless pure white #FFFFFD studio background. The object appears suspended weightlessly with a soft diffused shadow beneath proving elevation and floating realism.\r\n\r\nThe object has a DARK CENTER BODY with high contrast holographic RIM LIGHTING only on the EDGES — not covering the entire surface. Sharp defined contours glow with vibrant iridescent gradients wrapping around the form naturally.\r\n\r\nGradient color flow:\r\nbright cyan and deep blue at the top → purple, magenta, and pink through the upper middle → warm golden yellow and orange near the lower edges → subtle turquoise and mint accents.\r\n\r\nThe top of the object is more opaque and dark, gradually transitioning into a frosted translucent bottom. The lower section has a soft frosted acrylic/glass appearance with subtle internal light visible through the material. Slight transparency reveals dreamy illuminated interior diffusion.\r\n\r\nLighting is soft, ethereal, and editorial with cinematic luxury studio quality. Strong edge contrast creates luminous holographic rim lighting while maintaining darker interior surfaces. Minimal atmospheric glow — emphasis on SHARP glowing edges rather than blurry bloom.\r\n\r\nComposition is tightly cropped with the object filling most of the frame, photographed at a slight elegant angle to emphasize dimensionality and sculptural form.\r\n\r\nAesthetic:\r\nfuturistic luxury editorial campaign, surreal beauty photography, high-end cosmetic advertising, dreamy holographic minimalism, sophisticated fashion campaign energy.\r\n\r\nUltra-photorealistic, 8K, premium studio rendering, soft diffused lighting, magical levitation, seamless clean background, subtle surface reflection, elegant futuristic atmosphere.\r\n\r\nNegative prompts:\r\nobject touching surface, soft blurry edges, full-surface gradient, cluttered background, CGI look, flat lighting, weak contrast, no levitation, overly digital rendering, busy composition, dull colors, matte object, no transparency.\r\n\n"
+ },
+ {
+  "technique": "Material 3D Logo Render Engine",
+  "slug": "material-3d-logo-render-engine",
+  "nodeId": "f21734f0-f85c-456b-8899-79e91435103c",
+  "model": "Claude Sonnet 4.6",
+  "mode": "textToText",
+  "prompt": "Transform the uploaded 2D logo into a dimensional 3D object with absolute fidelity to its original silhouette, proportions, and spacing.\r\n\r\nDevelop the form with strong, uniform extrusion so it appears thick, solid, and physically grounded. Maintain consistent depth across all segments.\r\n\r\nConstruct precise side walls with sharp transitions and clean geometry. Introduce minimal, realistic beveling only where it enhances physical believability.\r\n\r\nApply a uniform pure white material (true white #FFFFFF), fully matte, smooth, and completely free of texture, noise, or surface variation.\r\n\r\nLock the object into a fixed, repeatable orientation:\r\n- slightly low-angle perspective (camera positioned below the center)\r\n- consistent tilt exposing both the front face and a controlled portion of the underside\r\n- subtle horizontal rotation (approximately 10–15 degrees), fixed and not variable\r\n\r\nDo not reinterpret or randomize the angle — maintain this exact camera position and object orientation consistently.\r\n\r\nFrame the composition centrally with balanced spacing, as if shot on a tripod in a controlled studio environment.\r\n\r\nLight the object using a cinematic studio setup:\r\n- soft directional key light to shape the primary form\r\n- gentle fill light to control shadow density\r\n- subtle rim lighting to define edges and separate the object from the background\r\n\r\nUse a pure, absolute black background (#000000) with no gradients, no texture, and no visible noise.\r\n\r\nEnsure complete separation between subject and background:\r\n- no light spill onto the background\r\n- no haze, glow, or atmospheric effects\r\n- background must remain fully crushed black\r\n\r\nRender in high resolution with realistic shadow falloff, clean edge definition, and strong depth presence."
+ },
+ {
+  "technique": "Character Lock",
+  "slug": "character-lock",
+  "nodeId": "54326095-a1c4-4279-b283-0f5a25f13735",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "You are a portrait re-posing engine. You receive a reference photograph of a person and you must generate a new image of the exact same person rotated to a {{45 degrees clockwise side}} view.\n\nFollow these rules strictly:\n\n1. Identity preservation is the highest priority. The generated face must be the same person — maintain exact facial structure, bone structure, skin texture, skin tone, freckles, blemishes, eye color, eyebrow shape and thickness, lip shape, nose profile, hairline, and hair color/texture/length.\n2. Rotate the subject's head and upper body by {{ANGLE}} relative to the camera compared to the input image. Infer anatomically correct geometry for any features that become newly visible (ears, jaw line, neck curvature, back of head, hair fall) based on cues from the reference.\n3. Preserve the exact same lighting setup, background, color grading, white balance, depth of field, and overall photographic mood as the input image.\n4. Preserve any visible accessories (necklaces, earrings, piercings, glasses) and place them consistently with the new viewing angle.\n5. Hair must drape and fall naturally according to gravity and the new head orientation. Do not change hairstyle, volume, or parting.\n6. Expression should remain neutral and consistent with the reference — do not add or remove any emotional expression.\n7. Maintain the same framing and crop ratio as the input. The subject should occupy approximately the same portion of the frame.\n8. Output must be photorealistic at the same resolution and quality tier as the input. No painterly effects, no artifacts, no smoothing of skin texture.\n9. Do not add, remove, or alter any clothing or background elements."
+ },
+ {
+  "technique": "Material 3D Logo Render Engine",
+  "slug": "material-3d-logo-render-engine",
+  "nodeId": "2961294b-ecb7-4a65-be46-f62f3bf6093c",
+  "model": "Claude Sonnet 4.6",
+  "mode": "textToText",
+  "prompt": "Transform the uploaded 3D logo into a version where the logo itself physically takes on the form characteristics of the reference object.\r\n\r\nPreserve the overall silhouette and recognizability of the logo, but reinterpret its structure so it behaves like the object in real life.\r\n\r\nInstead of simply applying a surface texture, modify the geometry so the logo is constructed out of the material:\r\n\r\n- If the reference is soft or porous, the logo should appear compressible with uneven structure\r\n- If the reference is rigid, the logo should feel solid with defined edges\r\n- If the reference has internal structure, reflect that within the thickness of the logo\r\n\r\nAllow the edges, surfaces, and depth of the logo to be influenced by the object’s physical properties:\r\n- introduce natural deformation, irregular contours, or structural variation\r\n- avoid perfect straight edges where the material would not support it\r\n\r\nMaintain a balance between abstraction and readability — the logo must still be clearly identifiable.\r\n\r\nEnsure the object has real volume and believable mass, not just surface detail.\r\n\r\nKeep the camera angle, composition, and lighting consistent with the original setup.\r\n\r\nUse a pure black background (#000000) with no gradients or light spill.\r\n\r\nLighting should emphasize the physicality of the transformed structure, revealing depth, form, and material behavior.\r\n\r\nRender in high resolution with strong dimensional presence and tactile realism."
+ },
+ {
+  "technique": "Material 3D Logo Render Engine",
+  "slug": "material-3d-logo-render-engine",
+  "nodeId": "1763d9ec-77c5-449f-913d-49de46660030",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Transform the uploaded 2D logo into a dimensional 3D object with absolute fidelity to its original silhouette, proportions, and spacing.\r\n\r\nDevelop the form with strong, uniform extrusion so it appears thick, solid, and physically grounded. Maintain consistent depth across all segments.\r\n\r\nConstruct precise side walls with sharp transitions and clean geometry. Introduce minimal, realistic beveling only where it enhances physical believability.\r\n\r\nApply a uniform pure white material (true white #FFFFFF), fully matte, smooth, and completely free of texture, noise, or surface variation.\r\n\r\nCompose the object using a controlled product-photography angle — a slightly low perspective with a subtle horizontal rotation, allowing both the front face and a portion of the underside to be visible.\r\n\r\nLight the object using a cinematic studio setup:\r\n- soft directional key light to shape the primary form\r\n- gentle fill light to control shadow density\r\n- subtle rim lighting to define edges and separate the object from the background\r\n\r\nUse a pure, absolute black background (#000000) with no gradients, no texture, and no visible noise.\r\n\r\nEnsure complete separation between subject and background:\r\n- no light spill onto the background\r\n- no haze, glow, or atmospheric effects\r\n- background must remain fully crushed black\r\n\r\nRender in high resolution with realistic shadow falloff, clean edge definition, and strong depth presence."
+ },
+ {
+  "technique": "Icon Pack",
+  "slug": "icon-pack",
+  "nodeId": "e20bc781-8cc3-492d-9615-ffdfd325bb83",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "using the attached image as reference for icon set redesign them using the following parameters:\n\n- **Geometric Structure**: Adopt an ultra-condensed aspect ratio for all elements, utilizing elongated vertical lines and pill-shaped (stadium) geometries to replace standard circles or squares.\n- **Line Quality**: Maintain sharp, precise vertices at structural joints while ensuring strict parallel alignment of vertical strokes to mimic the architectural rigidity of the reference.\n- **Minimalist Scaling**: Strip away complex horizon-line reflections and photorealistic chrome textures; instead, focus on clean, high-contrast vector shapes that ensure legibility at small user-interface sizes.\n- **Color & Finish**: Translate the metallic rose gold aesthetic into a simplified palette, utilizing flat fills or subtle, clean gradients ranging from deep berry to pale pink to capture the luxury vibe without visual clutter.\n- **Art Direction**: Infuse the set with a sleek, modern Y2K style that prioritizes verticality and polished, smooth curves."
+ },
+ {
+  "technique": "CoverArt",
+  "slug": "artwork-to-physical",
+  "nodeId": "vinyl-case-back",
+  "model": "Nano Banana 2",
+  "mode": "imagesToImage",
+  "prompt": "Create a minimal back cover for a vinyl sleeve @[vinyl-case-front] derived from the input artwork @[coverart]   . Keep the same size.\r\n\r\nRemove all original text and typography from the artwork.\r\nKeep the visual identity but reinterpret the image in a cleaner, more minimal composition.\r\n\r\nUse the dominant color from the original artwork as the base background.\r\nApply subtle texture and soft tonal variations.\r\n\r\nAdd a couple of small, realistic vinyl store-style stickers:\r\n- one small barcode sticker\r\n- one slightly larger technical label using the primary color\r\n\r\nThe stickers should feel authentic and minimal, with clean, technical typography.\r\nDo not add decorative or random text. Keep it subtle and functional.\r\n\r\nApply the design to a realistic vinyl sleeve back with:\r\n- matte paper finish\r\n- gentle plastic wrap with soft reflections\r\n- a very subtle circular impression hinting at the vinyl inside\r\n\r\nEverything centered on a pure black background.\r\nKeep the composition minimal, balanced, and product-focused."
+ },
+ {
+  "technique": "CoverArt",
+  "slug": "artwork-to-physical",
+  "nodeId": "cd-jewel-case-design-back",
+  "model": "Nano Banana 2",
+  "mode": "imagesToImage",
+  "prompt": "Create a minimal back cover design of @[cd-jewel-case-design]  derived from the input artwork @[coverart] . \r\n\r\nRemove all original text and typography from the artwork.\r\nKeep the visual identity but reinterpret it into a cleaner, reduced composition.\r\n\r\nExtract the dominant color and use it as the base background.\r\nApply subtle texture and soft tonal variations.\r\n\r\nAdd a few small, realistic CD packaging details:\r\n- a small barcode label\r\n- a compact technical information block (technical infograph about the CD, minimal and clean)\r\n\r\nTypography must be subtle, technical, and functional. \r\nAvoid decorative or stylized fonts.\r\n\r\nApply the design to the back of a realistic CD jewel case:\r\n- hinge on the right side\r\n- transparent plastic with soft reflections\r\n- slight paper insert depth visible under the plastic\r\n\r\nCentered on a pure black background.\r\nKeep the composition minimal, balanced, and product-focused."
+ },
+ {
+  "technique": "Studio Blur",
+  "slug": "studio-blur",
+  "nodeId": "b22777c0-9a02-4f9d-9a0d-4c2cfc8e16e6",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "Use the provided input as the primary reference image. Carefully detect the main person, the elegant woman with dark curly hair wearing a beige trench coat and striking geometric earrings, preserving her exact facial features, confident expression, seated posture, and overall composition without any distortion. Maintain the exact same character and the original warm, minimalist architectural background setting. Apply a highly aesthetic depth of field effect exclusively to the background, creating a smooth and creamy cinematic blur over the archways, tiled floor, and decorative geode. Keep the main subject in perfect, sharp focus while gracefully softening the surroundings to enhance subject isolation, ensuring the soft natural lighting, warm terracotta color palette, and sophisticated mood match the original input perfectly."
+ },
+ {
+  "technique": "CoverArt",
+  "slug": "artwork-to-physical",
+  "nodeId": "flyer-design",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Generate a clean printed flyer using the input artwork @[coverart]  .\r\n\r\nThe flyer must be vertical, with a 2:1 ratio (two square panels stacked vertically), including a visible central fold line.\r\n\r\nShow the full flyer entirely in frame, not cropped.\r\n\r\nReinterpret the original artwork into a refined editorial layout.\r\nDo not simply place the artwork — adapt it into a new composition while preserving its visual identity.\r\n\r\nRemove all original text and do not add any new text.\r\n\r\nApply a high-quality paper texture: and shadows\r\n- smooth, fine grain\r\n- subtle fibers visible under light\r\n- clean, premium print look (not rough or distressed)\n- shadows and grain \r\n\r\nAdd a soft central fold with realistic light and shadow.\r\n\r\nKeep lighting minimal and controlled.\r\n\r\nCentered on a pure black background."
+ },
+ {
+  "technique": "Mood Board Maker",
+  "slug": "moodboard-maker",
+  "nodeId": "b1265713-a998-426f-95d8-01fa52c95151",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Use the uploaded image as the primary visual seed and create a curated editorial mood board collage in a similar spirit to the reference: eclectic, cinematic, artful, luxurious, emotionally charged, and visually cohesive. The board should feel like a poetic expansion of the input image rather than a literal repetition. Analyze the input image for its dominant and accent color palette, lighting quality, textures, emotional tone, subject matter, materials, shapes, contrast level, and overall visual atmosphere, then generate a multi-image mood board composed of complementary images that all feel like they belong to the same world. clearly define in prompt that this is a mood board comprised of a collection of images. no text, graphics, statements or words should appear on the mood board\n"
+ },
+ {
+  "technique": "CoverArt",
+  "slug": "artwork-to-physical",
+  "nodeId": "cd-jewel-case-design",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Apply the input artwork @[coverart] to the front cover of a realistic CD jewel case.\r\n\r\nPreserve the artwork exactly, without adding or modifying any text or graphic elements.\r\n\r\nEnsure the artwork fits naturally within the square insert, with correct alignment and proportions.\r\n\r\nCreate a realistic transparent plastic jewel case:\r\n- clean edges\r\n- subtle reflections\r\n- slight surface imperfections\r\n\r\nMake the paper insert slightly visible beneath the plastic, with a soft sense of depth.\r\n\r\nAdd a very subtle circular pressure mark hinting at the disc inside.\r\n\r\nLighting should be minimal and controlled, with soft highlights on the plastic.\r\n\r\nCentered on a pure black background.\r\nKeep the composition clean, balanced, and product-focused."
+ },
+ {
+  "technique": "CoverArt",
+  "slug": "artwork-to-physical",
+  "nodeId": "3d-cd-jewel-case",
+  "model": "Kling O1",
+  "mode": "firstFrameLastFrame",
+  "prompt": "Create a realistic 3D CD jewel case using the provided front @[cd-jewel-case-design]  and back @[cd-jewel-case-design-back]  images.\r\n\r\nDo not modify, reinterpret, animate, or alter the artwork in any way.\r\n\r\nThe CD case must be the only object in the scene.\r\n\r\nAnimate only the CD case with a smooth 360-degree turntable rotation. \r\nThe artwork must remain completely static and flat.\r\n\r\nCamera is fixed. No zoom, no movement.\r\nLighting is clean studio lighting, subtle reflections on plastic.\r\n\r\nBackground is pure black.\r\n\r\nDo not add any extra elements, text, props, or visual effects.\r\nMinimal, precise, product-style rendering."
+ },
+ {
+  "technique": "CoverArt",
+  "slug": "artwork-to-physical",
+  "nodeId": "3d-vinyl-sleeve",
+  "model": "Kling O1",
+  "mode": "firstFrameLastFrame",
+  "prompt": "Create a realistic 3D Vinyl Sleeve using the provided front @[vinyl-case-front]  and back @[vinyl-case-back]   images.\r\n\r\nDo not modify, reinterpret, animate, or alter the artwork in any way.\r\n\r\nThe Vinyl Sleeve must be the only object in the scene.\r\n\r\nAnimate only the Vinyl Sleeve with a smooth 360-degree turntable rotation.\r\nThe artwork must remain completely static and flat.\r\n\r\nCamera is fixed. No zoom, no movement.\r\nLighting is clean studio lighting, subtle reflections on plastic.\r\n\r\nBackground is pure black.\r\n\r\nDo not add any extra elements, text, props, or visual effects.\r\nMinimal, precise, product-style rendering."
+ },
+ {
+  "technique": "Art & Artist Mockup Kit",
+  "slug": "art-artist-mockup-kit",
+  "nodeId": "893d0776-c3e9-4506-8ce0-9a50ee87d0c0",
+  "model": "Claude Opus 4.8",
+  "mode": "imagesToText",
+  "prompt": "Write a concise, reusable visual style block for a minimalist presentation kit for an independent artist. Define: palette (white, warm grey, natural oak, soft concrete); lighting (soft natural daylight); mood (calm, editorial, high-end, Swiss minimalist); texture (matte surfaces, generous negative space); rendering (photorealistic, shallow depth of field). Include these rules: keep the artwork colors true to INPUT 1; keep the artist's face true to INPUT 2; any text shown in a mockup reads only 'The Artist' as the name — no other names, titles, or dates. Output only the style block."
+ },
+ {
+  "technique": "Sigil",
+  "slug": "sigil",
+  "nodeId": "fa1dfb39-04ef-4c6b-bc8f-b1aa9369b6c2",
+  "model": "GPT-5.2",
+  "mode": "imageToText",
+  "prompt": "Analyze this image and identify the subject. Write a short video animation prompt (2-3 sentences) that brings a glyph icon version of it to life with natural, subject-appropriate movement on a pure black background. The background must remain completely still — only the glyph moves. Match motion to the subject's nature: flowers sway gently, animals breathe and shift, water ripples, fire flickers, buildings get a subtle light shift only, people have a slow breath. Keep movement subtle, organic, and looping. Output only the animation prompt, nothing else."
+ },
+ {
+  "technique": "Font Builder",
+  "slug": "font-builder",
+  "nodeId": "9c938d40-f04a-49fd-a59e-cd7ad2711e26",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "Special characters\n\nYou're a professional brand designer specializing in custom typography. Based on the input @[your-letterform] , create a whole set of special characters using the same structure shape, height and width.\r\n\r\nThe font is a bold, modern and geometric sans serif inspired from the future world aesthetics.\r\n\r\nIt is critically important to maintain the brand consistency across every character in detail, considering the shape, form, angle degrees and corner cuts and so on. \nKeep the background minimal, clean black.\n\r\n\r\n\n"
+ },
+ {
+  "technique": "Font Builder",
+  "slug": "font-builder",
+  "nodeId": "1a4162f4-df36-415a-bcb0-3ea38c587728",
+  "model": "Claude Sonnet 4.6",
+  "mode": "imageToText",
+  "prompt": "@Numbers (1 to 9)\n\nYou're a professional brand designer specializing in custom typography. Based on the input @[your-letterform] , create a whole set of numerals (1 to 9) using the same structure shape, height and width.\n\r\n\r\nThe font is a bold, modern and geometric sans serif inspired from the future world aesthetics.\r\n\r\nIt is critically important to maintain the brand consistency across every numeral in detail, considering the shape, form, angle degrees and corner cuts and so on. \nKeep the background minimal, clean black.\n"
+ },
+ {
+  "technique": "Font Builder",
+  "slug": "font-builder",
+  "nodeId": "3b2d3d3d-bdcc-466f-a17b-45d9b6c7b7ae",
+  "model": "Gemini 3.1 Pro",
+  "mode": "imageToText",
+  "prompt": "Letters (A to Z) \n\nYou're a professional brand designer specializing in custom typography. Based @[your-letterform] , create a whole font of letters (A to Z) using the same structure shape, height and width.\r\n\r\nThe font is a bold, modern and geometric sans serif inspired from the future world aesthetics.\r\n\r\nIt is critically important to maintain the brand consistency across every letterform in detail, considering the shape, form, angle degrees and corner cuts and so on.\nKeep the background minimal, clean black.\n\r\n\r\n\n"
+ },
+ {
+  "technique": "Sigil",
+  "slug": "sigil",
+  "nodeId": "4ad9ecf2-0f26-4438-bc45-a9ac9f2bafe1",
+  "model": "GPT-5.2",
+  "mode": "imageToText",
+  "prompt": "Analyze this image carefully. Identify the dominant subject, its key shapes, composition zones, tonal regions, and visual structure. Then write a detailed image generation prompt to recreate it as a glyph matrix icon — a grid of typographic symbols, glyphs, and geometric characters (◼ ◻ ▲ ● ✦ ╋) that reconstruct the image's structure on a PURE BLACK BACKGROUND. Monochromatic white glyphs only. Sharp, precise, icon-weight. No gradients, no backgrounds, no decorative elements. Black background is MANDATORY."
+ },
+ {
+  "technique": "CoverArt",
+  "slug": "artwork-to-physical",
+  "nodeId": "vinyl-case-front",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Apply the input artwork @[coverart]  to a realistic vinyl record sleeve.\r\n\r\nMatte paper finish, clean edges, premium look.\r\nAdd a gentle plastic wrap with subtle reflections.\r\n\r\nSlightly reveal the presence of the vinyl inside through a soft circular impression on the sleeve surface.\r\nThe disc should be barely visible as a subtle pressure mark, with delicate shading and minimal depth.\r\n\r\nKeep everything minimal and realistic.\r\n\r\nCentered on a pure black background."
+ },
+ {
+  "technique": "Studio Blur",
+  "slug": "studio-blur",
+  "nodeId": "33acd23b-f576-44ae-b3e9-5f693966e83a",
+  "model": "Gemini 3.1 Pro",
+  "mode": "textToText",
+  "prompt": "make an image prompt that uses a portrait or headshot image as an input to create an aesthetically blurred out background based on the input image.\n- add a header line that directs to use this input as the reference image\n- make sure to use the same character and background as the input image\n- make it modular and adaptable to any portrait or headshot image\n- detect the main person/object in the input and do not distort the original composition, posture, face etc"
+ },
+ {
+  "technique": "Icon Pack",
+  "slug": "icon-pack",
+  "nodeId": "59b8ca6e-e9df-4e94-a951-40aa24752e3a",
+  "model": "Gemini 3 Pro",
+  "mode": "textToText",
+  "prompt": "condense these details into a prompt that will direct/restyle the visual execution of minimal, simple, vector based iconography. do not define what icons to make, i will provide the base icons to restyle. I want to ensure that these icons are minimal and can scale at small sizes, and can be used for user interfaces\n\nstart the prompt with \"using the attached image as reference for icon set redesign them using the following parameters\""
+ },
+ {
+  "technique": "Brand Extension Generator",
+  "slug": "brand-extension-generator",
+  "nodeId": "5406680d-4ecb-455f-b495-cd03d7a00642",
+  "model": "Claude Opus 4.6",
+  "mode": "imagesToText",
+  "prompt": "according to the inputs and technique profile provide, make a scalable system prompt that can generate a brand identity board in the format of the last image. make it a template prompt that can generate consistent outputs every time with different inputs \n- remove the description text(Logo, Color, Mobile Mockup, Poster Mockup, Marketing Headline, Graphic Pattern, Shirt Mockup) on the last image. those are just placeholders"
+ },
+ {
+  "technique": "Art Director's Critique",
+  "slug": "art-directors-critique",
+  "nodeId": "74aac913-0fee-4039-80f7-169644a5e744",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "write this out as is: As a senior art director at a top design agency, provide a detailed critique of the attached design. Use a red pen overlay to highlight specific areas that need improvement, including markups and commentary addressing key design principles. Offer constructive feedback and actionable suggestions for changes that will elevate the quality of the design to align with high industry standards."
+ },
+ {
+  "technique": "Art & Artist Mockup Kit",
+  "slug": "art-artist-mockup-kit",
+  "nodeId": "bb046599-3f74-4958-9f4d-f71ff293717a",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Photorealistic minimalist editorial close-up. The artist's hands (INPUT 2 for skin tone and style) signing a print of the artwork (INPUT 1) with a pencil, on a clean light oak table, a small stack of prints beside them. The signature is a soft, blurred, illegible pencil mark — no readable name or letters, just a faint gestural scribble. Soft natural daylight, negative space, shallow depth of field. 3:4."
+ },
+ {
+  "technique": "Art & Artist Mockup Kit",
+  "slug": "art-artist-mockup-kit",
+  "nodeId": "ec489334-6754-4c06-8f02-822b60ecd87a",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Photorealistic minimalist editorial portrait. A woman artist (use INPUT 2 for her face and features — brown skin, beret, subtle smile) stands against a plain neutral wall, facing the camera, holding a framed picture in both hands in front of her chest. The framed picture shows the artwork from INPUT 1. Both her face and the artwork must be clearly visible. Soft natural daylight, negative space. 3:4."
+ },
+ {
+  "technique": "Logo Stylist",
+  "slug": "logo-stylist",
+  "nodeId": "196926b4-6de5-40fa-adc0-0087bfbe0e76",
+  "model": "Claude Opus 4.6",
+  "mode": "imageToText",
+  "prompt": "give me 4 style variation options and create a list of prompts that can generate different versions of the input based on the style \n- add a header sentence that tells to use the input image as the reference image \n- make a bullet point list aligning each prompt under one bullet point \n- maintain the exact composition and shape of the input\n- don't generate grid images"
+ },
+ {
+  "technique": "Art Director's Critique",
+  "slug": "art-directors-critique",
+  "nodeId": "68e153f9-25c3-4d18-91b1-47fde04adc71",
+  "model": "Claude Opus 4.6",
+  "mode": "imageToText",
+  "prompt": "Give me a prompt to take this specific design and annotate upon this design very clearly with a red pen, using very aggressive marks on what needs to be changed. Use both shapes and words to annotate on this image. Give me a prompt for this. \nMake sure there are no additional unnecessary lines about the design; only simple words and phrases used to critique it. "
+ },
+ {
+  "technique": "Sigil",
+  "slug": "sigil",
+  "nodeId": "45b61394-ab8c-488d-958b-d50228a88778",
+  "model": "GPT-5.2",
+  "mode": "textToText",
+  "prompt": "Take this glyph matrix prompt and refine it for strict consistency. Enforce these rules: PURE BLACK BACKGROUND only. Glyphs must be white or monochromatic. Use only these symbols: ◼ ◻ ▲ ● ✦ ╋ ░ ▓ ╬. Icon-weight grid, sharp edges, no bleed, no gradients, no decorative elements. Output only the refined image generation prompt, nothing else."
+ },
+ {
+  "technique": "Sigil",
+  "slug": "sigil",
+  "nodeId": "6137ff97-6cac-4540-b8c3-a1d7399072ab",
+  "model": "Seedance 1.5 Pro",
+  "mode": "imageToVideo",
+  "prompt": "Create a clean glyph icon of a single rose on a pure black background. Animate only the glyph with a slow, gentle side-to-side sway of the stem and a subtle, delayed flutter in the outer petals as if in a soft breeze. Keep the motion organic, minimal, and seamlessly looping while the black background remains perfectly still."
+ },
+ {
+  "technique": "Art & Artist Mockup Kit",
+  "slug": "art-artist-mockup-kit",
+  "nodeId": "01fa15e0-3043-4b84-935b-52e639a0197b",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Minimalist Swiss editorial photo. A folded minimalist art pamphlet showing the artwork (INPUT 1), lying on a café table beside a flat-white coffee in a ceramic cup, warm oak surface, clean Swiss typography reading only \"Art Magazine\", soft morning daylight, negative space. Photorealistic 3/4 angle. 3:4."
+ },
+ {
+  "technique": "Art & Artist Mockup Kit",
+  "slug": "art-artist-mockup-kit",
+  "nodeId": "2f3d14d5-9637-48e2-a4bd-53007cec20f3",
+  "model": "Claude Opus 4.8",
+  "mode": "imageToText",
+  "prompt": "Photorealistic minimalist editorial photo. The artist (use INPUT 2 for her face and features — brown skin, beret, subtle smile) in a bright minimalist studio, the artwork (INPUT 1) framed on the white wall behind her, calm candid editorial moment, soft natural daylight, negative space. 3:4."
+ },
+ {
+  "technique": "Color Transfer",
+  "slug": "color-transfer",
+  "nodeId": "47c12170-aad0-4467-979f-556d2eba3022",
+  "model": "Gemini 3 Pro",
+  "mode": "imageToText",
+  "prompt": "Extract the main 8 colors from the provided image composition and present them as rectangles. Each rectangle should reflect the percentage of dominance of each color in the image. return each color as a hex code and the percentage of dominance they have in the composition"
+ },
+ {
+  "technique": "Art & Artist Mockup Kit",
+  "slug": "art-artist-mockup-kit",
+  "nodeId": "1aaa16a9-4b98-49f2-9f25-c788ed8697df",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Minimalist Swiss editorial photo. A natural canvas tote bag printed with the artwork (INPUT 1) in a clean minimal composition, hanging or standing against a warm-neutral wall, soft daylight, negative space. Photorealistic product shot. 3:4."
+ },
+ {
+  "technique": "CoverArt",
+  "slug": "artwork-to-physical",
+  "nodeId": "vinyl-record-design",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Place the input artwork @[coverart]   as the center label of a realistic 33 rpm vinyl record.  the whole vinyl disk should be visible and not cropped.\r\nKeep grooves visible and lighting soft. \r\nCentered on a pure black background."
+ },
+ {
+  "technique": "Art & Artist Mockup Kit",
+  "slug": "art-artist-mockup-kit",
+  "nodeId": "a2439e35-182c-408a-9165-7cf9fb11fb54",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Minimalist Swiss editorial photo. The artwork (INPUT 1) printed on matte fine-art paper, lying flat on a light oak table, a few loose prints stacked beside it, soft natural daylight, negative space. Photorealistic top-down. 3:4."
+ },
+ {
+  "technique": "Art & Artist Mockup Kit",
+  "slug": "art-artist-mockup-kit",
+  "nodeId": "176c2c13-526d-4d3b-9a7d-9e4ccbc44387",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Minimalist Swiss editorial photo. The artwork (INPUT 1) emerging from a large-format fine-art printer, the print half-fed out with crisp detail, clean white studio surfaces, soft daylight. Photorealistic close-up. 3:4."
+ },
+ {
+  "technique": "CoverArt",
+  "slug": "artwork-to-physical",
+  "nodeId": "artwork-on-cd",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Place the input artwork @[coverart]  onto a realistic compact disc surface. \r\nMaintain correct circular cropping and reflective material. \r\nKeep lighting minimal and clean. \r\nDisc centered on a pure black background."
+ },
+ {
+  "technique": "Art & Artist Mockup Kit",
+  "slug": "art-artist-mockup-kit",
+  "nodeId": "3b73c679-b305-441e-8cf1-4d4efbb2249a",
+  "model": "Claude Opus 4.8",
+  "mode": "textToText",
+  "prompt": "Minimalist Swiss editorial photo. The artwork (INPUT 1) in a thin black or natural oak frame, hung centered on a clean white wall, soft gallery spotlight, generous negative space. Photorealistic. 3:4"
+ },
+ {
+  "technique": "Color Transfer",
+  "slug": "color-transfer",
+  "nodeId": "c80f2afa-9a62-47ce-843f-fab16b4308df",
+  "model": "Gemini 3 Pro",
+  "mode": "textToText",
+  "prompt": "Create a prompt to arrange these in a horizontal strip like view, taking up the full screen. No white borders. change the width of the color swatches according to their percentages"
+ },
+ {
+  "technique": "Icon Pack",
+  "slug": "icon-pack",
+  "nodeId": "7e52fe92-157a-4ce1-9a62-7cffa27cc187",
+  "model": "Gemini 3 Pro",
+  "mode": "imageToText",
+  "prompt": "articulate the visual qualities of the attached branded element. i care about the vector shapes, geometric qualities, colors, and art direction"
+ },
+ {
+  "technique": "Color Transfer",
+  "slug": "color-transfer",
+  "nodeId": "78bf48a3-576b-4500-8224-6551ee67de95",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "observe the top 8 color percentages of the first image and swap them using the color swatches and dominance percentages from the second image"
+ },
+ {
+  "technique": "Icon Pack",
+  "slug": "icon-pack",
+  "nodeId": "21d2aa44-8d20-4fdf-95fc-c3198d7f3f1f",
+  "model": "Gemini 3 Pro",
+  "mode": "textToText",
+  "prompt": "based on the list of items, create a prompt that will depict them each as a singular item on a white background, on a 6-unit grid. "
+ },
+ {
+  "technique": "Brand Extension Generator",
+  "slug": "brand-extension-generator",
+  "nodeId": "33d8e26c-e899-411a-a130-2f26c86d79a6",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "extract the color palette of this image and arrange each colors as square samples. make sure to label all the hex codes "
+ }
+]

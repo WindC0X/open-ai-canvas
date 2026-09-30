@@ -1,0 +1,2091 @@
+[
+ {
+  "slug": "background-remover",
+  "name": "Background Remover",
+  "category": "essentials",
+  "runs": 52399,
+  "cost": 2,
+  "review": null,
+  "nodes": 0,
+  "edges": 1,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 0,
+  "models": [
+   "Nano Banana 2",
+   "Remove background"
+  ]
+ },
+ {
+  "slug": "cctv-cam",
+  "name": "CCTV Cam",
+  "category": "funInspiration",
+  "runs": 15257,
+  "cost": 116,
+  "review": null,
+  "nodes": 3,
+  "edges": 5,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 3,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "character-lock",
+  "name": "Character Lock",
+  "category": "brandVisualDesign",
+  "runs": 8034,
+  "cost": 880,
+  "review": null,
+  "nodes": 10,
+  "edges": 16,
+  "inputs": 1,
+  "outputs": 6,
+  "mapEntries": 16,
+  "prompts": 2,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana 2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "moodboard-maker",
+  "name": "Mood Board Maker",
+  "category": "brandVisualDesign",
+  "runs": 5978,
+  "cost": 328,
+  "review": null,
+  "nodes": 1,
+  "edges": 2,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Recraft V4 Pro"
+  ]
+ },
+ {
+  "slug": "logo-to-brand-identity",
+  "name": "Logo to Brand Identity",
+  "category": "brandVisualDesign",
+  "runs": 4691,
+  "cost": 3021,
+  "review": "published",
+  "nodes": 3,
+  "edges": 9,
+  "inputs": 1,
+  "outputs": 3,
+  "mapEntries": 7,
+  "prompts": 3,
+  "models": [
+   "Claude Fable 5.1",
+   "GPT Image 2",
+   "GPT-6 Astra",
+   "Gemini Flash 3.8"
+  ]
+ },
+ {
+  "slug": "product-lookbook-grid",
+  "name": "Product Lookbook Grid",
+  "category": "productVisualization",
+  "runs": 3396,
+  "cost": 236,
+  "review": null,
+  "nodes": 1,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "GPT-5.2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "product-animator",
+  "name": "Product Animator",
+  "category": "productVisualization",
+  "runs": 3355,
+  "cost": 40,
+  "review": null,
+  "nodes": 2,
+  "edges": 6,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.6",
+   "Kling O1"
+  ]
+ },
+ {
+  "slug": "fit-checks",
+  "name": "Fit Check",
+  "category": "fashionApparelEditorial",
+  "runs": 3233,
+  "cost": 200,
+  "review": null,
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "image-upscaler",
+  "name": "Image Upscaler",
+  "category": "essentials",
+  "runs": 2515,
+  "cost": 312,
+  "review": "published",
+  "nodes": 2,
+  "edges": 3,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 1,
+  "models": [
+   "Claude Sonnet 4.6",
+   "GPT Image 2",
+   "Magnific Precision Upscaler V2"
+  ]
+ },
+ {
+  "slug": "prompt-extractor",
+  "name": "Prompt Extractor",
+  "category": "essentials",
+  "runs": 2499,
+  "cost": 0,
+  "review": "published",
+  "nodes": 0,
+  "edges": 1,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "GPT-6 Astra",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "cinematic-movie-generator",
+  "name": "Cinematic Movie Stills",
+  "category": "printFilmVfx",
+  "runs": 2355,
+  "cost": 878,
+  "review": null,
+  "nodes": 6,
+  "edges": 16,
+  "inputs": 1,
+  "outputs": 4,
+  "mapEntries": 10,
+  "prompts": 6,
+  "models": [
+   "Claude Opus 4.6",
+   "GPT 4o Mini",
+   "GPT-5.2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "storyboard-maker",
+  "name": "Storyboard Maker",
+  "category": "funInspiration",
+  "runs": 2139,
+  "cost": 802,
+  "review": null,
+  "nodes": 11,
+  "edges": 29,
+  "inputs": 1,
+  "outputs": 9,
+  "mapEntries": 20,
+  "prompts": 20,
+  "models": [
+   "Claude Opus 4.6",
+   "Claude Sonnet 4.6",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "layout-resizer",
+  "name": "Layout Resizer",
+  "category": "essentials",
+  "runs": 1936,
+  "cost": 2000,
+  "review": null,
+  "nodes": 5,
+  "edges": 10,
+  "inputs": 1,
+  "outputs": 5,
+  "mapEntries": 11,
+  "prompts": 5,
+  "models": [
+   "GPT-5.2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "turn-any-product-into-4-ad-visuals",
+  "name": "Product to Ad Visuals",
+  "category": "marketingAds",
+  "runs": 1738,
+  "cost": 320,
+  "review": null,
+  "nodes": 0,
+  "edges": 4,
+  "inputs": 1,
+  "outputs": 4,
+  "mapEntries": 4,
+  "prompts": 4,
+  "models": [
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "print-pattern-replacement",
+  "name": "Print/Pattern Replacement",
+  "category": "fashionApparelEditorial",
+  "runs": 1651,
+  "cost": 90,
+  "review": null,
+  "nodes": 1,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 1,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "sketch-to-garment",
+  "name": "Garment Sketch",
+  "category": "fashionApparelEditorial",
+  "runs": 1529,
+  "cost": 61,
+  "review": null,
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "GPT-5.2",
+   "Nano Banana"
+  ]
+ },
+ {
+  "slug": "studio-shot",
+  "name": "Studio Shot",
+  "category": "productVisualization",
+  "runs": 1485,
+  "cost": 500,
+  "review": null,
+  "nodes": 4,
+  "edges": 10,
+  "inputs": 1,
+  "outputs": 4,
+  "mapEntries": 8,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "garment-extractor",
+  "name": "Garment Extractor",
+  "category": "fashionApparelEditorial",
+  "runs": 1375,
+  "cost": 600,
+  "review": "published",
+  "nodes": 2,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.8",
+   "GPT-5.5",
+   "Gemini 3 Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "logo-stylist",
+  "name": "Logo Stylist",
+  "category": "brandVisualDesign",
+  "runs": 1176,
+  "cost": 510,
+  "review": null,
+  "nodes": 5,
+  "edges": 13,
+  "inputs": 1,
+  "outputs": 4,
+  "mapEntries": 9,
+  "prompts": 5,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana 2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "font-builder",
+  "name": "Font Builder",
+  "category": "brandVisualDesign",
+  "runs": 1122,
+  "cost": 304,
+  "review": null,
+  "nodes": 3,
+  "edges": 9,
+  "inputs": 1,
+  "outputs": 3,
+  "mapEntries": 6,
+  "prompts": 3,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Gemini 3.1 Pro",
+   "Nano Banana 2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "room-render",
+  "name": "Room Render",
+  "category": "spaceArchitecture",
+  "runs": 1117,
+  "cost": 108,
+  "review": null,
+  "nodes": 1,
+  "edges": 4,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "brand-extension-generator",
+  "name": "Brand Extension Generator",
+  "category": "brandVisualDesign",
+  "runs": 996,
+  "cost": 190,
+  "review": null,
+  "nodes": 3,
+  "edges": 12,
+  "inputs": 3,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana 2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "cinematic-plate",
+  "name": "Blake Ridder's Cinematic Plate",
+  "category": "videoAnimation",
+  "runs": 994,
+  "cost": 114,
+  "review": null,
+  "nodes": 3,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 4,
+  "models": [
+   "Claude Opus 4.6",
+   "Claude Sonnet 4.5",
+   "Kling 3.0 Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "product-recolor",
+  "name": "Product recolor",
+  "category": "fashionApparelEditorial",
+  "runs": 989,
+  "cost": 1376,
+  "review": null,
+  "nodes": 8,
+  "edges": 28,
+  "inputs": 2,
+  "outputs": 6,
+  "mapEntries": 16,
+  "prompts": 8,
+  "models": [
+   "GPT-5.2",
+   "GPT-5.5",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "video-scene-builder",
+  "name": "Video Scene Builder",
+  "category": "videoAnimation",
+  "runs": 971,
+  "cost": 2670,
+  "review": null,
+  "nodes": 5,
+  "edges": 10,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 6,
+  "prompts": 6,
+  "models": [
+   "Claude Opus 4.6",
+   "Kling 3.0 Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "art-directors-critique",
+  "name": "Art Director's Critique",
+  "category": "brandVisualDesign",
+  "runs": 945,
+  "cost": 110,
+  "review": null,
+  "nodes": 2,
+  "edges": 4,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 2,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "product-motion",
+  "name": "Product Motion",
+  "category": "videoAnimation",
+  "runs": 876,
+  "cost": 797,
+  "review": null,
+  "nodes": 6,
+  "edges": 10,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 7,
+  "prompts": 7,
+  "models": [
+   "GPT-5",
+   "Kling 2.5 Turbo Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "outfit-to-campaign",
+  "name": "Outfit to Campaign",
+  "category": "fashionApparelEditorial",
+  "runs": 866,
+  "cost": 560,
+  "review": null,
+  "nodes": 8,
+  "edges": 17,
+  "inputs": 4,
+  "outputs": 6,
+  "mapEntries": 14,
+  "prompts": 12,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "sticker-peel-away-effect",
+  "name": "Sticker Peel-Away Effect",
+  "category": "fashionApparelEditorial",
+  "runs": 861,
+  "cost": 946,
+  "review": "published",
+  "nodes": 0,
+  "edges": 1,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 1,
+  "prompts": 1,
+  "models": [
+   "Seedance 2.0 Fast"
+  ]
+ },
+ {
+  "slug": "ig-story-variator",
+  "name": "Instagram Story Variator",
+  "category": "marketingAds",
+  "runs": 859,
+  "cost": 4965,
+  "review": "published",
+  "nodes": 10,
+  "edges": 29,
+  "inputs": 2,
+  "outputs": 9,
+  "mapEntries": 21,
+  "prompts": 11,
+  "models": [
+   "Claude Opus 5",
+   "GPT-5.5",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "relight-technique",
+  "name": "Relighting",
+  "category": "contentPackaging",
+  "runs": 848,
+  "cost": 580,
+  "review": null,
+  "nodes": 5,
+  "edges": 13,
+  "inputs": 1,
+  "outputs": 4,
+  "mapEntries": 9,
+  "prompts": 5,
+  "models": [
+   "GPT-5.2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "color-transfer",
+  "name": "Color Transfer",
+  "category": "brandVisualDesign",
+  "runs": 792,
+  "cost": 356,
+  "review": null,
+  "nodes": 3,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 3,
+  "models": [
+   "Gemini 3 Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "seamless-transition",
+  "name": "Seamless Transition",
+  "category": "videoAnimation",
+  "runs": 764,
+  "cost": 2240,
+  "review": null,
+  "nodes": 0,
+  "edges": 2,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 1,
+  "prompts": 1,
+  "models": [
+   "Kling 3.0 Pro"
+  ]
+ },
+ {
+  "slug": "comp-card",
+  "name": "Comp Card",
+  "category": "fashionApparelEditorial",
+  "runs": 723,
+  "cost": 1200,
+  "review": "published",
+  "nodes": 4,
+  "edges": 10,
+  "inputs": 3,
+  "outputs": 2,
+  "mapEntries": 9,
+  "prompts": 7,
+  "models": [
+   "GPT-5.5",
+   "Gemini 3 Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "wonder-fy-technique",
+  "name": "Wonder(fy)",
+  "category": "printFilmVfx",
+  "runs": 716,
+  "cost": 100,
+  "review": null,
+  "nodes": 1,
+  "edges": 2,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "GPT-5.2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "3-angle-shoot",
+  "name": "3 Angle Shoot",
+  "category": "essentials",
+  "runs": 705,
+  "cost": 360,
+  "review": "published",
+  "nodes": 3,
+  "edges": 6,
+  "inputs": 1,
+  "outputs": 3,
+  "mapEntries": 7,
+  "prompts": 1,
+  "models": [
+   "Claude Opus 4.6",
+   "Enhancor V4",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "white-background",
+  "name": "White Background",
+  "category": "essentials",
+  "runs": 657,
+  "cost": 130,
+  "review": null,
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 3,
+  "models": [
+   "Flux 2",
+   "GPT-5.4",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "image-recolor",
+  "name": "Image Recolor",
+  "category": "essentials",
+  "runs": 643,
+  "cost": 100,
+  "review": "published",
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 1,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "ugc-creation",
+  "name": "UGC Creator",
+  "category": "contentPackaging",
+  "runs": 603,
+  "cost": 2108,
+  "review": null,
+  "nodes": 4,
+  "edges": 6,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 3,
+  "models": [
+   "Claude Sonnet 4.6",
+   "GPT-5.4",
+   "Higgsfield Soul",
+   "Nano Banana Pro",
+   "Sora 2 Pro"
+  ]
+ },
+ {
+  "slug": "icon-pack",
+  "name": "Icon Pack",
+  "category": "brandVisualDesign",
+  "runs": 552,
+  "cost": 684,
+  "review": null,
+  "nodes": 4,
+  "edges": 6,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 4,
+  "models": [
+   "Gemini 3 Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "new-background-generator",
+  "name": "New Background Generator",
+  "category": "essentials",
+  "runs": 540,
+  "cost": 910,
+  "review": "published",
+  "nodes": 14,
+  "edges": 30,
+  "inputs": 1,
+  "outputs": 7,
+  "mapEntries": 22,
+  "prompts": 20,
+  "models": [
+   "Flux 2",
+   "GPT-5.4",
+   "Nano Banana 2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "character-variator",
+  "name": "Character Variator",
+  "category": "funInspiration",
+  "runs": 505,
+  "cost": 2225,
+  "review": "published",
+  "nodes": 6,
+  "edges": 17,
+  "inputs": 2,
+  "outputs": 5,
+  "mapEntries": 13,
+  "prompts": 11,
+  "models": [
+   "Claude Opus 5",
+   "GPT-5.5",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "sigil",
+  "name": "Sigil",
+  "category": "brandVisualDesign",
+  "runs": 465,
+  "cost": 1896,
+  "review": null,
+  "nodes": 7,
+  "edges": 19,
+  "inputs": 1,
+  "outputs": 4,
+  "mapEntries": 11,
+  "prompts": 4,
+  "models": [
+   "GPT-5.2",
+   "Nano Banana Pro",
+   "Seedance 1.5 Pro"
+  ]
+ },
+ {
+  "slug": "artwork-to-physical",
+  "name": "CoverArt",
+  "category": "brandVisualDesign",
+  "runs": 453,
+  "cost": 2054,
+  "review": null,
+  "nodes": 0,
+  "edges": 13,
+  "inputs": 1,
+  "outputs": 9,
+  "mapEntries": 10,
+  "prompts": 9,
+  "models": [
+   "Kling O1",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "garment-to-vector",
+  "name": "Garment to Vector",
+  "category": "fashionApparelEditorial",
+  "runs": 421,
+  "cost": 1380,
+  "review": "published",
+  "nodes": 3,
+  "edges": 6,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 4,
+  "models": [
+   "Arrow 1.1 Max",
+   "Claude Sonnet 5",
+   "GPT Image 2",
+   "Gemini Flash 3.7"
+  ]
+ },
+ {
+  "slug": "texture-pack-extractor",
+  "name": "Texture Pack Extractor",
+  "category": "productVisualization",
+  "runs": 379,
+  "cost": 888,
+  "review": null,
+  "nodes": 13,
+  "edges": 35,
+  "inputs": 1,
+  "outputs": 6,
+  "mapEntries": 19,
+  "prompts": 17,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "material-3d-logo-render-engine",
+  "name": "Material 3D Logo Render Engine",
+  "category": "brandVisualDesign",
+  "runs": 375,
+  "cost": 1360,
+  "review": "published",
+  "nodes": 19,
+  "edges": 50,
+  "inputs": 1,
+  "outputs": 16,
+  "mapEntries": 19,
+  "prompts": 3,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "auto-translate",
+  "name": "Auto Translate",
+  "category": "marketingAds",
+  "runs": 374,
+  "cost": 310,
+  "review": null,
+  "nodes": 2,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 2,
+  "models": [
+   "Claude Opus 4.6",
+   "Claude Opus 4.8",
+   "GPT-5.5",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "dieline-to-3d-package",
+  "name": "Dieline to 3D Package",
+  "category": "productVisualization",
+  "runs": 369,
+  "cost": 178,
+  "review": "published",
+  "nodes": 0,
+  "edges": 1,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "GPT Image 2"
+  ]
+ },
+ {
+  "slug": "wireframe",
+  "name": "Photo Wireframe",
+  "category": "productVisualization",
+  "runs": 369,
+  "cost": 108,
+  "review": null,
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 1,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "swap-background",
+  "name": "Swap Background",
+  "category": "essentials",
+  "runs": 363,
+  "cost": 130,
+  "review": "published",
+  "nodes": 1,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 4,
+  "models": [
+   "Flux 2",
+   "GPT-5.4",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "scribblify",
+  "name": "Scribblify",
+  "category": "funInspiration",
+  "runs": 360,
+  "cost": 178,
+  "review": "published",
+  "nodes": 0,
+  "edges": 1,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 1,
+  "models": [
+   "GPT Image 2"
+  ]
+ },
+ {
+  "slug": "facade-swap",
+  "name": "Facade Swap",
+  "category": "spaceArchitecture",
+  "runs": 353,
+  "cost": 236,
+  "review": null,
+  "nodes": 1,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "GPT-5.2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "studio-blur",
+  "name": "Studio Blur",
+  "category": "brandVisualDesign",
+  "runs": 339,
+  "cost": 128,
+  "review": null,
+  "nodes": 2,
+  "edges": 4,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 3,
+  "models": [
+   "Gemini 3.1 Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "object-remover",
+  "name": "Object Remover",
+  "category": "essentials",
+  "runs": 330,
+  "cost": 108,
+  "review": "published",
+  "nodes": 2,
+  "edges": 4,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 3,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro",
+   "Nano Banana Pro Inpainting"
+  ]
+ },
+ {
+  "slug": "headshot-engine-2xuyfj",
+  "name": "Headshot Engine",
+  "category": "funInspiration",
+  "runs": 319,
+  "cost": 1918,
+  "review": "published",
+  "nodes": 2,
+  "edges": 11,
+  "inputs": 2,
+  "outputs": 4,
+  "mapEntries": 8,
+  "prompts": 6,
+  "models": [
+   "Claude Opus 5",
+   "GPT Image 2",
+   "GPT-5.5",
+   "Nano Banana 2",
+   "Nano Banana Pro",
+   "Seedream 5 Pro"
+  ]
+ },
+ {
+  "slug": "memoji-me",
+  "name": "Memoji Me",
+  "category": "contentPackaging",
+  "runs": 299,
+  "cost": 107,
+  "review": null,
+  "nodes": 2,
+  "edges": 4,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 2,
+  "models": [
+   "Claude Sonnet 4.6",
+   "GPT-5.2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "texture-matchers",
+  "name": "Texture Match",
+  "category": "productVisualization",
+  "runs": 283,
+  "cost": 118,
+  "review": null,
+  "nodes": 2,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.6",
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "knicks-fan-cam",
+  "name": "Knicks Fan Cam",
+  "category": "funInspiration",
+  "runs": 260,
+  "cost": 2407,
+  "review": "published",
+  "nodes": 2,
+  "edges": 6,
+  "inputs": 1,
+  "outputs": 2,
+  "mapEntries": 4,
+  "prompts": 4,
+  "models": [
+   "Claude Opus 4.8",
+   "GPT-5.5",
+   "Nano Banana Pro",
+   "Seedance 2.0 Reference"
+  ]
+ },
+ {
+  "slug": "photo-to-drawing-guide",
+  "name": "Photo to Drawing Guide",
+  "category": "funInspiration",
+  "runs": 260,
+  "cost": 90,
+  "review": null,
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 1,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "anything-to-vector",
+  "name": "Anything to Vector",
+  "category": "essentials",
+  "runs": 236,
+  "cost": 662,
+  "review": "published",
+  "nodes": 4,
+  "edges": 7,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 7,
+  "prompts": 4,
+  "models": [
+   "Arrow 1.1 Max",
+   "Claude Sonnet 5",
+   "GPT-5.5",
+   "Nano Banana 2",
+   "Remove background"
+  ]
+ },
+ {
+  "slug": "illustration-branding-design",
+  "name": "Illustration Branding Design",
+  "category": "productVisualization",
+  "runs": 231,
+  "cost": 766,
+  "review": null,
+  "nodes": 8,
+  "edges": 15,
+  "inputs": 2,
+  "outputs": 5,
+  "mapEntries": 13,
+  "prompts": 12,
+  "models": [
+   "GPT Image 2",
+   "Gemini 3.1 Pro",
+   "Nano Banana 2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "album-art-visualizer",
+  "name": "Album Art Visualizer",
+  "category": "videoAnimation",
+  "runs": 226,
+  "cost": 1220,
+  "review": "published",
+  "nodes": 9,
+  "edges": 14,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 10,
+  "prompts": 7,
+  "models": [
+   "Claude Opus 4.7",
+   "Kling 3.0 Pro",
+   "Krea 2 Large",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "wardrobe-variator",
+  "name": "Wardrobe Variator",
+  "category": "funInspiration",
+  "runs": 219,
+  "cost": 1225,
+  "review": "published",
+  "nodes": 6,
+  "edges": 17,
+  "inputs": 2,
+  "outputs": 5,
+  "mapEntries": 13,
+  "prompts": 11,
+  "models": [
+   "Claude Opus 5",
+   "GPT-5.5",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "uoi-image-generator",
+  "name": "Product in Scene Generator",
+  "category": "contentPackaging",
+  "runs": 201,
+  "cost": 2140,
+  "review": "published",
+  "nodes": 5,
+  "edges": 20,
+  "inputs": 2,
+  "outputs": 5,
+  "mapEntries": 12,
+  "prompts": 8,
+  "models": [
+   "Gemini 3.1 Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "music-producer",
+  "name": "Music Producer",
+  "category": "funInspiration",
+  "runs": 200,
+  "cost": 550,
+  "review": "published",
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 1,
+  "outputs": 2,
+  "mapEntries": 3,
+  "prompts": 1,
+  "models": [
+   "ElevenLabs Music v1",
+   "GPT-5.4",
+   "GPT-5.5"
+  ]
+ },
+ {
+  "slug": "mugshot",
+  "name": "Mugshot",
+  "category": "funInspiration",
+  "runs": 199,
+  "cost": 108,
+  "review": null,
+  "nodes": 2,
+  "edges": 5,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 3,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "tarot-pull",
+  "name": "Tarot Pull",
+  "category": "funInspiration",
+  "runs": 197,
+  "cost": 824,
+  "review": null,
+  "nodes": 26,
+  "edges": 65,
+  "inputs": 1,
+  "outputs": 4,
+  "mapEntries": 22,
+  "prompts": 22,
+  "models": [
+   "Claude Sonnet 4.5",
+   "Claude Sonnet 4.6",
+   "GPT-5.2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "book-drop",
+  "name": "Book Drop",
+  "category": "marketingAds",
+  "runs": 197,
+  "cost": 1,
+  "review": null,
+  "nodes": 6,
+  "edges": 22,
+  "inputs": 2,
+  "outputs": 5,
+  "mapEntries": 11,
+  "prompts": 7,
+  "models": [
+   "Claude Opus 4.6",
+   "Claude Sonnet 4.6",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "color-palette-extraction",
+  "name": "Color Palette Extraction",
+  "category": "essentials",
+  "runs": 191,
+  "cost": 0,
+  "review": "published",
+  "nodes": 1,
+  "edges": 2,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 0,
+  "models": []
+ },
+ {
+  "slug": "ghost-mannequin-system",
+  "name": "Ghost Mannequin System",
+  "category": "fashionApparelEditorial",
+  "runs": 169,
+  "cost": 1360,
+  "review": "published",
+  "nodes": 16,
+  "edges": 42,
+  "inputs": 1,
+  "outputs": 14,
+  "mapEntries": 30,
+  "prompts": 30,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana 2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "editorial-fashion-shoot-replicator",
+  "name": "Editorial Fashion Shoot Replicator",
+  "category": "fashionApparelEditorial",
+  "runs": 166,
+  "cost": 220,
+  "review": "published",
+  "nodes": 2,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 4,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "image-with-solid-color-background",
+  "name": "Image with Solid Color Background",
+  "category": "essentials",
+  "runs": 159,
+  "cost": 130,
+  "review": "published",
+  "nodes": 1,
+  "edges": 4,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 4,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Flux 2",
+   "GPT-5.4",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "dreamscape",
+  "name": "Dreamscape",
+  "category": "videoAnimation",
+  "runs": 154,
+  "cost": 1842,
+  "review": null,
+  "nodes": 0,
+  "edges": 6,
+  "inputs": 1,
+  "outputs": 6,
+  "mapEntries": 7,
+  "prompts": 6,
+  "models": [
+   "Nano Banana 2",
+   "Veo 3.1 Lite"
+  ]
+ },
+ {
+  "slug": "photography-image-aspect-ratio-change",
+  "name": "Photography/Image Aspect Ratio Change",
+  "category": "marketingAds",
+  "runs": 153,
+  "cost": 3000,
+  "review": "published",
+  "nodes": 6,
+  "edges": 18,
+  "inputs": 1,
+  "outputs": 6,
+  "mapEntries": 13,
+  "prompts": 6,
+  "models": [
+   "GPT-5.5",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "location-scouter",
+  "name": "Location Scout",
+  "category": "spaceArchitecture",
+  "runs": 144,
+  "cost": 741,
+  "review": null,
+  "nodes": 7,
+  "edges": 18,
+  "inputs": 1,
+  "outputs": 6,
+  "mapEntries": 13,
+  "prompts": 7,
+  "models": [
+   "GPT-5.2",
+   "Gemini 3 Pro",
+   "Nano Banana",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "virtual-try-on-4k5vvw",
+  "name": "Virtual Try-On",
+  "category": "fashionApparelEditorial",
+  "runs": 140,
+  "cost": 550,
+  "review": "published",
+  "nodes": 2,
+  "edges": 7,
+  "inputs": 3,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 4,
+  "models": [
+   "Claude Sonnet 5",
+   "GPT-5.5",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "ink",
+  "name": "Ink",
+  "category": "funInspiration",
+  "runs": 134,
+  "cost": 144,
+  "review": "published",
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 1,
+  "outputs": 2,
+  "mapEntries": 4,
+  "prompts": 3,
+  "models": [
+   "GPT-5.2",
+   "Recraft V4"
+  ]
+ },
+ {
+  "slug": "glam-shots",
+  "name": "Glam Shots",
+  "category": "marketingAds",
+  "runs": 127,
+  "cost": 5166,
+  "review": null,
+  "nodes": 7,
+  "edges": 13,
+  "inputs": 1,
+  "outputs": 3,
+  "mapEntries": 10,
+  "prompts": 8,
+  "models": [
+   "Claude Opus 4.6",
+   "GPT-5",
+   "Kling 3.0 Pro",
+   "Kling O1",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "storytelling-engine",
+  "name": "Storytelling Engine",
+  "category": "contentPackaging",
+  "runs": 124,
+  "cost": 1858,
+  "review": "published",
+  "nodes": 13,
+  "edges": 24,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 3,
+  "models": [
+   "Claude Sonnet 4.6",
+   "GPT-5.4",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "color-mapping",
+  "name": "Segment Mapper",
+  "category": "printFilmVfx",
+  "runs": 121,
+  "cost": 102,
+  "review": null,
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "GPT 4o Mini",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "sketch-to-photorealistic-product-renderer",
+  "name": "Sketch to Photorealistic Product Renderer",
+  "category": "productVisualization",
+  "runs": 116,
+  "cost": 488,
+  "review": null,
+  "nodes": 2,
+  "edges": 10,
+  "inputs": 2,
+  "outputs": 5,
+  "mapEntries": 7,
+  "prompts": 6,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "static-product-image-to-video",
+  "name": "Static Product Image to Video",
+  "category": null,
+  "runs": 90,
+  "cost": 1419,
+  "review": "published",
+  "nodes": 1,
+  "edges": 3,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 1,
+  "models": [
+   "Claude Sonnet 5",
+   "Nano Banana Pro",
+   "Seedance 2.0"
+  ]
+ },
+ {
+  "slug": "what-will-our-child-look-like",
+  "name": "What Will Our Child Look Like?",
+  "category": "funInspiration",
+  "runs": 86,
+  "cost": 200,
+  "review": "published",
+  "nodes": 2,
+  "edges": 6,
+  "inputs": 2,
+  "outputs": 2,
+  "mapEntries": 6,
+  "prompts": 6,
+  "models": [
+   "Claude Opus 4.5",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "meta-ad-variator",
+  "name": "Meta Ad Variator",
+  "category": "marketingAds",
+  "runs": 85,
+  "cost": 4155,
+  "review": "published",
+  "nodes": 10,
+  "edges": 29,
+  "inputs": 2,
+  "outputs": 9,
+  "mapEntries": 21,
+  "prompts": 18,
+  "models": [
+   "Claude Opus 5",
+   "GPT-5.5",
+   "Gemini Flash 3.7",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "doodlify",
+  "name": "Doodlify",
+  "category": "funInspiration",
+  "runs": 82,
+  "cost": 178,
+  "review": "published",
+  "nodes": 0,
+  "edges": 1,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 2,
+  "models": [
+   "Flux Kontext Max",
+   "GPT Image 2"
+  ]
+ },
+ {
+  "slug": "frame-the-mood-for-creatives",
+  "name": "Frame the Mood for Creatives",
+  "category": "funInspiration",
+  "runs": 82,
+  "cost": 724,
+  "review": null,
+  "nodes": 3,
+  "edges": 13,
+  "inputs": 2,
+  "outputs": 7,
+  "mapEntries": 10,
+  "prompts": 9,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "recreate-as-photo",
+  "name": "Recreate as Photo",
+  "category": "spaceArchitecture",
+  "runs": 81,
+  "cost": 210,
+  "review": null,
+  "nodes": 2,
+  "edges": 5,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "pdp-set",
+  "name": "PDP Set",
+  "category": "fashionApparelEditorial",
+  "runs": 75,
+  "cost": 1248,
+  "review": "published",
+  "nodes": 11,
+  "edges": 21,
+  "inputs": 1,
+  "outputs": 5,
+  "mapEntries": 13,
+  "prompts": 11,
+  "models": [
+   "Claude Sonnet 4.6",
+   "Claude Sonnet 5",
+   "Nano Banana 2",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "pollen-cheese",
+  "name": "'Pollen Cheese",
+  "category": "funInspiration",
+  "runs": 72,
+  "cost": 0,
+  "review": "published",
+  "nodes": 1,
+  "edges": 2,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 1,
+  "prompts": 1,
+  "models": [
+   "Seedream 5 Pro"
+  ]
+ },
+ {
+  "slug": "sketchup-rendering",
+  "name": "Sketchup rendering",
+  "category": "spaceArchitecture",
+  "runs": 66,
+  "cost": 894,
+  "review": "published",
+  "nodes": 4,
+  "edges": 9,
+  "inputs": 1,
+  "outputs": 5,
+  "mapEntries": 10,
+  "prompts": 6,
+  "models": [
+   "Flux Kontext Max",
+   "GPT Image 1.5 Inpainting",
+   "Kling 2.5 Turbo Pro",
+   "Nano Banana Pro",
+   "auto"
+  ]
+ },
+ {
+  "slug": "scene-continuity-lock",
+  "name": "Scene Continuity Lock",
+  "category": "printFilmVfx",
+  "runs": 64,
+  "cost": 380,
+  "review": "published",
+  "nodes": 4,
+  "edges": 12,
+  "inputs": 1,
+  "outputs": 4,
+  "mapEntries": 9,
+  "prompts": 4,
+  "models": [
+   "Claude Sonnet 4.6",
+   "GPT-5.2",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "head-of-trend",
+  "name": "Head Of Trend",
+  "category": null,
+  "runs": 63,
+  "cost": 210,
+  "review": "published",
+  "nodes": 5,
+  "edges": 6,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.6",
+   "Krea 2 Large",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "boat-goat",
+  "name": "Boat Goat",
+  "category": null,
+  "runs": 62,
+  "cost": 311,
+  "review": "published",
+  "nodes": 4,
+  "edges": 5,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.7",
+   "GPT Image 2",
+   "Krea 2 Large"
+  ]
+ },
+ {
+  "slug": "model-poses",
+  "name": "Model Poses",
+  "category": "fashionApparelEditorial",
+  "runs": 60,
+  "cost": 1600,
+  "review": "published",
+  "nodes": 11,
+  "edges": 30,
+  "inputs": 1,
+  "outputs": 10,
+  "mapEntries": 22,
+  "prompts": 21,
+  "models": [
+   "Claude Sonnet 5",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "sketchup-scene-to-photoreal-photo",
+  "name": "SketchUp Scene to Photoreal Photo",
+  "category": "spaceArchitecture",
+  "runs": 59,
+  "cost": 118,
+  "review": null,
+  "nodes": 2,
+  "edges": 5,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 1,
+  "models": [
+   "Claude Opus 4.6",
+   "Claude Sonnet 4.6",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "rose-rambler",
+  "name": "Rosé Rambler",
+  "category": "productVisualization",
+  "runs": 57,
+  "cost": 311,
+  "review": "published",
+  "nodes": 4,
+  "edges": 5,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.7",
+   "GPT Image 2",
+   "Krea 2 Large"
+  ]
+ },
+ {
+  "slug": "3d-subject-render",
+  "name": "3D Subject Render",
+  "category": "brandVisualDesign",
+  "runs": 56,
+  "cost": 1050,
+  "review": "published",
+  "nodes": 6,
+  "edges": 12,
+  "inputs": 1,
+  "outputs": 6,
+  "mapEntries": 13,
+  "prompts": 9,
+  "models": [
+   "Claude Opus 4.5",
+   "Claude Opus 4.8",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "art-artist-mockup-kit",
+  "name": "Art & Artist Mockup Kit",
+  "category": "brandVisualDesign",
+  "runs": 52,
+  "cost": 775,
+  "review": null,
+  "nodes": 9,
+  "edges": 30,
+  "inputs": 2,
+  "outputs": 8,
+  "mapEntries": 17,
+  "prompts": 9,
+  "models": [
+   "Claude Opus 4.8",
+   "Nano Banana 2"
+  ]
+ },
+ {
+  "slug": "winner-weiner",
+  "name": "Winner Weiner",
+  "category": null,
+  "runs": 50,
+  "cost": 311,
+  "review": "published",
+  "nodes": 5,
+  "edges": 6,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.7",
+   "GPT Image 2",
+   "Krea 2 Large"
+  ]
+ },
+ {
+  "slug": "sunset-stylist",
+  "name": "Sunset Stylist",
+  "category": null,
+  "runs": 48,
+  "cost": 311,
+  "review": "published",
+  "nodes": 5,
+  "edges": 6,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.6",
+   "GPT Image 2",
+   "Krea 2 Large"
+  ]
+ },
+ {
+  "slug": "power-panelist",
+  "name": "Power Panelist",
+  "category": null,
+  "runs": 47,
+  "cost": 311,
+  "review": "published",
+  "nodes": 4,
+  "edges": 5,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 4,
+  "prompts": 3,
+  "models": [
+   "Claude Opus 4.8",
+   "GPT Image 2",
+   "Krea 2 Large"
+  ]
+ },
+ {
+  "slug": "relighting-photoshoot",
+  "name": "Relighting Photoshoot",
+  "category": "marketingAds",
+  "runs": 37,
+  "cost": 2097,
+  "review": "published",
+  "nodes": 5,
+  "edges": 10,
+  "inputs": 2,
+  "outputs": 2,
+  "mapEntries": 9,
+  "prompts": 4,
+  "models": [
+   "Claude Opus 4.6",
+   "Claude Opus 5",
+   "GPT Image 2",
+   "GPT-5.4"
+  ]
+ },
+ {
+  "slug": "cinematic-sizzle-reel-creator",
+  "name": "Cinematic Sizzle Reel Creator",
+  "category": "videoAnimation",
+  "runs": 36,
+  "cost": 10,
+  "review": "published",
+  "nodes": 1,
+  "edges": 12,
+  "inputs": 11,
+  "outputs": 1,
+  "mapEntries": 12,
+  "prompts": 5,
+  "models": [
+   "Seedance 2.0"
+  ]
+ },
+ {
+  "slug": "2d-to-3d-figurine",
+  "name": "2D to 3D Figurine",
+  "category": "videoAnimation",
+  "runs": 27,
+  "cost": 200,
+  "review": "published",
+  "nodes": 0,
+  "edges": 1,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 2,
+  "prompts": 1,
+  "models": [
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "headwear-accessory",
+  "name": "Headwear Accessory",
+  "category": "fashionApparelEditorial",
+  "runs": 23,
+  "cost": 640,
+  "review": "published",
+  "nodes": 5,
+  "edges": 25,
+  "inputs": 2,
+  "outputs": 5,
+  "mapEntries": 12,
+  "prompts": 8,
+  "models": [
+   "Gemini 3 Pro",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "pop-art",
+  "name": "Pop Art",
+  "category": null,
+  "runs": 20,
+  "cost": 200,
+  "review": null,
+  "nodes": 1,
+  "edges": 2,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 1,
+  "prompts": 1,
+  "models": [
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "product-package-on-white",
+  "name": "Product Package on White",
+  "category": null,
+  "runs": 18,
+  "cost": 1632,
+  "review": "published",
+  "nodes": 4,
+  "edges": 16,
+  "inputs": 4,
+  "outputs": 4,
+  "mapEntries": 8,
+  "prompts": 6,
+  "models": [
+   "Claude Sonnet 4.5",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "cover-to-capsule-collection",
+  "name": "Cover to Capsule Collection",
+  "category": "productVisualization",
+  "runs": 16,
+  "cost": 12437,
+  "review": "published",
+  "nodes": 14,
+  "edges": 39,
+  "inputs": 1,
+  "outputs": 12,
+  "mapEntries": 27,
+  "prompts": 26,
+  "models": [
+   "GPT Image 2",
+   "GPT-5.4",
+   "GPT-5.5"
+  ]
+ },
+ {
+  "slug": "thermal-vision-photo-converter",
+  "name": "Thermal Vision Photo Converter",
+  "category": "printFilmVfx",
+  "runs": 12,
+  "cost": 1000,
+  "review": "published",
+  "nodes": 0,
+  "edges": 5,
+  "inputs": 1,
+  "outputs": 5,
+  "mapEntries": 5,
+  "prompts": 5,
+  "models": [
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "beadify",
+  "name": "Beadify",
+  "category": "productVisualization",
+  "runs": 7,
+  "cost": 200,
+  "review": "published",
+  "nodes": 1,
+  "edges": 2,
+  "inputs": 1,
+  "outputs": 1,
+  "mapEntries": 3,
+  "prompts": 2,
+  "models": [
+   "Claude Sonnet 5",
+   "Nano Banana Pro"
+  ]
+ },
+ {
+  "slug": "footwear-to-vector",
+  "name": "Footwear to Vector",
+  "category": "fashionApparelEditorial",
+  "runs": 0,
+  "cost": 410,
+  "review": "published",
+  "nodes": 3,
+  "edges": 7,
+  "inputs": 2,
+  "outputs": 1,
+  "mapEntries": 5,
+  "prompts": 5,
+  "models": [
+   "Arrow 1.1 Max",
+   "Claude Sonnet 5",
+   "Gemini Flash 3.7",
+   "Seedream 5 Pro"
+  ]
+ }
+]

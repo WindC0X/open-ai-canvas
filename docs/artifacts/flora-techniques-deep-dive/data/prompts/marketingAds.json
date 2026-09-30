@@ -1,0 +1,234 @@
+[
+ {
+  "technique": "Meta Ad Variator",
+  "slug": "meta-ad-variator",
+  "nodeId": "50c54f2c-bf4d-49c7-b475-712613712a42",
+  "model": "Claude Opus 5",
+  "mode": "imageToText",
+  "prompt": "I'm going to give you two inputs.\n\nInput 1: a reference image — @[your-ad] \nInput 2: the variation direction, here — @[variation-direction] \n\nThe reference image locks the look: subject identity, color palette, mood, lighting, copy voice, font style. The variation direction steers the shoot: where it goes, what to push harder on, what to add, what to leave behind. When the two pull against each other, follow the variation direction on staging, environment, action, and story, and follow the reference on identity, palette, and type.\n\nAct as an art director and build a storyboard around whatever the subject is -- 9 individual image prompts that all feel like they came from the same editorial shoot.\n\nBefore you write anything, study the image. Figure out what the subject is, what makes it visually recognizable, what the color palette and mood are. That visual identity needs to stay locked across all 9 frames. Also pay attention to any text or copy in the image -- note the exact wording, the tone of voice, and the font style being used. Then read the variation direction and decide what it changes about the set before you write a single frame.\n\nCritical rule: the reference image itself is forbidden as a composition. None of the 9 frames -- Frame 1 included -- may reproduce the reference's framing, crop, pose, camera position, or angle. The reference is only a style guide for palette, mood, lighting, subject identity, and copy voice. Picture the reference as a single shot the photographer already took and then set aside; your job is the other 9 shots from that same shoot. If any frame you're about to write resembles the reference's composition, throw it out and reframe.\n\nBefore writing each prompt, lock three variables that must differ from every other frame: shot distance (extreme close-up, close-up, medium, wide, or establishing), camera angle (eye-level, low, high, overhead, dutch, over-the-shoulder, profile), and what the subject is doing or how it's staged (lighting setup, environment, motion, interaction, detail in focus). If two frames would share all three, change one before you write. Let the variation direction decide which end of that range the set leans toward.\n\nFor the grid: Frame 1 (top left) introduces the subject from a fresh angle the reference never showed -- a different distance and camera position than the reference, so it reads as \"here's what this is\" without ever echoing the source composition. Frame 5 (center) is your signature frame, the single most compelling shot you can imagine for this specific subject and the clearest expression of the variation direction, and it must be visually unlike Frame 1. Frame 9 (bottom right) is a wide closing shot with real breathing room. The other six frames are yours to play with -- close-ups, environmental context, action, unexpected angles, texture and detail studies. Vary distance and angle aggressively across the set so nothing reads as redundant.\n\nEach frame should include its own variation of the copy from the reference image. The new lines should make sense for whatever's happening in that specific frame, but they need to sound like they came from the same brand -- match the voice, tone, and energy of the original text, and never reuse the exact wording from the reference or from another frame. If the variation direction says anything about theme or messaging, let it shape what the lines say while the reference keeps deciding how they sound. The font style should stay consistent with whatever's in the reference.\n\nKeep everything feeling like one cohesive series: consistent color palette, consistent lighting mood, real camera quality. Each prompt should be one image (not a collage), around 80-150 words of specific visual description, plus the copy line and font direction for that frame. Let the subject and the variation direction guide your creative choices together.\n\nGive me all 9 prompts, split by line and numbered, no title."
+ },
+ {
+  "technique": "Instagram Story Variator",
+  "slug": "ig-story-variator",
+  "nodeId": "4c75d257-e2cd-49b3-9c41-4dc0b727f123",
+  "model": "Claude Opus 5",
+  "mode": "imageToText",
+  "prompt": "I'm going to give you two inputs.\n\n\nInput 1: a reference image — @[your-social-story-post] \nInput 2: the variation direction, here — @[variation-direction] \n\nI want you to act as an art director and build out a storyboard around whatever the subject is -- 9 individual image prompts that all feel like they came from the same editorial shoot.\nBefore you write anything, study the image. Figure out what the subject is, what makes it visually recognizable, what the color palette and mood are. That visual identity needs to stay locked across all 9 frames. Also pay attention to any text or copy in the image -- note the exact wording, the tone of voice, and the font style being used.\nCritical rule: the reference image itself is forbidden as a composition. None of the 9 frames -- Frame 1 included -- may reproduce the reference's framing, crop, pose, camera position, or angle. The reference is only a style guide for palette, mood, lighting, subject identity, and copy voice. Picture the reference as a single shot the photographer already took and then set aside; your job is the other 9 shots from that same shoot. If any frame you're about to write resembles the reference's composition, throw it out and reframe.\nBefore writing each prompt, lock three variables that must differ from every other frame: shot distance (extreme close-up, close-up, medium, wide, or establishing), camera angle (eye-level, low, high, overhead, dutch, over-the-shoulder, profile), and what the subject is doing or how it's staged (lighting setup, environment, motion, interaction, detail in focus). If two frames would share all three, change one before you write.\nFor the grid: Frame 1 (top left) introduces the subject from a fresh angle the reference never showed -- a different distance and camera position than the reference, so it reads as \"here's what this is\" without ever echoing the source composition. Frame 5 (center) is your signature frame, the single most compelling shot you can imagine for this specific subject, and it must be visually unlike Frame 1. Frame 9 (bottom right) is a wide closing shot with real breathing room. The other six frames are yours to play with -- close-ups, environmental context, action, unexpected angles, texture and detail studies. Vary distance and angle aggressively across the set so nothing reads as redundant.\nEach frame should include its own variation of the copy from the reference image. The new lines should make sense for whatever's happening in that specific frame, but they need to sound like they came from the same brand -- match the voice, tone, and energy of the original text, and never reuse the exact wording from the reference or from another frame. The font style should stay consistent with whatever's in the reference.\nKeep everything feeling like one cohesive series: consistent color palette, consistent lighting mood, real camera quality. Each prompt should be one image (not a collage), around 80-150 words of specific visual description, plus the copy line and font direction for that frame. Let the subject itself guide your creative choices.\nGive me all 9 prompts, split by line and numbered, no title."
+ },
+ {
+  "technique": "Book Drop",
+  "slug": "book-drop",
+  "nodeId": "3556935c-0cc1-4612-9c37-056217862ded",
+  "model": "Claude Opus 4.6",
+  "mode": "imagesToText",
+  "prompt": "Give me a prompt to take these and turn them into professional books that are placed on a white table with good lighting, in a harsh environment kind of like stock imagery, without distorting any of the text and ensuring that the thickness of the book is authentic to the original image. Do not show the edges of the table. Make sure it is lit well and professionally. The table is white. Make sure that it looks good. Give me five different prompts for different angles of this book, with one having multiple of these books stacked on top of each other in the same environment on a white table, and another showing the front of the book and the back of it next to eachother. Make sure there are no black strips or lighting boxes or any other element visible in the image so it's clean. \nMake the background corners infinite so that you don't see the edges of the table. Make sure all of these images are distinct from each other. No two images resemble each other. \nEnsure that it's only the front of the book that's being seen, and then for the fifth image, give me two overhead shots: one of the front and one of the back, accurately placed on a white table that's infinitely expanding with no rough borders or cutouts. \n\n\n1. top down view\n2. side spine view \n3. book upright view\n4. books stacked together on top of eachother view\n5. front cover and back cover next to eachother\n\nNegative prompt:\n- Do not distort the text.\n- Do not change the size of the book.\n- Do not replace any images with any other images.\n- Do not change the subject of what is in the book."
+ },
+ {
+  "technique": "Glam Shots",
+  "slug": "glam-shots",
+  "nodeId": "0d23a187-cfe9-4cd5-bb01-c814849e70e8",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "1. Ultra-gloss still life on water\n- Subject: M·A·C Lipglass Glow, clear tube with iridescent floral lines and golden-peach shimmer, doe-foot applicator floating beside it at a slight angle\n- Scene: Minimalist reflective pool with gentle ripples; product appears to hover just above the water, casting a crisp reflection; translucent orchid petals and thin glass rods intersect around the product, suggesting fluid architecture\n- Lighting: Beauty tabletop lighting, top softbox plus narrow rim light from camera-right; polarizing filter to control speculars; subtle prism flare catching the shimmer particles\n- Palette: White, pearl, champagne-gold, hints of lilac and sea-glass green from the iridescent print\n- Composition: Centered hero, vertical orientation, negative space up top; micro-droplets on tube; ripples form concentric circles leading the eye inward\n- Camera: 100mm macro, f/8 for facet-sharp packaging, shallow falloff to background; ultra high detail\n- Finish: Hyperreal, clean, luxury cosmetics aesthetic; no extra text or watermark; 8k, flawless edges, pristine label abstraction"
+ },
+ {
+  "technique": "Book Drop",
+  "slug": "book-drop",
+  "nodeId": "62313331-5901-40fa-b244-97226fb22d87",
+  "model": "Nano Banana 2",
+  "mode": "imagesToImage",
+  "prompt": "Arrange three copies of this same blue linen hardcover book stacked on top of each other on a white table, slightly offset and rotated at casual angles so that the title \"it is what it is\" and \"2 x 4\" are visible on multiple covers and spines simultaneously. The top book is slightly askew revealing the spine of the one beneath it. All text must remain perfectly legible and undistorted — bold black lowercase sans-serif type on saturated cerulean blue cloth. The authentic thickness of each volume is visible in the stack, showing dense off-white page blocks between covers. Harsh professional studio lighting from above and to one side, creating defined shadows between each book and a strong cast shadow on the white surface. Clean, stark, commercial stock photography aesthetic. Shot from a 45-degree elevated angle, everything in focus, medium format clarity. No props, no background clutter — just the books and the white table."
+ },
+ {
+  "technique": "Product to Ad Visuals",
+  "slug": "turn-any-product-into-4-ad-visuals",
+  "nodeId": "advertising-scene",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Use the uploaded product image as the exact product reference. \nKeep the product shape, packaging, colors, and branding identical to the reference image. Do not redesign the product. \nThe uploaded product must remain the hero object of the scene.\n\nCampaign style: modern minimal advertising campaign, playful oversized product concept, bright natural sunlight, editorial fashion photography, vibrant colors inspired by the product, strong clean shadows, product as the main visual focus.\n\nTypography style: extremely minimal trendy advertising typography, clean modern sans-serif font, very few words (1–3 max), bold but elegant placement.\n\nScene: a fashion model walking through a city street carrying a giant version of the uploaded product like an oversized prop, exaggerated scale, urban architecture background, editorial street fashion campaign aesthetic.\n"
+ },
+ {
+  "technique": "Product to Ad Visuals",
+  "slug": "turn-any-product-into-4-ad-visuals",
+  "nodeId": "lifestyle-scene",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Use the uploaded product image as the exact product reference. \nKeep the product shape, packaging, colors, and branding identical to the reference image. Do not redesign the product. \nThe uploaded product must remain the hero object of the scene.\n\nCampaign style: modern minimal advertising campaign, playful editorial photography, bright natural sunlight, vibrant colors inspired by the product, crisp shadows, clean composition, fashion campaign aesthetic.\n\nTypography style: extremely minimal trendy advertising typography, clean modern sans-serif font, very few words (1–3 max), subtle placement.\n\nScene: the uploaded product placed on a clean vibrant surface surrounded by elements or ingredients related to the product, fresh textures and minimal props, bright summer lighting, stylish lifestyle advertising composition.\n\nText example: \"PURE VIBES\""
+ },
+ {
+  "technique": "Product to Ad Visuals",
+  "slug": "turn-any-product-into-4-ad-visuals",
+  "nodeId": "surreal-installation",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Use the uploaded product image as the exact product reference. \nKeep the product shape, packaging, colors, and branding identical to the reference image. Do not redesign the product. \nThe uploaded product must remain the hero object of the scene.\n\nCampaign style: modern minimal advertising campaign, playful surreal product concept, bright summer sunlight, clear sky, vibrant colors inspired by the product, editorial fashion campaign composition.\n\nTypography style: extremely minimal trendy advertising typography, clean modern sans-serif font, very few words (1–3 max), subtle placement.\n\nScene: the uploaded product transformed into a giant surreal architectural installation or playful structure in a scenic outdoor location, people interacting with the structure like a slide or sculpture."
+ },
+ {
+  "technique": "Product to Ad Visuals",
+  "slug": "turn-any-product-into-4-ad-visuals",
+  "nodeId": "summer-advertising-concept",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Use the uploaded product image as the exact product reference. \nKeep the product shape, colors, packaging, and branding identical to the reference image. \nDo not redesign the product. \nThe uploaded product must remain the hero object of the scene.\n\nmodern playful advertising campaign aesthetic, bright natural sunlight, clean editorial photography, vibrant colors, crisp shadows\n\nforced perspective advertising shot where the uploaded product is held very close to the camera making it appear giant, a fashion model interacting with the oversized product in the background, clear blue sky, summer vibe, low angle perspective exaggerating scale, playful surreal advertising concept, trendy social media campaign aesthetic"
+ },
+ {
+  "technique": "Meta Ad Variator",
+  "slug": "meta-ad-variator",
+  "nodeId": "variation-001",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "1. Overhead flat-lay shot looking straight down onto a single deep-indigo liquid-morph sock sneaker resting on a pale bone-white surface, the glossy toe pods catching a soft cool highlight, matte knit ankle collar slumping open toward the lens. Faint dot-grid texture printed into the surface itself, barely visible. Diffuse studio softbox from above right, long low-contrast shadow reaching to the frame edge. Palette locked to violet-black gloss, ink navy, and near-white paper grey. Real product photography, medium format sharpness, subtle floor sheen. Thin wide-letterspaced sans wordmark VØRTHEN small at top edge; copy line in bold navy caps: TIDE — SEEN FROM ABOVE."
+ },
+ {
+  "technique": "Auto Translate",
+  "slug": "auto-translate",
+  "nodeId": "4cbcb121-e717-4ca1-8662-a3c828c90b3d",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Chennai (Tamil):\n\nLocalize this graphic for the Tamil-speaking market. Keep the entire graphic identical — same futuristic Mercedes-Benz concept car, same Brooklyn Bridge silhouette background, same cream/beige background, same layout, same bold blue italic typography style, same colors. Only change the text on the graphic to Tamil. Here are the translations:\n\n- \"SASHA'S GOING AWAY PARTY\" → \"SASHA-வின் பிரியாவிடை விழா\"\n- \"Jan 3rd 2026\" → \"ஜனவரி 3, 2026\"\n- \"7PM\" → \"இரவு 7 மணி\"\n\nKeep \"Sasha\" in its original form as it is a proper name. Maintain the same bold, condensed, italic blue typographic style for all translated text. The Mercedes-Benz logo remains unchanged."
+ },
+ {
+  "technique": "Meta Ad Variator",
+  "slug": "meta-ad-variator",
+  "nodeId": "variation-003",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "3. Low angle, worm's-eye view: camera on the floor looking up as the sneaker steps toward lens, sole slightly lifted, ankle cuff and shin silhouetted against a bright bone-white studio wall with the faint dotted grid receding. Hard single source from above rims the liquid ridges in violet; the toe pods loom huge and glassy. Barefoot-adjacent anatomy exaggerated by the perspective. Editorial fashion campaign feel, 24mm, mild distortion, immaculate white cyc. Palette unchanged. Wordmark thin geometric caps top center, copy in uppercase navy sans. Copy: RISE ——— NOTHING SOLID UNDERFOOT."
+ },
+ {
+  "technique": "Meta Ad Variator",
+  "slug": "meta-ad-variator",
+  "nodeId": "variation-004",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "4. Medium profile shot, eye-level: the pair standing side by side in strict side view on a pale seamless plinth, one heel lifted mid-step so the liquid sole peels off the surface. Long soft shadow stretches left. Cool diffuse light from a large scrim reveals the matte-to-gloss transition from cuff to sole. Off-white background carries the ghosted dot grid, slightly out of focus. Ultramarine only in the toe domes. Restrained, museum-like product editorial, 100mm macro, natural gloss falloff. Thin geometric VØRTHEN mark, uppercase navy sans copy. Copy: PROFILE ——— SHAPED BY FLOW."
+ },
+ {
+  "technique": "Meta Ad Variator",
+  "slug": "meta-ad-variator",
+  "nodeId": "variation-009",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "9. Wide closing establishing shot, eye-level with generous breathing room: a huge empty pale-white gallery hall, faint dot grid across the back wall, the pair of indigo shoes set alone at the exact center of a vast floor, tiny in frame, their reflection soft in the polished surface. Cool diffuse skylight fills the space evenly; a single long shadow gives scale. Silent, glacial, museum-calm. Deep violet-black against paper grey, real camera quality, wide lens without distortion. Thin wide-letterspaced VØRTHEN centered top; bold navy caps line: ABYSS — ROOM ENOUGH TO FLOOD."
+ },
+ {
+  "technique": "Meta Ad Variator",
+  "slug": "meta-ad-variator",
+  "nodeId": "variation-007",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "7. High angle looking down a long pale corridor, medium-wide, the pair placed small in the lower third, walking away in loose diagonal alignment along the polished floor. Dot grid pattern printed faintly across the floor recedes into perspective. Cool white daylight from clerestory slots stripes the floor; the shoes read as two dark violet marks in an otherwise empty geometry. Architectural product editorial, deep focus, restrained contrast. Thin wide-tracked VØRTHEN small upper right; bold navy caps line: DEPTH — MEASURED IN STEPS."
+ },
+ {
+  "technique": "Glam Shots",
+  "slug": "glam-shots",
+  "nodeId": "6c0a2664-75e8-477b-85d8-99e45b40dea2",
+  "model": "GPT-5",
+  "mode": "imageToText",
+  "prompt": "You are a professional creative director and storyboard artist and expert prompt engineer, specializing in luxury beauty product photography and elevated visual storytelling for brands. I need 3 (three) prompts to create images of the attached product in different scenarios. \n\nMake them all distinct. Make sure the product is in each photo. have the first one be more environmentally situated, the second one is on a model, and the third one is in an indoor space. \n\nLay them out as \n1. \n2. \n3. "
+ },
+ {
+  "technique": "Meta Ad Variator",
+  "slug": "meta-ad-variator",
+  "nodeId": "variation-008",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "8. Close-up, low ground-level angle, of one shoe in motion, sole lifting off a wet pale surface with a thin ribbon of water peeling away, droplets frozen mid-air and lit cold from behind so they glow against the grey-white ground. The violet pods and morph ridges stay glossy and near-black, motion faintly smeared at the heel. High-speed capture, dramatic yet clean, palette untouched. Wordmark small and wide-tracked at top; bold navy caps line: LIFT — THE OCEAN FOLLOWS."
+ },
+ {
+  "technique": "Photography/Image Aspect Ratio Change",
+  "slug": "photography-image-aspect-ratio-change",
+  "nodeId": "77afd958-28dd-43c2-be5b-160a2c4712bd",
+  "model": "GPT-5.5",
+  "mode": "imageToText",
+  "prompt": "write me a prompt that will take this exact composition and resize it to a 9:16 aspect ratio, but make sure the prompt is not specific to the attached image. the prompt needs to be reusable regardless of the content or image.ensure to include parameters that keep coloring/lighting the same, composition the same, posing and model the same.\n\nalso make sure to include to not stretch or distort the image, but content aware fill to address any cut off areas"
+ },
+ {
+  "technique": "Photography/Image Aspect Ratio Change",
+  "slug": "photography-image-aspect-ratio-change",
+  "nodeId": "d40ea9ca-28fc-4e44-bf6d-c579df104592",
+  "model": "GPT-5.5",
+  "mode": "imageToText",
+  "prompt": "write me a prompt that will take this exact composition and resize it to a 16:9 aspect ratio, but make sure the prompt is not specific to the attached image. the prompt needs to be reusable regardless of the content or image.ensure to include parameters that keep coloring/lighting the same, composition the same, posing and model the same.\n\nalso make sure to include to not stretch or distort the image, but content aware fill to address any cut off areas"
+ },
+ {
+  "technique": "Photography/Image Aspect Ratio Change",
+  "slug": "photography-image-aspect-ratio-change",
+  "nodeId": "f69f0d86-2d03-4a1e-a926-695e089cc4cf",
+  "model": "GPT-5.5",
+  "mode": "imageToText",
+  "prompt": "write me a prompt that will take this exact composition and resize it to a 21:9 aspect ratio, but make sure the prompt is not specific to the attached image. the prompt needs to be reusable regardless of the content or image.ensure to include parameters that keep coloring/lighting the same, composition the same, posing and model the same.\n\nalso make sure to include to not stretch or distort the image, but content aware fill to address any cut off areas"
+ },
+ {
+  "technique": "Photography/Image Aspect Ratio Change",
+  "slug": "photography-image-aspect-ratio-change",
+  "nodeId": "24b4a126-d9b4-412f-8b4d-0fd6fe98cf54",
+  "model": "GPT-5.5",
+  "mode": "imageToText",
+  "prompt": "write me a prompt that will take this exact composition and resize it to a 4:3 aspect ratio, but make sure the prompt is not specific to the attached image. the prompt needs to be reusable regardless of the content or image.ensure to include parameters that keep coloring/lighting the same, composition the same, posing and model the same.\n\nalso make sure to include to not stretch or distort the image, but content aware fill to address any cut off areas"
+ },
+ {
+  "technique": "Photography/Image Aspect Ratio Change",
+  "slug": "photography-image-aspect-ratio-change",
+  "nodeId": "87b643b3-6e90-480c-95c7-5e1ff43b6fed",
+  "model": "GPT-5.5",
+  "mode": "imageToText",
+  "prompt": "write me a prompt that will take this exact composition and resize it to a 3:2 aspect ratio, but make sure the prompt is not specific to the attached image. the prompt needs to be reusable regardless of the content or image.ensure to include parameters that keep coloring/lighting the same, composition the same, posing and model the same.\n\nalso make sure to include to not stretch or distort the image, but content aware fill to address any cut off areas"
+ },
+ {
+  "technique": "Photography/Image Aspect Ratio Change",
+  "slug": "photography-image-aspect-ratio-change",
+  "nodeId": "99c89a39-9688-4871-b203-79e782640b64",
+  "model": "GPT-5.5",
+  "mode": "imageToText",
+  "prompt": "write me a prompt that will take this exact composition and resize it to a 1:1 aspect ratio, but make sure the prompt is not specific to the attached image. the prompt needs to be reusable regardless of the content or image.ensure to include parameters that keep coloring/lighting the same, composition the same, posing and model the same.\n\nalso make sure to include to not stretch or distort the image, but content aware fill to address any cut off areas"
+ },
+ {
+  "technique": "Relighting Photoshoot",
+  "slug": "relighting-photoshoot",
+  "nodeId": "c34e791b-39f9-4a33-a8e1-dbe72cf0fdba",
+  "model": "GPT-5.4",
+  "mode": "imageToText",
+  "prompt": "AS A PROMPT ENGINEER, write a prompt that would be capable of detailing out the lighting set up being described and depict it in the style of image 1. if additional equipment is needed list that out. i want to keep the style of the image, the person, the backdrop, just move around the camera and lighting equipment as necessary or add in new equipment or replace the equipment. label everything with small labels. "
+ },
+ {
+  "technique": "Meta Ad Variator",
+  "slug": "meta-ad-variator",
+  "nodeId": "variation-006",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "6. Close-up, over-the-shoulder angle from behind the heel as a hand in a pale grey glove pulls the neoprene shaft upward, fabric tension wrinkles catching soft side light, glossy sole edge glinting indigo below, sterile lab-clean environment, muted greys, 85mm, controlled contrast. Copy line: ABYSS — PRESSURE FITS BETTER, thin uppercase geometric sans, navy, right-aligned."
+ },
+ {
+  "technique": "Relighting Photoshoot",
+  "slug": "relighting-photoshoot",
+  "nodeId": "60ae8b00-ed35-4489-97ba-7cb04f8c225e",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "as a prompt engineer, write an image prompt to recreate this exact lighting that this set up would produce. make sure its just changing the lighting and not the composition of the image or subject in any capacity.  do not change the background color either. "
+ },
+ {
+  "technique": "Relighting Photoshoot",
+  "slug": "relighting-photoshoot",
+  "nodeId": "01c9a737-da72-461a-9d04-a96239a8fbb2",
+  "model": "Claude Opus 5",
+  "mode": "imageToText",
+  "prompt": "you are a lighting expert and photography master. analyze image 1 and determine what the lighting set up would need to be to take that photo. communicate it clearly and effectively."
+ },
+ {
+  "technique": "Auto Translate",
+  "slug": "auto-translate",
+  "nodeId": "6c4aa19e-1577-47ab-9b6c-34211e0b646f",
+  "model": "GPT-5.5",
+  "mode": "imageToText",
+  "prompt": "Take the language provided, and create a prompt to translate. Ensure that any proper nouns are all translated in the given language."
+ },
+ {
+  "technique": "Meta Ad Variator",
+  "slug": "meta-ad-variator",
+  "nodeId": "778fccec-163e-47ea-a12a-e78ab2fc6e86",
+  "model": "Gemini Flash 3.7",
+  "mode": "textToText",
+  "prompt": "Isolate item 1 in its entirety without any alterations. Show only item 1 in the output."
+ }
+]

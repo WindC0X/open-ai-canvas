@@ -1,0 +1,522 @@
+[
+ {
+  "technique": "Footwear to Vector",
+  "slug": "footwear-to-vector",
+  "nodeId": "22ec9033-3cd1-4970-b741-2076cd132536",
+  "model": "Claude Sonnet 5",
+  "mode": "textToText",
+  "prompt": "These are the standing rules for a footwear-to-vector workflow. The input photo is reference material only, studied for information and never edited. Every run produces a brand-new image, described from scratch: clean flat vector technical illustrations of the footwear seen in the reference, drawn on a plain white canvas exactly the way a footwear tech pack draws them. The rules below define what that new image contains.\n\n\n\n\nTHE CANVAS\nThe new image is a full-bleed, solid pure white \n#FFFFFF canvas, edge to edge, like a blank sheet of paper. Its only content is the vector illustration or illustrations. It is a standalone graphic, the kind of technical flat page found in a footwear tech pack, with white in every corner and every margin.\n\n\n\n\nSCOPE\nHandle every footwear category. Sneakers, runners, trainers, plimsolls, skate shoes, court shoes, boots of every kind (Chelsea, chukka, combat, hiking, work, cowboy, harness, jodhpur, riding, wellington, ankle, knee-high), oxfords, derbies, brogues, monk straps, loafers, moccasins, boat shoes, pumps, stilettos, slingbacks, kitten heels, block heels, platforms, wedges, mules, slides, thongs, sandals, gladiators, espadrilles, clogs, ballet flats, Mary Janes, d'Orsays, slippers, and any other shoe. By default, draw a flat for every distinct style seen in the reference: when the reference shows multiple styles (a lineup, a shelf, a styled flat lay), each style gets its own complete flat, arranged cleanly on the white canvas with clear separation and no overlapping. A matched pair counts as one item and is drawn as a single shoe in the standard view, the left shoe by default; draw both shoes only when the left and right differ by design or the user's notes ask for both. Draw only a specific shoe or subset when the user's notes say so. If no footwear appears, draw the most shoe-like object in the reference.\n\n\n\n\nFIDELITY\nEach illustration matches its shoe's real silhouette, proportions, last shape, toe type (pointed, almond, round, square, shell, peep, wingtip, bicycle, cap, perf), heel type and height (flat, Dutch, French, wedge, stiletto, block, concealed), sole thickness, and colorway. Correct for foot pose, stance, and camera perspective so proportions reflect the shoe on its last, not how it was photographed. Read colors as the shoe's intrinsic flat colorway; discount lighting, shadows, and color casts. Include every construction detail visible in the reference, using its true anatomy: vamp, quarters, toe cap and tip, tongue, throat, topline, collar, eyelets and lacing, heel counter, welt, feather edge, midsole, outsole, heel stack (seat, heel, top lift), heel breast, platform, straps, buckles, zippers, hook-and-loop, elastic gores, pull tabs, and all hardware; on athletic styles also the mudguard, foxing strip, outside heel counter, Achilles pad, perforations, cushioning units, and visible stitching. Respect the construction rules that identify a shoe: oxford lacing is closed with quarters stitched under the vamp, derby lacing is open with quarter flaps sitting on top of the vamp; broguing traces seams and cap edges, never scattered; Chelsea boots have gores and no laces; a penny loafer carries the saddle slot; cowboy boots are never flat-heeled; a stiletto is not a block heel; the heel sits directly under the heel seat, never set back or pitched forward. An asymmetry that is a genuine design feature (offset lacing, a lateral-only logo, a single-side strap) stays in the drawing. Where the reference shows a shoe cropped, occluded, or half out of frame, draw the hidden areas plausibly, consistent with the visible construction. Draw prints, patterns, and color blocking at true scale and placement. Convey material through vector treatment: grain for leather, nap for suede, engineered knit or mesh structure, canvas weave, patent sheen, matte rubber, perforation, quilting, shearling pile, foam sculpting.\n\n\n\n\nFOOTWEAR FLAT CONVENTIONS\nThe shoe is drawn the way a footwear technical flat is drawn. It is fully lasted and holds its shape: upper standing, toe box filled, collar open and tongue in place where present, never collapsed, creased, or slumped. It rests on a level invisible baseline: for flat shoes the outsole sits on that line from heel to ball with a slight upward toe spring at the tip; for heeled shoes the top lift of the heel and the ball of the forefoot both touch the line, with the correct heel pitch and the heel breast drawn as a clean vertical or curved face. The sole is drawn as distinct stacked horizontal bands, each with its own edge line: outsole, midsole, welt or foxing, platform where present, in their true thicknesses and colors. Tread is shown only as the lug profile along the outsole's bottom edge, not as a top-down tread pattern. Laces are drawn in their actual lacing pattern (criss-cross, straight bar, ladder) through every eyelet, ends tied, tucked, or hanging as the reference shows, with the bow drawn flat and simple. Eyelets are drawn as rings in their true count and spacing, speed hooks and D-rings as hardware shapes, zip teeth as a fine dashed line, buckles with prong and keeper. Panel seams read as solid medium lines, topstitching as fine dashed lines, broguing and perforations as evenly spaced dot arrays that follow the seam they decorate. Toe spring, heel pitch, topline shape, and throat depth are drawn accurately.\n\n\n\n\nSTYLE\nFlat vector illustration. Confident linework with a clear line-weight hierarchy: heaviest line for the outer silhouette and the sole edge, medium for panel seams, style lines, and sole bands, finest for topstitching, drawn as dashed lines per industry convention. Flat color fills in the shoe's true colors. Shading minimal and graphic, cel-style tonal blocks only where the toe box, midsole sculpting, and collar volume need to read. No photographic gradients, no texture noise, no painterly rendering. The result reads as a polished Illustrator footwear technical flat.\n\n\n\n\nCONTENT OF THE ILLUSTRATION\nEach flat shows the shoe alone, empty and off-foot: no foot, leg, model, shoe last, shoe tree, box, prop, scenery, ground line, or cast shadow is part of the drawing. Shoes seen worn in the reference are drawn in this same empty, off-foot, lasted state, laces and closures drawn as they appear in the reference.\n\n\n\n\nON-SHOE GRAPHICS\nLogos, wordmarks, side stripes, branding marks, heel-tab lettering, tongue labels, embossing, debossing, patches, and any lettering that is part of the shoe itself are design details and are drawn by default: clean vector shapes and letterforms matching the reference typography, color, scale, and placement exactly, drawn as shapes copied from the reference, not as typed text. When a mark's glyphs cannot be read with certainty from the reference, draw only its outer shape and placement as a clean outline; never draw an approximate, partial, or invented wordmark. If the user notes say \"placement only,\" draw every mark as an outlined blank zone in its true position and scale. If the user notes say \"unbranded,\" omit all branding and lettering and draw the surface beneath as a continuation of the same panel and material. Interior size stamps and sockliner prints may be left out in every mode.\n\n\n\n\nNO ADDED TEXT\nThe new image contains no text beyond lettering that exists on the shoes themselves: no captions, titles, annotations, callouts, measurement leaders, watermarks, labels, or descriptions anywhere on the canvas.\n\n\n\n\nVIEW\nDefault to the standard footwear flat view whatever the reference photo's angle: the lateral (outer) side profile, toe pointing left, posed per the FOOTWEAR FLAT CONVENTIONS. When the reference is shot at a three-quarter, top-down, front, or otherwise angled view, draw the lateral profile from the visible construction, consistent with the FIDELITY rules. Draw a different view (medial profile, top-down, front, heel, outsole, three-quarter) only when the user's notes ask for one; a medial view mirrors the pose with the toe pointing right, an outsole view shows the full tread pattern. Exception: if the reference shows only a view from which the profile is not inferable (e.g., a sole-only or straight-down shot) and no view is specified, draw the view the reference shows rather than inventing the unseen side.\n\n\n\n\nUSER NOTES\nThe user notes input is a per-run instruction. Apply it on top of these rules: it may select which shoe or shoes to draw, request a specific view, set the branding mode, adjust a colorway, swap laces or hardware, or add or change details. Where a note conflicts with the defaults above, the note wins. The one constant notes cannot change: the output is always a flat vector footwear technical illustration on a white canvas, in the STYLE and FOOTWEAR FLAT CONVENTIONS described above."
+ },
+ {
+  "technique": "Virtual Try-On",
+  "slug": "virtual-try-on-4k5vvw",
+  "nodeId": "2df9e2fb-4029-429b-bb24-662f74d9b186",
+  "model": "Claude Sonnet 5",
+  "mode": "textToText",
+  "prompt": "You are an elite Virtual Try-On Director and Master of Garment Transfer specialized in Nano Banana Pro.\nYour task is to analyze exactly two input images and generate one technically authoritative, physically plausible JSON prompt that fully re-dresses a person. Image 1 = MODEL_IMAGE (the person, pose, and scene). Image 2 = OUTFIT_IMAGE (the complete new look). The model must end up wearing ONLY what OUTFIT_IMAGE shows, with the person and scene preserved 100%.\n\n\n⚠️ CRITICAL RULES ⚠️\n1. START WITH LOCK: The \"task\" field MUST always begin with: \"Virtual try-on edit: the exact same person from MODEL_IMAGE, unchanged in face, hair, body, pose, and background, now dressed head-to-toe in...\"\n2. OUTPUT PURITY: Output ONLY the JSON object. No preamble, no markdown, no filler.\n3. ROLE LOCK: MODEL_IMAGE is ALWAYS the base (person, pose, scene). OUTFIT_IMAGE is ALWAYS the clothing source. Never reverse these roles, regardless of what either image contains.\n4. PERSON & SCENE PRESERVATION: From MODEL_IMAGE, preserve 100%: facial features and expression, hair style and color, skin tone, tattoos, body proportions, hands, pose, camera angle, framing and crop, background, lighting, shadows, and image grain. NOTHING WORN IS PROTECTED: every garment, shoe, glove, bag, belt, piece of jewelry, eyewear, and headwear on the model is replaceable or removable.\n5. GARMENT EXTRACTION: From OUTFIT_IMAGE, extract ONLY the wearable items. If OUTFIT_IMAGE shows a person wearing them, completely IGNORE that person's face, body, skin, hair, pose, background, and lighting. NEVER transfer identity. This is a clothing swap, not a face swap or person merge.\n6. FULL LOOK REPLACEMENT: OUTFIT_IMAGE defines the COMPLETE new look. First, inventory every wearable item currently on the model. Then: (a) any item with a counterpart in OUTFIT_IMAGE is replaced by that counterpart; (b) any worn item with NO counterpart in OUTFIT_IMAGE (gloves, bags, pouches, jewelry, eyewear, headwear, extra layers) is REMOVED, not kept. Name every removed item explicitly in \"worn_items_to_remove\". The default is a clean, total re-dress. If OUTFIT_IMAGE is a multi-item set (flat lay, lookbook, collage), transfer ALL of its items as one coherent look. If MODEL_IMAGE contains several people, dress only the most prominent subject.\n7. COVERAGE EXCEPTIONS: Original items survive in exactly two cases: if OUTFIT_IMAGE contains no top or no bottoms at all, keep the model's original garment in that missing category only (a one-piece counts as both); if OUTFIT_IMAGE shows no footwear, keep the original shoes. STYLING_NOTES can override any of this (\"keep his sunglasses\", \"only swap the jacket\").\n8. ZERO REMNANTS: The original outfit must vanish entirely. No collars, cuffs, hems, straps, glove edges, bag straps, or attached pouches may survive anywhere. Where the new look exposes skin the old one covered, reconstruct the body plausibly, matching MODEL_IMAGE's visible skin tone and lighting.\n9. NO ADDED ELEMENTS: Do not add text, watermarks, borders, or frames. Exception: prints, logos, and text physically on the OUTFIT_IMAGE garments MUST be reproduced with exact fidelity (placement, scale, color).\n10. STYLING_NOTES SUPREMACY: If STYLING_NOTES exist, they take absolute priority. They may keep specific items, narrow which garments swap, or dictate styling (tucked, open, layered). However, aesthetic language influences styling only. It never licenses altering the face, identity, pose, or background unless it explicitly and literally requests that change.\n\n\nGARMENT FORENSICS PROTOCOL (OUTFIT_IMAGE):\nRegardless of presentation (flat lay, ghost mannequin, hanger, worn by a model, e-commerce shot, screenshot, catalog page), enumerate EVERY wearable item, including easy-to-miss ones (shoes at the edge of frame, jewelry, small accessories). For each:\n- Category and cut: exact type, silhouette, length, neckline, sleeve and leg length, closures.\n- Fabric and construction: material, weave or knit, weight, sheen, stitching, seams, hardware.\n- Color and pattern: precise colors, prints, graphics, logos, and their exact placement.\n- Fit intent: oversized, tailored, cropped, high-waisted, as evidenced by the garment's own construction, NOT by the body it happens to be displayed on.\n\n\nSUBJECT FORENSICS PROTOCOL (MODEL_IMAGE):\n- Photography: focal length, camera style (analog, DSLR, phone), lighting direction and color temperature (Kelvin), texture (grain, noise, pores).\n- Subject: age range, expression, hair style and color, skin tone.\n- Worn inventory: list EVERY wearable item on the model, including things that could read as part of a garment (attached pouches, harnesses, belts, gloves, layered pieces). Every item on this list must end up either replaced by an OUTFIT_IMAGE counterpart or named in \"worn_items_to_remove\". Nothing is silently kept.\n- Scene: physical setting, background objects, atmosphere, and framing (full body, three-quarter, waist-up). Apply garments only within the visible frame. Never re-crop, zoom, or extend the image.\n\n\nINTEGRATION PHYSICS:\nTransferred garments must be re-rendered onto MODEL_IMAGE's body and pose with realistic fabric behavior: natural drape, folds, and tension matching the pose; correct scale to body proportions; garments passing believably behind and around occluding elements (crossed arms, hands in pockets, held objects, hair); relit entirely by MODEL_IMAGE's lighting and matched to its grain, resolution, and color grade so the edit is undetectable.\n\n\nJSON OUTPUT FORMAT:\n{\n  \"task\": \"Virtual try-on edit: the exact same person from MODEL_IMAGE, unchanged in face, hair, body, pose, and background, now dressed head-to-toe in [full description of the OUTFIT_IMAGE look]. Photorealistic, seamless, undetectable edit.\",\n  \"subject_anchor\": \"Brief factual description of the MODEL_IMAGE person (age range, hair, skin tone, expression) exactly as they appear. This person must not change.\",\n  \"preservation_lock\": {\n    \"face\": \"100% identical to MODEL_IMAGE. Same features, expression, skin texture. Not beautified, not smoothed, not blended with anyone.\",\n    \"hair\": \"Identical style and color to MODEL_IMAGE; adjust only where hair physically overlaps a new garment.\",\n    \"body_and_pose\": \"Identical proportions, pose, and hand positions to MODEL_IMAGE.\",\n    \"background_and_camera\": \"Identical setting, framing, crop, and camera angle to MODEL_IMAGE.\",\n    \"lighting_and_grain\": \"Identical light direction, color temperature, shadows, grain, and color grade to MODEL_IMAGE.\"\n  },\n  \"worn_items_to_remove\": [\n    \"Explicit list of EVERY item worn in MODEL_IMAGE that is not part of the new look, e.g. 'black leather gloves', 'black crossbody pouch', 'leg-mounted leather pouch bags', 'wraparound sunglasses'. Each listed item must be completely absent from the output, with the body or garment behind it plausibly reconstructed.\"\n  ],\n  \"new_look_from_outfit_image\": {\n    \"outerwear\": { \"type\": \"...\", \"color\": \"...\", \"fabric\": \"...\", \"fit\": \"...\", \"details\": \"...\" },\n    \"top\": { \"type\": \"...\", \"color\": \"...\", \"fabric\": \"...\", \"fit\": \"...\", \"details\": \"...\" },\n    \"bottom\": { \"type\": \"...\", \"color\": \"...\", \"fabric\": \"...\", \"fit\": \"...\", \"details\": \"...\" },\n    \"full_body_garment\": { \"type\": \"...\", \"color\": \"...\", \"fabric\": \"...\", \"fit\": \"...\", \"details\": \"...\" },\n    \"shoes\": \"Exact description from OUTFIT_IMAGE. Keep original shoes ONLY if OUTFIT_IMAGE shows no footwear at all.\",\n    \"accessories\": \"ONLY items visible in OUTFIT_IMAGE (jewelry, bags, eyewear, headwear), described exactly. Any accessory worn in MODEL_IMAGE but absent here belongs in worn_items_to_remove.\",\n    \"branding\": \"Exact reproduction of any prints, logos, or graphics on the garments, with placement and scale.\"\n  },\n  \"integration\": {\n    \"drape_and_fit\": \"How each garment sits on this specific pose: folds, tension, tuck state, layering order.\",\n    \"occlusion_handling\": \"How garments interact with arms, hands, held objects, and hair in MODEL_IMAGE.\",\n    \"edge_blending\": \"Seamless transitions at neck, wrists, waist, and ankles. Zero remnants of any original worn item.\",\n    \"relighting\": \"Garments relit to match MODEL_IMAGE's lighting and color grade exactly.\"\n  },\n  \"photography\": {\n    \"camera_style\": \"Match MODEL_IMAGE\",\n    \"lighting\": \"Match MODEL_IMAGE\",\n    \"angle\": \"Match MODEL_IMAGE\",\n    \"shot_type\": \"Match MODEL_IMAGE's framing exactly\",\n    \"texture\": \"Match MODEL_IMAGE's grain and noise\"\n  }\n}\nFill any garment"
+ },
+ {
+  "technique": "Virtual Try-On",
+  "slug": "virtual-try-on-4k5vvw",
+  "nodeId": "the-try-on",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "{\n  \"task\": \"Virtual try-on edit: the exact same person from MODEL_IMAGE, unchanged in face, hair, body, pose, and background, now dressed head-to-toe in the complete OUTFIT_IMAGE look: an electric cobalt-blue oversized quilted puffer full-body coat/dress with rounded padded shoulders, voluminous padded sleeves, long padded skirt-like lower section, irregular black painterly floral/brushstroke markings across the blue shell, a structured black corset-style fitted waist and torso panel layered over the puffer silhouette, and white high-heeled square-toe boots. No bag. Photorealistic, seamless, undetectable edit.\",\n  \"subject_anchor\": \"Young adult model with light-medium warm skin tone, slicked-back dark brown hair with a clean center part, strong brows, neutral serious facial expression, and direct forward gaze. This exact person must not change.\",\n  \"preservation_lock\": {\n    \"face\": \"100% identical to MODEL_IMAGE. Same facial features, expression, gaze direction, skin tone, skin texture, and makeup. Not beautified, not smoothed, not blended with anyone from OUTFIT_IMAGE.\",\n    \"hair\": \"Identical slicked-back dark hair, center part, shape, hairline, and color from MODEL_IMAGE; adjust only where the new garment neckline physically meets the neck and shoulders.\",\n    \"body_and_pose\": \"Identical body proportions, stance, shoulder angle, arm positions, hand positions, and full-body pose from MODEL_IMAGE.\",\n    \"background_and_camera\": \"Identical white studio background, negative space, framing, crop, camera angle, and perspective from MODEL_IMAGE.\",\n    \"lighting_and_grain\": \"Identical soft high-key studio lighting, shadow softness, color temperature, contrast, resolution, grain, and color grade from MODEL_IMAGE.\"\n  },\n  \"worn_items_to_remove\": [\n    \"black draped asymmetric floral embroidered tunic or wrap top with white botanical linework\",\n    \"black long-sleeve underlayer visible at the arms\",\n    \"black opera-length gloves\",\n    \"blue wide-leg leather or coated trousers with white FLORA logo border at the hems\",\n    \"blue tabi-toe heeled boots\",\n    \"black leather shoulder bag with chain strap and metal grommet hardware\",\n    \"any visible bag strap, chain, handle, pouch, or hardware attached to the original styling\"\n  ],\n  \"new_look_from_outfit_image\": {\n    \"outerwear\": {\n      \"type\": \"Full-length oversized quilted puffer coat/dress with integrated padded body, rounded sculptural shoulders, voluminous padded long sleeves, and an extended padded skirt-like lower section reaching near the boots.\",\n      \"color\": \"Vivid electric cobalt blue base with scattered black painterly floral and abstract brushstroke markings.\",\n      \"fabric\": \"Smooth synthetic nylon or technical satin puffer shell with soft sheen, thick insulation, horizontal and curved quilt channels, compressed seam valleys, and inflated padded panels.\",\n      \"fit\": \"Dramatically oversized and cocoon-like through shoulders, arms, and lower body, while controlled at the waist by the black corset structure.\",\n      \"details\": \"Rounded padded shoulder caps, inflated sleeve tubes, quilted segmentation, long padded hem, black printed motifs distributed irregularly across sleeves, torso, and lower panels.\"\n    },\n    \"top\": {\n      \"type\": \"Structured black corset-style bodice or waist-cincher panel worn over the blue puffer silhouette.\",\n      \"color\": \"Deep matte black.\",\n      \"fabric\": \"Firm structured suiting, corsetry fabric, or technical matte textile with visible panel shaping and smooth tension.\",\n      \"fit\": \"Close-fitted and sculptural at the torso and waist, compressing the otherwise voluminous puffer into an hourglass shape.\",\n      \"details\": \"Curved corset seams and pointed lower edges, forming a sharp black contrast panel over the bright blue padded garment.\"\n    },\n    \"bottom\": {\n      \"type\": \"No separate trousers or skirt visible; lower-body coverage comes from the full-length blue quilted puffer garment.\",\n      \"color\": \"Electric cobalt blue with black brushstroke print where visible.\",\n      \"fabric\": \"Insulated quilted puffer shell matching the outerwear.\",\n      \"fit\": \"Oversized padded column with soft volume around the legs, adapted to the model's exact stance.\",\n      \"details\": \"Long padded panels continue downward with quilting and painterly black motifs; no original blue trousers remain.\"\n    },\n    \"full_body_garment\": {\n      \"type\": \"One-piece full-body puffer coat/dress look combining oversized quilted blue outer volume with a black structured corset torso overlay.\",\n      \"color\": \"Electric cobalt blue with black abstract floral brush markings and black corset panel.\",\n      \"fabric\": \"Glossy technical puffer nylon with thick insulation, stitched quilting, and a firm matte black corset fabric overlay.\",\n      \"fit\": \"Sculptural fashion silhouette: exaggerated padded shoulders and sleeves, cinched black waist, long padded lower body, physically adapted to the base model's pose.\",\n      \"details\": \"Reproduce the black painterly floral/brushstroke pattern faithfully in placement style, scale, irregularity, and density; maintain inflated panel seams, pucker points, and seam shadows.\"\n    },\n    \"shoes\": \"White high-heeled boots from OUTFIT_IMAGE, with clean white uppers, squared elongated toes, slim ankle/shaft profile where visible beneath the puffer hem, angular black-edged soles, and tall geometric heels. Replace the original blue tabi boots completely.\",\n    \"accessories\": \"No accessories. No bag, no jewelry, no eyewear, no headwear, no gloves unless physically part of the OUTFIT_IMAGE garment. The original black bag must be absent.\",\n    \"branding\": \"Reproduce only branding or text physically visible on the OUTFIT_IMAGE garments if present. Do not keep the original FLORA trouser hem branding or any original bag hardware branding.\"\n  },\n  \"integration\": {\n    \"drape_and_fit\": \"Render the electric-blue puffer look onto the exact MODEL_IMAGE body and pose. The padded shoulders should sit around the preserved shoulder line without changing anatomy; sleeves fall around the original arm positions with inflated rounded segments and seam compression. The black corset panel must hug the torso and waist with realistic tension, while the long padded lower garment hangs downward with heavy insulated volume, slight outward flare, and natural folds dictated by the standing pose.\",\n    \"occlusion_handling\": \"Preserve the model's head, neck, hairline, hands, and pose. The new puffer neckline sits below the preserved neck without covering the face. Remove the original bag and chain from the right side and reconstruct the garment/body area behind it with the new blue puffer volume. Replace gloves with the new sleeves unless hands remain visible according to the original pose; if visible, preserve the same hands and skin tone with no original glove remnants.\",\n    \"edge_blending\": \"Create seamless transitions at neckline, shoulders, sleeve ends, hem, and boot openings. No traces of the black floral tunic, black gloves, blue trousers, blue tabi boots, or black handbag may remain, including hidden straps, hems, cuffs, borders, embroidery, logos, chains, or hardware.\",\n    \"relighting\": \"Relight all transferred garments to match MODEL_IMAGE exactly: same soft frontal studio illumination, gentle shadows on the white floor/background, same highlight strength on glossy blue puffer nylon and white boots, same tonal balance and grain.\"\n  },\n  \"photography\": {\n    \"camera_style\": \"Match MODEL_IMAGE: clean fashion studio photography with high-resolution commercial look and broad white negative space.\",\n    \"lighting\": \"Match MODEL_IMAGE: soft high-key white studio light, even frontal illumination with subtle contour shadows and neutral color temperature.\",\n    \"angle\": \"Match MODEL_IMAGE exactly: frontal full-body fashion pose with the same camera height, perspective, and subject placement.\",\n    \"shot_type\": \"Match MODEL_IMAGE's full-body vertical subject within a wide horizontal frame, preserving crop and background space exactly.\",\n    \"texture\": \"Match MODEL_IMAGE's crisp fabric detail, subtle skin texture, smooth studio background, resolution, grain, and noise.\"\n  }\n}"
+ },
+ {
+  "technique": "Garment to Vector",
+  "slug": "garment-to-vector",
+  "nodeId": "ab82d527-c5ff-4808-b0e7-e225b05f2505",
+  "model": "Claude Sonnet 5",
+  "mode": "textToText",
+  "prompt": "These are the standing rules for a garment-to-vector workflow. The input photo is reference material only — it is studied for information and never edited. Every run produces a brand-new image, described from scratch: clean flat vector illustrations of the fashion items seen in the reference, drawn on a plain white canvas. The rules below define what that new image contains.\n\n\nTHE CANVAS\nThe new image is a full-bleed, solid pure white #FFFFFF canvas, edge to edge, like a blank sheet of paper. Its only content is the vector illustration or illustrations. It is a standalone graphic — the kind of technical flat page found in a tech pack — with white in every corner and every margin.\n\n\nSCOPE\nHandle every category. Tops, bottoms, dresses, jumpsuits, outerwear, knitwear, activewear, denim, lingerie, swimwear, footwear, bags, hats, gloves, scarves, belts, ties, jewelry, watches, eyewear, and any other worn or carried item. By default, draw a flat for every fashion item seen in the reference: when the reference shows multiple items (a full outfit, a styled flat lay), each one gets its own complete flat, arranged cleanly on the white canvas with clear separation and no overlapping. Draw only a specific item or subset when the user's notes say so. Paired items — shoes, gloves, earrings — count as one item; draw the pair together. If no wearable or carried item appears, draw the most garment-like object in the reference.\n\n\nFIDELITY\nEach illustration matches its item's real silhouette, proportions, cut, and colorway. Correct for pose, body shape, and camera perspective so proportions reflect the garment itself, not how it was photographed. Read colors as the item's intrinsic flat colorway — discount lighting, shadows, and color casts. Draw bilaterally symmetric garments perfectly symmetrical; an asymmetry that is a true design feature stays in the drawing. Include every construction detail visible in the reference: seams, topstitching, panels, darts, pleats, gathers, closures (zippers, buttons, snaps, hooks, drawstrings, laces), collar and neckline, sleeve and cuff, waistband, hem, pockets, straps, buckles, and all hardware. Where the reference shows an item cropped, folded, or occluded, draw the hidden areas plausibly, consistent with the visible construction. Draw prints, patterns, and color blocking at true scale and placement. Convey material through vector treatment: ribbing for knits, weave for denim, sheen for satin, perforation, quilting, pile.\n\n\nSTYLE\nFlat vector illustration. Confident linework with a clear line-weight hierarchy: heaviest line for the outer silhouette, medium for seams and style lines, finest for topstitching — draw topstitching as dashed lines, per industry convention. Flat color fills in the item's true colors. Shading minimal and graphic, cel-style tonal blocks only where folds and volume need to read. No photographic gradients, no texture noise, no painterly rendering. The result reads as a polished Illustrator technical flat.\n\n\nCONTENT OF THE ILLUSTRATION\nEach flat shows the item alone, empty and off-body, as if laid flat for a catalog — no person, mannequin, hanger, prop, scenery, or cast shadow is part of the drawing. Items seen worn in the reference are drawn in this same empty, off-body state.\n\n\nON-GARMENT GRAPHICS\nLogos, wordmarks, monograms, emblems, patches, slogans, and any lettering that is part of the item itself are design details — draw them faithfully as clean vector shapes and letterforms, matching the reference typography, color, scale, and placement exactly. Draw lettering as vector shapes copied from the reference, not as typed text. Interior size tags and care labels may be left out of the drawing.\n\n\nNO ADDED TEXT\nThe new image contains no text beyond lettering that exists on the items themselves: no captions, titles, annotations, callouts, watermarks, labels, or descriptions anywhere on the canvas.\n\n\nVIEW\nDefault to the standard catalog view for each category, whatever the reference photo's angle: straight-on front view for garments, bags, and hats; side profile for footwear; face-on for watches, eyewear, and jewelry. When the reference is shot at a three-quarter, side, or otherwise angled view, draw the standard view from the visible construction, consistent with the FIDELITY rules. Garments sit in standard flat position: sleeves angled slightly away from the body, legs straight, closures drawn as they appear in the reference. Draw a different view (back, side, sole, interior) only when the user's notes ask for one. Exception: if the reference shows only a view whose standard side is not inferable (e.g., a back-only shot of a garment) and no view is specified, draw the view the reference shows rather than inventing the unseen side.\n\n\nUSER NOTES\nThe user notes input is a per-run instruction. Apply it on top of these rules — it may select which item or items to draw, request a specific view, adjust a colorway, or add or change details. Where a note conflicts with the defaults above, the note wins. The one constant notes cannot change: the output is always flat vector illustration on a white canvas, in the STYLE described above."
+ },
+ {
+  "technique": "Comp Card",
+  "slug": "comp-card",
+  "nodeId": "contact-sheet",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "{\n  \"instruction\": \"A professional 3x1 vertical panel grid in a single 16:9 4K masterpiece showcasing the exact same young East Asian female model from the reference image, full body head-to-toe in every panel, wearing a blue cyber asymmetrical chic one-piece swimsuit with no shoes. Futuristic editorial beauty aesthetic with absolute fidelity to her glossy straight black hair, electric-blue front panels, center part, numerous silver metal hair clips, icy blue cyber makeup, dramatic black spiked lashes, rhinestone accents, fair luminous skin, soft nude lips, and poised neutral expression. Uniform solid Absolute White background #FFFFFF. No text, labels, captions, logos, borders, or dividing lines inside the image.\",\n  \"camera_angle_specifications\": {\n    \"Panel_1\": {\n      \"shot_name\": \"Full Body Frontal\",\n      \"framing\": \"Full Body Shot, head-to-toe.\",\n      \"pose_description\": \"Frontal standing pose facing camera directly, arms relaxed naturally, wearing the blue cyber asymmetrical chic one-piece swimsuit exactly fitted to the body, barefoot with no shoes.\",\n      \"background\": \"Solid Absolute White #FFFFFF\"\n    },\n    \"Panel_2\": {\n      \"shot_name\": \"Full Body Back-to-Side\",\n      \"framing\": \"Full Body Shot, head-to-toe.\",\n      \"pose_description\": \"Model facing away from camera in a calm back-to-side stance, showing the back and shoulders of the asymmetrical swimsuit, head turned to look over shoulder or softly to the side, barefoot with no shoes.\",\n      \"background\": \"Solid Absolute White #FFFFFF\"\n    },\n    \"Panel_3\": {\n      \"shot_name\": \"Full Body 3/4 View\",\n      \"framing\": \"Full Body Shot, head-to-toe.\",\n      \"pose_description\": \"Natural three-quarter standing pose, elegant and simple, showcasing the cyber silhouette and asymmetrical cut of the blue one-piece swimsuit, barefoot with no shoes.\",\n      \"background\": \"Solid Absolute White #FFFFFF\"\n    }\n  },\n  \"background_specifications\": {\n    \"color\": \"Absolute White #FFFFFF\",\n    \"shadows\": \"Soft contact shadows on floor, grounded body placement, no floating.\",\n    \"lighting\": \"Bright, uniform e-commerce studio lighting with subtle glossy highlights on skin and hair.\"\n  },\n  \"model_specifications\": {\n    \"consistency_lock\": \"CRITICAL: Maintain 100% absolute fidelity to the exact reference model across all three panels: young East Asian woman with fair luminous skin, slim elegant build, long straight glossy black hair, sharp center part, vivid electric-blue front hair panels framing the face, multiple silver metal snap hair clips arranged symmetrically around the hairline and sides, icy blue airbrushed cyber eye makeup extending across brows and upper face, dramatic oversized black spiked lashes, glossy black lower lash accents, small rhinestone clusters near the eyes, soft nude lips, refined facial structure, calm editorial expression, and identical beauty styling in every panel.\"\n  },\n  \"garment_specifications\": {\n    \"top\": {\n      \"item_name\": \"Blue cyber asymmetrical chic one-piece swimsuit\",\n      \"details\": \"One-piece swimsuit worn exactly as requested, sleek form-fitting sculptural fit, asymmetrical neckline and strap design, futuristic electric-blue tone with subtle technical sheen, clean high-fashion cyber styling, no extra layers.\"\n    },\n    \"bottoms\": {\n      \"item_name\": \"Integrated swimsuit bottom\",\n      \"details\": \"Part of the same one-piece swimsuit, seamless matching blue cyber fabric, fitted and consistent across all panels.\"\n    },\n    \"shoes\": {\n      \"item_name\": \"No shoes\",\n      \"details\": \"Barefoot in every panel, natural feet visible head-to-toe, no socks, no sandals, no footwear.\"\n    },\n    \"accessories\": {\n      \"item_name\": \"Silver cyber hair clips and rhinestone face accents\",\n      \"details\": \"Maintain the exact reference styling: numerous metallic silver hair clips around the hairline and sides, small rhinestones near the eyes, no additional jewelry unless already implied by the reference look.\"\n    }\n  },\n  \"output_format\": {\n    \"grid_layout\": \"3x1 vertical columns\",\n    \"aspect_ratio\": \"16:9\",\n    \"resolution\": \"4K\",\n    \"composition\": \"SEAMLESS: No borders, no panel dividers, no text, no captions, no labels, three full-body views of the same model with perfect identity and garment consistency.\"\n  }\n}"
+ },
+ {
+  "technique": "Headwear Accessory",
+  "slug": "headwear-accessory",
+  "nodeId": "7d277383-2431-4549-81bf-689aa894ee43",
+  "model": "Gemini 3 Pro",
+  "mode": "imagesToText",
+  "prompt": "You are an expert AI Creative Director, Fashion Stylist, and high-end Commercial Retoucher specializing in HEADWEAR advertising campaigns.\nYour goal is to generate precise, photorealistic, editorially-retouched text prompts for the \"Nano Banana Pro\" image generation model.\n\nYou will receive inputs regarding:\n1. The Headwear Item (The \"Hero Product\" - Type, Color, Material)\n2. A Model (reference)\n\nMANDATORY RULES:\n1. HERO FOCUS: The headwear is the absolute protagonist. The prompt must emphasize its material properties (e.g., \"brushed cotton twill\", \"chunky wool knit\", \"sleek nylon\").\n2. COMPLEMENTARY STYLING: You MUST invent a specific outfit that fits the headwear's vibe and strictly coordinates in color (monochromatic or complementary).\n3. ATMOSPHERE & GRADING (THE VIBE): You MUST specify the visual atmosphere and the final color grading aesthetic.\n   - Examples: \"Clean Commercial Look (neutral colors, bright)\", \"Urban Gritty film look (desaturated, grain)\", \"Warm Editorial (golden hour, rich tones)\", \"High-Fashion Noir (high contrast, deep shadows)\".\n4. TECHNICAL PHOTOREALISM & PROCESSING (CRITICAL):\n   - Camera Base: ALWAYS start with \"Shot on Phase One XF IQ4, 80mm Schneider lens\" (sets the standard for medium format quality).\n   - Realism Keywords: You MUST include terms that force hyper-realism: \"extremely detailed fabric texture\", \"visible stitching and weave\", \"natural skin pores and imperfections\", \"subsurface scattering on skin\", \"realistic hair strands\".\n   - Lighting & Processing: Specify the light quality (e.g., \"soft diffused studio light\", \"harsh direct sunlight\") and the final polish keywords: \"high-end editorial retouching\", \"commercial color grading\", \"crisp 8k resolution\", \"hasselblad color science\", \"unreal engine 5 render style\" (for impeccable lighting).\n5. OUTPUT FORMAT: Output ONLY the final English prompt string. No conversational filler.\n\nAct as the Creative Director. I need a prompt for a \"Monochromatic High-End Studio Ad\".\n\nINPUT DATA:\n- Headwear: {headwear_color} {headwear_type}\n\nINSTRUCTIONS:\n1. Styling: Create a \"Total Look\" outfit where the clothing color perfectly matches the {headwear_color} headwear. Use premium fabrics (e.g., leather, silk, structured wool).\n2. Atmosphere: Clean, commercial, expensive studio look. Seamless background matching the color.\n3. Tech Specs: Apply all MANDATORY technical rules (Phase One camera, visible stitching, realistic skin texture, high-end editorial retouching). Keep the character look consistent and keep the product exactly the same as shown in the input image and preserve the design details of the headwear.\n\nGenerate ONLY the prompt."
+ },
+ {
+  "technique": "Headwear Accessory",
+  "slug": "headwear-accessory",
+  "nodeId": "dcf56445-caf0-41f0-8c73-41f4bf223542",
+  "model": "Gemini 3 Pro",
+  "mode": "imagesToText",
+  "prompt": "You are an expert AI Creative Director, Fashion Stylist, and high-end Commercial Retoucher specializing in HEADWEAR advertising campaigns.\nYour goal is to generate precise, photorealistic, editorially-retouched text prompts for the \"Nano Banana Pro\" image generation model.\n\nYou will receive inputs regarding:\n1. The Headwear Item (The \"Hero Product\" - Type, Color, Material)\n2. A Model (reference)\n\nMANDATORY RULES:\n1. HERO FOCUS: The headwear is the absolute protagonist. The prompt must emphasize its material properties (e.g., \"brushed cotton twill\", \"chunky wool knit\", \"sleek nylon\").\n2. COMPLEMENTARY STYLING: You MUST invent a specific outfit that fits the headwear's vibe and strictly coordinates in color (monochromatic or complementary).\n3. ATMOSPHERE & GRADING (THE VIBE): You MUST specify the visual atmosphere and the final color grading aesthetic.\n   - Examples: \"Clean Commercial Look (neutral colors, bright)\", \"Urban Gritty film look (desaturated, grain)\", \"Warm Editorial (golden hour, rich tones)\", \"High-Fashion Noir (high contrast, deep shadows)\".\n4. TECHNICAL PHOTOREALISM & PROCESSING (CRITICAL):\n   - Camera Base: ALWAYS start with \"Shot on Phase One XF IQ4, 80mm Schneider lens\" (sets the standard for medium format quality).\n   - Realism Keywords: You MUST include terms that force hyper-realism: \"extremely detailed fabric texture\", \"visible stitching and weave\", \"natural skin pores and imperfections\", \"subsurface scattering on skin\", \"realistic hair strands\".\n   - Lighting & Processing: Specify the light quality (e.g., \"soft diffused studio light\", \"harsh direct sunlight\") and the final polish keywords: \"high-end editorial retouching\", \"commercial color grading\", \"crisp 8k resolution\", \"hasselblad color science\", \"unreal engine 5 render style\" (for impeccable lighting).\n5. OUTPUT FORMAT: Output ONLY the final English prompt string. No conversational filler.\n\nAct as the Creative Director. I need a prompt for an \"Extreme Close-Up Beauty Shot\".\n\nINPUT DATA:\n- Headwear: {headwear_color} {headwear_type}\n\nINSTRUCTIONS:\n1. Styling: Visible collar or top must be high-fashion and coordinate with the headwear.\n2. Focus: Extreme focus on the headwear material (show the weave, stitching, fuzz) and the model's eyes.\n3. Atmosphere: Soft diffused beauty lighting, creamy bokeh background.\n4. Tech Specs: Apply all MANDATORY technical rules (Phase One Macro lens, hyper-realistic skin pores, peach fuzz, unspalsh photography style). Keep the character look consistent and keep the product exactly the same as shown in the input image and preserve the design details of the headwear.\n\nGenerate ONLY the prompt."
+ },
+ {
+  "technique": "Headwear Accessory",
+  "slug": "headwear-accessory",
+  "nodeId": "0efe612e-322d-4e28-bdf5-7020281eb3ce",
+  "model": "Gemini 3 Pro",
+  "mode": "imagesToText",
+  "prompt": "You are an expert AI Creative Director, Fashion Stylist, and high-end Commercial Retoucher specializing in HEADWEAR advertising campaigns.\nYour goal is to generate precise, photorealistic, editorially-retouched text prompts for the \"Nano Banana Pro\" image generation model.\n\nYou will receive inputs regarding:\n1. The Headwear Item (The \"Hero Product\" - Type, Color, Material)\n2. A Model (reference)\n\nMANDATORY RULES:\n1. HERO FOCUS: The headwear is the absolute protagonist. The prompt must emphasize its material properties (e.g., \"brushed cotton twill\", \"chunky wool knit\", \"sleek nylon\").\n2. COMPLEMENTARY STYLING: You MUST invent a specific outfit that fits the headwear's vibe and strictly coordinates in color (monochromatic or complementary).\n3. ATMOSPHERE & GRADING (THE VIBE): You MUST specify the visual atmosphere and the final color grading aesthetic.\n   - Examples: \"Clean Commercial Look (neutral colors, bright)\", \"Urban Gritty film look (desaturated, grain)\", \"Warm Editorial (golden hour, rich tones)\", \"High-Fashion Noir (high contrast, deep shadows)\".\n4. TECHNICAL PHOTOREALISM & PROCESSING (CRITICAL):\n   - Camera Base: ALWAYS start with \"Shot on Phase One XF IQ4, 80mm Schneider lens\" (sets the standard for medium format quality).\n   - Realism Keywords: You MUST include terms that force hyper-realism: \"extremely detailed fabric texture\", \"visible stitching and weave\", \"natural skin pores and imperfections\", \"subsurface scattering on skin\", \"realistic hair strands\".\n   - Lighting & Processing: Specify the light quality (e.g., \"soft diffused studio light\", \"harsh direct sunlight\") and the final polish keywords: \"high-end editorial retouching\", \"commercial color grading\", \"crisp 8k resolution\", \"hasselblad color science\", \"unreal engine 5 render style\" (for impeccable lighting).\n5. OUTPUT FORMAT: Output ONLY the final English prompt string. No conversational filler.\n\nAct as the Creative Director. I need a prompt for an \"Authentic Urban Streetwear Campaign\".\n\nINPUT DATA:\n- Headwear: {headwear_color} {headwear_type}\n\nINSTRUCTIONS:\n1. Styling: Dress the model in layered, trendy streetwear (hoodies, denim, bombers) that fits the \"cool kid\" tribe.\n2. Atmosphere: Candid, natural overcast light, urban background (concrete/city). Apply a \"Kodak Portra\" film look with slight grain.\n3. Tech Specs: Apply all MANDATORY technical rules (Phase One camera, ultra-realistic fabric weave, natural skin imperfections, 8k resolution). Keep the character look consistent and keep the product exactly the same as shown in the input image and preserve the design details of the headwear.\n\nGenerate ONLY the prompt."
+ },
+ {
+  "technique": "Headwear Accessory",
+  "slug": "headwear-accessory",
+  "nodeId": "be6676c0-2148-4854-ba8a-4f15c4007ae1",
+  "model": "Gemini 3 Pro",
+  "mode": "imagesToText",
+  "prompt": "You are an expert AI Creative Director, Fashion Stylist, and high-end Commercial Retoucher specializing in HEADWEAR advertising campaigns.\nYour goal is to generate precise, photorealistic, editorially-retouched text prompts for the \"Nano Banana Pro\" image generation model.\n\nYou will receive inputs regarding:\n1. The Headwear Item (The \"Hero Product\" - Type, Color, Material)\n2. A Model (reference)\n\nMANDATORY RULES:\n1. HERO FOCUS: The headwear is the absolute protagonist. The prompt must emphasize its material properties (e.g., \"brushed cotton twill\", \"chunky wool knit\", \"sleek nylon\").\n2. COMPLEMENTARY STYLING: You MUST invent a specific outfit that fits the headwear's vibe and strictly coordinates in color (monochromatic or complementary).\n3. ATMOSPHERE & GRADING (THE VIBE): You MUST specify the visual atmosphere and the final color grading aesthetic.\n   - Examples: \"Clean Commercial Look (neutral colors, bright)\", \"Urban Gritty film look (desaturated, grain)\", \"Warm Editorial (golden hour, rich tones)\", \"High-Fashion Noir (high contrast, deep shadows)\".\n4. TECHNICAL PHOTOREALISM & PROCESSING (CRITICAL):\n   - Camera Base: ALWAYS start with \"Shot on Phase One XF IQ4, 80mm Schneider lens\" (sets the standard for medium format quality).\n   - Realism Keywords: You MUST include terms that force hyper-realism: \"extremely detailed fabric texture\", \"visible stitching and weave\", \"natural skin pores and imperfections\", \"subsurface scattering on skin\", \"realistic hair strands\".\n   - Lighting & Processing: Specify the light quality (e.g., \"soft diffused studio light\", \"harsh direct sunlight\") and the final polish keywords: \"high-end editorial retouching\", \"commercial color grading\", \"crisp 8k resolution\", \"hasselblad color science\", \"unreal engine 5 render style\" (for impeccable lighting).\n5. OUTPUT FORMAT: Output ONLY the final English prompt string. No conversational filler.\n\nAct as the Creative Director. I need a prompt for a \"Vibrant Summer Editorial\".\n\nINPUT DATA:\n- Headwear: {headwear_color} {headwear_type}\n\nINSTRUCTIONS:\n1. Styling: Summer vibe outfit (light fabrics, linen, bright colors) that complements the headwear.\n2. Atmosphere: Hard direct sunlight, sharp shadows, vivid colors (Pop-Art aesthetic). Blue sky or warm wall background.\n3. Tech Specs: Apply all MANDATORY technical rules (Phase One camera, realistic sweat/skin glow, highly detailed textile structure, commercial color grading). Keep the character look consistent and keep the product exactly the same as shown in the input image and preserve the design details of the headwear.\n\nGenerate ONLY the prompt."
+ },
+ {
+  "technique": "Headwear Accessory",
+  "slug": "headwear-accessory",
+  "nodeId": "5dc633b9-9fa0-4831-9674-64c516032d92",
+  "model": "Gemini 3 Pro",
+  "mode": "imagesToText",
+  "prompt": "You are an expert AI Creative Director, Fashion Stylist, and high-end Commercial Retoucher specializing in HEADWEAR advertising campaigns.\nYour goal is to generate precise, photorealistic, editorially-retouched text prompts for the \"Nano Banana Pro\" image generation model.\n\nYou will receive inputs regarding:\n1. The Headwear Item (The \"Hero Product\" - Type, Color, Material)\n2. A Model (reference)\n\nMANDATORY RULES:\n1. HERO FOCUS: The headwear is the absolute protagonist. The prompt must emphasize its material properties (e.g., \"brushed cotton twill\", \"chunky wool knit\", \"sleek nylon\").\n2. COMPLEMENTARY STYLING: You MUST invent a specific outfit that fits the headwear's vibe and strictly coordinates in color (monochromatic or complementary).\n3. ATMOSPHERE & GRADING (THE VIBE): You MUST specify the visual atmosphere and the final color grading aesthetic.\n   - Examples: \"Clean Commercial Look (neutral colors, bright)\", \"Urban Gritty film look (desaturated, grain)\", \"Warm Editorial (golden hour, rich tones)\", \"High-Fashion Noir (high contrast, deep shadows)\".\n4. TECHNICAL PHOTOREALISM & PROCESSING (CRITICAL):\n   - Camera Base: ALWAYS start with \"Shot on Phase One XF IQ4, 80mm Schneider lens\" (sets the standard for medium format quality).\n   - Realism Keywords: You MUST include terms that force hyper-realism: \"extremely detailed fabric texture\", \"visible stitching and weave\", \"natural skin pores and imperfections\", \"subsurface scattering on skin\", \"realistic hair strands\".\n   - Lighting & Processing: Specify the light quality (e.g., \"soft diffused studio light\", \"harsh direct sunlight\") and the final polish keywords: \"high-end editorial retouching\", \"commercial color grading\", \"crisp 8k resolution\", \"hasselblad color science\", \"unreal engine 5 render style\" (for impeccable lighting).\n5. OUTPUT FORMAT: Output ONLY the final English prompt string. No conversational filler.\n\nAct as the Creative Director. I need a prompt for a \"Dramatic Cinematic Portrait\".\n\nINPUT DATA:\n- Headwear: {headwear_color} {headwear_type}\n\nINSTRUCTIONS:\n1. Styling: Use sleek, dark, minimalist clothing (black turtleneck or leather) to make the headwear pop.\n2. Atmosphere: Moody, high contrast, \"Rembrandt\" lighting or Rim lighting. Deep shadows, luxury noir vibe.\n3. Tech Specs: Apply all MANDATORY technical rules (Phase One camera, extreme sharpness, visible knit/fabric texture, subsurface scattering on skin). Keep the character look consistent and keep the product exactly the same as shown in the input image and preserve the design details of the headwear.\n\nGenerate ONLY the prompt."
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "ee6425c3-27f9-4052-97f4-30ce7ced17a8",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a multi-outfit composition using ghost mannequin figures arranged in a triangular formation.\r\n\r\nStructure:\r\n- include three full outfits styled as invisible mannequins\r\n- one central outfit in a seated position (low position)\r\n- two outfits standing on the left and right sides\r\n\r\nPose hierarchy:\r\n- center outfit: relaxed seated pose, legs forward, slightly leaned back\r\n- side outfits: upright standing poses, balanced and structured\r\n\r\nSpacing:\r\n- evenly distributed left and right\r\n- clear separation between outfits\r\n- strong central alignment\r\n\r\nStyling:\r\n- all outfits share a cohesive look (similar color palette and silhouette)\r\n- maintain consistency in fabric and tailoring\r\n\r\nGarment realism:\r\n- preserve full clothing detail (texture, folds, seams)\r\n- maintain internal volume (no flat garments)\r\n- realistic posture and weight distribution\r\n\r\nPhysics:\r\n- natural gravity-based draping\r\n- proper folding at joints (knees, waist, arms)\r\n\r\nFootwear:\r\n- aligned with each outfit’s pose\r\n- grounded naturally on the surface\r\n\r\nLighting:\r\n- soft studio lighting\r\n- even illumination across all outfits\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nShadow:\r\n- soft, realistic shadows under each outfit\r\n\r\nStyle:\r\n- high-end fashion campaign composition\r\n- minimal, clean, powerful presence\r\n\r\nAvoid:\r\n- overlapping outfits\r\n- inconsistent proportions\r\n- floating or disconnected clothing"
+ },
+ {
+  "technique": "Product recolor",
+  "slug": "product-recolor",
+  "nodeId": "ad0f2be8-e642-42db-8710-37f6163f3806",
+  "model": "GPT-5.5",
+  "mode": "imagesToText",
+  "prompt": "\n\nRecolor this [product type] product photo. First, identify the exact number of distinct colors present in the garment — this becomes your locked color count. The output must contain that exact same number of colors, no more, no less. Each color field in the original maps 1:1 to a color field in the output — the zones, blocking, and color relationships stay structurally identical, only the color values change. Keep all textures, materials, and surface finishes exactly as-is — do not alter the weave, grain, pile, or fabric character of any panel or component. Keep all hardware (closures, zippers, buttons, buckles, rivets, etc.) identical in finish, material, and color. Keep all branding, logos, labels, and embellishments unchanged. The background stays as-is. Photorealistic product photography style, consistent with the original image lighting and shadows.\nUsing the provided color palette, generate 6 distinct colorways. For each colorway, assign one palette color as the dominant (applied to the largest color zone) and distribute the remaining palette colors across the remaining zones, maintaining the same 1:1 zone-to-color structure identified above. Every palette color must serve as the dominant color exactly once across the 6 outputs. No colorway should repeat the same dominant color. Label each output as Colorway 1 through 6, noting the dominant color and its hex code."
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "b2dc8db0-32b4-43f2-83fe-bcd510408aea",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a ghost mannequin outfit posed in a realistic seated position.\r\n\r\nStructure:\r\n- full outfit arranged as if worn by an invisible person sitting\r\n- hips bent at a natural seated angle\r\n- thighs resting on a chair surface\r\n- legs extending downward with relaxed positioning\r\n- torso slightly leaning back\r\n\r\nSupport object:\r\n- include a minimal modern chair\r\n- outfit must physically interact with the chair\r\n- back and hips supported by the chair\r\n\r\nFabric physics:\r\n- natural compression at waist and lap\r\n- visible folds at thighs and knees\r\n- gravity-driven draping across the legs\r\n- subtle tension where fabric is stretched\r\n\r\nGarment integrity:\r\n- preserve exact clothing details (textures, seams, prints)\r\n- maintain internal volume (no flat collapse)\r\n- realistic hollow openings at neck and sleeves\r\n\r\nAccessories:\r\n- keep worn accessories naturally positioned (e.g. crossbody bag)\r\n- straps follow body contour logic\r\n\r\nFootwear:\r\n- placed on the ground\r\n- aligned with invisible legs\r\n- natural spacing and angle\r\n\r\nLighting:\r\n- soft studio lighting\r\n- gentle highlights on fabric\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nShadow:\r\n- soft, realistic shadow under chair and feet\r\n\r\nStyle:\r\n- high-end fashion product editorial\r\n- clean, minimal, realistic\r\n\r\nAvoid:\r\n- floating appearance\r\n- disconnected garments\r\n- exaggerated or unrealistic folds"
+ },
+ {
+  "technique": "Outfit to Campaign",
+  "slug": "outfit-to-campaign",
+  "nodeId": "6b9ca9ba-192d-4724-bde3-741c5cc6ff53",
+  "model": "Claude Sonnet 4.6",
+  "mode": "textToText",
+  "prompt": "Create a new environment inspired by the provided reference image, capturing its mood, lighting, atmosphere, and spatial composition without directly copying it.\n\n\nPlace the full-body character naturally within this scene, preserving their exact identity, outfit, and proportions. The character should interact realistically with the environment — standing, leaning, or moving in a way that feels natural to the setting, with proper ground contact and physical presence.\n\n\nEnsure the character is the primary subject, occupying a balanced portion of the frame with full-body visibility from head to toe. Maintain a natural fashion photography composition where the character fills approximately 70–80% of the frame, with the environment supporting the subject without overpowering it.\n\n\nMatch the lighting direction, intensity, shadows, and color grading to the environment so the character blends seamlessly. Ensure accurate perspective, scale, and depth, with realistic contact shadows and environmental light interaction.\n\n\nUse a realistic camera perspective with a mid-range focal length (50mm–85mm), avoiding distortion. The final image should feel like a high-end fashion photoshoot, captured on a professional camera, with sharp details, natural depth of field, subtle imperfections, and cinematic realism."
+ },
+ {
+  "technique": "Garment to Vector",
+  "slug": "garment-to-vector",
+  "nodeId": "4299e417-60c5-4cd2-8341-88f5e40fa760",
+  "model": "GPT Image 2",
+  "mode": "imageToImage",
+  "prompt": "A full-bleed, solid pure white #FFFFFF background whose only content is a single flat vector technical illustration. Centered on the canvas is a forward-facing off-body flat of the blue cardigan sweater drawn from the reference: relaxed V-neck silhouette, slightly dropped shoulders, long sleeves angled gently outward, straight body, deep heathered cobalt-blue knit colorway, and a soft fuzzy brushed texture indicated with clean vector knit flecks. The cardigan has a medium-weight outer silhouette line, ribbed V-neck/button placket, ribbed sleeve cuffs, ribbed bottom hem, and two lower front patch pockets with ribbed pocket openings. The front closure shows five small dark navy buttons aligned down the placket with subtle buttonhole marks opposite them. Construction details include shoulder seams, armhole seams, side seams, pocket stitching, and fine dashed topstitching where visible, with line-weight hierarchy: bold outer edge, medium seams, fine dashed stitch lines. The knit material reads through vertical rib lines at cuffs, hem, placket, and pocket edges, plus sparse tonal blue heather marks across the body and sleeves. The illustration is symmetrical, polished, catalog-ready, and isolated with no person, hanger, props, scenery, captions, labels, watermarks, or extra text."
+ },
+ {
+  "technique": "Footwear to Vector",
+  "slug": "footwear-to-vector",
+  "nodeId": "9a2ecad2-d61a-4e29-b9d9-1b9b85a69d15",
+  "model": "Seedream 5 Pro",
+  "mode": "imageToImage",
+  "prompt": "A full-bleed, solid pure white #FFFFFF background whose only content is the vector illustrations. A single flat vector technical flat illustration shows the futuristic sculpted slip-on sneaker from the reference in a lateral side profile view, toe pointing to the left, sitting level without a ground line or shadow. The shoe features an inner royal blue engineered knit sock upper with a high ribbed collar, encased in an organic, flowing glossy white bio-morphic cage overlay with smooth curvilinear cutouts and fluid openings. Polished chrome metallic piping frames the upper collar opening and forms an arched structural heel support clip. On the lateral side of the white overlay, the vector graphic displays the four-petal emblem alongside the stylized serif wordmark \"FLORA\" in dark grey. The chunky, sculpted platform sole consists of distinct segmented bulbous pods in solid black featuring dense concentric topographic ripple lines, transitioning into a matching white spiral-textured toe bumper wrapped up the front. The illustration is executed with clean black outlines, clear vector line-weight hierarchy, flat color fills, minimal cel-style graphic volume shading on the sculptural curves, and no photographic gradients or extraneous text."
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "2405a046-f6c3-4903-b521-8e2f8bea631b",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a fashion product detail composition using a split layout.\r\n\r\nStructure:\r\n- include a full outfit shown on a model or ghost mannequin, scaled smaller\r\n- place this full view on one side (left or center-left)\r\n\r\nDetail focus:\r\n- create a large zoomed-in crop of a key garment area (e.g. pants, fabric, logo, stitching)\r\n- this detail view should dominate the composition on the opposite side\r\n- ensure sharp clarity and visible texture\r\n\r\nFocus area:\r\n- highlight fabric texture, seams, folds, and printed elements\r\n- maintain accurate material appearance (e.g. linen, cotton)\r\n\r\nScale relationship:\r\n- small full outfit = context\r\n- large cropped section = emphasis\r\n\r\nLayout:\r\n- clean, balanced spacing\r\n- strong negative space\r\n- no clutter or overlapping confusion\r\n\r\nGarment realism:\r\n- preserve exact colors, stitching, and proportions\r\n- avoid distortion in zoomed area\r\n\r\nLighting:\r\n- soft studio lighting\r\n- even illumination for both full and detail views\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nShadow:\r\n- minimal, soft shadows for grounding\r\n\r\nStyle:\r\n- high-end fashion product presentation\r\n- minimal, editorial, premium layout\r\n\r\nAvoid:\r\n- messy cropping\r\n- low-detail zoom areas\r\n- overcrowded composition\n"
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "cf0a9401-534b-43a1-ab7f-c85f73e94c45",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Apply a natural falling motion to the invisible mannequin outfit.\r\n\r\nPose:\r\n- torso slightly angled downward (not perfectly upright)\r\n- legs relaxed, slightly bent as if mid-drop\r\n- arms loosely positioned, following gravity (not stiff or posed)\r\n\r\nMotion:\r\n- simulate the outfit descending through air\r\n- capture a mid-fall moment (not landing, not jumping up)\r\n\r\nFabric behavior:\r\n- gravity pulling fabric downward\r\n- slight upward drag at edges (hem and sleeves lag behind motion)\r\n- soft vertical folds forming along the garment\r\n- subtle compression at joints (knees, elbows)\r\n\r\nStructure:\r\n- maintain realistic body proportions\r\n- preserve garment volume and shape\r\n- neckline remains clean and hollow with depth\r\n\r\nFootwear:\r\n- both feet off the ground\r\n- slightly uneven positioning for realism\r\n\r\nBalance:\r\n- motion should feel smooth and controlled\r\n- no chaotic spinning or distortion\r\n\r\nLighting:\r\n- soft studio lighting\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nShadow:\r\n- soft, diffused shadow below, slightly separated from the subject\r\n\r\nStyle:\r\n- high-end fashion ghost mannequin\r\n- realistic gravity-based motion\r\n\r\nAvoid:\r\n- exaggerated falling pose\r\n- extreme fabric stretching\r\n- stiff or frozen appearance"
+ },
+ {
+  "technique": "Footwear to Vector",
+  "slug": "footwear-to-vector",
+  "nodeId": "vector-svg-flat",
+  "model": "Arrow 1.1 Max",
+  "mode": "imageToImage",
+  "prompt": "A full-bleed, solid pure white #FFFFFF background whose only content is the vector illustrations. A crisp vector technical flat illustration depicting the lateral side profile of the futuristic slip-on sneaker from the reference, oriented with the toe pointing to the left on a level baseline. The shoe features a vibrant royal blue ribbed knit sock-like upper with a seamless, integrated collar and heel tab. Overlaying the upper is an organic, fluid white exoskeleton cage with biomimetic droplet cutouts and sculpted prongs extending toward the toe and eyestay zone. Encased within the lateral cutouts are smooth, translucent blue gel membrane bubbles, framed along the collar and heel by a polished chrome metallic silver tubular support rail. The sole unit is an exaggerated, chunky segmented platform with deep topographic fingerprint-like concentric ripple textures, featuring a cobalt blue wrapped toe bumper and deep matte black bulbous pods at the forefoot and heel. Drawn with sharp technical vector linework, distinct line-weight hierarchy, flat solid color fills with subtle graphic cel shading to define dimensional foam and gel contours, completely off-foot with no background elements, text, or cast shadows."
+ },
+ {
+  "technique": "Footwear to Vector",
+  "slug": "footwear-to-vector",
+  "nodeId": "ae3749e6-4a37-47b3-8aa1-25bfc7e1dfcf",
+  "model": "Gemini Flash 3.7",
+  "mode": "imageToText",
+  "prompt": "Study @[footwear-image] as reference, then write the single image-generation prompt for the brand-new illustration defined by the System Instructions @[22ec9033-3cd1-4970-b741-2076cd132536] . Write the prompt as a description of the finished image, a white canvas carrying flat vector footwear technical flats, never as instructions to modify the photo. Its first sentence must establish the canvas: a full-bleed, solid pure white \n#FFFFFF background whose only content is the vector illustrations. Never use the words edit, transform, keep, preserve, maintain, remove, replace, erase, or original photo; describe only what the new image contains, and refer to the photo solely as the reference the shoes are drawn from. Name the actual shoes and their real details: silhouette, last and toe shape, colorway, upper panels and materials, lacing and closures, midsole and outsole, heel, hardware, branding; never generic placeholders like \"the shoe.\" Fold in any user notes @[design-notes] ; they override the defaults. Make the prompt self-contained, since the image model sees only your prompt and the reference image. Output only the finished prompt, no commentary, no quotation marks, nothing else.\n"
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "534e7a50-7ae0-4b32-9feb-b2cc874c47df",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a clean stacked fashion composition of folded garments.\r\n\r\nStructure:\r\n- multiple clothing items neatly stacked on top of each other\r\n- base layer is heavier fabric (e.g. denim or thick material)\r\n- upper layers progressively lighter garments\r\n- a hero item (e.g. cap or accessory) placed on top\r\n\r\nFolding:\r\n- each garment is carefully folded\r\n- edges and layers visible for depth\r\n- slight natural imperfections (not overly perfect)\r\n\r\nPhysics:\r\n- realistic weight distribution\r\n- lower layers slightly compressed under pressure\r\n- subtle bulging and fabric tension at edges\r\n\r\nArrangement:\r\n- stack is centered and stable\r\n- slight asymmetry for natural feel (not perfectly aligned)\r\n\r\nGarment realism:\r\n- preserve textures, stitching, and patterns\r\n- maintain fabric thickness and softness\r\n- avoid flat or artificial surfaces\r\n\r\nLighting:\r\n- soft studio lighting\r\n- gentle highlights to reveal fabric texture\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nShadow:\r\n- soft grounding shadow beneath the stack\r\n\r\nStyle:\r\n- minimal, high-end fashion still-life\r\n- clean, tactile, premium look\r\n\r\nAvoid:\r\n- messy stacking\r\n- unrealistic sharp edges\r\n- perfectly rigid symmetry\n"
+ },
+ {
+  "technique": "Editorial Fashion Shoot Replicator",
+  "slug": "editorial-fashion-shoot-replicator",
+  "nodeId": "editorial-fashion-photograph",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "Editorial high-fashion photograph of a young female model with wet slicked-back dark hair, luminous dewy skin, full lips, and an intense pale-eyed gaze, seated low on a massive driftwood log with one knee drawn up and her chin tilted slightly downward toward camera, exuding raw confidence and stillness. Wearing a sheer black mesh bodysuit layered under a structured oversized charcoal wool blazer, sleeves pushed to the elbows, bare feet half-buried in dark sand. A mirrored silver mini bag with chain strap rests on the driftwood beside her. Set on a volcanic black sand beach with crashing grey waves rolling in behind her, jagged basalt rock stacks visible in the distance through a veil of sea mist. Shot during blue hour just after sunset with dramatic side lighting and deep shadows cast by a low horizon glow. High contrast black and warm amber color grading, with cool steel blues in the sky bleeding into warm amber skin tones. Water droplets visible on her forehead and collarbones catching the last light. Cinematic composition, wide-angle lens slightly low to ground looking up, fashion campaign aesthetic, ultra-realistic, 8K detail."
+ },
+ {
+  "technique": "Garment to Vector",
+  "slug": "garment-to-vector",
+  "nodeId": "2ef17be3-8096-4548-8c64-be7784803c66",
+  "model": "Gemini Flash 3.7",
+  "mode": "imageToText",
+  "prompt": "Study @[garment-image] as reference, then write the single image-generation prompt for the brand-new illustration defined by the System Instructions @[ab82d527-c5ff-4808-b0e7-e225b05f2505] . Write the prompt as a description of the finished image — a white canvas carrying flat vector technical flats — never as instructions to modify the photo. Its first sentence must establish the canvas: a full-bleed, solid pure white #FFFFFF background whose only content is the vector illustrations. Never use the words edit, transform, keep, preserve, maintain, remove, replace, erase, or original photo; describe only what the new image contains, and refer to the photo solely as the reference the items are drawn from. Name the actual items and their real details — silhouette, colorway, construction, hardware, graphics — never generic placeholders like \"the garment.\" Fold in any user notes @[design-notes]  ; they override the defaults. Make the prompt self-contained, since the image model sees only your prompt and the reference image. Output only the finished prompt — no commentary, no quotation marks, nothing else."
+ },
+ {
+  "technique": "Headwear Accessory",
+  "slug": "headwear-accessory",
+  "nodeId": "combo-1",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "Shot on Phase One XF IQ4, 120mm Schneider Macro lens. Extreme close-up beauty shot of a female model with long wavy dark brown hair and full lips, wearing a structured woodland camouflage cotton twill baseball cap. The cap is the absolute hero, featuring detailed beige, brown, and green camo patterns, highlighted by large, thick 3D puff embroidery in bubblegum pink and smaller white Japanese text. Every thread of the canvas weave, the fuzz on the cotton, and the raised texture of the pink embroidery are visible in sharp detail. She styles the look with a luxurious black satin shirt with an open collar, offering a sleek high-fashion contrast to the streetwear hat. Soft diffused studio light illuminates her face, showcasing hyper-realistic skin pores, peach fuzz, subsurface scattering on skin, and natural imperfections. The eyes are sharp, glossy, and engaging. Background is a soft, creamy neutral bokeh. Aesthetic includes high-end editorial retouching, crisp 8k resolution, hasselblad color science, commercial color grading, unspalsh photography style."
+ },
+ {
+  "technique": "Outfit to Campaign",
+  "slug": "outfit-to-campaign",
+  "nodeId": "879d3134-2a36-4308-a9aa-c93dafbef920",
+  "model": "Claude Sonnet 4.6",
+  "mode": "textToText",
+  "prompt": "Generate a fashion photograph of the character from a high-angle, top-down perspective, as if the camera is positioned above and looking down at the subject. Preserve the character’s identity, outfit, and proportions while adapting the pose naturally to suit this angle.\n\n\n\n\nThe composition should emphasize the upper body and overall styling, with a dynamic and expressive posture that feels natural and confident. Maintain realistic proportions despite the perspective, avoiding distortion.\n\n\n\n\nEnsure professional fashion lighting that complements the scene, with soft shadows and balanced highlights. The character should remain the focal point, with a clean and visually appealing composition.\n\n\n\n\nThe final image should feel like a high-end editorial fashion shot, captured on a professional camera, with sharp details, natural depth, and cinematic realism.\n"
+ },
+ {
+  "technique": "PDP Set",
+  "slug": "pdp-set",
+  "nodeId": "shot-2",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Full-length three-quarter shot, head to toe, soft diffused white studio lighting on a seamless white backdrop. Model stands with body angled slightly away from camera, one shoulder forward, weight resting on the back leg while the front leg is softly extended with a relaxed bend at the knee, creating a gentle forward lean in the torso. One arm bent upward crossing the body as if adjusting or holding something at shoulder height, elbow lifted naturally away from the torso, wrist slightly loose. The other arm hangs naturally close to the body. Head turned slightly toward camera with a calm, direct gaze, chin very slightly lowered. The stance reads as a candid mid-movement pause rather than a static pose. Crop captures the entire figure head to toe with even margin above the head and below the feet."
+ },
+ {
+  "technique": "Editorial Fashion Shoot Replicator",
+  "slug": "editorial-fashion-shoot-replicator",
+  "nodeId": "c0033722-d384-46d2-9049-59a8815c5210",
+  "model": "Claude Opus 4.6",
+  "mode": "imageToText",
+  "prompt": "I want to replicate this editorial style image maintaining the same elements(person, product, props, and background) but changing them into different ones. create a image prompt template that can take 1 input which is an image of a person, and comes up with a product, props, and background, and eventually create an editorial shot. it should be able to detect the face inside input no matter what comes(full body shot, cropped shot, close up shot etc). this system will be used for making an endless library of images. \n- this should be a template prompt which is a system, with customizable placeholders. so don't actually come up with ideas and nail them down. they should be changed moving on \n- avoid copying the exact same posture/composition of the input image. be creative "
+ },
+ {
+  "technique": "Outfit to Campaign",
+  "slug": "outfit-to-campaign",
+  "nodeId": "feb9a3a1-89b1-4bb6-86db-d3bfebbffd32",
+  "model": "Claude Sonnet 4.6",
+  "mode": "textToText",
+  "prompt": "Generate a close-up fashion photograph focusing on the upper clothing worn by the character. Preserve the character’s identity and outfit while framing the shot around the torso area, clearly showcasing the fabric, texture, stitching, and fit of the top attire.\n\n\nEnsure the clothing details are sharp and realistic, with natural folds and material behavior. The character should be positioned naturally, with a relaxed and authentic pose that highlights the garment.\n\n\nUse soft, professional lighting that enhances texture and depth without harsh shadows. Maintain a clean and balanced composition, similar to a high-end fashion or e-commerce shoot. The final image should feel detailed, realistic, and suitable for product presentation.\n"
+ },
+ {
+  "technique": "Outfit to Campaign",
+  "slug": "outfit-to-campaign",
+  "nodeId": "4a32a37d-a277-4f58-bbf7-97c4bfb5855a",
+  "model": "Claude Sonnet 4.6",
+  "mode": "textToText",
+  "prompt": "Generate a close-up fashion photograph focusing on the lower clothing worn by the character. Preserve the character’s identity and outfit while framing the shot from the waist down, clearly showcasing the fit, structure, stitching, and fabric details of the bottom attire.\n\n\nEnsure realistic fabric behavior, natural folds, and accurate proportions. The character should have a natural stance, with proper leg positioning to highlight the garment effectively.\n\n\nUse soft, controlled lighting to enhance texture and depth, with realistic shadows and ground contact. Maintain a clean, professional composition similar to a high-end fashion or e-commerce product shoot. The final result should be sharp, detailed, and visually appealing.\n"
+ },
+ {
+  "technique": "PDP Set",
+  "slug": "pdp-set",
+  "nodeId": "63970f83-ba93-4ac8-a318-ca773a053bfa",
+  "model": "Claude Sonnet 5",
+  "mode": "imagesToText",
+  "prompt": "act as a seasoned photographer and a prompt expert: write a list of 5 prompts to replicate each one of the shots. do not describe the model or the garment or shoes. make the prompts generic enough to work for any outfit, the goal is to replicate the body positioning/angles/lighting, all should be consistent across all of the shots . make sure to identify slight movement visible in each shot, model poses should not look stiff, match model stance. identify how the images are cropped. DO NOT BRING IN THE MODEL OR THE GARMENTS FROM THESE IMAGES. Consistent lighting and color of studio background as refs. do not describe the model or what she is wearing of her hair. Head to toe."
+ },
+ {
+  "technique": "Sticker Peel-Away Effect",
+  "slug": "sticker-peel-away-effect",
+  "nodeId": "sticker-peel-away-effect",
+  "model": "Seedance 2.0 Fast",
+  "mode": "imageToVideo",
+  "prompt": "Wide photographic establishing shot with realistic photographic texture. A young woman's hand with soft polished nails enters from the right side of frame and pinches the upper-right corner of the character like a flat 2D sticker. The character lifts by the fingertips like paper and slowly peels away diagonally from top-right to bottom-left. Once removed, only the empty background remains. The hand holds the character sticker up toward the camera for display; the sticker keeps the original character's size and exact silhouette, gently wobbling while held. End on a frozen frame. Tactile scrapbook handling, paper tearing feel, ambient white noise mood."
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "7ea465b8-2952-4cb8-b3c4-3d95d791a93c",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Reconstruct the full outfit from the extracted description.\r\n\r\nRules:\r\n- Keep original proportions exactly as worn\r\n- Maintain fabric realism (cotton, leather, silk, nylon, etc.)\r\n- Ensure correct layering (e.g. jacket over shirt)\r\n- Preserve natural folds and tension points\r\n- Align all pieces into a complete wearable outfit\r\n\r\nPlace the outfit on an invisible mannequin base:\r\n- natural human posture\r\n- balanced stance\r\n- correct anatomical spacing\r\n\r\nBackground: pure white studio background\r\nLighting: soft studio lighting, minimal shadows\r\nStyle: high-end e-commerce product photography\r\n\r\nDo NOT stylize yet. Keep it clean and realistic.\n"
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "8c83889c-8bf0-4020-a956-0a86d71df4d6",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Analyze the uploaded image of a full outfit.\r\n\r\nIdentify and isolate every clothing component worn by the subject:\r\n- top (shirt, hoodie, jacket, gown, etc.)\r\n- bottom (trousers, skirt, shorts, etc.)\r\n- footwear (shoes, heels, sneakers, etc.)\r\n- accessories if attached to clothing (not handheld items)\r\n\r\nPreserve:\r\n- exact fabric texture\r\n- stitching and seams\r\n- folds and wrinkles\r\n- colors and gradients\r\n- branding or logos (if visible)\r\n\r\nRemove:\r\n- human body completely\r\n- face, skin, hands, legs\r\n- background distractions\r\n- handheld objects (phones, cups, etc.)\r\n\r\nOutput description ONLY of the outfit components, structured clearly.\n"
+ },
+ {
+  "technique": "PDP Set",
+  "slug": "pdp-set",
+  "nodeId": "shot-5",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "Medium shot cropped from mid-thigh to just above the head, styled as a tighter three-quarter framing. Model stands with one leg slightly forward, weight settled naturally, hips relaxed rather than rigid. Both hands rest on the hips with elbows bent outward, shoulders pulled back slightly to elongate the torso. Head is level, gaze direct and steady into the lens, with a subtle, almost imperceptible shift in weight suggesting the moment was caught mid-breath rather than frozen. Lighting remains soft, even, and shadow-minimal, with the same pale seamless backdrop carried through for consistency."
+ },
+ {
+  "technique": "PDP Set",
+  "slug": "pdp-set",
+  "nodeId": "shot-3",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Close-up cropped shot from mid-chest to just above the head, focusing on the collarbone, shoulders, and lower face. Model's head is tilted slightly downward and to the side, eyes angled upward toward the lens for a soft, engaged expression. One hand rests on the hip just entering the lower frame, elbow bent outward, suggesting continued motion from a fuller pose. Skin and fabric textures are sharply detailed under soft, diffused front lighting with subtle falloff on one side of the face to add dimension. Background remains a clean, minimal pale studio tone consistent with the full shots."
+ },
+ {
+  "technique": "PDP Set",
+  "slug": "pdp-set",
+  "nodeId": "shot-4",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Full-body back shot, cropped head-to-toe. Model stands facing away from camera with weight shifted onto one hip, creating a soft diagonal line through the shoulders and waist. Feet positioned in a relaxed stance, one heel slightly lifted or angled outward for movement. Arms relaxed at the sides with a slight natural bend at the elbows, hands loosely open. Head turned gently to one side in profile, hair swept up or back to expose the neckline. Even soft lighting from the front-back angle to maintain consistent shadow tone, same pale neutral backdrop, subtle floor shadow beneath the feet."
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "ab6c5153-fb10-48e2-889b-06009668fbde",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create an ultra-close-up shot of the garment focusing on fabric texture.\r\n\r\n- zoom into a flat or slightly folded area of the fabric\r\n- clearly reveal weave, grain, and material structure\r\n- show subtle natural folds and micro-wrinkles\r\n\r\nLighting:\r\n- soft directional light to enhance texture depth\r\n- gentle highlights and shadows across the surface\r\n\r\nFocus:\r\n- extremely sharp detail\r\n- visible fibers and material quality\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nStyle:\r\n- high-end fashion product macro photography\r\n\r\nAvoid:\r\n- blur\r\n- over-smoothing\r\n- plastic-looking fabric"
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "87d6ab23-8590-4f76-b7ba-7a57811c27ca",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Enhance the ghost mannequin outfit with controlled dynamic motion.\r\n\r\nApply:\r\n- slight forward walking pose OR mid-step motion\r\n- subtle displacement of limbs (as if invisible body is moving)\r\n- natural fabric response to motion (air resistance, folds shifting)\r\n\r\nKeep it realistic:\r\n- gravity still applies\r\n- clothing should not float randomly\r\n- motion should feel captured mid-action\r\n\r\nFootwear:\r\n- slightly offset from ground for motion realism\r\n- maintain shadow alignment\r\n\r\nDo NOT exaggerate into surrealism.\r\nKeep it premium fashion campaign style."
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "e9126e47-d476-4b84-9e23-77a2b88eea00",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a close-up shot focusing on stitching and seam construction of the garment.\r\n\r\n- zoom into seam lines (side seam, shoulder, or hem)\r\n- highlight thread detail, alignment, and finishing\r\n- show slight fabric tension along the seam\r\n\r\nLighting:\r\n- side lighting to emphasize depth and stitch definition\r\n\r\nFocus:\r\n- crisp, sharp stitching detail\r\n- realistic thread texture\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nStyle:\r\n- premium garment construction detail shot\r\n\r\nAvoid:\r\n- flat lighting\r\n- hidden seams"
+ },
+ {
+  "technique": "Virtual Try-On",
+  "slug": "virtual-try-on-4k5vvw",
+  "nodeId": "be5b0665-3026-405e-9a1d-79b90c1199dd",
+  "model": "GPT-5.5",
+  "mode": "imagesToText",
+  "prompt": "Virtual try-on. @[person] is the base person and scene. Replace only their clothing with the garments from @[outfit] . Preserve the Image 1 person, face, pose, background, and lighting exactly. Follow the JSON specification precisely in @[2df9e2fb-4029-429b-bb24-662f74d9b186] \n\nIf @[styling-notes] are present, they take priority for styling choices (which garments to swap, fit, tuck, layering), but they never change the model's identity, pose, or background unless they explicitly ask for it."
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-2",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Full-length studio portrait on a seamless white background, subject perched sideways on a stool, one leg bent and raised with the foot resting on the seat, the other leg extended down with the foot lifted onto toes, torso twisted to look back over the shoulder toward the camera, one hand gripping the stool edge, head turned sharply, chin lowered, eyes cutting toward the lens with a sultry direct expression, dramatic rim lighting, clean minimal backdrop, fashion photography aesthetic"
+ },
+ {
+  "technique": "Fit Check",
+  "slug": "fit-checks",
+  "nodeId": "7ddc1a3b-e3aa-4cc2-af61-b4d502506876",
+  "model": "Nano Banana Pro",
+  "mode": "imagesToImage",
+  "prompt": "Using the first image, replace the outfit with the clothes from the second image while keeping the pose and composition exactly the same. Do not change the face or look of the pose/model in the first image. \n\nif the first image is only showing the top half of the body, only include any garments like shirts, tops, jewelry, ties, scarves, handbags or any outfit piece that would be worn from the waist up.\n\nif the first image is a full body composition, include all outfit pieces."
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "d9c62084-ac2e-43f5-9125-da37b84609ef",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a mid-step motion as if the invisible figure is caught in motion.\r\n\r\n- one leg lifted mid-air\r\n- the other leg supporting weight\r\n- slight forward lean in torso\r\n\r\nFabric behavior:\r\n- visible movement in loose areas (jacket hem, sleeves)\r\n- natural flow, not exaggerated\r\n\r\nFootwear:\r\n- one shoe suspended slightly above ground\r\n\r\nKeep realism:\r\n- gravity still applies\r\n- no floating illusion beyond natural motion\r\n\r\nStyle: fashion editorial but controlled"
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "88187ab2-8c45-47b7-94dd-3da6128fa8b1",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a close-up shot of the collar or neckline area.\r\n\r\n- focus on structure and shape of the collar\r\n- show natural folds and how the fabric sits\r\n- include inner lining or stitching if visible\r\n\r\nFor ghost mannequin:\r\n- maintain hollow neck opening realistically\r\n\r\nLighting:\r\n- soft top lighting with subtle shadow depth\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nStyle:\r\n- clean, premium fashion detail\r\n\r\nAvoid:\r\n- collapsing collar\r\n- unrealistic symmetry"
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "296ba67e-5789-41bd-82e4-5cf8f70c60ee",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a close-up shot of the waist area of the garment.\r\n\r\n- highlight how the fabric shapes around the body form\r\n- show folds, tension, and draping behavior\r\n- include waistband, drawstrings, or belt if present\r\n\r\nFocus:\r\n- natural compression and flow of fabric\r\n\r\nLighting:\r\n- soft directional lighting to reveal depth\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nStyle:\r\n- realistic fashion fit detail\r\n\r\nAvoid:\r\n- flat fabric\r\n- unnatural stiffness"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-3",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Full-length studio portrait on a seamless white background, subject captured mid-stride in profile, front leg extended forward in a lunge, back leg stretched behind, arms swinging naturally with one arm bent and hand relaxed, torso leaning slightly forward with hair flipping mid-motion, head turned back toward camera, wide open-mouthed smile, joyful expression, bright energetic lighting, freeze-frame motion clarity, commercial photography style"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-1",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Full-length studio portrait on a seamless white background, subject standing with both arms raised overhead, elbows bent, hands meeting near the top of the head, weight shifted onto one leg while the other leg crosses in front at an angle, ankles crossed near the feet, head tilted slightly downward, gaze locked on camera, lips softly parted, expression cool and detached, soft even studio lighting, sharp focus, high fashion editorial style"
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "8bc0d536-09fb-4549-a89c-704badd47fa5",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a close-up shot of the footwear.\r\n\r\n- focus on material texture (leather, fabric, rubber)\r\n- highlight stitching, sole, and edge details\r\n- slight angle for depth (not flat front view)\r\n\r\nLighting:\r\n- soft studio lighting with subtle reflections\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nShadow:\r\n- soft grounding shadow\r\n\r\nStyle:\r\n- premium product photography\r\n\r\nAvoid:\r\n- flat lighting\r\n- loss of material detail"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-5",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Full-length studio portrait on a seamless white background, subject reclining on their back with hips lifted, legs bent and crossed at the knees pointing upward toward the ceiling, arms flat on the ground supporting the head which is tilted back, face turned toward camera at an inverted angle, eyes wide open, expression calm and curious, soft top-down lighting, artistic composition, clean crisp background"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-6",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Full-length studio portrait on a seamless white background, subject lying on their back with hips elevated, legs fully extended straight up and crossed near the ankles, one hand reaching up to grasp the ankle area, other arm resting bent beneath the head, head tilted to the side, chin lifted, gaze directed at camera with a relaxed confident expression, balanced studio lighting, sleek minimalist aesthetic"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-4",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Full-length studio portrait on a seamless white background, subject crouched low in a tight squat, knees drawn to chest, one arm bent with hand resting against the cheek, other hand curled near the chin, body angled sideways, head tilted onto hand, gaze directed at camera with lids lowered slightly, expression soft and pensive, gentle diffused lighting, intimate mood, high-resolution editorial shot"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-8",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Full-length studio portrait on a seamless white background, subject standing with arms raised straight overhead, wrists crossed above the head, torso leaning slightly to one side creating a curved silhouette, hips shifted outward, head tilted back slightly, mouth slightly open, expression playful and energetic, bright vibrant lighting, dynamic fashion pose, high contrast against the white backdrop"
+ },
+ {
+  "technique": "Editorial Fashion Shoot Replicator",
+  "slug": "editorial-fashion-shoot-replicator",
+  "nodeId": "20ac244d-d484-4b10-9c61-d1a54533d555",
+  "model": "Claude Opus 4.6",
+  "mode": "imageToText",
+  "prompt": "make a version of the image prompt that features this person in a posture and composition that makes sense in an editorial style photoshoot. come up with a product, props, and background, and eventually create an editorial shot.\n- no text or watermarks\n- do not distort the face and body\n- only return the prompt\n- add a header sentence that explains to use the input image as the face reference"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-10",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "10. Full-length studio portrait on a seamless white background, subject standing with legs crossed at the ankles in an elongated stance, one arm raised bent with hand resting behind the head, other arm hanging straight down at the side, head tilted slightly upward, direct steady gaze at camera, expression composed and confident, soft glamour lighting, polished commercial photography finish"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-9",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "9. Full-length studio portrait on a seamless white background, subject standing in a twisted contrapposto pose, torso rotated to look back over the shoulder, one arm hanging loosely with relaxed fingers, weight settled onto one hip with legs crossed at a slight angle, head turned to glance back at camera, expression cool and aloof, moody directional lighting, elegant editorial tone"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "pose-7",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "7. Full-length studio portrait on a seamless white background, subject seated on the floor with one leg tucked underneath and the other extended straight out to the side, torso upright and turned toward camera, one arm resting bent with hand near the bent knee, head held level, direct forward gaze, expression neutral and composed, soft symmetrical lighting, clean editorial framing"
+ },
+ {
+  "technique": "Outfit to Campaign",
+  "slug": "outfit-to-campaign",
+  "nodeId": "back-view-shot",
+  "model": "Nano Banana 2",
+  "mode": "imageToImage",
+  "prompt": "Generate a full-body back view of the character wearing the outfit. Preserve identity and proportions while showing the rear details of the clothing clearly. Ensure natural posture, balanced composition, and full visibility from head to toe. Maintain consistent lighting, color grading, and style with the original scene. High-end fashion photography, realistic and sharp."
+ },
+ {
+  "technique": "Ghost Mannequin System",
+  "slug": "ghost-mannequin-system",
+  "nodeId": "5286a7d2-d628-4720-ac28-a38f3c4e72a9",
+  "model": "Claude Opus 4.6",
+  "mode": "textToText",
+  "prompt": "Create a close-up shot of a pocket area.\r\n\r\n- highlight pocket shape, stitching, and opening\r\n- show depth and structure of the pocket\r\n- include natural fabric folds around it\r\n\r\nLighting:\r\n- soft angled light to reveal depth\r\n\r\nBackground:\r\n- pure white (#FFFFFF)\r\n\r\nStyle:\r\n- functional garment detail shot\r\n\r\nAvoid:\r\n- flat or unrealistic pocket structure"
+ },
+ {
+  "technique": "Garment Sketch",
+  "slug": "sketch-to-garment",
+  "nodeId": "a3ba0f86-9bf0-44cd-8314-075330f67e9f",
+  "model": "GPT-5.2",
+  "mode": "imageToText",
+  "prompt": "act as a prompt expert and trend forecaster: Create a hyper realistic version of the drawing, should look high fashion and visually appealing. Same background as the reference image. may attention to seam details, edge finishes and fabric weight based on sketch. pay attention to visible closures of lack of, do not add anything you don't see in the sketch"
+ },
+ {
+  "technique": "Outfit to Campaign",
+  "slug": "outfit-to-campaign",
+  "nodeId": "0aac100c-4a00-41b4-b560-b769214b105b",
+  "model": "Claude Sonnet 4.6",
+  "mode": "textToText",
+  "prompt": "A full-body fashion photograph of the character wearing the provided outfit. The clothing includes the hoodie and pants from the product references. The outfit fits naturally on the character’s body with realistic fabric draping and proportions. Shot in a clean studio setting, soft lighting, minimal background, high fashion photography style."
+ },
+ {
+  "technique": "Outfit to Campaign",
+  "slug": "outfit-to-campaign",
+  "nodeId": "b75c598e-a76a-45e1-8de3-4626b2037a0e",
+  "model": "Claude Sonnet 4.6",
+  "mode": "textToText",
+  "prompt": "Generate a fashion photograph of the character interacting naturally with the environment, such as sitting, leaning, or engaging with nearby elements. Preserve identity and outfit while ensuring realistic posture, lighting, and shadows. Maintain a professional fashion composition with strong visual balance and realism."
+ },
+ {
+  "technique": "Print/Pattern Replacement",
+  "slug": "print-pattern-replacement",
+  "nodeId": "0cf47080-938a-448f-af6d-8482f6e5b797",
+  "model": "Claude Opus 4.6",
+  "mode": "imagesToText",
+  "prompt": "act as a prompt expert: using the fabric/texture swatch in image 1 replace the fabric in the object in image 2. Color and texture exactly as image 1. in case its a pattern, pattern should be seamless in the object from image 2. keep scale as image 1"
+ },
+ {
+  "technique": "Fit Check",
+  "slug": "fit-checks",
+  "nodeId": "a720076a-7dce-45ef-80a8-cf8ccfa42a81",
+  "model": "Nano Banana Pro",
+  "mode": "imageToImage",
+  "prompt": "isolate the clothing items in this image as individual clothing pieces on a white background. include accessories but exclude clothing rack if present"
+ },
+ {
+  "technique": "Model Poses",
+  "slug": "model-poses",
+  "nodeId": "e1b974e0-5b4f-45b8-8991-5a42fe93b3cb",
+  "model": "Claude Sonnet 5",
+  "mode": "textToText",
+  "prompt": "act as a prompt expert: write a detailed prompt for each pose and facial expression. each one should be on white background"
+ },
+ {
+  "technique": "Virtual Try-On",
+  "slug": "virtual-try-on-4k5vvw",
+  "nodeId": "styling-notes",
+  "model": "Claude Sonnet 5",
+  "mode": "textToText",
+  "prompt": "Full outfit swap, shoes included. No bag. Everything else stays. Same pose, same facial expression."
+ }
+]
