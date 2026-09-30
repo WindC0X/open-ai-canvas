@@ -159,3 +159,19 @@
 | G7 | `model-picker.tsx` / `model-picker.css` | 弹窗宽度限制（固定宽度机制 → `max-width` 弹性）+ 新结构 `canvas-model-picker-option-heading` / `-option-name` / `-option-price`（价格内联进标题行） | fork flyout 分组架构（`canvas-model-picker-flyout`，PATCH-MAP C1 登记为 fork 专有）；`--canvas-model-picker-trigger-width` 机制 | 跟随上游删除 `triggerWidth`（TSX 注入 + `.canvas-model-picker-menu` 消费点）；fork 的 `ModelLabel` T 行结构与 flyout 段保留；`.canvas-model-picker-flyout` 的 `min-width` 待观察（原消费已废变量，退化为 0 时由 `max-content` 兜底） |
 | G8 | `cloud_agent_step_hash.go`（**合并中修复**） | 上游 `a0f025aa` 统一日志出口（`log.Printf` → `slog`） | fork 的 `cloudAgentRepairSnapshotHashAgainst` 修复日志 | 自动合并把 fork 的 `log.Printf` 留在已改 `slog` 的文件中（`undefined: log` 编译错），按上游惯例改 `slog.Debug` |
 | G9 | `.env.example` / `CHANGELOG.md` / `pending-test.mdx` / `code-map.mdx` | 日志变量组、v1.5.8.2/1 版本记录、三项待测（后端日志/弹窗视口/分镜画幅）、Pi runtime 代码地图 | fork 会话 cookie 变量、Unreleased、F-06 扩图待测、扩图模块描述 | **keep-both**（code-map 融合：上游 Pi runtime 段 + fork `cloud_agent_media_outpaint.go` 段） |
+
+---
+
+## 序5 修复登记（H 系列 · merge-v1.6.0 · 2026-09-30）
+
+> 序5 门禁复跑期间发现的合并引入缺陷与修复。H1 为**真 bug**（schema 与描述同时
+> 偏离上游，导致 canvas_apply_ops 在 Pi 路径下被 SDK 参数校验拒绝，审批门静默失效）。
+
+| # | 涉及面 | 缺陷 | 根因 | 处置 |
+|---|---|---|---|---|
+| H1 | `cloud_agent_tools.go` `opProperties` | `canvas_apply_ops` 在 Pi 路径下**永不进入审批门**：Node 侧探针铁证 `Validation failed for tool "canvas_apply_ops": ops.0.x: schema is false / ops.0.y: schema is false / ops.0: must not have additional properties` → SDK `prepareToolCall` 校验失败返回 immediate error，`execute` 从未进入，Go 侧 `/tool` 桥不被调用 | 序2 处置该工具描述时误删 `opProperties` 的 `"x"`/`"y"` 两行（上游 `e0a2697c` 有），并把描述从上游的「可给 x/y 指定位置；省略坐标时服务端按画布内容自动落位」改成「不要传 x/y」——schema 与描述同时偏离上游，而 `cloud_agent_runtime_e2e_test.go` 的测试参数仍传 `x:24,y:48` | 补回 `x`/`y`（与上游逐行一致）+ 描述恢复上游措辞；当前该文件与上游差异仅剩 fork 扩图段（F 系列有意保留） |
+| H2 | `cloud_agent_runtime_e2e_test.go` deadline | 两条 Pi runtime e2e（`TestCloudAgentRuntimeCompletesToolRoundTrip` / `ApprovalWriteRoundTrip`）在 /mnt/f 上必超时 | drvfs 下 Pi 依赖树导入 65907ms vs ext4 729ms（90 倍），60s 窗口不足 | 控制线裁决 b：60s→150s，两处均加注释说明 drvfs 环境适配 + ext4 CI 无影响 + 上游同步重评估提示 |
+
+**教训（供下批 task book 参考）**：合并中修改工具 schema 时，schema 的 `properties`
+与工具描述文案是**两个独立的事实面**，改一处必须核另一处；上游测试文件里出现
+"参数违反本仓 schema" 类失败时，优先怀疑合并期对 schema 的误删而非测试过时。
