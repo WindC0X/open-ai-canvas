@@ -103,3 +103,34 @@ canvas-model-policy / agnes-video / asset-batch-delete。
 | 域 | fork 增量 | 上游面 | 落位策略 |
 |---|---|---|---|
 | 音频设置面板 | fork SettingGroup 私有组件（extra?: ReactNode 增强 + theme.node.groupTitle 配色，11 笔改造）| b0806745 IndexTTS2 情感段（14 键 + emotionFields + 情感权重 input）+ d328a257 格式化 | AudioSettingKey 取上游 14 键（fork 4 键为子集）；情感段用上游结构、SettingGroup 用 fork 增强版（extra 可选兼容）；theme.node.muted 已证存在 |
+
+---
+
+## 九、控制线独立验收（2026-09-30 22:40 · merge-v1.6.1 @ 5e14fbc5）
+
+### 复核结果（全部独立执行，非转述）
+
+| # | 项 | 结果 |
+|---|---|---|
+| 1 | 拓扑链 5e14fbc5←735f917d←d5082565←905d7c9b / 干净 | ✓ |
+| 2 | d328a257 为 HEAD 祖先 | ✓ |
+| 3 | H1 系：opProperties x/y（number + min/max 0-1）在场 | ✓ |
+| 4 | card06：水位门访问器 25 处 + saveRemoteUserDataBatch ×2 落 services 新家 | ✓ |
+| 5 | G2：StepFullSnapshotHash 字段 runtime.go:164-167 + 赋值点 cloud_agent_runtime_scheduler.go:323 | ✓ |
+| 6 | E4 三处：outpaintTier（web 7 处 / defaults.go:74 播种 / validate.go:43-44 白名单）| ✓ |
+| 7 | SSRF：upstream_address_blocked 分支 errors.go:38 | ✓ |
+| 8 | 音频融合：audioEmotion 22 处（14 键型）+ SettingGroup extra 增强版（:57/:175）| ✓ |
+| 9 | 4 处静默丢失修复 = 735f917d（4 文件 +49/−2，含 5 项定向复跑记录）| ✓ |
+| 10 | 锚点迁移 3 处实核（composer ×3 / panel-parts ×2 引用在场）| ✓ |
+| 11 | fork 守卫三文件存活（上游侧无此三文件，merge 保全）| ✓ |
+| 12 | bun test 独立复跑：**2444 pass / 0 fail / 318 files / 59.62s**（与报告逐字吻合；2438→2444 = +6 来自 rider 2 上游测试修改）| ✓ |
+
+### 裁定
+
+**① 验收通过。** 门禁全绿 + 语义面 12/12。
+
+**② e2e 口径裁定（未解释项 1）**：A线 解释正确——S1-S7 为测试线 Playwright 场景编号，任务书 §三.4 措辞混入了测试线门名（控制线拟书笔误，入账）。开发线口径 = Go e2e 族（Pi runtime 5 条，隔离全 PASS）+ 聚焦守卫；S1-S7 五跑门属测试线轮次（ext4 twin，同 序6 惯例）。串行第 4 条超时 = drvfs 特性（v1.6.0 批树同位失败先例），隔离通过即收，测试线 ext4 复证。
+
+**③ A线 重大贡献记档**：4 处拆分增量静默丢失的发现与「逐注释/逐 case/逐中文文案全树比对」方法学——这是 H1 教训（schema 与描述两个事实面）的泛化：**拆分类 refactor 中「函数名在场 ≠ 增量在场」**。此方法学进后续所有 merge 任务书模板。
+
+**④ 后续序列**：用户真机抽验（Agent 面板拆分面，需将 :3010 栈切至 v161 worktree）→ push → 测试线整轮（S1 迁移冒烟 + S2 五跑 + VRT 三面，Agent 面板必采）→ F-01 开枝。
