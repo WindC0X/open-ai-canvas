@@ -11,22 +11,27 @@
 | 数据集 | 数量 | 成功率 | 落盘 |
 |---|---|---|---|
 | **技法（Techniques）** | **112/112** | 100%（0 失败） | `data/techniques-graphs-full.json`（2.0 MB） |
-| **Fashion Studio 工具** | **8/13**（DOM 可见的） | 100% | `data/studio-tools.json`（130 KB） |
+| **Fashion Studio 工具** | **15/15** | 100%（0 失败） | `data/studio-tools.json`（278 KB） |
 | 技法索引 | 112 | — | `data/INDEX.json` / `INDEX.md` |
 | 类别提示词库 | 384 条唯一提示词 | — | `data/prompts/*.json`（11 个类别） |
-| Studio 工具提示词 | 15 条 | — | `data/studio-tools-prompts.json` |
+| Studio 工具提示词 | **40 条 / 112,203 字符** | — | `data/studio-tools-prompts.json` |
 
 ### 规模统计
 
 ```
 技法总数        112
-节点总数        466
-边总数          1211
+技法节点总数    466
+技法边总数      1211
 含提示词节点    600
 唯一提示词      412 条（530,545 字符）
 模型总数        48 个
 IO 模式         12 种
 类别            11 种
+─────────────────────────────
+Studio 工具     15 个
+Studio 节点     25
+Studio 边       89
+Studio 提示词   40 条（112,203 字符）
 ```
 
 ---
@@ -139,23 +144,33 @@ IO 模式         12 种
 
 ---
 
-## 二、Fashion Studio 工具（8/13 已抓）
+## 二、Fashion Studio 工具（15/15 完整）
 
-### 2.1 工具清单与机制
+> **关键修正**：此前认为 Studio 只有 13 个工具（基于 bundle 里的 `slugBases` 注册表），**实际是 15 个**。
+> 多出的 3 个：**Concept**（`concept-vdhwmm`）、**Garment Swap**（`garment-swap-4p9v9c`）、**360 Model Video**（`360-model-video`）——
+> 前两者在注册表里分别写作 `concept` 和 `garment-swap`，第三个在 rail 折叠态不渲染。
 
-| 工具 | name | slug | cost | 节点 | 边 | 入 | 出 | 模型链 |
-|---|---|---|---|---|---|---|---|---|
-| **Prompt** | Prompt | `prompt` | 48 | 0 | 5 | 5 | 1 | Claude Sonnet 5 + Nano Banana 2 Lite |
-| **Sketch** | Sketch to Render | `sketch-to-render-u5ew94` | 108 | 1 | 4 | 2 | 1 | Claude Sonnet 5 + Gemini Flash 3.6 + Nano Banana 2 Lite |
-| **Extract** | Garment Extractor | `garment-extractor-qcjn3m` | 141 | 3 | 7 | 2 | 1 | GPT-5.5 + Gemini 3 Flash + Gemini Flash 3.6 + Nano Banana 2 |
-| **Ghost** | Ghostform | `ghostform` | 230 | 1 | 3 | 1 | 1 | GPT-5.5 + Nano Banana 2 |
-| **Flat** | Flatlay | `flatlay` | 198 | 1 | 3 | 1 | 1 | GPT-5.5 + Nano Banana 2 Lite |
-| **Recolor** | Garment Recolor | `garment-recolor-3gkapi` | 200 | 5 | 9 | 3 | 1 | Claude Sonnet 5 + Nano Banana Pro |
-| **Try-On** | Model Try-On | `model-try-on-e381zg` | 208 | 1 | 5 | 2 | 1 | Claude Sonnet 5 + Nano Banana Pro |
-| **360** | 360 Garment Video | `360-garment-video` | 2896 | 1 | 5 | 2 | 1 | Claude Opus 5 + Seedance 2.0 |
+### 2.1 全部 15 个工具
 
-**未抓到的 5 个**：Fabric Swap（`fabric-swap`）/ Model Maker（`model-maker`）/ Garment Swap（`garment-swap`）/ Photo Shoot（`photo-shoot`）/ 360 Model Video（`360-model-video`）/ Multi-Angle Shoot（`multi-angle-shoot`）
-→ **原因**：`resolveStudioRailGroupedSections(技法列表)` 从**当前项目已添加的技法节点**里筛，DOM 只渲染了这 8 个。补齐需在项目里逐个添加其余工具。
+| # | 工具 | slug | cost | 节点 | 边 | 入 | 出 | 提示词 | 模型链 |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | **Prompt** | `prompt` | 48 | 0 | 5 | 5 | 1 | 0 | Claude Sonnet 5 + Nano Banana 2 Lite |
+| 2 | **Sketch to Render** | `sketch-to-render-u5ew94` | 108 | 1 | 4 | 2 | 1 | 2 (12.2K) | Claude Sonnet 5 + Gemini Flash 3.6 + Nano Banana 2 Lite |
+| 3 | **Garment Extractor** | `garment-extractor-qcjn3m` | 141 | 3 | 7 | 2 | 1 | 3 (7.0K) | GPT-5.5 + Gemini 3 Flash + Gemini Flash 3.6 + Nano Banana 2 |
+| 4 | **Ghostform** | `ghostform` | 230 | 1 | 3 | 1 | 1 | 2 (4.7K) | GPT-5.5 + Nano Banana 2 |
+| 5 | **Flatlay** | `flatlay` | 198 | 1 | 3 | 1 | 1 | 2 (10.2K) | GPT-5.5 + Nano Banana 2 Lite |
+| 6 | **Garment Recolor** | `garment-recolor-3gkapi` | 200 | 5 | 9 | 3 | 1 | 2 (5.6K) | Claude Sonnet 5 + Nano Banana Pro |
+| 7 | **Fabric Swap** | `fabric-swap-jldxb8` | 230 | 2 | 8 | 3 | 1 | 3 (11.0K) | GPT-5.5 + Nano Banana 2 |
+| 8 | **Model Maker** | `model-maker-wka1j3` | 1010 | 2 | 11 | 5 | 2 | 4 (8.6K) | Claude Sonnet 5 + GPT-5.5 + Gemini Flash 3.7 + Nano Banana Pro |
+| 9 | **Model Try-On** | `model-try-on-e381zg` | 208 | 1 | 5 | 2 | 1 | 2 (**15.8K**) | Claude Sonnet 5 + Nano Banana Pro |
+| 10 | **Photo Shoot** | `photo-shoot` | 772 | 5 | 19 | 3 | 4 | 9 (8.4K) | Claude Sonnet 5 + Gemini 3 Flash + Gemini Flash 3.6 + Nano Banana 2/Pro |
+| 11 | **Multi-Angle Shoot** | `multi-angle-shoot-u90z7s` | 47 | 0 | 1 | 1 | 1 | 1 (0.1K) | **Qwen Image Edit 2511 Angles** |
+| 12 | **Garment Swap** | `garment-swap-4p9v9c` | 350 | 2 | 8 | 3 | 1 | 3 (9.3K) | GPT-5.5 + Nano Banana Pro |
+| 13 | **360 Garment Video** | `360-garment-video` | 2896 | 1 | 5 | 2 | 1 | 2 (4.2K) | Claude Opus 5 + Seedance 2.0 |
+| 14 | **360 Model Video** | `360-model-video` | 2989 | 2 | 7 | 2 | 1 | 3 (7.4K) | Gemini Flash 3.7 + Nano Banana 2 Lite + Seedance 2.0 |
+| 15 | **Concept** | `concept-vdhwmm` | 210 | 2 | 10 | 4 | 1 | 2 (7.9K) | Claude Opus 4.5 + Claude Sonnet 5 + Nano Banana Pro |
+
+**合计**：15 工具 / 25 节点 / 89 边 / **40 条提示词（112,203 字符）**。
 
 ### 2.2 工具链的流水线语义（★ 核心发现）
 
@@ -193,7 +208,7 @@ on-model│ Extract  │ Extract  │    —     │
 
 ### 2.3 提示词工程范式（★ 最高价值发现）
 
-**Flora 的提示词不是自然语言描述，而是结构化契约**。三种范式：
+**Flora 的提示词不是自然语言描述，而是结构化契约**。四种范式：
 
 #### 范式 1：`@[引用]` 语法 + ROLE 定义
 
@@ -267,7 +282,7 @@ recolor anything that is black in Image 2.
 | Tool | 机制覆盖 | 数据来源 | 缺口 |
 |---|---|---|---|
 | **Bulk Generate** | ✅ 完整 | `t07-bulk-generate.md`（31.8 KB） | 无 |
-| **Fashion Studio** | ✅ **机制完整**（8/13 工具 graph + 提示词） | 本报告 §2 + `t06-studios-fashion.md` | 5 个工具未抓（需项目内添加） |
+| **Fashion Studio** | ✅ **完整**（15/15 工具 graph + 40 条提示词） | 本报告 §2 + `data/studio-tools.json` | 无 |
 | **Director** | ✅ 机制级 | `imagine-tools-deep-dive.md` | 无（`minimax/h3-max/director` 协议完整） |
 | **Pose** | ✅ 机制级 | `imagine-tools-deep-dive.md` | 无（`fal-ai/flux-2/klein` + `schedule_mu` 公式完整） |
 | **Realtime** | ✅ 机制级 | `imagine-tools-deep-dive.md` | 无（`decart/lucy-2-5/realtime` 原生 WebRTC 完整） |
@@ -306,7 +321,7 @@ recolor anything that is black in Image 2.
 
 | # | 缺口 | 原因 | 补齐方式 |
 |---|---|---|---|
-| 1 | Fashion Studio 剩余 5 工具 | DOM 只渲染项目已添加的 8 个 | 在项目里逐个添加工具后重抓 |
+| 1 | ~~Fashion Studio 剩余 5 工具~~ | ✅ **已解决**（15/15 全抓） | — |
 | 2 | Studio 工具的 `estimatedTime` | 字段为空 | 服务端数据 |
 | 3 | 技法 `runs` 需二次抓取 | `getVisibleTechniques` 不含 runCount | 已从列表页 context 补（`data/META.json`） |
 | 4 | 12 个技法 nodes 为空 | 旧版格式（节点 ID 直接用语义名） | 数据完整，格式不同 |
@@ -318,22 +333,25 @@ recolor anything that is black in Image 2.
 
 ```bash
 # 1. 打开 Flora（登录态）任意技法详情页
+#    注意：必须用「详情页」而非列表页 —— 详情页的 Convex WS 是连着的
 tmwd-browser exec <SID> '{"cmd":"tabs","method":"create","url":"https://app.flora.ai/techniques/ghost-mannequin-system"}'
 
 # 2. 从 React fiber 取 Convex client（WS 需连着）
 #    见 /tmp/probe2.js
 
-# 3. 拉全量技法清单
+# 3. 拉全量技法清单（112 条）
 cc.query({[Symbol.for("functionName")]: "techniques/publicQueries:getVisibleTechniques"}, {})
 
 # 4. 逐个拉 graph（用列表里的 snapshotId）
 cc.query({[Symbol.for("functionName")]: "techniques/clientQueries:getTechniqueBySnapshotId"}, {snapshotId})
 
-# 5. Studio 工具（用 DOM 上的 data-studio-tool-technique-id）
-cc.query({[Symbol.for("functionName")]: "techniques/clientQueries:getTechnique"}, {techniqueDefinitionId})
+# 5. Studio 工具（15 个）—— 从 React fiber 的 hook 里找完整列表
+#    遍历 fiber.memoizedState，找 length===15 且元素含 techniqueId+snapshotId 的数组
+#    然后逐个 getTechniqueBySnapshotId
 ```
 
 **关键坑**：
 - Convex WebSocket 断连时 `cc.query()` **永久挂起不 reject** —— 必须新开标签让 WS 重连
 - 列表页的 `snapshotId` 与详情页的可能不同，**用列表页的**才拿到当前版本
 - `getTechnique` 只接受 `{techniqueDefinitionId}`（试过 slug/routeSlug/techniqueId 全部报错）
+- **Studio 工具列表不在 DOM 上**（rail 只渲染已添加的）—— 必须从 fiber 的 hook state 里挖，那里有完整的 15 个
