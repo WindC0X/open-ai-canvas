@@ -38,6 +38,13 @@ func validateTextCapabilityConfig(value *TextCapabilityConfig) error {
 }
 
 func validateImageCapabilityConfig(value *ImageCapabilityConfig) error {
+	// fork 增量（66dfb48c 扩图档位白名单）：上游 d328a257 拆分本函数到新文件时未带该校验，
+	// 非法档位会被静默接受，此处按 B线 E4 咽喉落位恢复。
+	switch value.OutpaintTier {
+	case "", ImageOutpaintTierRecommended, ImageOutpaintTierCapable, ImageOutpaintTierUncertified:
+	default:
+		return BadAuthRequest("扩图档位仅支持 recommended、capable 或 uncertified")
+	}
 	if value.References.PromptMaxChars < 1 || value.References.PromptMaxChars > 1000000 {
 		return BadAuthRequest("提示词最大字符数必须在 1-1000000 之间")
 	}
@@ -462,8 +469,13 @@ func validateGPTImage2CustomSize(value string) error {
 		return errors.New("图片宽高比不能超过 3:1")
 	}
 	pixels := int64(width) * int64(height)
-	if pixels < 655360 || pixels > 8294400 {
-		return errors.New("图片总像素需在 655360 到 8294400 之间")
+	// fork 增量（c51c8fa7 批10 尺寸文案具象）：上游为合并式错误文案，fork 拆成上下限两条具象提示
+	// （含当前尺寸回显）；上游 d328a257 拆分本函数到新文件时保留了上游版，此处按落位恢复 fork 文案。
+	if pixels < 655360 {
+		return fmt.Errorf("图片太小：至少需要约 810×810 像素（当前 %d×%d）", width, height)
+	}
+	if pixels > 8294400 {
+		return fmt.Errorf("图片太大：最大约 2880×2880 像素（当前 %d×%d）", width, height)
 	}
 	return nil
 }

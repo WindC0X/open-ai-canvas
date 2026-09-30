@@ -69,6 +69,9 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.OutputFormat = ParameterSupport{Supported: false}
 		image.MaxOutputs = 1
 	}
+	// fork 增量（66dfb48c 扩图档位 nano 族默认播种）：上游 d328a257 拆分本函数到新文件时
+	// 未带此调用（上游无 outpaintTier 语义），此处按 B线 E4 咽喉落位恢复。
+	applyOutpaintTierSeed(image, modelName)
 	return image
 }
 
