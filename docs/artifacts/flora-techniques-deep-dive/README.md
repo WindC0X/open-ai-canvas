@@ -337,9 +337,11 @@ rail 注册表 13 工具 / 3 组（**逐字**）：
 | **112 技法全量 graph** | `data/techniques-graphs-full.json` | 2.0 MB / 466 节点 / 1211 边 |
 | 技法索引表 | `data/INDEX.md` / `INDEX.json` | 112 行（含 runs/cost/节点/模型） |
 | 类别提示词库 | `data/prompts/*.json` | 384 条唯一提示词（11 个类别） |
-| Studio 工具 graph | `data/studio-tools.json` | 8 个工具 / 130 KB |
-| Studio 工具提示词 | `data/studio-tools-prompts.json` | 15 条 |
+| Studio 工具 graph | `data/studio-tools.json` | **15/15 工具** / 278 KB |
+| Studio 工具提示词 | `data/studio-tools-prompts.json` | 40 条 / 112,203 字符 |
 | 技法元数据（runs 等） | `data/META.json` | 112 条 |
+| **界面拆解报告** | `UI-DISSECTION.md` | 9 个页面 / 10 张真机截图 |
+| **界面截图** | `screenshots/*.png` | market/app/workflow/studios/studio/tools/batch/director/pose/realtime |
 
 **抓取方式**（可复现）：登录态浏览器 → React fiber 取 Convex client → `techniques/publicQueries:getVisibleTechniques`（112 条）+ `techniques/clientQueries:getTechniqueBySnapshotId`（逐条 graph）+ `techniques/clientQueries:getTechnique({techniqueDefinitionId})`（Studio 工具）。
 
