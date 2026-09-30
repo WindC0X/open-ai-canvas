@@ -328,9 +328,27 @@ rail 注册表 13 工具 / 3 组（**逐字**）：
 
 # 附：证据与复现
 
+## ★ 全量数据（2026-09-30，取代此前抽样）
+
+> **主报告**：`FULL-DATA-REPORT.md` —— 112 技法 + 8 个 Studio 工具的完整机制、提示词库与迁移建议
+
+| 数据集 | 位置 | 规模 |
+|---|---|---|
+| **112 技法全量 graph** | `data/techniques-graphs-full.json` | 2.0 MB / 466 节点 / 1211 边 |
+| 技法索引表 | `data/INDEX.md` / `INDEX.json` | 112 行（含 runs/cost/节点/模型） |
+| 类别提示词库 | `data/prompts/*.json` | 384 条唯一提示词（11 个类别） |
+| Studio 工具 graph | `data/studio-tools.json` | 8 个工具 / 130 KB |
+| Studio 工具提示词 | `data/studio-tools-prompts.json` | 15 条 |
+| 技法元数据（runs 等） | `data/META.json` | 112 条 |
+
+**抓取方式**（可复现）：登录态浏览器 → React fiber 取 Convex client → `techniques/publicQueries:getVisibleTechniques`（112 条）+ `techniques/clientQueries:getTechniqueBySnapshotId`（逐条 graph）+ `techniques/clientQueries:getTechnique({techniqueDefinitionId})`（Studio 工具）。
+
+**关键坑**：① Convex WebSocket 断连时 `cc.query()` **永久挂起不 reject**，必须新开标签让 WS 重连；② 列表页 `snapshotId` 与详情页不同，**用列表页的**才拿到当前版本；③ `getTechnique` 只接受 `{techniqueDefinitionId}`（slug/routeSlug/techniqueId 均报错）。
+
+## 其他证据与复现
+
 - 图 JSON：`graph-artwork-to-physical.json`（20 节点 / 13 边，运行态提取）
 - 官方文档：`docs.flora.ai`（`llms.txt` 索引 / `llms-full.txt` 全量 384,872 chars / 页面 `.md` 版 / `?ask=` 问答接口）
-- 前端逆向：148 chunks 静态扫描（关键词 `runTechnique` / `FLORA_FUNCTIONS_BY_ID` / `NodeTypes` / `techniqueListings` / `codeBlockDefinition`）+ React fiber `memoizedProps.nodes/edges`
-- **补抓（2026-09-30）**：动态 chunk 枚举（登录态页面得 165 chunks vs 静态 137，多出 28 个）+ React context 提取（`memoizedProps.value.techniques`，绕过断连的 Convex WebSocket）—— 关闭缺口 #1/#2/#3/#7/#10（详见 `findings/t0*-supplement-*.md`）
-- **证据分级**：架构/端点/schema/官方文档 = 一手实测；Director/Pose/Realtime = **bundle 逐字反解，机制级确认**（见 `imagine-tools-deep-dive.md`：端点 `fal-ai/flux-2/klein` / `minimax/h3-max/director` / `decart/lucy-2-5/realtime`，协议字段与计费公式全部读出）；工具版本化/Studio 工具映射/工具→模型 = **补抓一手逐字**
-- 仍待补：`createRequestHeaders()` header 集、`buildTechniqueInputAssets` 完整实现、`run-technique` 响应体（需 live 抓包）、technique 表完整 Convex schema、`getDefinition` 的 graph 本体（客户端未缓存）、folia 路由器内部选型策略（服务端）、MCP（T08）、FAUNA 命令全集（T09）、模型单价目录（T10）
+- 前端逆向：148 chunks 静态扫描 + 动态 chunk 枚举（登录态 165 chunks）+ React fiber/context 提取
+- **证据分级**：架构/端点/schema/官方文档 = 一手实测；Director/Pose/Realtime = **bundle 逐字反解，机制级确认**（见 `imagine-tools-deep-dive.md`）；112 技法 graph / Studio 工具 = **Convex 运行时一手逐字**
+- **仍待补**：Fashion Studio 剩余 5 工具（需项目内添加）；`createRequestHeaders()`；`buildTechniqueInputAssets`；`run-technique` 响应体；Convex 表 schema 原文；folia 路由器内部选型策略；MCP（T08）；FAUNA 命令全集（T09）；模型单价目录（T10）

@@ -1,0 +1,476 @@
+{
+ "Prompt": {
+  "name": "Prompt",
+  "slug": "prompt",
+  "cost": 48,
+  "inputs": [
+   {
+    "id": "image-1",
+    "name": "Image 1",
+    "nodeType": "staticImageBlock",
+    "optional": true,
+    "type": "imageUrl"
+   },
+   {
+    "id": "image-2",
+    "name": "Image 2",
+    "nodeType": "staticImageBlock",
+    "optional": true,
+    "type": "imageUrl"
+   },
+   {
+    "id": "image-3",
+    "name": "Image 3",
+    "nodeType": "staticImageBlock",
+    "optional": true,
+    "type": "imageUrl"
+   },
+   {
+    "id": "image-4",
+    "name": "Image 4",
+    "nodeType": "staticImageBlock",
+    "optional": true,
+    "type": "imageUrl"
+   },
+   {
+    "id": "prompt",
+    "name": "Prompt",
+    "nodeType": "textBlock",
+    "type": "text"
+   }
+  ],
+  "outputs": [
+   {
+    "editableParameterKeys": [
+     "aspect_ratio",
+     "resolution"
+    ],
+    "id": "dark-alley-nyc",
+    "name": "Image",
+    "nodeType": "emptyImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "models": [
+   "Claude Sonnet 5",
+   "Nano Banana 2 Lite"
+  ],
+  "prompts": []
+ },
+ "Sketch": {
+  "name": "Sketch to Render",
+  "slug": "sketch-to-render-u5ew94",
+  "cost": 108,
+  "inputs": [
+   {
+    "description": "Source sketch — hand-drawn or vector. Renders a photorealistic garment.",
+    "emptyStateText": "Add a sketch or vectorized garment",
+    "id": "sketch",
+    "name": "Sketch",
+    "nodeType": "staticImageBlock",
+    "type": "imageUrl"
+   },
+   {
+    "id": "design-direction",
+    "name": "Design Direction",
+    "nodeType": "textBlock",
+    "optional": true,
+    "type": "text"
+   }
+  ],
+  "outputs": [
+   {
+    "description": "Turn a fashion sketch into a photorealistic garment render.",
+    "editableParameterKeys": [
+     "aspect_ratio",
+     "resolution"
+    ],
+    "id": "garment",
+    "name": "Garment",
+    "nodeType": "emptyImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "models": [
+   "Claude Sonnet 5",
+   "Gemini Flash 3.6",
+   "Nano Banana 2 Lite"
+  ],
+  "prompts": [
+   {
+    "nodeId": "f840cdd8-5e0d-4992-bf80-0c2e5edff283",
+    "mode": "imageToText",
+    "model": "Gemini Flash 3.6",
+    "prompt": "You are a product photographer turning a fashion design input into a real, photographed garment. Re-photograph the garment in the input as a clean studio GHOST-FORM (invisible-mannequin) product photo — the technique Nordstrom, ASOS, and J.Crew use: shot on a mannequin, the mannequin fully removed in post, so the garment holds its natural worn 3D shape with zero body visible. The input is the SPEC, not a medium to preserve. Output a PHOTOGRAPH of real cloth, never a colored-in drawing.\nREAD THE INPUT, WHATEVER THE MEDIUM (sketch, illustration, digital flat, croquis, spec sheet, photo of a sketch, or photo of a real garment):\n- Any drawing is the spec to build from. Discard the paper, page edges, notebook lines, desk, hands, page tilt, watermarks, annotations, arrows, and callout leader lines — a callout line touching the garment edge is not a seam or strap.\n- A croquis figure under the garment is NOT part of the design. Its bare arms, hands, shoulders, neck, and legs are SKIN, never fabric. NEVER convert a bare arm into a sleeve. Any limb drawn in skin tone, or drawn outside the garment's colored fill, is the body — omit it entirely.\n- A photo of a real garment: keep its exact design and fabric, re-shot in the presentation below (swatch and notes still override fabric and color).\n- The same garment from several angles is ONE garment: merge every angle into one understanding and photograph it once, front facing, unless the notes ask otherwise.\n- A SET of separate pieces meant to be worn together: render ALL pieces as one worn look in ghost form, each distinct — never fuse, drop, or add a piece.\n- A tight detail crop (cuff, collar, pocket): shoot that detail as a macro fabric-and-construction close-up, don't invent the rest of the garment.\nMEDIUM — DRAWING IN, PHOTOGRAPH OUT. This matters most. Completely transform the medium: kill every trace of drawing — white paper, outline strokes, flat cel-shaded fills, hatching, marker streaks, vector flatness. Do not tint, trace, or clean up the drawing; re-photograph from scratch. Build the garment from real cloth: true textile with thread-level detail, visible grain, stitch definition, physical drape and gravity, on a high-end camera under soft even studio softbox light with gentle real shadows and true highlights. If any pencil line, paper white, or illustration flatness survives, the render has FAILED.\nFABRIC & CONSTRUCTION REALISM — render like a garment technician:\n- Commit to ONE plausible fabric the design implies (notes/swatch override) and keep its true hand everywhere: crisp poplin, dry wool suiting, fluid crepe, airy chiffon, dense ponte, soft jersey — with the weave or knit structure visible up close and light behaving like that exact textile.\n- Construction reads as sewn, not painted: seams and hems at true stitch scale with the slight pucker of real sewing; collars roll on a collar stand, never pressed flat; buttons, buttonholes, zippers, and hardware with real thread, teeth, and metal weight.\n- Cloth obeys gravity: tension folds, soft hem breaks, plumb grainline, natural micro-wrinkles — perfect mathematical smoothness is a failure.\n- Never: plastic, waxy, or airbrushed surfaces; repeating CGI ripple-folds; melted or wandering seams; sketch outlines re-rendered as piping or embroidery; HDR glow or bokeh.\n- This governs HOW drawn details render; it never adds seams, stitching, trims, closures, or fabrics the design doesn't show.\nPRESERVE THE DESIGN EXACTLY — reproduce, don't redesign or normalize: silhouette and proportions (an oversized, cropped, or exaggerated cut stays exactly that); seam, dart, panel, and yoke placement; neckline shape and depth; collar/lapel type; closure type, position, and count (match countable buttons/snaps); sleeve presence, style, length; cuff, hem shape and length; vents, slits, pleats, gathers, waistband, drawcord, pockets, topstitching, hardware. Read ambiguous lines the most literal way. Structure, type, and proportion may not be changed; only very fine placement may be approximated. Add nothing the design doesn't show — no extra layers, accessories, or props.\nSLEEVES AND ARMHOLES — decide from the GARMENT'S OWN fabric outline, NEVER from the figure's arms:\n- The garment has a sleeve ONLY where its own fabric visibly covers the arm. Render each real sleeve at its exact drawn length and cut.\n- If the shoulders and arms are bare skin (the arms belong to the croquis, not the dress), the garment is SLEEVELESS. Render clean, finished armhole openings and any straps exactly as drawn, with NO sleeve, NO fabric tube, NO sheer or transparent sleeve, and NO arm. Do not fill the space where the figure's arms were.\n- Shoulder details (gathered caps, ruching, clips, straps, epaulettes) are NOT sleeves — reproduce them at their real small size, never grown into a sleeve.\nPRESENTATION — GHOST FORM / INVISIBLE MANNEQUIN:\nCAMERA: straight-on at eye level, front squared and parallel to camera — no tilt, no three-quarter rotation, no top-down. Ignore the drawn figure's pose and stance entirely (hand on hip, weight shift, turned hips, crossed legs); always rebuild the garment squared and symmetric to the camera. Soft even studio light.\nBACKGROUND: seamless pure-white studio sweep, evenly lit edge to edge, garment alone with a soft natural grounding shadow.\nFORM: filled to natural worn 3D volume — shoulders level, side seams plumb, center-front vertical, hem level. IF the garment has sleeves, they carry implied arm volume and hang DOWNWARD at the sides with a slight, equal, SYMMETRIC bend, cuffs pointing down — never straight out, twisted, or gaping at the camera. IF the garment is SLEEVELESS, show open finished armholes and bare straps with empty space where an arm would be — no sleeve, no arm, no filled fabric.\nNO BODY, EVER: no person or mannequin visible — no head, face, hair, neck, skin, arms, hands, legs, feet, torso, no human silhouette, no translucent/ghostly figure, no mesh form, no partial limbs. Worn by nothing.\nOPENINGS/INTERIOR: any opening facing the camera (neckline, hood, open front, waist) reveals the real INTERIOR — inner panel, collar stand, facing or lining — rendered slightly darker in soft shadow, with readable fabric detail and color. NEVER a solid black hole, void, or empty cutout; the inside is real cloth in shadow.\nFRAMING: centered, fully in view with even margins at any aspect ratio — add background around the garment for tall/wide outputs, never crop a cuff/hem/edge, no letterboxing.\nFOR A SET: arrange the pieces as one worn look (correctly layered and overlapping), all in ghost form, centered and uncropped.\n\n\nCATEGORY: {CATEGORY_BLOCK}\n"
+   },
+   {
+    "nodeId": "garment",
+    "mode": "imageToImage",
+    "model": "Nano Banana 2 Lite",
+    "prompt": "You are a product photographer turning a fashion design input into a real, photographed garment. Re-photograph the garment in the input as a clean studio GHOST-FORM (invisible-mannequin) product photo — the technique Nordstrom, ASOS, and J.Crew use: shot on a mannequin, the mannequin fully removed in post, so the garment holds its natural worn 3D shape with zero body visible. The input is the SPEC, not a medium to preserve. Output a PHOTOGRAPH of real cloth, never a colored-in drawing.\nREAD THE INPUT, WHATEVER THE MEDIUM (sketch, illustration, digital flat, croquis, spec sheet, photo of a sketch, or photo of a real garment):\n- Any drawing is the spec to build from. Discard the paper, page edges, notebook lines, desk, hands, page tilt, watermarks, annotations, arrows, and callout leader lines — a callout line touching the garment edge is not a seam or strap.\n- A croquis figure under the garment is NOT part of the design. Its bare arms, hands, shoulders, neck, and legs are SKIN, never fabric. NEVER convert a bare arm into a sleeve. Any limb drawn in skin tone, or drawn outside the garment's colored fill, is the body — omit it entirely.\n- A photo of a real garment: keep its exact design and fabric, re-shot in the presentation below (swatch and notes still override fabric and color).\n- The same garment from several angles is ONE garment: merge every angle into one understanding and photograph it once, front facing, unless the notes ask otherwise.\n- A SET of separate pieces meant to be worn together: render ALL pieces as one worn look in ghost form, each distinct — never fuse, drop, or add a piece.\n- A tight detail crop (cuff, collar, pocket): shoot that detail as a macro fabric-and-construction close-up, don't invent the rest of the garment.\nMEDIUM — DRAWING IN, PHOTOGRAPH OUT. This matters most. Completely transform the medium: kill every trace of drawing — white paper, outline strokes, flat cel-shaded fills, hatching, marker streaks, vector flatness. Do not tint, trace, or clean up the drawing; re-photograph from scratch. Build the garment from real cloth: true textile with thread-level detail, visible grain, stitch definition, physical drape and gravity, on a high-end camera under soft even studio softbox light with gentle real shadows and true highlights. If any pencil line, paper white, or illustration flatness survives, the render has FAILED.\nPRESERVE THE DESIGN EXACTLY — reproduce, don't redesign or normalize: silhouette and proportions (an oversized, cropped, or exaggerated cut stays exactly that); seam, dart, panel, and yoke placement; neckline shape and depth; collar/lapel type; closure type, position, and count (match countable buttons/snaps); sleeve presence, style, length; cuff, hem shape and length; vents, slits, pleats, gathers, waistband, drawcord, pockets, topstitching, hardware. Read ambiguous lines the most literal way. Structure, type, and proportion may not be changed; only very fine placement may be approximated. Add nothing the design doesn't show — no extra layers, accessories, or props.\nSLEEVES AND ARMHOLES — decide from the GARMENT'S OWN fabric outline, NEVER from the figure's arms:\n- The garment has a sleeve ONLY where its own fabric visibly covers the arm. Render each real sleeve at its exact drawn length and cut.\n- If the shoulders and arms are bare skin (the arms belong to the croquis, not the dress), the garment is SLEEVELESS. Render clean, finished armhole openings and any straps exactly as drawn, with NO sleeve, NO fabric tube, NO sheer or transparent sleeve, and NO arm. Do not fill the space where the figure's arms were.\n- Shoulder details (gathered caps, ruching, clips, straps, epaulettes) are NOT sleeves — reproduce them at their real small size, never grown into a sleeve.\nPRESENTATION — GHOST FORM / INVISIBLE MANNEQUIN:\nCAMERA: straight-on at eye level, front squared and parallel to camera — no tilt, no three-quarter rotation, no top-down. Ignore the drawn figure's pose and stance entirely (hand on hip, weight shift, turned hips, crossed legs); always rebuild the garment squared and symmetric to the camera. Soft even studio light.\nBACKGROUND: seamless pure-white studio sweep, evenly lit edge to edge, garment alone with a soft natural grounding shadow.\nFORM: filled to natural worn 3D volume — shoulders level, side seams plumb, center-front vertical, hem level. IF the garment has sleeves, they carry implied arm volume and hang DOWNWARD at the sides with a slight, equal, SYMMETRIC bend, cuffs pointing down — never straight out, twisted, or gaping at the camera. IF the garment is SLEEVELESS, show open finished armholes and bare straps with empty space where an arm would be — no sleeve, no arm, no filled fabric.\nNO BODY, EVER: no person or mannequin visible — no head, face, hair, neck, skin, arms, hands, legs, feet, torso, no human silhouette, no translucent/ghostly figure, no mesh form, no partial limbs. Worn by nothing.\nOPENINGS/INTERIOR: any opening facing the camera (neckline, hood, open front, waist) reveals the real INTERIOR — inner panel, collar stand, facing or lining — rendered slightly darker in soft shadow, with readable fabric detail and color. NEVER a solid black hole, void, or empty cutout; the inside is real cloth in shadow.\nFRAMING: centered, fully in view with even margins at any aspect ratio — add background around the garment for tall/wide outputs, never crop a cuff/hem/edge, no letterboxing.\nFOR A SET: arrange the pieces as one worn look (correctly layered and overlapping), all in ghost form, centered and uncropped."
+   }
+  ]
+ },
+ "Extract": {
+  "name": "Garment Extractor",
+  "slug": "garment-extractor-qcjn3m",
+  "cost": 141,
+  "inputs": [
+   {
+    "id": "outfit",
+    "name": "Outfit",
+    "nodeType": "staticImageBlock",
+    "optional": true,
+    "type": "imageUrl"
+   },
+   {
+    "controls": {
+     "kind": "mask",
+     "sourceImageInputId": "outfit"
+    },
+    "description": "Select what to extract",
+    "id": "garment-mask",
+    "name": "Selected Mask",
+    "nodeType": "staticImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "outputs": [
+   {
+    "description": "Isolate any garment from an outfit as a clean ghostform.",
+    "editableParameterKeys": [
+     "aspect_ratio",
+     "resolution",
+     "enable_web_search"
+    ],
+    "id": "extracted-garment",
+    "name": "Extracted Garment",
+    "nodeType": "emptyImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "models": [
+   "GPT-5.5",
+   "Gemini 3 Flash",
+   "Gemini Flash 3.6",
+   "Nano Banana 2"
+  ],
+  "prompts": [
+   {
+    "nodeId": "1a46c272-0cc3-4696-8b1a-997a9cfd6a38",
+    "mode": "textToText",
+    "model": "GPT-5.5",
+    "prompt": "You are a fashion e-commerce packshot photographer. You receive two images: a photograph and a mask. The photograph shows either (a) a model wearing one or more garments, or (b) a garment photographed on its own, as a flatlay, ghost-mannequin, hanger shot, or existing packshot.The photograph is the single source of truth for the  target's design: its color, print, weave, fabric texture, trims, hardware, stitching, labels, and silhouette.\nRe-photograph the the masked target(s) ALONE as one clean product packshot, removing the model if one is present, the background, and every other garment every unmasked garment, and every bag and accessory. If the mask contains multiple disconnected regions, extract EVERY marked target and include all of them in the single output image: do not merge them into one garment, and do not drop any of them. The distance between masked regions in the photograph is irrelevant; targets that are far apart in the source must still all be extracted into the one output.\nReproduce each target 1:1 from the photograph; you are re-photographing the same physical garment(s) on a packshot table, not redesigning them. Preserve each target's real scale and proportions from the source photograph**, and when there are multiple targets, preserve their sizes relative to each other. Do not enlarge, reduce, distort, or adjust any target's size relative to the frame.\nWhere part of the masked garment is hidden in the photograph by a bag, strap, hand, or other object, reconstruct the covered area by continuing that target's own panels, seams, color-blocks, and print so it reads as whole and uninterrupted. Use symmetry and visible construction logic only—do not extrapolate details, patterns, or design elements not evidenced in the visible portions.This reconstruction applies only within a masked target's own boundary. When a mask region covers only part of a garment, extract exactly that part, ending it cleanly at its natural construction lines (seams, edges, hems); do NOT reconstruct or include the unmasked remainder of that garment\n\n\nDo not add design details that aren't part of the garment, and do not stylize. Do not alter fit, length, or volume; do not add wrinkles, creases, or distressing that aren't in the source; do not change any color tone or saturation.\n"
+   },
+   {
+    "nodeId": "75af05ad-ebe7-446a-ab26-04dcdf12e0e5",
+    "mode": "imagesToText",
+    "model": "Gemini 3 Flash",
+    "prompt": "You are given two images: the original photograph and a mask:   The mask contains one or more disconnected regions; each region marks one separate target, either a whole garment or a part of a garment. The photograph may show the target(s) worn on a model or a garment photographed on its own (flatlay, ghost-mannequin, hanger, packshot); handle both the same way. Using the photograph as the source of truth, isolate ONLY the garment that the mask points to. For each target, find its true edges in the photograph, pull its real color, print, fabric, trims, proportions, and scale from the photograph, and ignore the model, every other unmasked garment, and all bags and accessories (unless selected as masks)\n\n\nScale: Preserve each target's  pixel-to-real-world proportions from the source photograph. Each target's fill-of-frame must reflect how much of the canvas it occupied when worn in the source, not compressed or enlarged to fit a template.\n\n\nLayout: Place the extraction on a seamless pure-white (\n#FFFFFF) studio background with soft, even product lighting and a subtle natural contact shadow. under each item. A single target is centered in the frame. Multiple targets are composed as one flat product layout in body order: upper-body garments above lower-body garments with a small, even gap between items, and same-zone items side by side. Items never overlap, never touch, and never merge. Center the whole composition and ensure no part of any target is cropped at the image edge. Always produce the composed packshot, even when the masked regions were far apart in the source photograph.\n\n"
+   },
+   {
+    "nodeId": "bf71fb19-3b39-47bd-863b-ee1dd53731c9",
+    "mode": "textToText",
+    "model": "Gemini Flash 3.6",
+    "prompt": "Present every extracted garment as an invisible-mannequin (ghost) packshot: each garment holds its natural worn 3D shape, filled-out shoulders, sleeves, and body, as if on a transparent form. The ghost effect fills out the body only; it never adds structure the garment does not have. The neckline and collar keep the exact height, shape, stand, and drape they have in the source photograph: a crewneck stays a flat crewneck, a mock neck stays exactly as tall as in the source. Do not raise, stiffen, thicken, or add volume to any collar or neckline, and do not add an open inner-back-collar reveal or interior lining edge unless it is visible in the source. Photograph straight-on.\n\n\n\n\nSingle garment: centered, with its top (neckline, collar, or waistband) in the upper third of the frame and the hem or cuff in the lower third. Multiple garments: apply that framing to the composed group, not to each item; the group is centered, the topmost garment's neckline or waistband sits in the upper portion of the frame, the lowest hem sits in the lower portion, and each garment is individually straight-on and upright. A partial-garment target (a sleeve or panel) is presented as a clean, centered detail shot that keeps its natural worn 3D volume.\n\n\n\n\nDo not: rotate any garment, tilt it, or present it at an angle. Do not crush or over-flatten any silhouette, and do not inflate one: no added volume at the collar, neckline, shoulders, cuffs, or hem beyond what the source photograph shows. Do not add product hangers, clips, or studio apparatus. Do not merge multiple garments into one, layer one garment over another, or fill the space between garments with anything except the white background. Each garment's internal shape and volume must match the source photograph, with no exaggeration and no collapse.\n\n\n\n\nOUTPUT FORMAT: Output ONLY the final image prompt as plain declarative prose describing the finished image, under 150 words. No preamble, no bullet lists, no headings, no closing line such as \"Ready to proceed\". Never mention the process, the mask, the model, or what was removed; describe only what IS in the image. Never pass through \"do not\" phrasing; state the desired outcome instead (e.g. \"flat crewneck sitting exactly as in the source\" rather than \"do not add collar volume\"). State explicitly what every edge of the garment is made of: hems, cuffs, and necklines are described as the garment's own fabric continuing to the edge. When part of the garment was hidden in the source (tucked hem, covered cuff), describe the reconstructed area as the same fabric continuing to the edge, never as a trim, band, or new material. Retain the folds and fabric of the source image. Color: name colors only as they appear in the source photograph. Always end the prompt with this exact sentence: \"All colors, tones, and hues are sampled exactly from the reference photograph — neutral white balance, no color grading, no added saturation or brightness; only the background and lighting setup change, never the garment's colors.\n"
+   }
+  ]
+ },
+ "Ghost": {
+  "name": "Ghostform",
+  "slug": "ghostform",
+  "cost": 230,
+  "inputs": [
+   {
+    "description": "Flat-lay garment — laid flat, top-down shot. Converts it to ghost-form",
+    "id": "flatlay-garment",
+    "name": "Garment",
+    "nodeType": "staticImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "outputs": [
+   {
+    "id": "ghost-form-garment",
+    "name": "Jacket Product Photo",
+    "nodeType": "emptyImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "models": [
+   "GPT-5.5",
+   "Nano Banana 2"
+  ],
+  "prompts": [
+   {
+    "nodeId": "1e49644b-e55d-4d0b-8e9d-c8ffbce56682",
+    "mode": "imageToText",
+    "model": "GPT-5.5",
+    "prompt": "NPUT ROLES:\n@[flatlay-garment] = GARMENT_REFERENCE. ROLE: exact garment reproduction only. Capture the fabric, wash, color, proportions, and every construction detail with absolute fidelity. Ignore any accessories, jewelry, props, belts, scarves, or items on or near the garment—reproduce the garment alone. Take no background, environment, or context from it.\n\nRULES:\n\nReproduce the exact garment from @[flatlay-garment] with absolute fidelity: fabric type, wash and fade pattern, color, proportions, closure type, pocket count and construction, seam and panel lines, sleeve construction and width, hem construction, collar or neckline type, hardware, and topstitch color.\nTransform the flatlay into a professional ghost-form product photo: fill the garment to its natural worn 3D shape as if worn by an invisible body. The garment must occupy real three-dimensional space with visible volume and form—shoulders have width, the torso has depth and mass, armholes and openings define the invisible body's presence. The garment is not flat fabric; it is structured by the body it contains, showing the volumetric presence of an invisible wearer. The garment floats in empty white space, but with convincing spatial weight and dimensional form.\nThe invisible body creates visible form through the garment. Shoulders fill the shoulder seams with width and presence. The torso visibly expands the front and back with volume. Armholes and neckline define the body's spatial presence through the way fabric sits and drapes. The garment shows the silhouette and contours of a body wearing it, even though that body is invisible. Every part of the garment that would be supported or shaped by a wearer—shoulder points, chest, waist, hip, armpit depth—must show convincing dimensional form.\nHang the garment with natural gravity and smooth drape. Choose the pose phrase for its type: tops/tees/knits/jackets: sleeves filled with implied arm volume, hanging at sides with slight symmetric bend; sleeveless: straps and armholes in worn position; pants: waistband and legs filled, legs hanging straight and parallel; skirts: waist and hip filled, hem at true fall level all around; dresses/jumpsuits: bodice and skirt as one continuous piece, hem level; footwear/accessories: centered packshot holding natural shape.\nShow interior fabric at openings: neckline for tops (softly shadowed interior visible), waist opening for pants and skirts, open front facing for jackets. The visible interior confirms the garment's 3D volume and depth.\nCompose the garment centered and complete in frame with even white margins on all sides. Maintain full-body or full-item visibility from head to toe (or equivalent edge to edge).\nLighting is flat and even across all surfaces with no invented shadows; only folds and surface texture from the flatlay reference are visible. Lighting must reveal—not obscure—the three-dimensional form created by the invisible body filling the garment.\nBackground is seamless pure white filling the entire frame. The garment is the only element—no props, platforms, cast shadows, or other objects appear anywhere in the image.\nUse a straight-on, eye-level camera angle with the front squared to the camera. Framing should feel like a professional product shot with sharp details, accurate proportions, and cinematic clarity. The camera position should show the full three-dimensional spatial presence of the garment."
+   },
+   {
+    "nodeId": "ghost-form-garment",
+    "mode": "imageToImage",
+    "model": "Nano Banana 2",
+    "prompt": "Using the attached image as the exact garment reference, re-photograph it as a professional ghost-form product photo: the stone-gray zip-front bomber jacket filled out to its natural worn 3D shape, as if worn by an invisible body, the garment alone floating in empty white space.\n\nKeep exactly the same: the fabric, the wash and fade pattern, the color, the proportions, and every construction detail, especially the full center front zipper closure, the two angled welt hand pockets, the ribbed stand collar, the ribbed cuffs and waistband hem, the curved front panel seams, the shoulder yoke seams, the set-in sleeve shape and width, and the tonal topstitching and zipper hardware. The output shows the identical garment, only re-posed.\n\nThe garment hangs with natural gravity, the sleeves filled with implied arm volume, hanging down at the sides with a slight symmetric bend, every lay-flat crease relaxed into smooth natural drape. Through the neckline the garment's own softly shadowed interior fabric is visible. Shot straight-on at eye level with the front squared to the camera, the garment centered and complete in frame with even white margins on every side, surrounded by seamless pure white filling the entire frame, evenly lit edge to edge."
+   }
+  ]
+ },
+ "Flat": {
+  "name": "Flatlay",
+  "slug": "flatlay",
+  "cost": 198,
+  "inputs": [
+   {
+    "description": "Ghostform garment — invisible-mannequin shot. Converts it to a flat-lay",
+    "id": "ghostform-garment",
+    "name": "Garment",
+    "nodeType": "staticImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "outputs": [
+   {
+    "editableParameterKeys": [
+     "aspect_ratio",
+     "resolution"
+    ],
+    "id": "flatlay-garment",
+    "name": "Flatlay Garment",
+    "nodeType": "emptyImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "models": [
+   "GPT-5.5",
+   "Nano Banana 2 Lite"
+  ],
+  "prompts": [
+   {
+    "nodeId": "a4d0c901-62c4-48e9-9f9d-23852dd062b4",
+    "mode": "imageToText",
+    "model": "GPT-5.5",
+    "prompt": "You are an elite e-commerce retoucher and a master of garment identity preservation. A ghost-form (invisible mannequin) image of one garment is attached to this node @[ghostform-garment] . Write the prompt that will be sent to Nano Banana Lite together with that same image. Nano Banana Lite is an image EDIT model, not a generator. Its job is to re-pose the exact garment already in those pixels so that it lies flat and is shot from overhead. It is never being asked to photograph a new garment.\n\n⚠️ CRITICAL RULES ⚠️\n\nOUTPUT PURITY: Reply with ONLY the finished prompt. No intro, no explanation, no quotes, no markdown, no bullet points, no headings. Nano Banana Lite reads flowing prose best, so the finished prompt is exactly three short paragraphs of plain sentences.\n\nEDIT, NEVER RE-SHOOT: Words like \"re-photograph,\" \"product photo of,\" and \"create\" license the model to synthesize a lookalike. The finished prompt must be written as an edit of the attached pixels: keep this garment, change only its pose. Paragraph 1 begins with the verbatim opening string in the skeleton and never departs from it.\n\nTHE GHOST FORM IS INVISIBLE, SO NAME WHAT IS ACTUALLY VISIBLE: Ordering \"no mannequin\" does nothing, because there is no mannequin in the picture to remove. The model sees only a garment holding a worn shape, so it concludes the rule is already satisfied and leaves the ghost form untouched. Paragraph 1 must instead name the visible evidence of the form and order each piece of it removed. Choose the ones present in this image from: the inflated hollow shell holding a worn torso shape, the rounded three-dimensional shoulder caps, the sleeves standing out in space with an invisible arm inside them, the chest and back puffed away from each other, the dark interior shadow inside the neck opening, the visible inner back collar, the raised open front revealing the lining, and the cast shadow the lifted form throws on the backdrop.\n\nREMOVE THE BODY, KEEP THE GARMENT'S OWN VOLUME: This is the rule most often violated, and it is what turns a flatten into a different garment. Flattening removes the invisible body inside the piece. It never slims the garment, never narrows a wide sleeve, never shortens a hem, and never tames an exaggerated cut. If the reference is oversized, boxy, balloon, cocooned, or heavily draped, the flat lay is exactly as oversized, only flat and wider. The finished prompt must state this in plain words, naming this garment's specific volume.\n\nGIVE THE FLATTENED SHAPE A POSITIVE TARGET: A negation alone gives the model nothing to draw. Paragraph 3 must describe the geometry of the result: the shoulder line reading as one straight horizontal edge, the sleeves fallen to the sides, the collar or lapels folded down and lying flat against the chest, the front panels flat against the surface, the hem a straight even line, the neck opening collapsed into a closed flat shape, and the whole piece reading slightly wider and shorter than it did on the form.\n\nIDENTITY LOCK BY EXCEPTION, NOT BY DESCRIPTION: On Nano Banana Lite a long written specification of the garment competes with the reference image and is read as a build order, which is exactly how a plausible lookalike gets generated in place of the real piece. So keep paragraph 2 short. Pick at most FIVE details from the anti-drift list below, choosing the ones most at risk in THIS garment, name each with one observed attribute, and frame the whole paragraph as things that must survive unchanged rather than things to construct. Close the paragraph with the tiebreaker sentence in the skeleton, which subordinates your words to the attached image.\n\nANTI-DRIFT LIST, pick the 5 that apply and are most at risk: closure type or its deliberate absence, pocket count and construction, collar or lapel type and width, sleeve construction and width, shoulder construction, seam and panel lines, hem construction, hardware, topstitch color, fabric sheen and texture.\n\nOBSERVED DETAIL ONLY: Every garment detail you write must be visible in the attached image. Count what can be counted and name colors precisely (a tonal topstitch, a contrast orange topstitch). If a detail is not visible, leave it out. Never guess, never invent a back view, and never import details from a typical garment of this kind.\n\nNOTHING ADDED: The finished prompt must end by prohibiting additions: no mannequin, no ghost form, no body, no hanger, no props, no paper tags, no added text or graphics, no drop shadow, no cropping.\n\nBuild the finished prompt from this skeleton, filling the [brackets] from what you see and keeping the rest close to verbatim.\n\nParagraph 1, the edit: \"Keep the exact garment in the attached image and change only its pose: lay it completely flat and shoot it from directly overhead. This is [one plain line naming the garment with its material, color, and cut, e.g. \"the oversized black technical-nylon coat with wide peak lapels\"], currently held in a worn three-dimensional shape by an invisible ghost form, and that form must be gone: [the visible ghost-form evidence chosen under rule 3, each named]. The garment ends up empty and unworn, collapsed under its own weight onto a flat surface.\"\n\nParagraph 2, what survives: \"Flattening removes the body inside the garment, never the garment's own cut: [the volume-preservation line from rule 4, naming this garment's specific volume, e.g. \"the exaggerated oversized width, the deep dropped shoulders, and the wide voluminous sleeves stay exactly as large as they are in the reference\"]. Everything else is copied straight from the reference and stays identical: the fabric and its texture, the exact color, the wash and sheen, the proportions, and in particular [the 5 details chosen under rule 6, each with its observed specifics]. Where these words and the attached image disagree, the image wins. This is the same physical garment re-posed, not a new one built to a description.\"\n\nParagraph 3, the finished photo: \"The garment lies flat with natural weight, [the pose phrase from the list below], every fold and bulge left by the form relaxed into a smooth neatly arranged laydown, the shoulder line reading as one straight horizontal edge, the hem a straight even line, and the whole piece slightly wider and shorter than it appeared on the form. [The opening phrase from below], the neck opening collapsed closed and flat with no hollow interior, no inner back collar, and no shadow inside it. Shot from directly above at a true 90 degrees with the front facing up and squared to the camera, the garment centered and complete in frame with even white margins on every side, surrounded by seamless pure white filling the entire frame, evenly lit edge to edge with no harsh shadows and no shadow cast under the garment. This is a single-item lay-flat product packshot: no mannequin, no ghost form, no body, no hanger, no props, no paper tags, no added text or graphics, no drop shadow, and no part of the garment cropped.\"\n\nPOSE PHRASE, pick one and adapt it to the garment:\n\njackets, coats, blazers, outerwear: \"the sleeves laid flat and symmetric at the sides, angled slightly out from the body, the collar or lapels folded down and lying flat against the chest, the front [closed / laid open with the facings smoothed flat] exactly as the reference shows\"\ntops, tees, knits, shirts: \"the sleeves laid flat and symmetric at the sides, angled slightly out from the body\"; sleeveless: \"the straps and armholes laid flat in their natural position\"\npants: \"the waistband and both legs laid flat, the legs straight and parallel\"\nskirts: \"the waist laid flat and the hem fanned evenly, level all the way round\"\ndresses and jumpsuits: \"the bodice and skirt laid flat as one continuous piece, the hem spread evenly all the way round\"\nfootwear and accessories: skip the lay-flat framing entirely and write a clean centered overhead packshot of the item holding its natural shape on empty white space\n\nOPENING PHRASE, adapt to the garment: \"The neckline and collar lie flat, closed, and symmetric, the garment's front smoothed and centered\"; for pants and skirts the waistband lies flat and even; for a jacket or coat the front closed, or laid open with the facings smoothed flat, whichever the reference shows.\n\nBefore replying, silently check: exactly three paragraphs of plain prose, paragraph 1 begins with the verbatim opening string \"Keep the exact garment in the attached image and change only its pose\", the visible ghost-form evidence is named piece by piece in paragraph 1, paragraph 2 contains the volume-preservation line and no more than five locked details and ends with the tiebreaker sentence, every named detail is visible in the reference image, and the final sentence prohibits additions.\n"
+   },
+   {
+    "nodeId": "flatlay-garment",
+    "mode": "imageToImage",
+    "model": "Nano Banana 2 Lite",
+    "prompt": "Using the attached image as the exact garment reference, re-photograph it as a professional ghost-form product photo: the oversized boxy short-sleeve washed-denim utility t-shirt filled out to its natural worn 3D shape, as if worn by an invisible body, the garment alone floating in empty white space.\n\nKeep exactly the same: the fabric, the wash and fade pattern, the color, the proportions, and every construction detail, especially the pullover construction with no front opening, the two oversized chest cargo pockets with angled flaps and single silver snaps, the long pleated pocket extensions, the vertical center and front panel seam lines, the dropped-shoulder short wide sleeves with diagonal panel seams, the bound crew neckline, the layered straight hem with raw frayed underedge and small side tabs, and the tobacco contrast topstitching. The output shows the identical garment, only re-posed.\n\nThe garment hangs with natural gravity, the sleeves filled with implied arm volume, hanging down at the sides with a slight symmetric bend, every lay-flat crease relaxed into smooth natural drape. Through the neckline the garment's own softly shadowed interior fabric is visible. Shot straight-on at eye level with the front squared to the camera, the garment centered and complete in frame with even white margins on every side, surrounded by seamless pure white filling the entire frame, evenly lit edge to edge."
+   }
+  ]
+ },
+ "Recolor": {
+  "name": "Garment Recolor",
+  "slug": "garment-recolor-3gkapi",
+  "cost": 200,
+  "inputs": [
+   {
+    "description": "The garment to recolor. Can be shown on a model, as a flatlay, or in ghostform",
+    "id": "base-garment",
+    "name": "Garment",
+    "nodeType": "staticImageBlock",
+    "optional": true,
+    "type": "imageUrl"
+   },
+   {
+    "controls": {
+     "kind": "mask",
+     "sourceImageInputId": "base-garment"
+    },
+    "id": "garment-mask",
+    "name": "Selected Mask",
+    "nodeType": "staticImageBlock",
+    "optional": true,
+    "type": "imageUrl"
+   },
+   {
+    "controls": {
+     "kind": "color"
+    },
+    "id": "color",
+    "name": "Color",
+    "nodeType": "textBlock",
+    "type": "text"
+   }
+  ],
+  "outputs": [
+   {
+    "editableParameterKeys": [
+     "resolution",
+     "aspect_ratio"
+    ],
+    "id": "recolored-garment",
+    "name": "Recolored Garment",
+    "nodeType": "emptyImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "models": [
+   "Claude Sonnet 5",
+   "Nano Banana Pro"
+  ],
+  "prompts": [
+   {
+    "nodeId": "50f2ac77-1365-40e5-a658-93a7f4bf795c",
+    "mode": "textToText",
+    "model": "Claude Sonnet 5",
+    "prompt": "Input Roles: \n- BASE_IMAGE (Image 1): Owns the garment, its presentation, composition, shape, details, lighting, and all non-edited pixels\n\n\n- GARMENT_MASK (Image 2): a cutout of Image 1. Only the pixels to recolor are visible; everything else is transparent and may render as black. It is a selection, not a reference photo of the garment.\n- TARGET_COLOR: the color reference (what color to apply) \n\nTask: Recolor part of the garment in Image 1 to [TARGET_COLOR].\n\n\nImage 2 is a selection map, not a photo to copy from. It was cut out of Image 1: the region to recolor appears with its original fabric pixels, and everything else is transparent (note: transparent may be rendered as black). Treat the fabric visible in Image 2 as a stencil that marks where to edit. Do not copy its current color, do not treat it as a color reference, and do not recolor anything that is black in Image 2.\n\n\nBefore editing, find the visible region of Image 2 on Image 1 and identify what it covers. It may be only part of a garment: a collar, one sleeve, a zipper, a panel. If so, only that part changes. The rest of that same garment keeps its original color even where the fabric is identical.\n\n\nRules:\n- Change hue only. Keep the fabric texture, weave, folds, seams, shadows, highlights, and lighting exactly as they are in Image 1.\n- Stop the new color exactly at the edge of the visible region. No bleed onto skin, background, hardware, adjacent clothing, or the un-selected part of the same garment.\n- Every pixel that is transparent or black in Image 2 is copied from Image 1 unchanged: subject, pose, framing, resolution, other garments.\n\n\nOutput one photorealistic image, identical to Image 1 except the selected region, which is now [TARGET_COLOR].\n\n\n[TARGET_COLOR]:\n\nPRESENTATION LOCK\nFirst determine the presentation of BASE_IMAGE:\n- ON_MODEL: garment is worn by a person.\n- FLATLAY: garment is laid flat on a surface.\n- GHOST_FORM: garment is displayed without a visible person, such as an invisible\n  mannequin, hangerless product view, or hollow garment form.\n\n\nPreserve that presentation exactly. Never add, remove, invent, or alter a person,\nmannequin, hanger, body, limbs, styling, surface, or background. The output must be\nthe same presentation and composition as BASE_IMAGE, not a try-on unless BASE_IMAGE\nalready is one.\n\nEDIT BOUNDARY (Highest priority)\nUse the masked area to define exactly what to recolor. Keep the garment's shape, fit, drape, and proportions pixel-identical to the source; recolor only the pixels within the mask boundary.\n\nRender the recolored garment as if it were always this color on the same model in the same pose, lighting, and camera. Preserve all existing fabric texture, stitching detail, seams, zippers, hardware, and surface properties—only the hue and saturation change, not the material or construction.\n\nThe boundary where the recolored garment meets skin or adjacent garments must remain seamless, with no visible cut-line, halo, or composite edge. Respect the mask's soft edges exactly; feathering and anti-aliasing in the mask are preserved, not sharpened or re-feathered.\n\nWhere the mask has reduced opacity (grays), scale the recolor intensity proportionally so transition zones blend naturally into preserved areas.\n\n\nThe output is the source photograph with this single garment recolored, its shape, drape, folds, contact points with the body, face, hair, pose, skin, body shape, and every other garment or accessory not covered by the recolor mask pixel-identical to the source.\nIf the cutout covers only part of a garment (a collar, a sleeve, a zipper, a panel), recolor only that part. Never extend the recolor to the rest of that garment.\n2. Hue:\nShift only the Hue toward the target; preserve the original per-pixel Saturation and Lightness relationships so highlights still blow toward white and shadows deepen naturally under the scene's existing lighting.\nReproduce the reference hue literally. Do not stylize, warm, cool, or \"improve\" the color.\n\n\n3. Texture & realism:\nPreserve fabric weave, thread sheen, wrinkles, folds, shadows, highlights, grain, and sharpness from Image 1. The result should look like fabric manufactured in this color, not painted over it.\n\nDo NOT: flat fill, posterize, halo or glow at edges, plastic/CGI look, loss of texture, altered pose/framing/resolution, or any change to unmasked pixels.\nBefore finalizing, verify: (1) verify every pixel that is not visible in Image 2 is unchanged, (2) the recolored hue matches Image 3, (3) fabric texture and lighting are intact.\nOutput: a single photorealistic image, identical to Image 1 except the masked region recolored to [TARGET_COLOR].\n[TARGET_COLOR]:\n\n"
+   },
+   {
+    "nodeId": "recolored-garment",
+    "mode": "imagesToImage",
+    "model": "Nano Banana Pro",
+    "prompt": "Recolor the garment in Image 1 to [TARGET_COLOR], using Image 2 as the exact mask defining the region to edit, and using Image 3 as the exact color reference to apply.\n\n\nRules:\n- Sample the exact target color from Image 3 and apply it ONLY within the white area of the mask (Image 2). Leave all black-masked regions of Image 1 completely unchanged.\n- Preserve the original fabric texture, weave, folds, shadows, highlights, and lighting. Only the hue should change to match Image 3; keep luminance and material detail intact.\n- Maintain edges precisely along the mask boundary with no color bleed onto skin, background, buttons, or adjacent clothing.\n- Keep the subject, pose, framing, resolution, and all unmasked details identical to Image 1.\n\n\nOutput a single photorealistic image of the same try-on with the masked region naturally recolored to the exact color shown in Image 3 ([TARGET_COLOR]).\n\n\n[TARGET_COLOR]:2ECC71"
+   }
+  ]
+ },
+ "Try-On": {
+  "name": "Model Try-On",
+  "slug": "model-try-on-e381zg",
+  "cost": 208,
+  "inputs": [
+   {
+    "controls": {
+     "category": "Model",
+     "kind": "element"
+    },
+    "description": "The person to dress; any photo works: studio, street, selfie",
+    "elementPresets": [
+     {
+      "elementId": "vd79nx5dj7asjxj7gq8s6fg57s8c16nj",
+      "images": [
+       "https://media.flora.ai/node-inputs/2026/8/7/anonymous/260f3820-ab34-4377-ba42-8cee5f8a32a1.png",
+       "https://media.flora.ai/node-inputs/2026/8/7/anonymous/fd836fe4-8293-4fba-93a5-99be566144c7.png",
+       "https://media.flora.ai/node-inputs/2026/8/7/anonymous/e854bd0c-3abd-4788-9a18-189f3408dabc.png",
+       "https://media.flora.ai/node-inputs/2026/8/7/anonymous/b86f1ea8-9551-472c-bcf0-ae8320313ac2.png",
+       "https://media.flora.ai/node-inputs/2026/8/7/anonymous/6cd3d542-cfbb-4a55-9ed9-3df6738cf236.png",
+       "https://media.flora.ai/node-inputs/2026/8/7/anonymous/79bfaf5a-2b56-4a0d-bd16-4469dbab88d2.png",
+       "https://media.flora.ai/node-inputs/2026/8/7/anonymous/e8ecf3a6-d2c2-458b-bc11-967b32273f0d.png",
+       "https://media.flora.ai/node-inputs/2026/8/7/anonymous/b5d47c10-7f10-4f02-9c6e-134f27c2b61f.png"
+      ],
+      "name": "Charlotte",
+      "texts": [],
+      "thumbnailUrl": "https://media.flora.ai/node-inputs/2026/8/7/anonymous/260f3820-ab34-4377-ba42-8cee5f8a32a1.png"
+     },
+     {
+      "elementId": "vd778nwpxwv9anw4jm4wn8znvh88snx3",
+      "images": [
+       "https://media.flora.ai/node-inputs/2026/6/16/anonymous/3b767b35-d4f9-4a7c-ade6-0abf594b084c_ZzaJpppi5.png"
+      ],
+      "name": "Flo (ai model)",
+      "texts": [
+       "When the reference of Flo is used, she is to be depicted with her distinctive features, including unique hair texture and style, facial structure, and overall build, ensuring she is recognized consistently. The reference allows flexibility in her clothing, expressions, and poses while ensuring her identity remains intact. Avoid replicating any of the specific layouts or compositional approaches shown in the reference images. Each appearance should capture her essence without the inclusion of text or distracting elements in the background."
+      ],
+      "thumbnailUrl": "https://media.flora.ai/4fec0183-1630-462b-9616-82a6360c2711_v4ufUnARr.png"
+     },
+     {
+      "elementId": "vd70xz0mtcwgckwcsdtz39k91d89csb1",
+      "images": [
+       "https://media.flora.ai/node-inputs/2026/6/26/anonymous/3637a9f4-4717-4c43-b0a7-16fe34103c48_vvRjosZe5.png"
+      ],
+      "name": "Simulated Sasha 2.0",
+      "texts": [
+       "When the reference applies, the subject is a tall, athletic male cyborg with broad shoulders and a slim waist. His hair is platinum white/silver, styled thick and tousled upward. Faces are clean-shaven with a calm demeanor and include black wraparound sunglasses and white wireless earbuds where visible.\n\nThe outfit features a sleeveless cropped moto vest in white, royal blue, and black, labeled \"FLORA\" and \"FAUNA,\" over a matte black fitted layer, with black glossy leather pants. Arm and leg details showcase sleek black-and-chrome robotics, while accessories include a translucent blue crystal pendant. Use a minimal white or light gray background in a fashion editorial style."
+      ],
+      "thumbnailUrl": "https://media.flora.ai/node-inputs/2026/6/26/anonymous/3637a9f4-4717-4c43-b0a7-16fe34103c48_vvRjosZe5.png"
+     }
+    ],
+    "id": "model",
+    "name": "Model",
+    "nodeType": "staticImageBlock",
+    "type": "imageUrl"
+   },
+   {
+    "description": "The clothes to put on them: flatlay, ghostform, a product shot, or worn by someone else",
+    "id": "outfit",
+    "name": "Garment",
+    "nodeType": "staticImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "outputs": [
+   {
+    "description": "Dress your model in any garment — flatlay, ghostform, or worn.",
+    "editableParameterKeys": [
+     "resolution",
+     "aspect_ratio"
+    ],
+    "id": "the-try-on",
+    "name": "Model Try-On",
+    "nodeType": "emptyImageBlock",
+    "type": "imageUrl"
+   }
+  ],
+  "models": [
+   "Claude Sonnet 5",
+   "Nano Banana Pro"
+  ],
+  "prompts": [
+   {
+    "nodeId": "66728da5-6f77-4743-9433-b4be3c33485a",
+    "mode": "imagesToText",
+    "model": "Claude Sonnet 5",
+    "prompt": "You are an elite Virtual Try-On Director and Master of Garment Transfer specialized in Nano Banana Pro.\nYour task is to analyze exactly two input images and generate one technically authoritative, physically plausible JSON prompt that fully re-dresses a person.\n\nIMAGE BINDINGS:\nMODEL_IMAGE = @[model] : the person, pose, and scene. The image engine downstream receives it as Image 1.\nOUTFIT_IMAGE = @[outfit] : the complete new look. The image engine downstream receives it as Image 2.\nThe model must end up wearing ONLY what OUTFIT_IMAGE shows, with the person and scene preserved 100%. In the JSON you output, refer to the images ONLY as \"Image 1\" and \"Image 2\". Never write MODEL_IMAGE, OUTFIT_IMAGE, or @-references in the output; the image engine cannot resolve those names.\n\n⚠️ CRITICAL RULES ⚠️\n1. START WITH LOCK: The \"task\" field MUST always begin with: \"Virtual try-on edit: the exact same person from Image 1, unchanged in face, hair, body, pose, and background, now dressed head-to-toe in...\"\n2. OUTPUT PURITY: Output ONLY the JSON object. No preamble, no markdown, no filler.\n3. ROLE LOCK: MODEL_IMAGE is ALWAYS the base (person, pose, scene). OUTFIT_IMAGE is ALWAYS the clothing source. Never reverse these roles, regardless of what either image contains.\n4. ROLE SELF-CHECK: Roles are fixed by the bindings above, NEVER by image content. Both images may contain a person; the person in OUTFIT_IMAGE is never the subject and their environment never appears in the output. Before responding, verify: every preservation detail you wrote (face, hair, pose, scene, props, floor, walls) must match MODEL_IMAGE. If any of it matches OUTFIT_IMAGE's person or setting, you have reversed the roles. Rewrite before outputting.\n5. PERSON & SCENE PRESERVATION: From MODEL_IMAGE, preserve 100%: facial features and expression, hair style and color, skin tone, tattoos, body proportions, hands, pose, camera angle, framing and crop, background, lighting, shadows, and image grain. NOTHING WORN IS PROTECTED: every garment, shoe, glove, bag, belt, piece of jewelry, eyewear, and headwear on the model is replaceable or removable.\n6. GARMENT EXTRACTION: From OUTFIT_IMAGE, extract ONLY the wearable items. If OUTFIT_IMAGE shows a person wearing them, completely IGNORE that person's face, body, skin, hair, pose, background, and lighting. NEVER transfer identity. This is a clothing swap, not a face swap or person merge.\n7. FULL LOOK REPLACEMENT: OUTFIT_IMAGE defines the COMPLETE new look. First, inventory every wearable item currently on the model. Then: (a) any item with a counterpart in OUTFIT_IMAGE is replaced by that counterpart; (b) any worn item with NO counterpart in OUTFIT_IMAGE (gloves, bags, pouches, jewelry, eyewear, headwear, extra layers) is REMOVED, not kept. Name every removed item explicitly in \"worn_items_to_remove\". The default is a clean, total re-dress. If OUTFIT_IMAGE is a multi-item set (flat lay, lookbook, collage), transfer ALL of its items as one coherent look. If MODEL_IMAGE contains several people, dress only the most prominent subject.\n8. COVERAGE EXCEPTIONS: Original items survive in exactly two cases: if OUTFIT_IMAGE contains no top or no bottoms at all, keep the model's original garment in that missing category only (a one-piece counts as both); if OUTFIT_IMAGE shows no footwear, keep the original shoes.\n9. ZERO REMNANTS: The original outfit must vanish entirely. No collars, cuffs, hems, straps, glove edges, bag straps, or attached pouches may survive anywhere. Where the new look exposes skin the old one covered, reconstruct the body plausibly, matching MODEL_IMAGE's visible skin tone and lighting.\n10. NO ADDED ELEMENTS: Do not add text, watermarks, borders, or frames. Exception: prints, logos, and text physically on the OUTFIT_IMAGE garments MUST be reproduced with exact fidelity (placement, scale, color).\n\nGARMENT FORENSICS PROTOCOL (OUTFIT_IMAGE):\nRegardless of presentation (flat lay, ghost mannequin, hanger, worn by a model, e-commerce shot, screenshot, catalog page), enumerate EVERY wearable item, including easy-to-miss ones (shoes at the edge of frame, jewelry, small accessories). For each:\n- Category and cut: exact type, silhouette, length, neckline, sleeve and leg length, closures.\n- Fabric and construction: material, weave or knit, weight, sheen, stitching, seams, hardware.\n- Color and pattern: precise colors, prints, graphics, logos, and their exact placement.\n- Fit intent: oversized, tailored, cropped, high-waisted, as evidenced by the garment's own construction, NOT by the body it happens to be displayed on.\n\nSUBJECT FORENSICS PROTOCOL (MODEL_IMAGE):\n- Photography: focal length, camera style (analog, DSLR, phone), lighting direction and color temperature (Kelvin), texture (grain, noise, pores).\n- Subject: age range, expression, hair style and color, skin tone.\n- Worn inventory: list EVERY wearable item on the model, including things that could read as part of a garment (attached pouches, harnesses, belts, gloves, layered pieces). Every item on this list must end up either replaced by an OUTFIT_IMAGE counterpart or named in \"worn_items_to_remove\". Nothing is silently kept.\n- Scene: physical setting, background objects, atmosphere, and framing (full body, three-quarter, waist-up). Apply garments only within the visible frame. Never re-crop, zoom, or extend the image.\n\nINTEGRATION PHYSICS:\nTransferred garments must be re-rendered onto MODEL_IMAGE's body and pose with realistic fabric behavior: natural drape, folds, and tension matching the pose; correct scale to body proportions; garments passing believably behind and around occluding elements (crossed arms, hands in pockets, held objects, hair); relit entirely by MODEL_IMAGE's lighting and matched to its grain, resolution, and color grade so the edit is undetectable.\n\nJSON OUTPUT FORMAT (remember: inside this JSON, the images are called ONLY \"Image 1\" and \"Image 2\"):\n{\n  \"task\": \"Virtual try-on edit: the exact same person from Image 1, unchanged in face, hair, body, pose, and background, now dressed head-to-toe in [full description of the Image 2 look]. Photorealistic, seamless, undetectable edit.\",\n  \"subject_anchor\": \"Brief factual description of the Image 1 person (age range, hair, skin tone, expression) exactly as they appear. This person must not change.\",\n  \"preservation_lock\": {\n    \"face\": \"100% identical to Image 1. Same features, expression, skin texture. Not beautified, not smoothed, not blended with anyone.\",\n    \"hair\": \"Identical style and color to Image 1; adjust only where hair physically overlaps a new garment.\",\n    \"body_and_pose\": \"Identical proportions, pose, and hand positions to Image 1.\",\n    \"background_and_camera\": \"Identical setting, framing, crop, and camera angle to Image 1.\",\n    \"lighting_and_grain\": \"Identical light direction, color temperature, shadows, grain, and color grade to Image 1.\"\n  },\n  \"worn_items_to_remove\": [\n    \"Explicit list of EVERY item worn in Image 1 that is not part of the new look, e.g. 'black leather gloves', 'black crossbody pouch', 'leg-mounted leather pouch bags', 'wraparound sunglasses'. Each listed item must be completely absent from the output, with the body or garment behind it plausibly reconstructed.\"\n  ],\n  \"new_look_from_image_2\": {\n    \"outerwear\": { \"type\": \"...\", \"color\": \"...\", \"fabric\": \"...\", \"fit\": \"...\", \"details\": \"...\" },\n    \"top\": { \"type\": \"...\", \"color\": \"...\", \"fabric\": \"...\", \"fit\": \"...\", \"details\": \"...\" },\n    \"bottom\": { \"type\": \"...\", \"color\": \"...\", \"fabric\": \"...\", \"fit\": \"...\", \"details\": \"...\" },\n    \"full_body_garment\": { \"type\": \"...\", \"color\": \"...\", \"fabric\": \"...\", \"fit\": \"...\", \"details\": \"...\" },\n    \"shoes\": \"Exact description from Image 2. Keep original shoes ONLY if Image 2 shows no footwear at all.\",\n    \"accessories\": \"ONLY items visible in Image 2 (jewelry, bags, eyewear, headwear), described exactly. Any accessory worn in Image 1 but absent here belongs in worn_items_to_remove.\",\n    \"branding\": \"Exact reproduction of any prints, logos, or graphics on the garments, with placement and scale.\"\n  },\n  \"integration\": {\n    \"drape_and_fit\": \"How each garment sits on this specific pose: folds, tension, tuck state, layering order.\",\n    \"occlusion_handling\": \"How garments interact with arms, hands, held objects, and hair in Image 1.\",\n    \"edge_blending\": \"Seamless transitions at neck, wrists, waist, and ankles. Zero remnants of any original worn item.\",\n    \"relighting\": \"Garments relit to match Image 1's lighting and color grade exactly.\"\n  },\n  \"photography\": {\n    \"camera_style\": \"Match Image 1\",\n    \"lighting\": \"Match Image 1\",\n    \"angle\": \"Match Image 1\",\n    \"shot_type\": \"Match Image 1's framing exactly\",\n    \"texture\": \"Match Image 1's grain and noise\"\n  }\n}"
+   },
+   {
+    "nodeId": "the-try-on",
+    "mode": "imagesToImage",
+    "model": "Nano Banana Pro",
+    "prompt": "{\n  \"task\": \"Virtual try-on edit: the exact same person from Image 1, unchanged in face, hair, body, pose, and background, now wearing an oversized baggy matching hoodie and pants set from Image 2: a soft full-zip hoodie in pale white and icy lavender with blurred navy-blue tie-dye cloud patches, styled with an open neck and visible silver sculptural chain necklace, plus matching loose wide-leg pants in the same pale white, lavender, and deep blue blurred pattern. Photorealistic, seamless, undetectable edit.\",\n  \"subject_anchor\": \"Young adult male model with light skin, short dark hair, neutral serious expression, and black wraparound sunglasses, standing front-facing in a white studio. This person must not change.\",\n  \"preservation_lock\": {\n    \"face\": \"100% identical to Image 1. Same facial structure, mouth shape, expression, skin texture, and sunglasses placement. Not beautified, not smoothed, not blended with anyone from Image 2.\",\n    \"hair\": \"Identical short dark hairstyle and color from Image 1; no change except natural contact shadow at the hoodie neckline if needed.\",\n    \"body_and_pose\": \"Identical body proportions, straight front-facing stance, shoulder angle, arm position, hand position, and leg placement from Image 1.\",\n    \"background_and_camera\": \"Identical clean white studio background, full-body crop, camera height, lens perspective, framing, and negative space from Image 1.\",\n    \"lighting_and_grain\": \"Identical studio lighting direction, soft shadows, color temperature, contrast, resolution, and subtle image texture from Image 1.\"\n  },\n  \"garments_from_image_2\": {\n    \"outerwear\": {\n      \"type\": \"Oversized full-zip hooded sweatshirt worn as the primary upper garment, hood down, open neck styling\",\n      \"color\": \"Pale white and icy lavender base with soft blurred navy-blue and indigo tie-dye cloud patches\",\n      \"fabric\": \"Smooth heavyweight sweatshirt jersey or brushed technical cotton blend with soft matte finish, ribbed cuffs and hem, visible zipper tape and metal zipper pull\",\n      \"fit\": \"Very oversized and baggy, dropped shoulders, wide sleeves, relaxed torso volume, hip-length hem\",\n      \"details\": \"Center front zipper left partly open at the neck to expose the upper neck/chest area and allow the silver necklace to sit visibly; hood has soft volume around the back neckline; no logos or extra text added\"\n    },\n    \"top\": {\n      \"type\": \"not present as a separate underlayer in Image 2; hoodie functions as the top layer with open neck\",\n      \"color\": \"not present in Image 2, keep no visible original shirt or collar from Image 1\",\n      \"fabric\": \"not present in Image 2, keep no original upper garment remnants\",\n      \"fit\": \"not present in Image 2, keep no original upper garment remnants\",\n      \"details\": \"Do not retain the Image 1 leather jacket, blue collar, white chest panel, black panels, printed Flora Fauna text, or any original zipper/collar edges\"\n    },\n    \"bottom\": {\n      \"type\": \"Matching oversized baggy pants\",\n      \"color\": \"Pale white and icy lavender base with deep navy-blue blurred tie-dye cloud pattern matching the hoodie\",\n      \"fabric\": \"Soft smooth sweatshirt or technical jersey fabric with medium-heavy drape and matte finish\",\n      \"fit\": \"Extremely loose wide-leg, relaxed through hips and thighs, pooling slightly at the ankles over the existing stance\",\n      \"details\": \"Full-length pants with broad straight legs, soft folds and gravity-driven bunching near the shoes; replace all black leather pants and sculptural attached pouch elements from Image 1\"\n    },\n    \"full_body_garment\": {\n      \"type\": \"not present in Image 2, keep original from Image 1\",\n      \"color\": \"not present in Image 2, keep original from Image 1\",\n      \"fabric\": \"not present in Image 2, keep original from Image 1\",\n      \"fit\": \"not present in Image 2, keep original from Image 1\",\n      \"details\": \"not present in Image 2, keep original from Image 1\"\n    },\n    \"shoes\": \"Keep original black-and-white sneakers from Image 1; do not transfer footwear because the styling priority is hoodie, pants, and silver necklace.\",\n    \"accessories\": \"Transfer the silver necklace from Image 2 only: a chunky polished silver chain made of sculptural curved interlocking links with pointed claw-like contours, positioned around the neck and visible through the open hoodie neckline. Preserve Image 1 sunglasses, gloves, handheld bags, and crossbody bag unless physically occluded by the new hoodie and pants.\",\n    \"branding\": \"No garment branding or printed text from Image 2. Do not preserve Image 1 Flora Fauna jacket text because the jacket is replaced. Reproduce only the abstract navy-blue tie-dye pattern and the silver necklace link shapes accurately.\"\n  },\n  \"integration\": {\n    \"drape_and_fit\": \"Render the hoodie oversized on the exact Image 1 torso and arms, with dropped shoulder seams below the natural shoulder line, broad sleeves hanging over the arms, soft bunching at the wrists above the black gloves, and a relaxed hem sitting around the upper hips. The zipper is partly open at the neck, exposing only plausible skin consistent with Image 1 lighting and skin tone. Render the pants as extremely baggy and wide, following the same leg stance, with soft vertical folds, slight pooling at the ankles, and no leather shine.\",\n    \"occlusion_handling\": \"Keep Image 1 sunglasses, face, hair, hands, gloves, crossbody bag, and handheld bags in their original positions. The hoodie fabric must pass realistically underneath the black crossbody strap and bag, with strap pressure and slight fabric compression. Gloves remain visible at sleeve openings. Handheld bags remain in front of or beside the new pants exactly where they were, with correct occlusion and shadows. The necklace sits on the exposed neckline and may overlap the hoodie opening naturally.\",\n    \"edge_blending\": \"Seamless transitions at neck, wrists, waist, hem, ankles, and around bags and straps. Completely remove the original blue-white-black leather jacket, its collar, zipper, text, seams, and all black leather pants panels and attached sculptural pouches. Zero remnants of the original clothing may show through the hoodie or pants.\",\n    \"relighting\": \"Relight the hoodie, pants, and silver necklace entirely to match Image 1's white studio lighting, with the same highlight direction, soft shadows, floor contact shadows, contrast, and color grade. Necklace metal should reflect the studio light naturally without introducing new environment reflections.\"\n  },\n  \"photography\": {\n    \"camera_style\": \"Match Image 1 clean high-fashion studio photography\",\n    \"lighting\": \"Match Image 1 bright neutral-white studio lighting with soft shadow falloff\",\n    \"angle\": \"Match Image 1 straight-on frontal camera angle exactly\",\n    \"shot_type\": \"Match Image 1 full-body fashion editorial framing exactly\",\n    \"texture\": \"Match Image 1 resolution, sharpness, subtle grain, fabric detail, and noise pattern\"\n  }\n}"
+   }
+  ]
+ },
+ "360": {
+  "name": "360 Garment Video",
+  "slug": "360-garment-video",
+  "cost": 2896,
+  "inputs": [
+   {
+    "description": "Garment to rotate",
+    "id": "garment-on-model-flat-lay-ghostform",
+    "name": "Base Garment",
+    "nodeType": "staticImageBlock",
+    "type": "imageUrl"
+   },
+   {
+    "id": "backview",
+    "name": "Backview",
+    "nodeType": "staticImageBlock",
+    "optional": true,
+    "type": "imageUrl"
+   }
+  ],
+  "outputs": [
+   {
+    "editableParameterKeys": [
+     "aspect_ratio",
+     "duration",
+     "resolution"
+    ],
+    "id": "3d-render",
+    "name": "3D Render",
+    "nodeType": "videoBlock",
+    "type": "videoUrl"
+   }
+  ],
+  "models": [
+   "Claude Opus 5",
+   "Seedance 2.0"
+  ],
+  "prompts": [
+   {
+    "nodeId": "3d-render",
+    "mode": "firstFrameLastFrame",
+    "model": "Seedance 2.0",
+    "prompt": "Style & Mood: clean e-commerce packshot realism, soft even studio light with slight direction revealing denim twill, raised seams, worn edges and antique metal buttons, on a pure white seamless sweep with a soft contact shadow beneath; 50mm, eye level, locked-off static camera. Dynamic Description: the red denim jacket floats centered, filled by an invisible body, hollow dark at the neck and cuffs, already turning clockwise; the pointed collar, five-button center front, two button-flap chest pockets, vertical front seams and waist tabs foreshorten and slide past the side seam, the faded red denim and pale abraded seam edges continue unbroken over the sleeve and side, then the back comes fully into view with its curved shoulder yoke, long vertical back seams, two lower button-flap patch pockets and plain red worn back panel; the opposite sleeve turns through, and the same front returns to the exact opening angle as six seconds end, cloth rigid and still, texture fixed to the surface. Static Description: image 1 and image 2 show one hip-length trucker-style jacket in structured cotton denim twill with a heavy washed, acid-faded finish; muted brick red covers nearly all fabric, pale pink-white abrasion covers seam ridges, edges and scattered worn areas, antique brass hardware appears as small buttons. The center front has five visible metal buttons, with the wearer’s right button side lapping over the wearer’s left buttonhole side when closed. There are four visible flap patch pockets: two chest pockets on the front and two lower pockets on the back, each with one metal button. It has a pointed turn-down collar, long set-in sleeves, buttoned cuffs, a straight waistband hem with side adjuster tabs, no visible graphics, wording, appliqué, embroidery, print, or woven label; only the white sweep and contact shadow share the frame."
+   },
+   {
+    "nodeId": "695db26b-d12d-40cb-9331-18efc842c4bc",
+    "mode": "imagesToText",
+    "model": "Claude Opus 5",
+    "prompt": "Look at @[garment-on-model-flat-lay-ghostform] (front) and @[backview] (back). One garment. The front governs silhouette, color, fit and front details. The back governs back panels, back seams and back closures.\n\nRead it first as a sewn object: type, silhouette and fit, fabric named with its structure and finish, every color region and how much of the garment it covers, closure type and count and which side laps over, pocket count and type, collar or neckline, sleeve and cuff, hem, and every graphic with its exact wording and how it is made (print, embroidery, appliqué, woven label). Count, do not assume. Only what the images show exists.\n\nThen write one continuous paragraph of present-tense prose, around 200 words, describing a six-second shot exactly as the camera sees it. Use the three inline labels below and nothing else: no preamble, no headings, no markdown.\n\nStyle & Mood: clean e-commerce packshot realism. Soft, even studio light with just enough direction to show weave, stitching and any raised detail. Pure white seamless sweep, evenly lit edge to edge, a soft contact shadow directly under the garment. 50mm, eye level, locked-off static camera.\n\nDynamic Description: the garment floats alone, centered in the empty white sweep, filled by an invisible body so it holds its natural worn volume, the neck and cuff openings hollow and dark. It is already turning clockwise on its vertical axis as the shot begins. Narrate the turn as what comes into view and what leaves, in order, using this garment's real details by name: the front details foreshorten and slide out past the side seam, the fabric and its color regions continue unbroken across the side, the back as shown in @[backview] comes fully into view, the opposite side turns through, and the front returns to the exact opening angle as the six seconds end. Constant speed the whole way, the cloth rigid and still, texture, print and graphics fixed to the surface and moving only with the turn.\n\nStatic Description: the garment as facts from your reading, cited to @[garment-on-model-flat-lay-ghostform] and @[backview] : fabric and finish, color map with proportions, closures with count and lap side, pockets, collar, sleeves and cuffs, hem, every graphic with its wording and construction. Then the empty white sweep and the contact shadow, the only other things in frame.\n"
+   }
+  ]
+ }
+}
