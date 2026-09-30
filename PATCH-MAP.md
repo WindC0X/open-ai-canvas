@@ -172,6 +172,41 @@
 | H1 | `cloud_agent_tools.go` `opProperties` | `canvas_apply_ops` 在 Pi 路径下**永不进入审批门**：Node 侧探针铁证 `Validation failed for tool "canvas_apply_ops": ops.0.x: schema is false / ops.0.y: schema is false / ops.0: must not have additional properties` → SDK `prepareToolCall` 校验失败返回 immediate error，`execute` 从未进入，Go 侧 `/tool` 桥不被调用 | 序2 处置该工具描述时误删 `opProperties` 的 `"x"`/`"y"` 两行（上游 `e0a2697c` 有），并把描述从上游的「可给 x/y 指定位置；省略坐标时服务端按画布内容自动落位」改成「不要传 x/y」——schema 与描述同时偏离上游，而 `cloud_agent_runtime_e2e_test.go` 的测试参数仍传 `x:24,y:48` | 补回 `x`/`y`（与上游逐行一致）+ 描述恢复上游措辞；当前该文件与上游差异仅剩 fork 扩图段（F 系列有意保留） |
 | H2 | `cloud_agent_runtime_e2e_test.go` deadline | 两条 Pi runtime e2e（`TestCloudAgentRuntimeCompletesToolRoundTrip` / `ApprovalWriteRoundTrip`）在 /mnt/f 上必超时 | drvfs 下 Pi 依赖树导入 65907ms vs ext4 729ms（90 倍），60s 窗口不足 | 控制线裁决 b：60s→150s，两处均加注释说明 drvfs 环境适配 + ext4 CI 无影响 + 上游同步重评估提示 |
 
+| I16 | `model_capability_defaults.go` / `_validate.go` | `applyOutpaintTierSeed` 调用（Default 入口）、`OutpaintTier` 白名单校验、`validateGPTImage2CustomSize` 具象文案（c51c8fa7） | 上游拆分新文件均未带 | E4 咽喉三处恢复；go 全量首跑 3 红 → 绿 |
+| I17 | `cloud_agent_runtime_errors.go` | `upstream_address_blocked` 分支（SSRF 拒绝映射） | 上游拆分未带 | 恢复；go 全量首跑 1 红 → 绿 |
+
+**系统核验方法（本批新增，供下批复用）**：上游按域拆分文件时，**逐注释/逐 case/逐中文文案**全树比对
+（`git diff merge-base..HEAD -- <file>` 取 fork 新增行，在全树 grep 存在性）。本批该方法命中 4 处
+静默丢失（E4 三处 + SSRF 映射一处），仅靠函数名比对无法发现（函数名都在，增量在函数体内）。
+
 **教训（供下批 task book 参考）**：合并中修改工具 schema 时，schema 的 `properties`
 与工具描述文案是**两个独立的事实面**，改一处必须核另一处；上游测试文件里出现
 "参数违反本仓 schema" 类失败时，优先怀疑合并期对 schema 的误删而非测试过时。
+
+---
+
+## 合并处置登记（I 系列 · merge-v1.6.1 上游同步 · 2026-09-30）
+
+> 范围：上游 rider 2 `e0a2697c..d328a257`（13 commits / 227 files）。主体为 `7f5d87ef`
+> 平台架构拆分（前端 Agent 面板/node-content/prompt-panel/user-data-sync 与后端
+> cloud_agent_*/model_capability/provider/analytics/resource 按域拆文件）。
+> 控制线裁决 a：原定 `..eb13f736`，开工 fetch 发现上游越界 `d328a257`（纯格式化单文件），
+> STOP 报告后并入。
+
+| # | 涉及面 | fork 增量 | 上游新家 | 落位策略 |
+|---|---|---|---|---|
+| I1 | `canvas-cloud-agent-panel.tsx` | panelLayout ×9（:109 类型 / :114 签名 / :119-122 pointerHandlers / :183 架构注释）、prefillPromptId ×4、useCanvasOverlayLayer + useAppearanceStore 浮层置顶族 | 渲染段抽入 `canvas-cloud-agent-panel-parts.tsx`（−1033）；events/composer/attachments 另拆 | 根部 5 处原位；渲染段 3 处随拆落 parts；G3 的 canvasNodes/runningNodeId 双保不变 |
+| I2 | `canvas-cloud-agent-chat-ui.tsx` | AgentUndoBar 定义（:1009，上游无等价物）、ECOM_STARTER 族 import | 输入区抽入 `canvas-cloud-agent-composer.tsx`（chat-ui −607），附件族入 `-attachments.ts` | 定义原位保留；上游再导出链保持；lucide 图标取 fork 超集（含 Undo2） |
+| I3 | `canvas-node-content.tsx` | `loop` 属性（b9a087ce 循环播放）、视频 batch 族 `VideoBatchRootContent` / `BatchPreviewVideo`（eb4d196f） | 媒体族抽入 `canvas-node-media-content.tsx`（−825）；状态族入 `-status-content.tsx` | **F5**：`loop` 落 media-content（preload 之后，守卫断言相邻性）；视频 batch 两函数留 node-content；`BatchFrame`/`BatchPreviewImage` 已迁，`BatchFrame` 的 **视频分支按 fork 语义恢复**（上游拆分丢分支） |
+| I4 | `canvas-node-prompt-panel.tsx` | `Quote` 图标（1cfec4b8 ghost 质感统一）、`CanvasCountSettingsPopover`/`CanvasTextSettingsPopover` 等 import 超集 | 抽入 `canvas-node-prompt-config.ts` / `-references.tsx` / `-resize.tsx`（−532） | 引用工具图标恢复 fork 版 `Quote className="size-3"`；import 融合 |
+| I5 | `project.tsx` | agentPanelLayout lift + 双挂载去重 + 3 组 import 超集（Brush/Scissors 等图标、AffordanceSurface/ObjectHudPanel、queryGenerationTask 等） | 83 行变化（2 个 handler） | 原位落位；3 个 import 块取 fork 超集；fork 死代码（config/isAiConfigReady）随上游消失（无引用） |
+| I6 | `user-data-sync.ts`（card06） | 水位门访问器 `openLocalProject`/`watermarkProjects` + G5 校准分支（云端内容一致自动校准版本，写 acknowledgedProjects/watermarkProjects/verifiedProjects） | **整文件迁** `web/src/pages/canvas/` → `web/src/services/`；media 键族入 `user-data-sync-media.ts`（+123） | 路径重定位；访问器/校准分支落新家（含 fork 语义注释）；水位门逻辑本体未被 rider 触碰 |
+| I7 | `cloud_agent_runtime.go`（G2） | `StepFullSnapshotHash` 双口径字段（:164-167 注释+字段）+ 赋值点 | struct 定义保留原文件 :118；39 个函数抽入 `cloud_agent_runtime_state.go` / `-scheduler.go` / `-media.go` / `-tools.go` / `-errors.go` | **G2**：字段原位；赋值点落 `-scheduler.go`（上游拆分漏带，fork 增量恢复）；与上游节点级快照并发新逻辑无冲突 |
+| I8 | `cloud_agent_tools.go` | `cloudAgentWrite` 的 `image_layer_split` 登记注释；扩图 `generate_media` 描述段 | 抽入 `-tools_canvas.go` / `-tools_read.go` / `-tools_skills.go`；`generate_media` 描述被上游重写（新增角色卡语义） | 注释迁 `-tools_read.go`；描述融合（上游角色卡段 + fork 扩图段）；重复定义消除 |
+| I9 | `model_capability.go`（E4） | `applyOutpaintTierSeed`（nano 族播种 recommended） | 抽入 `-defaults.go` / `-validate.go` | **E4**：定义按落位恢复（上游拆走定义但保留调用点 :206）；outpaintTier 字段/常量原位 |
+| I10 | `analytics.go` | `.Local()` 时区修正（41e558de 管理端时间窗查询本地时区对齐） | 抽入 `analytics_build.go` / `-enrich.go` / `-api_logs.go` | 修正落 `analytics_build.go` 的 `normalizeAnalyticsFilter`（上游拆分漏带） |
+| I11 | `provider.go` / `resource.go` | — | 按域拆出 `provider_error*.go` / `-text*.go` / `-video*.go` / `-image.go` / `-protocol*.go` 等 | 冲突段删除（fork 段函数 100% 被新家覆盖，0 缺失） |
+| I12 | `use-config-store.ts` | `logicalModelFamilyOf`（7888b5f2 S08 家族聚类，model-picker 依赖） | 公共函数抽入 `stores/config-model-options.ts` 并再导出 | 取上游新家；`logicalModelFamilyOf` 落 `config-model-options.ts` 并加入再导出链 |
+| I13 | `audio-settings-panel.tsx`（§八增补） | `SettingGroup` 增强版（`extra?: ReactNode` + `theme.node.groupTitle`）、共享 `OptionPill` 导入、12 笔改造 | `b0806745` IndexTTS2 情感段（14 键 + emotionFields + 权重 input）+ `d328a257` 格式化 | AudioSettingKey 取上游 14 键；情感段用上游结构；SettingGroup 用 fork 增强版（extra 可选兼容）；`theme.node.muted` 已证存在 |
+| I14 | `CHANGELOG.md` / `pending-test.mdx` | Unreleased 段 / F-06 扩图销账段 | v1.5.9/v1.5.9.1 发布段 / 素材删除+CI 提速+大文件拆分段 | keep-both（G9 惯例）；pending-test 保留 fork 路径 `docs/plans/`（路径分歧先例）+ 融合上游新段 |
+| I15 | `canvas-cloud-agent.css` | fork 增量 | **rider 2 零触碰** | 零冲突直接保留 |
