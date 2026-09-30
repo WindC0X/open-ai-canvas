@@ -168,11 +168,12 @@ previewImageUrl, slug, sortOrder, tags, techniqueDefinitionId, visibility
 
 | 方案 | 做法 | 成本 |
 |---|---|---|
-| **A（推荐）** | **脚本化遍历 112 个详情页**：逐个 `tabs.create` 打开 `/techniques/{slug}` → 等 Convex 推送 → 从 `props.techniqueDefinition` 抽取 → 存 JSON | 112 次页面加载，约 30-60 分钟（每次 15-30s） |
+| **A′（推荐）** | **脚本化遍历 ~40 个电商对口技法详情页**（fashionApparelEditorial 16 + productVisualization 12 + marketingAds 8 + essentials 商品子集）：逐个 `tabs.create` 打开 `/techniques/{slug}` → 等 Convex 推送 → 从 `props.techniqueDefinition` 抽取 → 存 JSON | 40 次页面加载，约 15–25 分钟 |
+| A | 全量 112 个（含与影策不对口的 funInspiration/brandVisualDesign 等） | 112 次，约 30–60 分钟，**边际价值低** |
 | B | 修复 Convex 认证（找到正确的 auth provider 配置）后一次性 `getDefinition` 全量 | 需要研究 Convex + Clerk 集成配置，不确定性高 |
-| C | 只抓 Studio 相关的 ~24 个 | 约 10 分钟，覆盖用户最关心的电商/服装场景 |
+| C | 只抓 Studio 的 13–24 个 | 约 10 分钟，覆盖最集中的电商/服装场景 |
 
-**方案 A 已实测可行**（`ghost-mannequin-system` 就是这么拿到的），只是**需要 112 次循环**。
+**方案 A′ 已实测可行**（`ghost-mannequin-system` 就是这么拿到的），只是**需要循环 40 次**。
 
 ---
 
@@ -190,16 +191,66 @@ previewImageUrl, slug, sortOrder, tags, techniqueDefinitionId, visibility
 
 ## 五、对影策（open-ai-canvas）的实际影响
 
-**关键判断**：**graph 层的 111 个缺口，对影策的价值可能低于 listing 层。**
+### ⚠️ 本文初版判断错误，已更正（2026-09-30）
+
+**初版写的**：「Flora 的提示词是服装电商场景，影策是影视/短剧，直接复用价值低」+「不值得全抓，抽 5-8 个够了」。
+
+**这是错的。影策有两条主线，电商是自建主攻线之一。**
+
+`MASTER-PLAN.md` §2.5 定位声明逐字：
+
+> **定位声明**：影策 = 为**电商创作者与小型影视团队**服务的、本地/私有部署优先的生成式图像工作台——**电商改图/商拍/品牌锁是自建主攻线**，影视 agent 玩法跟随上游，UI 质感走 flora 化皮肤外置。
+>
+> 用户画像 = PRODUCT.md 既有画像（个人创作者/小型影视团队/短剧制作者）**+ 本次显式扩展「电商创作者」人群**。
+
+§2.3 差异化真空逐字：
+
+> 上游 90d 全量 feat 标题中**未出现电商/设计类词汇**……上游安全区=**电商/设计类业务节点/模板/工作流**、backend Go 私有扩展……
+
+**即：电商是影策刻意选择、上游不做的差异化地盘**（三条作战线中的 **B 线**）。
+
+### 影策电商线 F-01..F-12 与 Flora 技法的实际映射
+
+`analysis-2026-09-12/ecom-design/candidates-ecom.md` 的 Top12：
+
+| 影策功能 | 优先级 | Flora 对应技法（有 graph 可抽） |
+|---|---|---|
+| **F-01 智能抠图/白底图** | 25 | `Anything to Vector`（含 `Remove background` 节点） |
+| **F-02 AI 商品场景图/背景替换** | 25 | **`Product in Scene Generator`**（uoi-image-generator，5 输出）/ `Relighting` |
+| **F-03 商品/模特一致性参考锁** | 20 | `Scene Continuity Lock` / `Editorial Fashion Shoot Replicator` |
+| **F-04 AI 模特换装/虚拟试衣** | 20 | **`Virtual Try-On`**（550cr）/ `Model Poses`（10 输出）/ `Ghost Mannequin System`（14 输出） |
+| **F-05 模板变量批量出图** | 20 | Bulk Generate（t07 已拆，非技法） |
+| **F-06 扩图/画幅重构** | 20 | 无直接技法（影策已自建 MVP，0.02 硬贴回阈值） |
+| **F-07 修复型垂直工具群** | 20 | `Relighting Photoshoot` / `Product recolor` |
+| **F-08 视觉标注局部修改** | 20 | `Image Recolor` / `Product recolor` |
+| **F-09 爆款图复刻** | 16 | **`Editorial Fashion Shoot Replicator`**（名字就是"复刻"） |
+| **F-10 品牌套件锁定** | 16 | `Editorial Fashion Shoot Replicator`（风格注入链） |
+| **F-11 OCR 改字** | 16 | 无（Flora 无文字层） |
+| **F-12 批量基础处理** | 16 | `3 Angle Shoot` / `Multi-Angle Shoot` / `Product Package on White` |
+
+**结论：12 项电商功能中，至少 8 项能在 Flora 技法里找到对口参照。**
+
+### 因此，graph 层的补齐优先级应重排
+
+**应优先全抓的技法类别**（与影策电商线直接对口）：
+
+| 类别 | 数量 | 理由 |
+|---|---|---|
+| `fashionApparelEditorial` | **16** | F-01/03/04/07/08/12 核心参照 |
+| `productVisualization` | **12** | F-02/07/12 参照 |
+| `marketingAds` | **8** | F-05/09/10 参照 |
+| `essentials`（商品相关子集） | ~8 | F-01/12 参照 |
+| **合计** | **约 40-44 个** | |
+
+**真正不值得全抓的**：`funInspiration` 16 / `brandVisualDesign` 15 / `spaceArchitecture` 6 / `printFilmVfx` 5 —— 与影策两条主线都不对口。
+
+### 修正后的建议
+
+**方案 A′（取代原方案 A/C）**：优先抓 **~40 个电商对口技法**的完整 graph，而非全量 112，也不只是 24 个 Studio 工具。
 
 理由：
-- **架构与机制**：已从 1 个样本 + 通用代码路径完整推断（节点类型、IO 契约、快照、执行链）
-- **具体提示词**：Flora 的提示词是**服装电商场景**的（ghost mannequin / fabric texture），影策是**影视/短剧**，直接复用价值低
-- **模型选型**：listing 层的 `modelRefs` 已足够（说明"这类任务用什么模型"）
+- **提示词正文可直接参照**：Flora 的「纯白背景 #FFFFFF / 棚拍软光 / 面料质感保留 / 无遮挡」等提示词工程，与影策「白底产品图」starter 的需求**同构**
+- **多模型链分工可直接参照**：LLM 出提示词 → Nano Banana 出图，与影策多渠道架构契合
+- **节点拓扑可直接参照**：16 节点如何组织一次商品图生成（16 节点 / 42 边 / 1 输入 / 14 输出的模式）
 
-**真正值得补的**：
-- 若要看**节点拓扑模式**（16 节点如何组织）→ 抽 3-5 个不同类型的技法足够
-- 若要看**提示词工程范式**（如何把用户输入注入提示词）→ 抽 3-5 个足够
-- **不需要 112 个全抓**
-
-**建议**：抓 **5-8 个代表性技法**（覆盖 fashionApparelEditorial / videoAnimation / productVisualization / marketingAds 四类），而非全量 112。
+**已实测可行的抽取方法**：遍历 `/techniques/{slug}` 详情页 → 从 `props.techniqueDefinition` 抽 `graph`（含 `nodeInputsMap` 提示词正文）。40 个约 15–25 分钟。

@@ -166,7 +166,9 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 
 ## 四、对 open-ai-canvas（影策）的迁移建议
 
-> 依据影策定位（影视/短剧创作者、本地/私有部署、自有 backend、已有 canvas-agent）。工作量级均为**估算**（人日），按一名熟悉影策代码库的工程师折算。
+> 依据影策定位（`MASTER-PLAN.md` §2.5：**电商创作者 + 小型影视团队**双人群，电商改图/商拍/品牌锁为**自建主攻线**（B 线），影视 agent 玩法跟随上游，本地/私有部署、自有 backend、已有 canvas-agent）。工作量级均为**估算**（人日），按一名熟悉影策代码库的工程师折算。
+>
+> ⚠️ **本文早期版本将影策定位误记为单一「影视/短剧」**，导致对电商类迁移价值的低估；已修正。Flora 的电商/商品类技法与影策 B 线 **F-01..F-12** 高度对口（详见 `findings/coverage-audit-112-techniques.md` §五）。
 
 ### 4.1 可直接借鉴
 
@@ -204,6 +206,33 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 | 3 | 品牌营销机制（splash ad campaign、flagship ad 去重、guest try funnel、UTM 链路） | 与影策产品定位无关 |
 | 4 | 63 个 Flora 函数目录的具体内容 | 绑定 Flora 模型生态；仅 status 三态灰度注册表（released/staged/unlisted）思想可留 |
 | 5 | Convex 后端栈 | 影策自有 backend；仅借鉴「读走实时订阅、写走 mutation、重操作走 REST」的 API 分层，不迁移实现 |
+
+### 4.4 ★ Flora 电商技法 → 影策 B 线 F-01..F-12 映射（补抓新增）
+
+> **背景修正**：本文早期版本把影策定位记成单一「影视/短剧」，低估了 Flora 电商技法的价值。`MASTER-PLAN.md` §2.5 定位声明逐字：影策 = 为**电商创作者与小型影视团队**服务，**电商改图/商拍/品牌锁是自建主攻线**；§2.3 并指出「上游 90d 全量 feat 标题中**未出现电商/设计类词汇**」——即电商是**刻意选择、上游不做的差异化地盘**。
+
+`analysis-2026-09-12/ecom-design/candidates-ecom.md` Top12 ↔ Flora 技法对照：
+
+| 影策功能 | 优先级 | Flora 对应技法 | 可抽取资产 |
+|---|---|---|---|
+| **F-01 智能抠图/白底图** | 25 | `Anything to Vector`（含 `Remove background` 节点） | 节点链 |
+| **F-02 商品场景图/背景替换** | 25 | **`Product in Scene Generator`**（5 输出）/ `Relighting`（4 输出） | ★ 提示词正文 |
+| **F-03 一致性参考锁** | 20 | `Scene Continuity Lock` / `Editorial Fashion Shoot Replicator` | 提示词策略 |
+| **F-04 模特换装/虚拟试衣** | 20 | **`Virtual Try-On`** / `Model Poses`（10 输出）/ `Ghost Mannequin System`（14 输出） | ★★ 节点拓扑 |
+| **F-05 模板变量批量** | 20 | Bulk Generate（t07 已拆） | 非技法 |
+| **F-06 扩图/画幅重构** | 20 | 无对口技法 | — |
+| **F-07 修复型工具群** | 20 | `Relighting Photoshoot` / `Product recolor` | 提示词正文 |
+| **F-08 视觉标注局部修改** | 20 | `Image Recolor` / `Product recolor`（6 输出） | 提示词正文 |
+| **F-09 爆款图复刻** | 16 | **`Editorial Fashion Shoot Replicator`**（名字即"复刻"） | ★★ 全链 |
+| **F-10 品牌套件锁定** | 16 | `Editorial Fashion Shoot Replicator`（风格注入链） | 风格注入模式 |
+| **F-11 OCR 改字** | 16 | 无（Flora 无文字层） | — |
+| **F-12 批量基础处理** | 16 | `3 Angle Shoot` / `Multi-Angle Shoot` / `Product Package on White` | 输出布局 |
+
+**12 项中至少 8 项有对口参照。**
+
+**已实测的抽取方法**（`ghost-mannequin-system` 已验证）：遍历 `/techniques/{slug}` 详情页 → 从 React `props.techniqueDefinition` 取 `graph`，其中 `graph.nodeInputsMap` 含**每节点的模型绑定 + 提示词全文 + 参数**，`graph.presets` 含默认输入值与节点文本。
+
+**建议优先级**（取代「全量 112」与「仅 Studio 24」两种极端）：**优先抽 ~40 个电商对口技法**——`fashionApparelEditorial`(16) + `productVisualization`(12) + `marketingAds`(8) + `essentials` 商品子集(~8)；跳过 `funInspiration`(16) / `brandVisualDesign`(15) / `spaceArchitecture`(6) / `printFilmVfx`(5)。
 
 ---
 
@@ -256,4 +285,4 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 
 ### 6.3 主编总结
 
-Flora 的核心竞争力不是单个功能，而是**一条贯穿的契约链**：CORE_IO 类型 → 节点能力表 → 技法快照 → 计费报价 → 来源归因，任何一层的新增物（节点/技法/工具/agent 动作）都自动获得版本化、可计价、可归因、可治理四种能力。对影策而言，优先吸收这条链的「骨架」（IO 契约、快照、部分成功语义、harness），再按影视语义填充自己的「血肉」；计费与增长层整体跳过。
+Flora 的核心竞争力不是单个功能，而是**一条贯穿的契约链**：CORE_IO 类型 → 节点能力表 → 技法快照 → 计费报价 → 来源归因，任何一层的新增物（节点/技法/工具/agent 动作）都自动获得版本化、可计价、可归因、可治理四种能力。对影策而言，优先吸收这条链的「骨架」（IO 契约、快照、部分成功语义、harness），再按**电商 + 影视双线**语义填充自己的「血肉」（电商线可直取 Flora 的电商技法提示词与节点拓扑作参照）；计费与增长层整体跳过。
