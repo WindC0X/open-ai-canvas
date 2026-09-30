@@ -78,3 +78,28 @@ canvas-model-policy / agnes-video / asset-batch-delete。
 | gates 机器时间 | ~2-3 小时串行（build 1m06s 实测 / go internal-app 24min 实测 / web 全量 / e2e）|
 | 测试线整轮 | ~3 小时（序6 实测 12:37→15:25 含补跑）|
 | 全批 wall-clock | **1.5-2 天**（对照 v1.6.0 三天 1143 文件）|
+
+---
+
+## 八、recon 更新：范围扩至 d328a257（2026-09-30 · 控制线，响应 A线 STOP 报告）
+
+### 越界增量核验（控制线独立复核）
+
+- `d328a257`（2026-09-30 18:28）= **纯格式化**：AudioSettingKey 14 键联合拆行（键集零变化）、emotion `<input>` 属性逐行展开（属性零变化）、emotionFields 数组换行（元素零变化）。39 行改动目检 + git show 全文复核 ✓
+- 文件面：仅 `web/src/components/audio-settings-panel.tsx`，该文件已在 b0806745（rider 2 内）触面 → **`e0a2697c..d328a257` 仍为 227 文件**（实测）✓
+- A线锚点分析验证：fork 侧 AudioSettingKey = 4 键（:11，audioVoice/audioFormat/audioSpeed/audioInstructions）vs 上游 14 键（+10 emotion 键）✓；emotion 族 fork 侧零存在 ✓。小勘误：fork 侧该文件改造笔数实测 11 笔（A线报 12，口径差异疑含 merge 计数，不影响结论）
+- **未解释项 #1 消除**：`theme.node.muted` 在 fork 树 321 处现行使用（含 audio-settings-panel.tsx:76 自身）——存在性确证，上游 `SettingGroup color={theme.node.muted}` 融合无障碍
+
+### 裁决：选项 a（并入，范围 = e0a2697c..d328a257，13 commits / 227 files）
+
+理由：d328a257 是 rider 2 内 b0806745 的格式化尾随（同功能域补刀）；留到下批 = 同一冲突点（AudioSettingKey 行）下批再吃一次且批距更长；A线 已给融合方案（fork SettingGroup 增强版 extra 可选 prop 兼容上游调用）。
+
+### 批内纪律增补（防无限 STOP 循环）
+
+**merge-base 锚定 = d328a257（开工时点 origin/main）**。批内上游若再进新提交：不追、不再 STOP（除非触本批落位域的语义冲突），滚动增量留下批——否则上游连续推送日（今日 18:28 还在动）会让批永远开不了工。
+
+### 落位表增补（§三 追加一行）
+
+| 域 | fork 增量 | 上游面 | 落位策略 |
+|---|---|---|---|
+| 音频设置面板 | fork SettingGroup 私有组件（extra?: ReactNode 增强 + theme.node.groupTitle 配色，11 笔改造）| b0806745 IndexTTS2 情感段（14 键 + emotionFields + 情感权重 input）+ d328a257 格式化 | AudioSettingKey 取上游 14 键（fork 4 键为子集）；情感段用上游结构、SettingGroup 用 fork 增强版（extra 可选兼容）；theme.node.muted 已证存在 |
