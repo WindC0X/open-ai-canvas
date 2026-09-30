@@ -1,14 +1,202 @@
 # Flora 前端（UI）全量拆解（2026-09-30）
 
 > **背景**：此前的 10 主题深拆只覆盖了**机制层**（API/数据/schema），界面层仅 ~15%（1 个技法详情页样本）。
-> 本文补齐**界面层**：9 个核心页面的布局、组件、设计 token、交互流程，全部基于**真机截图 + DOM 实测**。
-> 证据等级：**一手实测**（登录态真机，截图见 `screenshots/`）。
+> 本文补齐**界面层**。
+>
+> **方法声明（重要）**：本文**不是截图推断**。核心数据来自三源实测：
+> 1. **CSS 自定义属性真值** —— `getComputedStyle` 逐变量取值（1326 暗 / 1456 亮）
+> 2. **完整主 CSS 文件**（960 KB）—— 含 43 个 `f-*` 类定义与 token→utility 映射
+> 3. **DOM 计算样式** —— 28 个组件的实际 `backgroundColor`/`borderRadius`/`fontSize` 像素值
+>
+> 截图仅用于**布局与信息层级**参照。所有颜色/尺寸/字体值均为**实测**，非视觉估算。
+> 证据等级：**一手实测**（登录态真机）。
+>
+> **数据产物**：`data/ui/` —— `flora-main.css`(960KB) / `flora-vars-dark.json`(1326 变量) / `flora-vars-light.json`(1456 变量) / `flora-computed-styles.json`(28 组件)
 
 ---
 
-## 0. 全局设计系统
+## 0. 全局设计系统（★ CSS 真值）
 
-### 0.1 三栏式应用骨架（所有页面共用）
+### 0.0 主题机制（★ 影策 flora 化皮肤直接相关）
+
+Flora 用 **`data-theme` 属性 + `.dark` 类**双轨切换：
+
+```html
+<html data-theme="flora-dark" class="... dark">
+<!-- 切亮色： -->
+<html data-theme="flora-light" class="...">   <!-- 移除 dark -->
+```
+
+**实测差异**：亮/暗两套主题共 **216 个变量值不同**（暗 1326 / 亮 1456 个变量）。
+
+**关键语义 token 对照（实测值）**：
+
+| Token | `flora-dark` | `flora-light` |
+|---|---|---|
+| `--color-text-1`（主文字） | `#eee` | `#202020` |
+| `--color-text-2`（次文字） | `#b4b4b4` | `#646464` |
+| `--color-text-3`（三级文字） | `#7b7b7b` | `#838383` |
+| `--color-background-dark-1` | `#111` | `#fcfcfc` |
+| `--color-dark-1` | `#111` | `#fcfcfc` |
+| `--color-border-alpha-light-1` | `#ffffff1b` | `#00000017` |
+| `--color-grass-9`（强调色） | `#57c957` | `#46a758` |
+| `--color-grass-11` | `#71d083` | `#2a7e3b` |
+| `--color-background-flora-green-primary` | `#57c957` | `#57c957`（不变） |
+
+**★ 洞察**：`--color-background-dark-1` 在亮色下变成 `#fcfcfc` —— 命名叫 "dark" 但**语义是「面板底」**，不是「暗色」。这是 Flora 的 token 命名惯性，**影策移植时需注意**。
+
+### 0.1 语义层架构（三层）
+
+```
+第三层  utility 类      .bg-background-dark-1 → background-color: var(--color-background-dark-1)
+         ↑
+第二层  语义 token      --color-background-dark-1 = #111
+         ↑
+第一层  原始色阶        --color-grass-1..12 + alpha 变体（Radix Colors 12 阶）
+```
+
+**第一层实例**（Radix 风格 12 阶）：
+```
+--color-grass-1  = #fbfefb    --color-grass-7  = #94ce9a
+--color-grass-2  = #f5fbf5    --color-grass-8  = #65ba74
+--color-grass-3  = #e9f6e9    --color-grass-9  = #46a758   ← 强调色（亮色主题）
+--color-grass-4  = #daf1db    --color-grass-10 = #3e9b4f
+--color-grass-5  = #c9e8ca    --color-grass-11 = #2a7e3b
+--color-grass-6  = #b2ddb5    --color-grass-12 = #203c25
++ alpha 变体：--color-grass-a1..a9 / --color-grass-alpha-3,4,6,8
+```
+
+### 0.2 第二层：`--brand-os-*` 语义族（★ 最完整的一套）
+
+**这是 Flora 真正的主语义层**（浅色系值，说明原本为亮色设计）：
+
+| 族 | Token | 值 |
+|---|---|---|
+| **强调** | `--brand-os-accent` | `#5c8a50` |
+| **墨色**（文字） | `--brand-os-ink` / `-2` / `-3` | `#35363b` / `#4f4e4a` / `#65635e` |
+| **面板** | `--brand-os-canvas` | `#e5e3df` |
+| | `--brand-os-panel` | `#f6f5f4` |
+| | `--brand-os-card` | `#fbfaf8` |
+| | `--brand-os-well` | `#edece8` |
+| | `--brand-os-raised` | `#fff` |
+| **边框** | `--brand-os-border` / `-strong` | `#dfdcd6` / `#c4c0b9` |
+| **动作** | `--brand-os-action` / `-hover` | `#121212` / `#2b2b2b` |
+| **三态·正** | `positive-text` / `-surface` / `-border` | `#4a7440` / `#5c8a501a` / `#a9c39f` |
+| **三态·警** | `warning-text` / `-surface` / `-fill` / `-border` | `#8a5100` / `#fbf3e0` / `#c98a1b` / `#e3c27a` |
+| **三态·危** | `danger-text` / `-text-2` / `-surface` / `-border` | `#a8201a` / `#c0342b` / `#fcedec` / `#efb1ae` |
+| **叠色** | `--brand-os-tint-1` / `-2` / `-3` | `#3030300d` / `#30303014` / `#30303024` |
+| **焦点** | `--brand-os-focus` | `#35363b` |
+
+### 0.3 `f-*` 类体系（43 个，★ 完整清单）
+
+**字体 scale**（`--font-display` = GeistSans）：
+
+| 类 | font-size | weight | line-height | letter-spacing |
+|---|---|---|---|---|
+| `.f-font-h1` | `var(--text-6xl)` | — | 1.375 | — |
+| `.f-font-h2` | `var(--text-3xl)` | — | 1.375 | — |
+| `.f-font-h3` | `var(--text-base)` | — | 1.375 | -0.02rem |
+| `.f-font-body-lg` | `var(--text-base)` | — | 1.375 | -0.01rem |
+| `.f-font-body` | `var(--text-sm)` | **350** | 1.4 | 0 |
+| `.f-font-body-bold` | `var(--text-sm)` | 500 | 1.4 | -0.01rem |
+| `.f-font-accent` | `var(--text-xs)` | — | 1 | -0.01rem |
+| `.f-font-accent-bold` | `var(--text-xs)` | 500 | 1.375 | -0.01rem |
+| `.f-font-caption` | `var(--text-xs)` | — | 1.375 | — |
+| `.f-font-value` | `var(--text-xs)` | — | 1.375 | —（**等宽** `--font-mono`） |
+| `.f-font-chat` | `var(--text-sm)` | — | 1.5 | 0（系统字体栈） |
+| `.f-font-brand-os-heading` | `2rem` | 400 | 1.1 | **-0.06rem** |
+| `.f-font-typescale-{xs,sm,base,xl,3xl}` | 对应 token | — | 1.375 | — |
+
+**★ 洞察**：`--font-display` 是 **GeistSans**（Vercel 字体），正文 weight 是 **350**（非标准 400）—— 这是 Flora 的排版特征。
+
+**效果层**：
+
+| 类 | 定义 |
+|---|---|
+| `.f-effect-panel` | `backdrop-filter: blur(var(--blur-xl))` + `box-shadow: var(--shadow-xl)` |
+| `.f-effect-shadow-{sm,md,lg,xl,inner,none}` | Tailwind 阴影阶 |
+| `.f-effect-shadow-drawer` | `0 -.5rem .625rem #0000001a, 0 -1.25rem 1.5625rem #0000001a` |
+| `.f-effect-shadow-popover` | `0 4px 8px #0000001f` |
+| `.f-effect-backdrop-blur-{sm,md,lg,xl,2xl}` | `backdrop-filter: blur(var(--blur-*))` |
+| `.f-effect-gradient-blur` | 渐变遮罩 + blur（`--gradient-blur-amount` / `-direction` 可调） |
+
+**背景图案**：
+
+| 类 | 定义 |
+|---|---|
+| `.f-bg-dotted-pattern` | `radial-gradient(circle, #383838 1px, transparent 1px)` + `background-size: 16px 16px` |
+| `.f-bg-onboarding-welcome-card` | `linear-gradient(40deg, #71d08326 3.46%, #71d0831a 26.73%, #71d08300 96.54%)` |
+| `.f-bg-studio-onboarding-coach` | `conic-gradient(from 140deg at 55% 25%, #f0abfc, #67e8f9, #fde68a, #86efac, #a78bfa, #f0abfc)` |
+
+**动画**：`.f-rail-dot-snap-pulse`（0.16s）/ `.f-rail-terminal-pulse`（0.32s）/ `.f-rail-tether-enter`（0.12s）
+
+### 0.4 token→utility 映射（★ 直接可用）
+
+```css
+/* 背景 */
+.bg-background-dark-1        → background-color: var(--color-background-dark-1)
+.bg-background-dark-alpha-1  → background-color: var(--color-background-dark-alpha-1)
+.bg-background-accent-1      → background-color: var(--color-background-accent-1)
+.bg-background-danger        → background-color: var(--color-background-danger)
+.bg-light-alpha-1            → background-color: var(--color-light-alpha-1)
+.bg-dark-1                   → background-color: var(--color-dark-1)
+
+/* 文字 */
+.text-text-1                 → color: var(--color-text-1)
+.text-text-2                 → color: var(--color-text-2)
+.text-text-accent-1          → color: var(--color-text-accent-1)
+.text-text-disabled          → color: var(--color-text-disabled)
+.text-text-danger            → color: var(--color-text-danger)
+
+/* 边框 */
+.border-border-alpha-light-1 → border-color: var(--color-border-alpha-light-1)
+.border-border-grass-alpha-4 → border-color: var(--color-border-grass-alpha-4)
+.border-border-collection    → border-color: var(--color-border-collection)
+
+/* 圆角 */
+.rounded-radius-100/200/250/400 → border-radius: var(--radius-radius-N)
+```
+
+### 0.5 核心变量真值表（实测）
+
+| 变量 | 值 |
+|---|---|
+| `--color-text-1` | `#eee` |
+| `--color-text-2` | `#b4b4b4` |
+| `--color-text-3` | `#7b7b7b` |
+| `--color-text-disabled` | `#606060` |
+| `--color-background-dark-1` | `#111` |
+| `--color-background-dark-alpha-1` | `#191919e6` |
+| `--color-background-dark-alpha-2` | `#000000e6` |
+| `--color-border-alpha-light-1` | `#ffffff1b` |
+| `--color-light-alpha-1` | `#ffffff1c` |
+| `--color-grass-9` | `#57c957` |
+| `--color-background-flora-green-primary` | `#57c957` |
+| `--radius-radius-250` | `.75rem`（12px） |
+| `--blur-xl` | `24px` |
+| `--shadow-xl` | `0 20px 25px -5px #00000080, 0 8px 10px -6px #0006` |
+| `--font-display` | `"GeistSans", "GeistSans Fallback", "Geist Sans", Helvetica, sans-serif` |
+| `--font-mono` | `"GeistMono", ui-monospace, SFMono-Regular, ...` |
+
+### 0.6 组件计算样式（28 个，实测像素值）
+
+| 组件 | 实测值 |
+|---|---|
+| `MAIN` | `bg rgba(25,25,25,0.9)` = `#191919e6`，类 `bg-background-dark-alpha-1` |
+| `HEADER` | `bg rgb(17,17,17)` = `#111`，类 `bg-dark-1`，`border-b border-border-alpha-light-1` |
+| `NAV`（左 Dock） | `bg #111`，`w-14`（56px），`border-r` |
+| `ASIDE`（右侧面板） | `bg #111`，**`w-[18.25rem]` = 292px**，`border-l`，`backdrop-blur-xl` |
+| 分段控件 | `bg rgba(0,0,0,0.9)`，`rounded-xl`（12px），`border-border-alpha-light-1`，`p-0.5` |
+| 标签 | `bg rgba(255,255,255,0.05)`，`rounded-md`（6px），`f-font-s-accent-bold` |
+| 上传框 | `bg rgb(27,42,30)`，`rounded-lg`（8px），`border`，`aspect-square` |
+| 绿色圆钮 | `bg rgb(87,201,87)` = `#57c957`，`rounded-full`，`size-[1.875rem]`（30px） |
+| 卡片 | `bg rgba(255,255,255,0.11)`，`rounded-2xl`（16px），`f-effect-panel` |
+| 悬浮标签 | `bg oklab(0 0 0 / 0.4)`，`rounded-md`，`backdrop-blur-xl` |
+| 图片 | `rounded-xl`，`border-border-alpha-light-1` |
+
+**★ 关键尺寸**：右面板 **292px**（`w-[18.25rem]`）、左 Dock **56px**（`w-14`）—— 这两个数字此前只能靠截图估算。
+
+### 0.7 三栏式应用骨架（所有页面共用）
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -52,20 +240,20 @@
 
 | 类别 | 值 |
 |---|---|
-| 页面主背景 | `#0a0a0c` ~ `#121214` |
-| 卡片/面板背景 | `#161618` ~ `#1c1c20` |
-| 浮层/激活态 | `#222226` ~ `#2c2e35` |
-| 边框 | `#27272a` ~ `#2e2e33`（1px solid） |
-| 虚线边框（上传框） | `#3f3f46` |
-| 主文字 | `#ffffff` |
-| 次文字 | `#8e8e93` / `#a1a1aa` |
-| 占位符 | `#52525b` / `#71717a` |
-| **强调绿（主 CTA）** | `#22c55e` / `#4ade80` |
-| 强调绿（深底徽标） | `#14532d` / `#166534` |
-| 头像紫 | `#8b5cf6` |
-| 圆角 | 卡片 12-16px / 按钮 8px / 药丸 9999px |
-
-**字体**：无衬线（Inter / SF Pro Display 类）；标题 22-32px 粗体，正文 13-14px，辅助 12px。
+| 页面主背景 | `#191919e6`（`--color-background-dark-alpha-1`，实测） |
+| Header/Nav 背景 | `#111`（`--color-background-dark-1` / `--color-dark-1`） |
+| 边框 | `#ffffff1b`（`--color-border-alpha-light-1`） |
+| 浅色叠加 | `#ffffff1c`（`--color-light-alpha-1`） |
+| 主文字 | `#eee`（`--color-text-1`） |
+| 次文字 | `#b4b4b4`（`--color-text-2`） |
+| 三级文字 | `#7b7b7b`（`--color-text-3`） |
+| 禁用文字 | `#606060`（`--color-text-disabled`） |
+| **强调绿** | `#57c957`（`--color-grass-9` / `--color-background-flora-green-primary`） |
+| 上传框底 | `rgb(27,42,30)` |
+| 圆角 | `--radius-radius-250` = `.75rem`（12px）；卡片 `rounded-2xl`（16px） |
+| 模糊 | `--blur-xl` = `24px` |
+| 阴影 | `--shadow-xl` = `0 20px 25px -5px #00000080, 0 8px 10px -6px #0006` |
+| 字体 | `--font-display` = GeistSans；正文 weight **350** |
 
 **统一浮标**：右下角 `ljq_driver: 已连接`（绿字 + 深绿半透明胶囊）—— 本地驱动连接状态。
 
@@ -465,9 +653,56 @@ Realtime [New]  Your camera, restyled in real time.
 | **3D 姿态编辑器** | 影策影视线可用；需 three.js + IK，成本较高 |
 | **双视口对比** | 影策生成对比场景 |
 
-### 8.3 设计 token 对齐
+### 8.3 设计 token 对齐（★ 现在可直接执行）
 
-影策已有 `flora-tokens.css` / `flora-overrides.css`。**建议核对**本文 §0.2 的取样值（特别是强调绿 `#22c55e` 与深绿徽标 `#14532d`）是否已覆盖。
+影策已有 `flora-tokens.css` / `flora-overrides.css`。**已获真值清单**（`data/ui/`）：
+
+| 产物 | 内容 | 用途 |
+|---|---|---|
+| `flora-vars-dark.json` | 1326 个变量（暗色计算值） | 逐项比对影策 token |
+| `flora-vars-light.json` | 1456 个变量（亮色计算值） | 双主题支持 |
+| `flora-main.css` | 960 KB 完整主 CSS | `f-*` 类定义 + utility 映射 |
+| `flora-computed-styles.json` | 28 个组件实际样式 | 组件级校对 |
+
+**建议核对顺序**（按影响面）：
+1. `--color-text-1/2/3`（`#eee`/`#b4b4b4`/`#7b7b7b`）—— 全局文字
+2. `--color-background-dark-1`（`#111`）与 `-alpha-1`（`#191919e6`）—— 面板底
+3. `--color-border-alpha-light-1`（`#ffffff1b`）—— 全局边框
+4. `--color-grass-9`（`#57c957`）与 `--color-background-flora-green-primary` —— 强调色
+5. `--radius-radius-250`（12px）/ `--blur-xl`（24px）/ `--shadow-xl`
+6. `--font-display`（GeistSans）+ 正文 weight **350**
+
+**★ 两个易错点**：
+- `--color-background-dark-1` 在**亮色主题下是 `#fcfcfc`** —— 命名带 dark 但语义是「面板底」，不是「暗色面板」
+- Flora 正文 weight 是 **350**（非 400）—— 影策若用 400 会显得偏重
+
+**双主题机制**：`data-theme="flora-dark"|"flora-light"` + `.dark` 类；216 个变量随主题变化。影策若要支持双主题可直接复用这套变量名。
+
+### 8.4 与影策现有 `flora-tokens.css` 的核对（★ 实测对照）
+
+影策 `web/src/styles/flora-tokens.css`（88 行 / 17 个变量）的注释登记了三条 flora 暗色系参考族。**逐条对照真值**：
+
+| 影策注释声明 | Flora 真值 | 影策实际值 | 结论 |
+|---|---|---|---|
+| 近黑底 `#0c0c0c-#121212` | `--color-background-dark-1` = **`#111`** | `--background: #0f0f0f` | ✅ 两者均在族内 |
+| 深灰容器 `#181818-#222` | `--color-background-dark-alpha-1` = **`#191919e6`** | `--card: #181818` | ✅ 在族内 |
+| 绿 accent `#57c957` 族 | `--color-grass-9` = **`#57c957`** | 未启用 | ✅ 真值可直取 |
+| 边框 | `--color-border-alpha-light-1` = **`#ffffff1b`** | `--border: #222222` | ❌ **不匹配** |
+
+**结论**：影策此前的 flora 化推导（基于 `flora-css-vars.json` 语料 + 用户实拍）**方向与量值基本正确**（底/容器/强调色均命中）。本次全量抓取提供**权威依据**，并暴露一处差异：
+
+**★ 唯一发现的不匹配：边框色**
+- Flora：`--color-border-alpha-light-1` = `#ffffff1b`（**白色 10.6% 透明度**，叠加式）
+- 影策：`--border: #222222`（**不透明深灰**）
+
+两者视觉近似但**机制不同**：Flora 用**半透明白叠层**（可在任意底色上自然融合，如玻璃面板），影策用**实色**（在非 `#0f0f0f` 底上会显脏）。若影策有半透明面板（`backdrop-blur` 类），建议改用 `#ffffff1b` 方案。
+
+**可立即执行的动作**：
+1. 核对 `--background: #0f0f0f` vs 真值 `#111`（差 2 级，影响很小）
+2. **边框色**：评估是否改用 `#ffffff1b` 叠层方案（见上）
+3. 正文 weight 核对：Flora = **350**，影策若为 400 会偏重
+4. 若后续要启用纯绿 accent，真值可直接取 `#57c957`（`--color-grass-9`）
+5. 双主题：影策若要支持亮色，`flora-vars-light.json` 提供 216 个差异变量的完整对照
 
 ---
 
@@ -476,26 +711,39 @@ Realtime [New]  Your camera, restyled in real time.
 | # | 缺口 | 原因 |
 |---|---|---|
 | 1 | 移动端布局 | 未测 |
-| 2 | 暗色/亮色主题切换 | 只见到暗色 |
-| 3 | 组件的完整 CSS 值 | 截图取样，非计算样式 |
-| 4 | 动画/过渡细节 | 静态截图无法捕获 |
+| 2 | ~~暗色/亮色主题切换~~ | ✅ **已解决** —— `data-theme` 双轨 + 216 个差异变量已拓 |
+| 3 | ~~组件的完整 CSS 值~~ | ✅ **已解决** —— 28 组件计算样式 + 960KB 主 CSS + 1326/1456 变量 |
+| 4 | 动画/过渡细节 | 只有 3 个 `f-rail-*` 动画定义；其余过渡在 Tailwind 类里 |
 | 5 | 技法详情页 Examples/About 标签内容 | 点击未切换（需 CDP） |
 | 6 | Film Studio 内页 | 未进入 |
 | 7 | MCP 页面 | 按用户令跳过 |
+| 8 | `@font-face` 字体文件 | 未下载（GeistSans 等） |
 
 ---
 
 ## 十、可复现命令
 
 ```bash
-# 开标签
+# 1. 开标签
 tmwd-browser exec <SID> '{"cmd":"tabs","method":"create","url":"https://app.flora.ai/techniques"}'
 
-# 截图（CDP，返回 base64）
+# 2. 截图（CDP，返回 base64）
 tmwd-browser cdp <SID> Page.captureScreenshot '{"format":"png"}' \
   | python3 -c "import sys,json,base64; print(len(base64.b64decode(json.load(sys.stdin)['r']['data']['data'])))"
 
-# 标签切换（必须真实鼠标事件，JS click 无效）
+# 3. 抓 CSS 变量真值（关键：cssRules 通道能拿到 Tailwind v4 变量名）
+tmwd-browser exec <SID> '(function(){const names=new Set();for(const sh of document.styleSheets){try{for(const r of sh.cssRules){if(r.style)for(let i=0;i<r.style.length;i++){const p=r.style[i];if(p.startsWith("--"))names.add(p);}if(r.cssText)for(const m of r.cssText.matchAll(/(--[\w-]+)\s*:/g))names.add(m[1]);}}catch(e){}}const root=getComputedStyle(document.documentElement);const out={};for(const n of names){const v=root.getPropertyValue(n).trim();if(v)out[n]=v;}window.__CV_JSON=JSON.stringify(out);return Object.keys(out).length;})()'
+
+# 4. 取回大 JSON（避免 exec 截断）
+tmwd-browser exec <SID> 'window.__CV_JSON' | python3 -c "import sys,json;print(len(json.load(sys.stdin)['r']['data']))"
+
+# 5. 下载完整主 CSS
+tmwd-browser exec <SID> '(async()=>{const u=[...document.styleSheets].find(s=>s.href&&s.href.includes("0-f4_cjcq0of-")).href;window.__MAINCSS=await(await fetch(u)).text();return window.__MAINCSS.length;})()'
+
+# 6. 切主题
+tmwd-browser exec <SID> 'document.documentElement.setAttribute("data-theme","flora-light");document.documentElement.classList.remove("dark");return "ok"'
+
+# 7. 标签切换（必须真实鼠标事件，JS click 无效）
 tmwd-browser cdp <SID> Input.dispatchMouseEvent '{"type":"mousePressed","x":1194,"y":32,"button":"left","clickCount":1}'
 tmwd-browser cdp <SID> Input.dispatchMouseEvent '{"type":"mouseReleased","x":1194,"y":32,"button":"left","clickCount":1}'
 ```
@@ -504,3 +752,5 @@ tmwd-browser cdp <SID> Input.dispatchMouseEvent '{"type":"mouseReleased","x":119
 - `tmwd-browser screenshot` 子命令**不存在** —— 用 `cdp ... Page.captureScreenshot`
 - `/studios/fashion` 重定向回 `/studios` —— 真实入口是 `/studios/fashion-studio/open`
 - 标签页 JS `click()` 不触发切换，必须 CDP `Input.dispatchMouseEvent`
+- **Tailwind v4 的变量名只能从 `r.cssText` 正则抠**（`r.style` 不暴露 `@layer` 内定义）
+- 大 JSON 回传要用 `window.__X_JSON` + 分块 slice（exec 有大小限制）
