@@ -225,10 +225,13 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 | **F-08 视觉标注局部修改** | 20 | `Image Recolor` / `Product recolor`（6 输出） | 提示词正文 |
 | **F-09 爆款图复刻** | 16 | **`Editorial Fashion Shoot Replicator`**（名字即"复刻"） | ★★ 全链 |
 | **F-10 品牌套件锁定** | 16 | `Editorial Fashion Shoot Replicator`（风格注入链） | 风格注入模式 |
-| **F-11 OCR 改字** | 16 | 无（Flora 无文字层） | — |
+| **F-11 OCR 改字** | 16 | **`Qwen Image Edit`（"Best for adding or changing text in images"）/ `Qwen Image Edit Plus`（"Complex layouts with multiple text elements"）/ `Flux Kontext Max`（"text edits"）+ 视频字幕 font/stroke/alignment 工具** | **修正：原写"无（Flora 无文字层）"是错的**；另 `Ideogram 3.0/4.0`、`Seedream 4.5`、`Qwen Image 2.1` 专长文字渲染 |
 | **F-12 批量基础处理** | 16 | `3 Angle Shoot` / `Multi-Angle Shoot` / `Product Package on White` | 输出布局 |
+| **O-03 超分** | — | **`Magnific Precision Upscaler`（"Detail-preserving 2× upscaling"）/ `Magnific Precision V2` / `Topaz Upscaler` / `Topaz Generative Upscaler`；视频超分 `Bria` / `Magnific` / `Topaz`** | ★ Flora 的「保真档 vs 增强档」区分与影策 O-03 的**命名分流红线同构** |
+| **O-10 分层** | — | **`Seedream 5 Pro Layerize`（"Splits an image into independent, editable transparent-PNG layers"）/ `Qwen Image Layered` / `Ad Delayer`（"Split a flat ad into editable background, product, and copy layers"）/ `SAM 3`** | ★ `Ad Delayer` **直接命中电商场景**（广告图→背景/商品/文案三层） |
+| **F-06 扩图** | 20 | 无对口**技法**，但**模型层有** `FLUX 2 Pro Outpaint`（"Extend an image past its edges, matching the existing scene"） | **补充** |
 
-**12 项中至少 8 项有对口参照。**
+**12 项中至少 8 项有对口技法参照；扩展到 F-01..F-12 + O-03 + O-10 共 14 项后，12 项有对口参照。**
 
 **已实测的抽取方法**（`ghost-mannequin-system` 已验证）：遍历 `/techniques/{slug}` 详情页 → 从 React `props.techniqueDefinition` 取 `graph`，其中 `graph.nodeInputsMap` 含**每节点的模型绑定 + 提示词全文 + 参数**，`graph.presets` 含默认输入值与节点文本。
 
