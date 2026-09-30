@@ -213,7 +213,7 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 
 ### 6.1 主题间/内部矛盾（3 处）
 
-1. **reviewStatus 枚举范围**：T01（市场视角）仅见 `pending/published` 并称其余「未找到」；T02（治理流视角）逐字捕获第三值 `admin_edit_pending`。**裁定**：互补非矛盾，合并结论为至少 3 值；`approved/rejected` 仍无证据。
+1. **reviewStatus 枚举范围**：T01（市场视角）仅见 `pending/published`；T02 捕获 `admin_edit_pending`。**后续补抓修正（2026-09-30，见 t02-supplement-publish-contract.md §G）**：实际为 **至少 4 值** —— `pending` / `admin_edit_pending` / `admin_edit_rejected` / 其余走 `isAdminBlockedOutOfWindow` 分支。另发现 `isOwner`、`currentUserCanFloristEdit`（FLORA 内部员工）两个权限字段与 `api.admin.techniques.mutations.submitAdminEditForReview`。
 2. **T05 内部：watermark-video 状态**：目录表格标 "released(默认省略)"，但同文注释与 `eM` 函数签名（`r="staged"` 为默认第 4 参，该函数调用省略此参）指向 `staged`。**裁定**：以函数签名为准应为 staged；T05 §1.2 的 "19 released" 统计可能偏 1，建议复核该调用点——影响仅限灰度标记，不影响机制结论。
 3. **legacy credits 换算双基数**：`legacyCreditsFromUserDollars` 用 $0.0009/credit，`calculatePricingV3UsageCostFromLegacyCredits` 用 1/1333≈$0.00075/credit。**裁定**：两函数并存为逐字事实，可能对应不同时代定价或买卖价差；业务含义无法从前端定论，列为缺口（不计为矛盾错误）。
 
