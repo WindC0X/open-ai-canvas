@@ -57,3 +57,61 @@ stack-up.sh 需回写 `backend/agent-runtime/pi` npm install（第二次因依�
 2. 序7 动作：控制线终审（新红基线 0 红定义入档）→ 用户真机抽验
    （Agent 面板三面 / 迁移后画布完整性 / 旧数据兼容）→ push 到 fork main
 3. 序7 纪律（用户裁决中）：每条裁决必须先贴对应日志/git 证据行
+
+---
+
+## 五、序7 终审（2026-09-30 · 控制线）
+
+### 0 红基线定义（入档，即刻生效）
+
+```
+web 单测（bun test，web/ 目录内）：0 产品红
+  · 已知例外 = known-test-infra-failure 登记项（当前 7 项，
+    bun mock.module 进程级泄漏，见测试仓 docs/backlog.md）
+  · 例外口径：逐名 + 根因 + 复现命令 + 修复方向 + 验收目标（7→0），
+    任何新例外必须控制线裁决后登记，不得静默豁免
+go 全量：28 包 0 FAIL（@fc8337f9，13.3m，internal/app 847.8s）
+e2e 五轮：S1/S2/S5/S6 门内全绿 + S7 四用例绿（run5 final）
+  + S3 专项绿；S4 专项 = spec 已按能力驱动校准（1 passed / 1 skipped）
+VRT：dark 7 / light 7 / ws 2 全绿；面③已回滚（动态数据视图，
+  采集前稳定化 = 基建债 backlog）
+旧 15+7=22 红基线：作废（15 项随序2/3/4 转绿，7 项转入 known-test-infra-failure）
+```
+
+### Rider 2 裁决（用户已批：按控制线建议）
+
+不并入本批。序7 push `fc8337f9` 后，rider 2（上游 eb13f736 系，
+12 提交 / 227 文件 / v1.5.9 + agent 大重构）开 **v1.6.1 批**。
+
+v1.6.1 recon 待办（已登记）：
+1. agent 拆分 hunk 映射：上游 7f5d87ef 把 F1/F2/F4/F5 四域拆散
+   （panel −1022 → panel-parts+685 / events+348 / composer+539 / attachments+21；
+   chat-ui −587；project.tsx −75；node-content −821）—— fork 增量
+   （panelLayout ×9 / AgentUndoBar / prefillPromptId）需逐 hunk 重新挂位
+2. card06 域新结构重核：上游把 user-data-sync.ts 媒体键收集拆出
+   user-data-sync-media.ts（123 行）；水位门/退避本 rider 零触碰（已验），
+   但下一批动该域前按 09-22 规格做 merge-file 独立重跑（针对新文件结构）
+3. 227 文件按完整批纪律走：recon → 任务书 → merge → 门禁 → 测试线
+
+### push 计划（待用户真机抽验后执行）
+
+```
+拓扑（已验）：
+  fork/main = 507a4c07（= main 与批树分叉点）
+  本地 main = fork/main + 21 提交（纯 docs/artifacts/*，零代码交集）
+  merge-v1.6.0 = fork/main + 67 提交（批增量）
+动作：
+  1. main merge merge-v1.6.0（预期零冲突——docs 与批零交集）
+  2. 自检：merge 后 web/backend 树内容 = fc8337f9 位级一致
+  3. push main → fork/main
+```
+
+### 序6 闭合确认
+
+S1 ✅ 迁移冒烟（748 画布/6 渠道/49 模型/103 任务零丢失）
+S2 ✅ 五轮 + 补正（429 撤回；run4 如实呈现 4 次尝试；global-setup
+     吞错真因 = waitForURL().catch(()=>{}) + 无条件 storageState，backlog 在案）
+S3 ✅ 两面重采（面① CSS 1119 行已独立复核；面② 几何可复算）+ 面③回滚
+S4 ✅ 7 红挂账 + spec 能力驱动校准 + stack-up.sh 基建回写（undici 前置检查）
+
+序1-7 全链：✅✅✅✅✅✅（序7 = 本档 + 用户抽验 + push）
