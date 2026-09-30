@@ -40,7 +40,7 @@ export const MEDIA_CONVERSION_OPERATION_DESCRIPTIONS: Record<MediaConversionOper
     lineart: "本地 ControlNet Aux 线稿预处理，首次运行需要加载模型",
     depth: "本地 Depth Anything V2 Small，首次运行需要加载模型",
     pose: "本地 OpenPose 人体骨架预处理，未检测到人物时会跳过",
-    cutout: "需要安装并验证本地抠图模型",
+    cutout: "本地浏览器抠图，首次使用需下载约 90MB 模型，之后离线可用",
 };
 
 export function createDefaultMediaConversionState(): MediaConversionNodeState {

@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端 spec 索引，确定本枝适用的规范条目"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "新增 workers/ 与 services/ 文件的落点规范"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "worker 消息契约与 manifest 类型定义"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "进度状态（瞬时态 vs 持久态）的处理约定"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "单测与门禁口径"}
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证环境纪律（bun test 目录敏感等）"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "复用既有同构先例（canvas-face-detector.worker.ts / canvas-face-detection.ts）的判定依据"}
+{"file": "docs/artifacts/f01-cutout-task-book.md", "reason": "控制线任务书：范围、硬约束、文件清单、门禁、STOP 红线"}

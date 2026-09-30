@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "检查口径：单测覆盖、门禁清单"}
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证纪律：bun test 必须在 web/ 内跑；drvfs 特性"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "类型完整性检查（worker 契约、manifest 类型）"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层数据流检查：节点 state → worker → blob 存储"}
+{"file": "docs/artifacts/f01-cutout-task-book.md", "reason": "验收标准与门禁的原始定义"}

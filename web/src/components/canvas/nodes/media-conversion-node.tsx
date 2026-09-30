@@ -15,11 +15,13 @@ import {
     type MediaConversionOperation,
 } from "@/lib/media-conversion/contracts";
 import { convertImageLocally, LocalImageConversionError } from "@/lib/media-conversion/local-converter";
+import { composeWhiteBackground, planWhiteBackground } from "@/lib/media-conversion/cutout-white-background";
 import { getActiveUserScope } from "@/lib/user-scope";
+import { runBrowserCutout, CutoutRuntimeError, type CutoutProgressPhase } from "@/services/cutout-runtime";
 import { runLocalDepthEstimation } from "@/services/depth-runtime";
 import { runLocalLineartEstimation } from "@/services/lineart-runtime";
 import { runLocalPoseEstimation } from "@/services/pose-runtime";
-import { resolveImageUrl, setImageBlob } from "@/services/image-storage";
+import { resolveImageUrl, getImageBlob, setImageBlob } from "@/services/image-storage";
 import { resolveMediaUrl } from "@/services/file-storage";
 import { LocalRuntimeClientError } from "@/services/local-runtime-session";
 import { useLocalRuntimeStore } from "@/stores/use-local-runtime-store";
@@ -151,7 +153,7 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
             setNotice("视频转换暂未开启，先完成单图模型验证");
             return;
         }
-        if (!isLocalImageOperation(state.operation) && state.operation !== "depth" && state.operation !== "lineart" && state.operation !== "pose") {
+        if (!isLocalImageOperation(state.operation) && state.operation !== "depth" && state.operation !== "lineart" && state.operation !== "pose" && state.operation !== "cutout") {
             updateState({ status: "unavailable", outputKind: "image", errorCode: "model_missing", errorMessage: "该转换需要先安装并验证本地模型", updatedAt: new Date().toISOString() });
             setNotice(mediaConversionOperationDescription(state.operation));
             return;
@@ -174,6 +176,15 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
                     ? await runLocalLineartEstimation(sourceUrl, controller.signal)
                 : state.operation === "pose"
                     ? await runLocalPoseEstimation(sourceUrl, controller.signal)
+                : state.operation === "cutout"
+                    // 抠图跑在浏览器 WASM 里，首次要下 94MB 权重；三段进度走 notice 文案。
+                    ? await runBrowserCutout(sourceUrl, {
+                        signal: controller.signal,
+                        onProgress: (phase) => {
+                            if (controller.signal.aborted) return;
+                            setNotice(cutoutProgressNotice(phase));
+                        },
+                    })
                 : await convertImageLocally(sourceUrl, state.operation, { signal: controller.signal, maxDimension: 1024 });
             if (controller.signal.aborted) return;
             const storageKey = localConversionStorageKey(node.id, currentFingerprint, state.operation);
@@ -243,6 +254,13 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
                 setNotice(localRuntimeNotice(error, useLocalRuntimeStore.getState().connection));
                 return;
             }
+            if (error instanceof CutoutRuntimeError) {
+                // 模型缺失（fetch 脚本未跑）属于环境问题，标 unavailable 而不是失败。
+                const nextStatus = error.code === "model_missing" ? "unavailable" : "error";
+                updateState({ status: nextStatus, errorCode: error.code, errorMessage: error.message, updatedAt: new Date().toISOString() });
+                setNotice(cutoutRuntimeNotice(error));
+                return;
+            }
             const conversionError = error instanceof LocalImageConversionError ? error : new LocalImageConversionError("source_unreadable", "本地图片转换失败");
             const nextStatus = conversionError.code === "model_missing" ? "unavailable" : "error";
             updateState({ status: nextStatus, errorCode: conversionError.code, errorMessage: conversionError.message, updatedAt: new Date().toISOString() });
@@ -256,6 +274,35 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
         link.href = resultUrl;
         link.download = `${node.title || "转换结果"}-${state.operation}.png`;
         link.click();
+    };
+
+    /**
+     * 白底导出：把透明结果合成到 1:1 白底（Amazon 主图规范）。
+     *
+     * 渠道不允许透明主图，所以这一步是上架必需；几何规划走纯函数，便于单测覆盖。
+     */
+    const downloadWhiteBackground = async () => {
+        if (!state.resultStorageKey) return;
+        setNotice("正在合成白底主图");
+        try {
+            const transparent = await getImageBlob(state.resultStorageKey);
+            if (!transparent) {
+                setNotice("找不到抠图结果，请重新执行一次");
+                return;
+            }
+            const plan = planWhiteBackground({ width: state.resultWidth ?? 0, height: state.resultHeight ?? 0 });
+            const composed = await composeWhiteBackground(transparent, plan);
+            const url = URL.createObjectURL(composed);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${node.title || "抠图"}-白底${plan.width}x${plan.height}.png`;
+            link.click();
+            // 下载已触发，下一帧再释放 URL，避免部分浏览器取消下载。
+            window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+            setNotice(plan.upscaled ? `白底主图已导出（已放大到 ${plan.width}×${plan.height}）` : `白底主图已导出（${plan.width}×${plan.height}）`);
+        } catch (error) {
+            setNotice(error instanceof Error ? error.message : "白底合成失败");
+        }
     };
 
     const effectiveResult = Boolean(resultUrl && (status === "completed" || status === "stale"));
@@ -324,6 +371,11 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
                         <button type="button" aria-label="下载转换结果" title="下载转换结果" className="grid h-6 w-8 shrink-0 place-items-center rounded-[var(--r-sm)] outline-none transition hover:bg-black/5 focus-visible:ring-2 dark:hover:bg-white/10" style={{ color: theme.node.muted, outlineColor: theme.accent.primary }} onClick={(event) => { event.stopPropagation(); downloadResult(); }} onMouseDown={(event) => event.stopPropagation()}>
                             <Download className="size-3.5" aria-hidden="true" />
                         </button>
+                        {state.operation === "cutout" ? (
+                            <button type="button" aria-label="导出白底主图" title="导出白底主图（1:1）" className="grid h-6 shrink-0 place-items-center rounded-[var(--r-sm)] px-1.5 text-[var(--fs-micro)] font-semibold outline-none transition hover:bg-black/5 focus-visible:ring-2 dark:hover:bg-white/10" style={{ color: theme.node.muted, outlineColor: theme.accent.primary }} onClick={(event) => { event.stopPropagation(); void downloadWhiteBackground(); }} onMouseDown={(event) => event.stopPropagation()}>
+                                白底
+                            </button>
+                        ) : null}
                     </div>
                 ) : null}
             </div>
@@ -569,6 +621,23 @@ function localRuntimeNotice(error: LocalRuntimeClientError, connection: ReturnTy
     if (error.code === "depth_model_missing") return "深度模型尚未安装，请先完成本地模型安装";
     if (error.code === "lineart_model_missing") return "AI 线稿依赖或模型尚未安装，请先完成本地线稿模型安装";
     if (error.code === "pose_model_missing") return "姿态模型或依赖尚未安装，请先完成本地姿态模型安装";
+    return error.message;
+}
+
+/**
+ * 抠图三段进度文案。
+ *
+ * 首次使用要下约 90MB 权重，进度必须可见；之后模型走浏览器缓存，
+ * 下载阶段一闪而过，用户基本只会看到后两段。
+ */
+function cutoutProgressNotice(phase: CutoutProgressPhase) {
+    if (phase === "download") return "正在下载抠图模型（首次约 90MB，之后会缓存）";
+    if (phase === "segment") return "正在识别主体";
+    return "正在生成透明 PNG";
+}
+
+function cutoutRuntimeNotice(error: CutoutRuntimeError) {
+    if (error.code === "model_missing") return "抠图模型尚未下载，请先在 web/ 目录执行 bash ../scripts/fetch-cutout-models.sh";
     return error.message;
 }
 
