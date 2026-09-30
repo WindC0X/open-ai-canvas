@@ -166,6 +166,10 @@ codeBlockDefinition = { kind:"codeBlock", schema: ({nodeData}) => ({
 
 侧栏 Tools 列表（截图）：`Fashion Studio` / `Bulk Generate` / `Director` / `Pose` / `Realtime`（均带 `New` 徽章）
 
+> **补抓修正（2026-09-30）**：**Studios 有两个，不是一个** —— `/studios` 页面展示 **Fashion Studio**（"Take any garment from first sketch to campaign-ready."）与 **Film Studio**。而公开 `/tools` 页只列 5 个（Bulk Generate / Fashion Studio / Director / Pose / Realtime），**Film Studio 是隐藏面**（由 `useFeatureFlagEnabled("film_studio")` 门控，tile 跳 `/productions`）。另发现隐藏路由 `/imagine/camera`、`/imagine/lab`、`/imagine/live`、`/imagine/movie`、`/productions`、`/brand-os`、`/evals`。
+>
+> **进入 Studio 的实证**：访问 `/studios/fashion-studio/open` 会**重定向到画布项目编辑器** `/projects/<id>?view=editor` —— 印证了官方定义「Studios 是 built on top of the canvas」。
+
 ## 3.2 Fashion Studio（官方文档完整）
 
 **形态**：三面板 —— 左「工具轨+设置」/ 中「结果 feed」/ 右「详情面板」
@@ -181,11 +185,67 @@ codeBlockDefinition = { kind:"codeBlock", schema: ({nodeData}) => ({
 **关键机制**：
 - 输入可接受 **collections** → 一次生成扇出多个（"one garment in every colorway"）
 - 页脚显示本次 credit 成本 → Generate
-- **工具版本化**：出现 `New version available` 横幅 → Update
+- **工具版本化**（官方文档措辞）→ **实际机制名是「技法快照过期」**（见下方补抓），出现 `New version available` 横幅 → Update
 - feed：按 run 分组（一次 Generate = 一个 run），grid/ticker 两种视图 + 缩略图尺寸滑杆
 - 单结果操作：Download / fullscreen / `⋮`（Show info、**Open in Canvas**、Delete）
 - 批量：Shift/Cmd 多选 → 批量下载或批量送画布；run 级下载/删除
 - 详情面板：type / resolution / file size / name / model / **generation time**
+
+### 3.2.1 ★ 补抓（2026-09-30）：工具版本化 / 工具=技法 / 工具→模型
+
+> 详见 `findings/t06-supplement-version-stale.md`、`t06-supplement-studio-tool-mapping.md`、`t06-supplement-studio-tool-model-map.md`
+
+**① 工具版本化的真身 = 技法块快照过期**
+
+```js
+getIsTechniqueBlockPinnedToOlderSnapshot = (e) =>
+  !!e.blockSnapshotId && !!e.latestSnapshotId && e.blockSnapshotId !== e.latestSnapshotId
+
+TECHNIQUE_SNAPSHOT_STALE_MESSAGE = "A newer version of this technique has been published.
+                                     Update the block to the latest version before editing."
+TECHNIQUE_SNAPSHOT_STALE_TOOLTIP = "Update to latest version of technique to update"
+```
+
+编辑入口：`if (E) return void n.toast.error(TECHNIQUE_SNAPSHOT_STALE_MESSAGE)` —— **过期直接阻止编辑**。
+
+> **检索词教训**：官方文档措辞（"New version available"）与代码标识符（"snapshot stale"）是两套词汇，从文档措辞反推标识符必然 0 命中。
+
+**② Studio 工具 = 技法（Technique）的展示外壳**
+
+rail 注册表 13 工具 / 3 组（**逐字**）：
+
+| 组 | 工具（names / slugBases） |
+|---|---|
+| **Concept** | prompt / sketch-to-render / garment-extractor / concept |
+| **Refine** | ghostform / flatlay / garment-recolor / fabric-swap |
+| **Showcase** | model-maker / model-try-on / garment-swap / photo-shoot / 360-garment-video / 360-model-video / multi-angle-shoot |
+
+匹配算法：`name`/`shortName` 小写精确 **或** `routeSlug` 精确/前缀；rail 由 `resolveStudioRailGroupedSections(技法列表)` 驱动 → **新增工具零前端改动**。
+
+**③ 工具 → 模型映射：不是一对一，而是多模型链**
+
+`listing.modelRefs = [{mode, model}]`。核心范式 = **LLM 做提示词工程 → 图像模型做生成**。
+
+```js
+// Ghost Mannequin System（逐字）
+[ {mode: "textToText",     model: "Claude Opus 4.6"},
+  {mode: "imageToImage",   model: "Nano Banana Pro"},
+  {mode: "imagesToImage",  model: "Nano Banana 2"},
+  {mode: "imagesToImage",  model: "Nano Banana Pro"} ]
+```
+
+| 侧 | 主力模型 |
+|---|---|
+| **图像** | Nano Banana Pro（15+）/ Nano Banana 2（11+）/ GPT Image 2（3）/ Arrow 1.1 Max（3，矢量）/ Flux Kontext Max |
+| **LLM** | Claude Opus 4.6（6）/ Claude Sonnet 5（5）/ GPT-5.2（5）/ GPT-5.5（5）/ Gemini 3 Pro·3.1 Pro·Flash 3.7 |
+| **视频** | Kling 2.5 Turbo Pro（2）/ Kling O1 / Kling 3.0 Pro / Seedance 2.0 |
+
+**9 种 IO 模式**：`textToText` `imagesToText` `imageToText` `textToImage` `imageToImage` `imagesToImage` `imageToVideo` `firstFrameLastFrame`
+**8 个类别**：`essentials` `productVisualization` `fashionApparelEditorial` `marketingAds` `videoAnimation` `contentPackaging` `spaceArchitecture` `printFilmVfx`
+
+`model: undefined` 条目 = 走 folia 智能路由器，模型运行时才定。
+
+**提取方法**（绕开断连的 Convex WebSocket）：数据已在 React context 里 —— 遍历 fiber 找 `memoizedProps.value.techniques`（112 个技法，含 `listing.modelRefs`）。
 
 ## 3.3 Batch Generate（官方文档完整）
 
@@ -259,7 +319,7 @@ codeBlockDefinition = { kind:"codeBlock", schema: ({nodeData}) => ({
 2. **工作流封装**：我们有画布节点图但缺「把一段图封装成命名应用」。关键机制 = `techniqueBlock`（技法可内嵌技法）+ `+ Build Technique`（从画布反建）+ 四步 builder
 3. **输入分类学**（textToImage / imageToVideo / firstFrameLastFrame / mixedToVideo…）可直接作为生成任务的类型判定表
 4. **代码节点 + 自带代码免费**的计费模式，对「用户自定义处理逻辑」有直接参考价值
-5. **多模型单技法**：一次输入、多产物、不同产物绑不同模型（Nano Banana 2 出图 + Kling O1 出视频）——与我们的多渠道架构天然契合
+5. **多模型单技法**：一次输入、多产物、不同产物绑不同模型（Nano Banana 2 出图 + Kling O1 出视频）——与我们的多渠道架构天然契合。**补抓补充**：模型链的典型形态是 **LLM 提示词工程节点 + 图像生成节点**（如 Ghost Mannequin System = Claude Opus 4.6 → Nano Banana Pro/2），且 Flora 把「技法用了哪些模型」从 graph **聚合到 listing 层**（`listing.modelRefs`），使列表/卡片可直接展示 —— 影策 Auto-2 的「预设能力画像」可照此在注册表层维护聚合字段，不必每次遍历图
 6. **治理层**（审核流 / 可见性双轴 / 收藏 / 运行历史 / 运行转画布）——UGC 市场必备，我们完全空白
 7. **Studios 形态**（策展工具集 + 无连线 + 结果 feed + 版本化工具）：比 Techniques 更轻的用户面，适合非专业用户；与我们的「预设场景」路线可并行考虑
 8. **Batch Generate 的模板变量展开**（Add in bulk）与**列头批量改**，是我们批量出图痛点的直接解法
@@ -271,5 +331,6 @@ codeBlockDefinition = { kind:"codeBlock", schema: ({nodeData}) => ({
 - 图 JSON：`graph-artwork-to-physical.json`（20 节点 / 13 边，运行态提取）
 - 官方文档：`docs.flora.ai`（`llms.txt` 索引 / `llms-full.txt` 全量 384,872 chars / 页面 `.md` 版 / `?ask=` 问答接口）
 - 前端逆向：148 chunks 静态扫描（关键词 `runTechnique` / `FLORA_FUNCTIONS_BY_ID` / `NodeTypes` / `techniqueListings` / `codeBlockDefinition`）+ React fiber `memoizedProps.nodes/edges`
-- **证据分级**：架构/端点/schema/官方文档 = 一手实测；Director/Pose/Realtime = **bundle 逐字反解，机制级确认**（见 `imagine-tools-deep-dive.md`：端点 `fal-ai/flux-2/klein` / `minimax/h3-max/director` / `decart/lucy-2-5/realtime`，协议字段与计费公式全部读出）
-- 待补：`run-technique` 请求体、credit 计算规则、technique 表完整 Convex schema、Examples/Quick Canvas 细节、Studios 是否只有 Fashion Studio
+- **补抓（2026-09-30）**：动态 chunk 枚举（登录态页面得 165 chunks vs 静态 137，多出 28 个）+ React context 提取（`memoizedProps.value.techniques`，绕过断连的 Convex WebSocket）—— 关闭缺口 #1/#2/#3/#7/#10（详见 `findings/t0*-supplement-*.md`）
+- **证据分级**：架构/端点/schema/官方文档 = 一手实测；Director/Pose/Realtime = **bundle 逐字反解，机制级确认**（见 `imagine-tools-deep-dive.md`：端点 `fal-ai/flux-2/klein` / `minimax/h3-max/director` / `decart/lucy-2-5/realtime`，协议字段与计费公式全部读出）；工具版本化/Studio 工具映射/工具→模型 = **补抓一手逐字**
+- 仍待补：`createRequestHeaders()` header 集、`buildTechniqueInputAssets` 完整实现、`run-technique` 响应体（需 live 抓包）、technique 表完整 Convex schema、`getDefinition` 的 graph 本体（客户端未缓存）、folia 路由器内部选型策略（服务端）、MCP（T08）、FAUNA 命令全集（T09）、模型单价目录（T10）

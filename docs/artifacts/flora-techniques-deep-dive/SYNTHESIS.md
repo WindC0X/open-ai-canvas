@@ -99,11 +99,13 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 5. ****推断：** browser 函数是 Python 版的替代/灰度（代码注释逐字 "Drop-in for the python … prebuilt"），`baseFunctionId` 去后缀回退查图标/短描述。
 
 ### T06 · Studios 与 Fashion Studio
-1. **工具=technique**：rail 13 个工具分 3 组（Concept 4 / Refine 4 / Showcase 7），以 `names/slugBases` 前缀+纯数字后缀匹配 technique listing（`sketch-to-render`、`garment-recolor`、`fabric-swap`…），未匹配项全部落入 showcase——**Studio 无独立工具运行时**。
+1. **工具=technique**：rail 13 个工具分 3 组（Concept 4 / Refine 4 / Showcase 7），以 `names/slugBases` 前缀+纯数字后缀匹配 technique listing（`sketch-to-render`、`garment-recolor`、`fabric-swap`…），未匹配项全部落入 showcase——**Studio 无独立工具运行时**。**补抓确认（`t06-supplement-studio-tool-mapping.md`）**：匹配算法逐字为 `name`/`shortName` 小写精确匹配 **或** `routeSlug` 精确/前缀匹配；rail 内容由 `resolveStudioRailGroupedSections(技法列表)` 驱动，即 **Studio 工具是技法（Technique）的展示外壳**，新增工具 = 发布一个技法（零前端改动）。
 2. **双 Studio 状态**：fashion-studio 正式上线（移动导航硬编码 "New" 徽章 + splash campaign `fashion_studio_launch_2026_08`）；film-studio 由 `useFeatureFlagEnabled("film_studio")` 门控 Early access、tile 跳 `/productions`。
 3. **三面板 store**：zustand persist `studio-storage` v2，`sidebarWidth` clamp .1–.6 默认 .4、`panelWorkspaceWidth` 831/1920；含乐观 run、masks 分段、上传指纹去重、tour 状态。
 4. **扇出与阻断**：`STUDIO_GENERATE_BLOCKED_REASON = insufficient_credits|unpriceable_fanout|segmentation_pending|missing_input`；扇出落库 `workflowRuns{generationBatchId, idempotencyKey, generations[{collectionItemKey, orderIndex}]}`，itemKey 支持 `node:|upload:|text-split:` 与双臂复合 key `"{a}={x}+{b}={y}"`（A/B 交集）。
 5. **folia 智能路由（一手 schema）**：`router:"folia-image"|"folia-video"`，method ∈ multimodal_embedding/multimodal_llm/deterministic/fallback，taskType 语义枚举（product_photography/material_fidelity/reference_edit/…），记录 `selectedTechnique:{definitionId, snapshotId, slug, name, chargedCost}` 与 `catalogSource:"versioned"|"live"`。
+6. **工具→模型映射（补抓新增，`t06-supplement-studio-tool-model-map.md`）**：`listing.modelRefs = [{mode, model}]` —— **不是一对一，而是多模型链**；核心范式 = **LLM 做提示词工程 → 图像模型做生成**。24 个工具全量已获（含 `chargedCost`/`category`/`inputItems`/`outputItems`）。图像主力 **Nano Banana Pro/2**（26+ 次），LLM 侧 **Claude Opus 4.6 / Sonnet 5** 与 **GPT-5.2 / 5.5** 平分，视频侧 Kling 系（2.5 Turbo Pro / O1 / 3.0 Pro）+ Seedance 2.0，矢量专用 **Arrow 1.1 Max**、**Flux Kontext Max**。**9 种 IO 模式**（textToText / imagesToText / imageToText / textToImage / imageToImage / imagesToImage / imageToVideo / firstFrameLastFrame），**8 个类别**（essentials / productVisualization / fashionApparelEditorial / marketingAds / videoAnimation / contentPackaging / spaceArchitecture / printFilmVfx）。`model: undefined` 条目 = 走 folia 智能路由器，模型运行时才定。
+7. **技法快照过期机制（补抓新增，`t06-supplement-version-stale.md`）**：`getIsTechniqueBlockPinnedToOlderSnapshot({blockSnapshotId, latestSnapshotId})` 纯函数判定（三条件：两者均存在且不等）；文案 `TECHNIQUE_SNAPSHOT_STALE_MESSAGE`（toast）/ `_TOOLTIP`（hover）；过期时 `toast.error` 并 **阻止进入编辑**；配 `markTechniqueBlockPendingEdit`/`consumeTechniqueBlockPendingEdit`（一次性状态传递）。另有**两套独立版本系统**：节点类型版本（`currentVersion` vs `nodesConfig[type].latestVersion`）与技法块快照版本。
 
 ### T07 · Bulk Generate
 1. **表格形态**：独立页 `/batch-generate`，200 行硬上限（贯穿按钮禁用/页脚计数/剩余可加行公式），后端为 Convex `generationTables.*` 函数族（**不是** HTTP 端点；`batch_table_generate` 仅为 feature flag 名）。
@@ -178,6 +180,8 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 | 6 | **来源归因枚举**（生成笔级 source + 项目级 origin + Library 徽章筛选） | 影策多入口（画布/agent/批量）需要成本与行为分析地基 | 1 人日 |
 | 7 | **删除 10s Undo**（服务端软删 + toast action + 本地标记） | 与影策「不可恢复的批量操作掩盖状态」红线互补，成本低体验收益高 | 0.5–1 人日 |
 | 8 | **agent 画布 harness 思想**（操作前记录节点版本/contentHash，过期检测→nudge/blocked，接管归因） | 影策已有 canvas-agent，这是 Flora 对「agent 改画布」最成熟的一手工程方案 | 5–8 人日 |
+| 9 | **技法块快照过期机制**（`getIsTechniqueBlockPinnedToOlderSnapshot` 纯函数 + toast/hover 双文案 + 阻止编辑） | 影策一旦有「预设/工作流被引用后作者又改动」的场景，这套是**最小完备**的版本漂移处理：纯函数判定 + 双面提示 + 硬阻止编辑 + 一次性 pending 标记 | 1–2 人日 |
+| 10 | **`modelRefs` 聚合字段**（把"技法用了哪些模型"从 graph 聚合到 listing 层） | 影策 Auto-2 若需「预设/技法能力画像」，**可在注册表层维护聚合字段**，不必每次遍历图；列表/卡片可直接展示所用模型 | 1–2 人日 |
 
 ### 4.2 需改造
 
@@ -189,6 +193,7 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 | 4 | **参数级计价引擎**（costMultiplier/costOffsetPerSecond/costPerInputImageDollars/freeInputImages） | 影策私有部署多不计费，但「生成前成本估算显示」对多 API 接入仍有价值；可剥离 reserve/spend 后端只留纯函数 | 3–5 人日 |
 | 5 | **@flora-\* 注解→schema** | 「代码即 schema」思想适用于 canvas-agent 自定义工具节点；实现应换为 TS 类型/JSON schema 而非运行时正则解析注释 | 5–8 人日 |
 | 6 | **Studio 三面板工作台** | 形态与影策 anti-reference（不做消费级瀑布流/堆叠卡片）冲突，需按分镜语义重设计；可保留「工具=工作流模板 slug 匹配注册表」思想与 feed/run 数据模型 | 10–15 人日 |
+| 7 | **Studio 工具 = 技法外壳架构**（rail 注册表 `{names, slugBases}` + `resolveStudioRailGroupedSections` 自动匹配） | 思想价值高（新增工具零前端改动），但匹配算法深度绑定 Flora 的 slug 命名约定；影策若采用需先定义自己的 slug 规范与分组语义 | 3–5 人日 |
 
 ### 4.3 不适用
 
@@ -208,6 +213,12 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 - **推断（已逐条标注）**：四步 UI 语义映射、`adminEditMessage` 用途、换模型重置参数的动机、starter-row 机制意图、版本比较逻辑（snapshotId ≠ 当前 listing snapshot）、impersonas 供应商语义、legacy→v3 系数 1.2 的业务含义、`mcp_consent_*` 为 OAuth 同意漏斗、recordImagineUsage 返回结构（消费端反推）、run-technique 请求体形态（同族端点类比）。
 - **本综述新增判断（主编交叉验证）**：见第六节矛盾裁定；三档迁移分级与工作量估算为编辑判断，非 Flora 侧证据。
 - **未找到（诚实缺口）**：见第六节。
+- **2026-09-30 补抓轮次新增（一手逐字）**：以下五项均来自动态 chunk 枚举与 React context 提取，证据等级同「一手逐字」——
+  - 两段式执行链（`t03-supplement-run-technique-contract.md`）：Convex `api.appMode.mutations.createRun` 建 run 记录 → REST `POST /api/workflow/run-technique` 触发执行，body 包在 `params` 里；`inputAssets` 元素结构 `{inputId, value, type, metadata?, previewImageUrl?, role?}`
+  - publish/update 契约（`t02-supplement-publish-contract.md`）：`definitionDraft`/`listingDraft` 分离 + 发布后自动 validation run + `reviewStatus` 修正为至少 4 值（含 `admin_edit_rejected`）
+  - 技法快照过期机制（`t06-supplement-version-stale.md`）：`getIsTechniqueBlockPinnedToOlderSnapshot` 纯函数 + 两条文案常量 + 编辑受阻 `toast.error` 路径 + `markTechniqueBlockPendingEdit`/`consumeTechniqueBlockPendingEdit` 一次性状态传递
+  - Studio rail 注册表（`t06-supplement-studio-tool-mapping.md`）：13 工具 / 3 组（Concept·Refine·Showcase）+ 匹配算法（`name`/`shortName` 小写精确 或 `routeSlug` 前缀）+ **Studio 工具 = 技法外壳**（rail 由 `resolveStudioRailGroupedSections(技法列表)` 驱动）
+  - Studio 工具 → 模型映射（`t06-supplement-studio-tool-model-map.md`）：`listing.modelRefs` 给出每个技法全部模型与 IO 模式；**9 种 IO 模式**、**8 个类别**
 
 ## 六、矛盾裁定与缺口清单
 
@@ -219,21 +230,29 @@ Flora（app.flora.ai）是一个「类型化节点画布 + 可复现工作流（
 
 ### 6.2 缺口清单（未解决问题 → 所需手段）
 
-| # | 缺口 | 影响 | 所需额外手段 |
-|---|---|---|---|
-| 1 | `/api/workflow/run-technique` 请求体/响应（T03/T06 双重确认未找到） | 技法执行的精确客户端契约 | 运行时抓包，或获取服务端/懒加载 chunk |
-| 2 | Run App 桌面主页面 chunk 未捕获（发起 run 的入口 UI） | App Mode 完整交互流 | 重新抓取站点完整 chunk 集（含动态 import） |
-| 3 | `/api/techniques/publish|update` 请求体（T02） | 发布契约的 payload 结构 | 运行时抓包；或官方文档 docs.flora.ai 交叉核对 |
-| 4 | Convex 表 schema 原文（listing/definition 分离、studios/techniqueRuns 表结构均为推断） | 数据模型精确复刻 | 服务端 bundle 不可得；可用「官方文档 + 控制台观察」替代 |
-| 5 | `approveAdminEdit/getLatestValidationRun` 等服务端函数（T02） | 审核流服务端闭环 | 同上 |
-| 6 | "Build Technique" 入口按钮与四步面板渲染组件（T02） | Builder UI 复刻细节 | 动态 chunk 抓取 |
-| 7 | 工具升级 "New version available/Update" UI（T06，检索 0 命中） | 版本化提示机制仅能推断 | studio 页面主渲染树 chunk + 运行时观察 |
-| 8 | MCP 协议实现、工具清单、consent UI（T08） | MCP 能力边界不明 | 访问 try.flora.ai/lp/mcp 与 docs.flora.ai 联网核对（本次未做） |
-| 9 | 模型单价目录、Imagine 费率（T10） | 具体价格数字 | 服务端数据；只能运行时抓 quote 响应 |
-| 10 | 各 studio 工具的 inputs/outputs/controls 实例值（T06 只有 schema 形状） | 工具级复刻需逐工具定义 | 登录态调用 `getVisibleTechniques` 抓 definition（快照 JSON 已有 `flora-graph-raw.json` 可比对） |
-| 11 | `deckNode/webcamNode/videoEditorNode/switchNode` 的 nodeDefinitions 级 schema（T04） | 4 个特殊节点的运行时行为 | 专用运行时 chunk |
-| 12 | `/api/workflow/code-execution` 请求体、Python 沙箱实现（T05/T08） | Action 服务端执行细节 | 抓包 + 服务端不可得 |
-| 13 | FAUNA 画布命令完整枚举与提示词正文（T09） | agent 工具面复刻 | 服务端（Braintrust）不可得；可从 `recordFaunaCanvasCommand` 调用点的懒加载 chunk 补充 |
+> **2026-09-30 补抓轮次**：三轮补充档已入库（`findings/t02-supplement-publish-contract.md`、`t03-supplement-run-technique-contract.md`、`t06-supplement-version-stale.md`、`t06-supplement-studio-tool-mapping.md`、`t06-supplement-studio-tool-model-map.md`），关闭 5 项缺口。方法要点：**动态 chunk 枚举**（登录态页面 `script[src]` 得 165 个 vs 静态语料 137 个，多出 28 个）+ **React context 提取**（绕过断连的 Convex WebSocket，直接读 `memoizedProps.value.techniques`）。
+
+| # | 缺口 | 状态 | 影响 | 所需额外手段 |
+|---|---|---|---|---|
+| 1 | `/api/workflow/run-technique` 请求体/响应 | ✅ **已解决**（`t03-supplement-run-technique-contract.md`） | — | 已获：`POST` body `{params:{runId, inputAssets, inputOverrides?, parameterOverrides?, studioTourStepId?}}`；**发现两段式执行**（Convex `createRun` 建记录 → REST 触发执行）；响应体仍待 live 抓包 |
+| 2 | Run App 桌面主页面 chunk | ✅ **已解决**（同上） | — | 已获：chunk `0dji9it51s1b7.js`（App Mode 主入口，`z` 函数执行链 + 乐观更新 `w`） |
+| 3 | `/api/techniques/publish` · `update` 请求体 | ✅ **已解决**（`t02-supplement-publish-contract.md`） | — | 已获：chunk `37xc5r2vs5-j_.js` 完整客户端 + `definitionDraft`/`listingDraft` 分离实证 + 发布后自动 validation run |
+| 4 | Convex 表 schema 原文（listing/definition 分离、studios/techniqueRuns 表结构均为推断） | ❌ 未解 | 数据模型精确复刻 | 服务端 bundle 不可得；可用「官方文档 + 控制台观察」替代 |
+| 5 | `approveAdminEdit/getLatestValidationRun` 等服务端函数（T02） | ❌ 未解 | 审核流服务端闭环 | 同上 |
+| 6 | "Build Technique" 入口按钮与四步面板渲染组件（T02） | ⚠️ 部分（T02 已获四步 `store.currentStep` 值） | Builder UI 复刻细节 | 动态 chunk 抓取 |
+| 7 | 工具升级 "New version available/Update" UI | ✅ **已解决**（`t06-supplement-version-stale.md`） | — | **机制名不是"工具版本化"而是"技法快照过期"**：`getIsTechniqueBlockPinnedToOlderSnapshot({blockSnapshotId, latestSnapshotId})` 纯函数判定；文案 `TECHNIQUE_SNAPSHOT_STALE_MESSAGE` / `_TOOLTIP`；过期时 `toast.error` 并阻止进入编辑。**检索词教训**：官方文档措辞（New version available）与代码标识符（snapshot stale）是两套词汇，从文档措辞反推标识符必然 0 命中 |
+| 8 | MCP 协议实现、工具清单、consent UI（T08） | ❌ 未解（用户明示 `mcp先不管`） | MCP 能力边界不明 | 访问 try.flora.ai/lp/mcp 与 docs.flora.ai 联网核对（本次未做） |
+| 9 | 模型单价目录、Imagine 费率（T10） | ❌ 未解 | 具体价格数字 | 服务端数据；只能运行时抓 quote 响应 |
+| 10 | 各 studio 工具的 inputs/outputs/controls 实例值 | ✅ **大部分已解决**（`t06-supplement-studio-tool-model-map.md`） | — | 已获 24 个工具的 `listing.inputItems`/`outputItems`/`modelRefs`/`chargedCost`/`category`（React context 提取）；**`getDefinition` 返回 null**（graph 本体未在客户端缓存），逐节点参数 schema 仍缺 |
+| 10b | Studio 工具 → 模型映射 | ✅ **已解决**（同上） | — | 已获：**不是一对一而是多模型链**，`listing.modelRefs = [{mode, model}]` 聚合服务端数据；核心范式 = **LLM 做提示词工程 → 图像模型做生成**；主力 Nano Banana Pro/2（26+ 次）、LLM 侧 Claude Opus 4.6/Sonnet 5 与 GPT-5.2/5.5 平分；`model: undefined` 条目 = 走 folia 智能路由器（与 Auto-2/Auto-3 设计同构） |
+| 11 | `deckNode/webcamNode/videoEditorNode/switchNode` 的 nodeDefinitions 级 schema（T04） | ❌ 未解 | 4 个特殊节点的运行时行为 | 专用运行时 chunk |
+| 12 | `/api/workflow/code-execution` 请求体、Python 沙箱实现（T05/T08） | ❌ 未解 | Action 服务端执行细节 | 抓包 + 服务端不可得 |
+| 13 | FAUNA 画布命令完整枚举与提示词正文（T09） | ❌ 未解 | agent 工具面复刻 | 服务端（Braintrust）不可得；可从 `recordFaunaCanvasCommand` 调用点的懒加载 chunk 补充 |
+| 14 | `createRequestHeaders()` header 集（模块 598215） | ❌ 未解 | run-technique 请求完整复刻 | 静态 chunk 已定位模块号，未读实现 |
+| 15 | `buildTechniqueInputAssets` 完整实现 | ❌ 未解 | inputAssets 构造规则 | 同上 |
+| 16 | `run-technique` 响应体 | ❌ 未解 | 执行结果契约 | 需 live 抓包（本页 Convex WS 已断，HTTP 直调受 Clerk auth provider 限制） |
+| 17 | `getDefinition` 的 graph 本体 | ❌ 未解 | 逐节点参数 schema | 客户端未缓存（`ctx.getDefinition` 返回 null）；需 Convex 认证上下文或服务端 |
+| 18 | folia 路由器的内部选型策略 | ❌ 未解（服务端） | 智能路由决策逻辑 | 服务端不可得；`modelRefs` 中 `model: undefined` 条目是其存在的旁证 |
 
 ### 6.3 主编总结
 
