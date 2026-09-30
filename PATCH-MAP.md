@@ -210,3 +210,21 @@
 | I13 | `audio-settings-panel.tsx`（§八增补） | `SettingGroup` 增强版（`extra?: ReactNode` + `theme.node.groupTitle`）、共享 `OptionPill` 导入、12 笔改造 | `b0806745` IndexTTS2 情感段（14 键 + emotionFields + 权重 input）+ `d328a257` 格式化 | AudioSettingKey 取上游 14 键；情感段用上游结构；SettingGroup 用 fork 增强版（extra 可选兼容）；`theme.node.muted` 已证存在 |
 | I14 | `CHANGELOG.md` / `pending-test.mdx` | Unreleased 段 / F-06 扩图销账段 | v1.5.9/v1.5.9.1 发布段 / 素材删除+CI 提速+大文件拆分段 | keep-both（G9 惯例）；pending-test 保留 fork 路径 `docs/plans/`（路径分歧先例）+ 融合上游新段 |
 | I15 | `canvas-cloud-agent.css` | fork 增量 | **rider 2 零触碰** | 零冲突直接保留 |
+
+## F-01 入口整合登记（J 系列 · 2026-10-01 · 控制线追加裁定）
+
+> 用户真机抽验发现结构性问题：工具栏「去除背景」走上游原生的生成式重画（云渠道扣积分），
+> 而本枝实现的浏览器 WASM 本地抠图挂在 media-conversion 的 cutout 桩上——两条「去背景」链并存，
+> 最直觉点的入口不走本地推理，违背三级路由的产品形态（基线档应是最易达的默认路径）。
+> 控制线裁定入口整合（用户拍板选项 A），并授权触碰咽喉文件 `canvas-image-toolbar-tools.tsx`：
+> 该文件的本职就是工具定义与 handlers，改动限「去除背景」这一个工具项。
+
+| # | 涉及面 | fork 增量 | 改动内容 | 咽喉授权 |
+|---|---|---|---|---|
+| J1 | `canvas-image-toolbar-tools.tsx` `removeBackground` 工具项 | 工具项由「单一生成式」改为「按节点状态分档」：`label` / `description` / `run` 三者改为 node-aware 函数——普通图片走 `onRemoveBackgroundLocal`（本地 WASM），`metadata.backgroundRemoval.mode === "local"` 的结果节点走 `onRemoveBackgroundGenerative`（既有 image-edit 对话框） | 只动 `removeBackground` 一项；`description` 字段类型放宽为 `string \| ((node) => string)` 并在 `buildImageToolbarTools` 里 `resolveToolText` 解析（原先直接透传，函数会被当成字符串渲染）；新增 `isLocalBackgroundRemovalResult` 私有判定 | **控制线授权例外**：改动限该工具项 + 配套 handler 接线，不碰其他工具 |
+| J2 | `use-canvas-media-tools.ts` 新增 `removeBackgroundLocally` | 本地抠图执行链：`resolveCroppableImageSource`（同源化，避开跨域 canvas 污染）→ `runBrowserCutout` → `uploadImage` → 子节点落画布并连线选中（与裁剪/标注同范式，不弹对话框）；带 `localCutoutInFlightRef` 重入守卫（首次要下 90MB）；结果节点写 `metadata.backgroundRemoval.mode = "local"` | 新增 handler，既有 `openBackgroundRemoval` 原样保留并包一层 `openBackgroundRemovalGenerative` | 同文件既有职责（媒体工具执行链），非新增面 |
+| J3 | `CanvasNodeMetadata.backgroundRemoval` | 新增 `{ mode: "local" \| "generative" }` 字段 | 结果节点据此提供精修入口；不加该字段则 tsc 拒绝写入 | 类型面，非咽喉 |
+| J4 | `canvas-node-toolbar.tsx` / `project.tsx` / `shared.tsx` | 三个新 handler 透传（`onRemoveBackground` 保留不删） | 访客态 `shared.tsx` 三档全部 `unauthorized`，整合不放行 | 非咽喉（`shared.tsx` 访客态按裁定保持不动） |
+
+**文案红线**：本地档「本地识别，免费离线，逐像素保真」；生成式档「AI 模型重画，适合复杂边缘，消耗积分」。
+两档均不承诺「发丝级」（透明/高反光为已知弱项，由精修档承接）。

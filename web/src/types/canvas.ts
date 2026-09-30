@@ -277,6 +277,13 @@ export type CanvasNodeMetadata = {
     outpaintGeometry?: { rect: { x0: number; y0: number; x1: number; y1: number }; frame: { width: number; height: number } };
     /** 图片编辑操作类型（执行链写入任务源节点 metadata：outpaint/mask 等，前端门控消费）。 */
     edit?: "outpaint" | "mask";
+    /**
+     * 去除背景的来源档位。
+     *
+     * local = 浏览器 WASM 推理（免费、源图不出浏览器）；
+     * generative = AI 模型重画（消耗积分）。结果节点据此提供「用 AI 模型重新去除」入口。
+     */
+    backgroundRemoval?: { mode: "local" | "generative" };
     failedPromptFingerprint?: string;
     lastGenerationRequestFingerprint?: string;
     fontSize?: number;

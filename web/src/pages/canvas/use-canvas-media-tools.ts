@@ -51,6 +51,7 @@ import { navigateToSettings } from "@/lib/settings-navigation";
 import { storeGeneratedVideo } from "@/services/api/video";
 import { getMediaBlob, uploadMediaFile } from "@/services/file-storage";
 import { getImageBlob, uploadImage } from "@/services/image-storage";
+import { runBrowserCutout } from "@/services/cutout-runtime";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import type { GenerationTask } from "@/services/api/task-center";
 
@@ -118,6 +119,8 @@ export function useCanvasMediaTools({
     const extractingVideoFramesNodeIdRef = useRef<string | null>(null);
     const mergeVideoRunningRef = useRef(false);
     const outpaintInFlightRef = useRef(false);
+    // 本地抠图首次要下 90MB 权重，重入会让多个 worker 请求排队。
+    const localCutoutInFlightRef = useRef(false);
     const [cropNodeId, setCropNodeId] = useState<string | null>(null);
     const [annotationNodeId, setAnnotationNodeId] = useState<string | null>(null);
     const [annotationEditNodeId, setAnnotationEditNodeId] = useState<string | null>(null);
@@ -1249,6 +1252,69 @@ export function useCanvasMediaTools({
         setImageEditNodeId(node.id);
     }, []);
 
+    /**
+     * 本地抠图（三级路由的基线档）。
+     *
+     * 工具栏「去除背景」默认走这里：源图不出浏览器、免费、不需要模型配置。
+     * 结果作为子节点落到画布，不上传源图也不扣积分；想用生成式重画时，
+     * 由结果节点的「用 AI 模型重新去除」入口转到 openBackgroundRemoval。
+     */
+    const removeBackgroundLocally = useCallback(async (node: CanvasNodeData) => {
+        if (!node.metadata?.content) return;
+        // 重入守卫：模型首次加载要下 90MB，重复点按会并发起多个 worker 请求。
+        if (localCutoutInFlightRef.current) {
+            message.warning("已有本地抠图在进行，请等它完成后再发起");
+            return;
+        }
+        localCutoutInFlightRef.current = true;
+        setRunningNodeId(node.id);
+        // 云端图片地址通常不带 CORS 头，直接取会读不到像素；
+        // 优先用本地缓存里的 Blob 构造同源地址（与裁剪同口径）。
+        let releaseSource = () => {};
+        try {
+            const source = await resolveCroppableImageSource(node);
+            releaseSource = source.release;
+            const result = await runBrowserCutout(source.url);
+            const image = await uploadImage(result.blob);
+            const size = fitNodeSize(image.width, image.height, node.width, node.height);
+            const childId = nanoid();
+            const child: CanvasNodeData = {
+                id: childId,
+                type: CanvasNodeType.Image,
+                title: `${node.title || "图片"} · 去除背景`,
+                position: { x: node.position.x + node.width + 96, y: node.position.y },
+                width: size.width,
+                height: size.height,
+                metadata: { ...imageMetadata(image), prompt: node.metadata?.prompt, backgroundRemoval: { mode: "local" } },
+            };
+            setNodes((current) => [...current, child]);
+            setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
+            setSelectedNodeIds(new Set([childId]));
+            setSelectedConnectionId(null);
+            setDialogNodeId(null);
+            await persistMediaNodes([child]);
+            message.success("本地抠图完成，已生成透明背景图片");
+        } catch (error) {
+            // 取消不算失败（用户切走/重开），不弹错。
+            if (error instanceof DOMException && error.name === "AbortError") return;
+            message.error(error instanceof Error ? `本地抠图失败：${error.message}` : "本地抠图失败，请重试");
+        } finally {
+            localCutoutInFlightRef.current = false;
+            setRunningNodeId(null);
+            releaseSource();
+        }
+    }, [message, persistMediaNodes, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds]);
+
+    /**
+     * 生成式去除背景（三级路由的精修档）。
+     *
+     * 保留上游原有的 image-edit 对话框链路：本地档边缘不理想（透明/高反光/发丝）时，
+     * 用户显式选这条，代价是消耗积分。不删上游能力，只把它从默认降为显式选项。
+     */
+    const openBackgroundRemovalGenerative = useCallback((node: CanvasNodeData) => {
+        openBackgroundRemoval(node);
+    }, [openBackgroundRemoval]);
+
     const decomposeImageLayers = useCallback(async (node: CanvasNodeData, payload: CanvasImageLayerDecompositionPayload) => {
         if (!node.metadata?.content || !payload.prompt.trim()) return;
         const baseGenerationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
@@ -1544,8 +1610,7 @@ export function useCanvasMediaTools({
         textEditNodeId,
         outpaintImageNode,
         outpaintNodeId,
-        setOutpaintNodeId,
-        mergeSelectedVideos,
+        setOutpaintNodeId,        mergeSelectedVideos,
         mergeVideosByIds,
         mergeVideoProgress,
         saveAnnotatedImageNode,
@@ -1565,6 +1630,8 @@ export function useCanvasMediaTools({
         setImageEditNodeId,
         setImageEditPreset,
         openBackgroundRemoval,
+        removeBackgroundLocally,
+        openBackgroundRemovalGenerative,
         openLayerDecomposition,
         decomposeImageLayers,
         setLayerDecompositionNodeId,

@@ -912,6 +912,8 @@ function InfiniteCanvasPage() {
         setImageEditNodeId,
         setImageEditPreset,
         openBackgroundRemoval,
+        removeBackgroundLocally,
+        openBackgroundRemovalGenerative,
         openLayerDecomposition,
         decomposeImageLayers,
         setLayerDecompositionNodeId,
@@ -3171,6 +3173,8 @@ function InfiniteCanvasPage() {
                             onDelete={(node: CanvasNodeData) => deleteNodes(new Set([node.id]))}
                             onAnnotationEdit={openAnnotationEditNode}
                             onRemoveBackground={openBackgroundRemoval}
+                            onRemoveBackgroundLocal={removeBackgroundLocally}
+                            onRemoveBackgroundGenerative={openBackgroundRemovalGenerative}
                             onLayerDecomposition={openLayerDecomposition}
                             onTextEdit={openTextEditNode}
                         />

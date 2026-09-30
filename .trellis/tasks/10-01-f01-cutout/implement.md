@@ -173,3 +173,38 @@ files:
 | 体积 | 453.1 KB |
 | 骨架 | 43 skin joints |
 | sha256 | 落盘后回填任务卡 Notes |
+
+## 7. 控制线追加裁定 · 入口整合（2026-10-01，用户拍板选项 A）
+
+**问题**（用户真机抽验）：工具栏「去除背景」走上游原生生成式重画（扣积分），
+本枝的浏览器 WASM 本地抠图挂在 media-conversion 的 cutout 桩——两条链并存，
+最直觉点的入口不走本地推理，违背三级路由形态。
+
+**裁定**：入口整合（本枝内完成）。**咽喉文件授权例外**：`canvas-image-toolbar-tools.tsx`
+（该文件本职就是工具定义与 handlers），改动限「去除背景」一项。
+
+**实现**：
+
+| 项 | 做法 |
+|---|---|
+| 默认档 | `removeBackground` 工具项的 `label`/`description`/`run` 改为 node-aware；普通图片 → `onRemoveBackgroundLocal`（本地 WASM，不弹对话框）|
+| 精修档 | `metadata.backgroundRemoval.mode === "local"` 的结果节点 → `onRemoveBackgroundGenerative`（既有 image-edit 对话框，preset=remove-background）|
+| 执行链 | `removeBackgroundLocally`：`resolveCroppableImageSource`（同源化避 CORS）→ `runBrowserCutout` → `uploadImage` → 子节点落画布 + 连线 + 选中（裁剪/标注同范式）；`localCutoutInFlightRef` 重入守卫 |
+| 文案 | 本地「本地识别，免费离线，逐像素保真」；生成式「AI 模型重画，适合复杂边缘，消耗积分」；均不承诺发丝级 |
+| 访客态 | `shared.tsx` 三档全部 `unauthorized`，整合不放行 |
+| 类型 | `CanvasNodeMetadata.backgroundRemoval?: { mode: "local" \| "generative" }` |
+| PATCH-MAP | J 系列 4 条登记 |
+
+**配套修正**：`ImageToolDefinition.description` 类型放宽为 `string | ((node) => string)`，
+并在 `buildImageToolbarTools` 里用 `resolveToolText` 解析（原先直接透传，函数会被当字符串渲染）。
+
+**门禁复跑**：tsc 0 / eslint 0 / build 0 / web 全量 2482 pass 0 fail 323 files /
+focused guards 66 pass 0 fail 8 files。
+
+**真机验证**：浏览器内实测工具项分档正确（普通图片 → 「去除背景」本地档；
+抠图结果 → 「用 AI 模型重新去除」生成式档），工具项总数一致；
+本地抠图 → 白底导出端到端跑通（输出多次运行字节一致）。
+
+**未解释项**：本地推理墙钟时间在 drvfs/WSL 上波动极大（19.8s / 139.4s / 457.7s / 571.6s），
+但输出字节完全一致（6357B，透明 87.6% / 主体 11.7%）。判定为环境特性（同 drvfs Pi 导入
+65907ms vs ext4 729ms 的既有教训），非代码缺陷；**未做性能验收**。
