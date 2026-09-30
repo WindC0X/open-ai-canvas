@@ -4,9 +4,15 @@ import { resolve } from "node:path";
 import { createPortraitTextureNode, isCanvasImageSourceNode } from "../src/lib/canvas/canvas-image-source";
 import { canGenerateImageInPlace } from "../src/lib/canvas/canvas-generation-layout";
 import { CanvasNodeType, type CanvasNodeData } from "../src/types/canvas";
+import { moduleGroupSource } from "./helpers/module-group-source";
 
 const source: CanvasNodeData = {
-    id: "uploaded", type: CanvasNodeType.Image, title: "原图", position: { x: 10, y: 20 }, width: 300, height: 200,
+    id: "uploaded",
+    type: CanvasNodeType.Image,
+    title: "原图",
+    position: { x: 10, y: 20 },
+    width: 300,
+    height: 200,
     metadata: { content: "original-image", storageKey: "original-key", status: "success" },
 };
 const read = (path: string) => readFileSync(resolve(import.meta.dir, "../src", path), "utf8");
@@ -44,6 +50,8 @@ describe("上传图片是输入素材", () => {
     test("页面和工具入口共享素材判定，人物质感接入原图连线", () => {
         // 微供给重构(2026-09-12)后经 composer hover chrome(09-15)演进: 面板目标节点收敛为
         // isPanelCarrier 判定 + selectedPanelNode(dialog), 素材判定语义不变。
+        // 上游 d328a257 把断言改为 dialogNode 形态（其 project.tsx 未含 fork 的 isPanelCarrier），
+        // 本批按 fork 树实际实现保留原断言。
         expect(read("pages/canvas/project.tsx")).toContain("const isPanelCarrier = useCallback((node: CanvasNodeData) => !isCanvasImageSourceNode(node)");
         expect(read("lib/canvas/tool-registry/definitions/node-hover-tools.tsx")).toContain("!isCanvasImageSourceNode(ctx.node)");
         const mediaTools = read("pages/canvas/use-canvas-media-tools.ts");
