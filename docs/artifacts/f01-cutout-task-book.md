@@ -56,3 +56,39 @@
 - worktree `feat/ecom-f01-cutout`；单逻辑单 commit；STOP-report（遇结构性阻碍停报告，不自行扩域）
 - 预计工作量：M，3–5 人日（impl 修订版口径：worker+分发+COOP/COEP 2–3.5 + 白底导出/进度打磨 1–1.5）
 - 验收：门禁全绿 + 用户真机抽验（白底主图一眼验收）
+
+---
+
+## 七、控制线验收（2026-10-01 · feat/ecom-f01-cutout @ 468f7cb5）
+
+### 独立核验（非转述）
+
+| # | 项 | 结果 |
+|---|---|---|
+| 1 | 咽喉红线（use-canvas-media-tools / canvas-image-toolbar-tools / routes.go / globals.css）| ✓ 四文件零触碰 |
+| 2 | 后端零改动 | ✓ backend/ 0 文件（任务书口径） |
+| 3 | Xbot/jsDelivr 外链清除 | ✓ 仅存替换注释 |
+| 4 | RobotExpressive 选型审计 | ✓ design.md 候选淘汰表（Kenney 系骨骼过简）+ README 原文 CC0 1.0 + 来源 URL + 43 skin joints |
+| 5 | bun test 独立复跑 | ✓ **2474 pass / 0 fail / 322 files**（main 2444 + 新增 30） |
+| 6 | tsc --noEmit | ✓ exit 0 |
+| 7 | COOP/COEP 落点 | ✓ nginx.conf(+21) + vite.config(+6)，全站唯一外链随枝自托管 |
+
+### 裁定
+
+**① 开发线验收通过**——进入用户真机抽验（F-01 验收标准=「白底主图一眼验收」）。
+
+**② 真机抽验清单**（用户执行，5-10 分钟）：
+- 抠图：图片节点 → 透明抠图 → 三段进度条（首次下载 94MB）→ 透明 PNG
+- 二次使用：关页重开 → 模型缓存生效（不再下载）
+- 白底导出：抠图结果 → 白底图 → Amazon 1:1 档 → 下载白底主图
+- COOP/COEP：`crossOriginIsolated === true`（控制台验证）；导演台 3D 默认人物（RobotExpressive 机器人，CC0）正常加载
+- COEP 对自配 OSS 的拦截风险（A线 未解释项 #5）：默认自部署同源不受影响，自配 OSS 用户真机专项核
+
+**③ 挂账（非阻塞）**：
+- 首次推理 19.8s（drvfs，含下载未分离）——真机抽验时分离测量「下载/推理」两段耗时
+- INT8 量化减重（94MB→~25MB）登记后续优化档
+- 测试线整轮（合入 main 后按批次惯例）
+
+### 后续序列
+
+真机抽验 → 测试线整轮 → 合入 local main → push → W4 剩余（flora-overrides 迁移 / F-02）。
