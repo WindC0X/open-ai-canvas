@@ -110,3 +110,64 @@ test("模型弹层去 creation 泄漏层（L1 菜单不再叠暗、L2 恢复玻�
     // 泄漏源（工作台层 .7 暗蓝）仍在原处——覆盖依赖其存在，若上游移除本测试提示清理覆盖。
     expect(styles).toContain("background: rgba(25, 27, 32, .7) !important;");
 });
+
+test("模型行变体 T：右轨锚标题行 + 两行流式区 + 无 grid pin 列", async () => {
+    const [component, styles] = await Promise.all([
+        Bun.file(new URL("../src/components/model-picker.tsx", import.meta.url)).text(),
+        Bun.file(new URL("../src/styles/shared/model-picker.css", import.meta.url)).text(),
+    ]);
+    // 无 grid pin 列（T：行组弃双列，pin 退出文档流改绝对定位）
+    expect(styles).not.toContain("grid-template-columns: minmax(0, 1fr) auto");
+    const rowgroupRule = styles.match(/\.canvas-model-picker-rowgroup \{([^}]+)\}/)?.[1] || "";
+    expect(rowgroupRule).toContain("position: relative");
+    // flyout 钉宽 432（T 行宽裕量：384 时六元素同轨 + 最长名物理溢出，Windows 字宽实锤）
+    const flyoutWide = styles.match(/\.canvas-model-picker-flyout\.creation-model-picker-menu,[\s\S]*?\{([^}]+)\}/)?.[1] || "";
+    expect(flyoutWide).toContain("width: min(432px, calc(100vw - 24px)) !important");
+    // 右轨存在且绝对定位、锚标题行（top=上下文 padding + 标题行高带）
+    expect(component).toContain('className="canvas-model-picker-rail"');
+    const railRule = styles.match(/\.canvas-model-picker-rail \{([^}]+)\}/)?.[1] || "";
+    expect(railRule).toContain("position: absolute");
+    expect(railRule).toContain("top: 6px");
+    expect(railRule).toContain("height: calc(var(--fs-body) * 1.4)");
+    const railCreation = styles.match(/\.creation-model-picker-menu \.canvas-model-picker-rail \{([^}]+)\}/)?.[1] || "";
+    expect(railCreation).toContain("top: 8px");
+    // pin 绝对定位让出文档流（行组层，锚标题行同轨）
+    const pinRule = styles.match(/\.canvas-model-picker-pin \{([^}]+)\}/)?.[1] || "";
+    expect(pinRule).toContain("position: absolute");
+    expect(pinRule).toContain("right: 10px");
+    // 价格在右轨、标题行（inlineBadges）无价格
+    const railBlock = component.match(/canvas-model-picker-rail">([\s\S]*?)<\/span>/)?.[1] || "";
+    expect(railBlock).toContain("priceForChip");
+    expect(railBlock).toContain("selected ? <Check");
+    const badgesBlock = component.match(/inlineBadges=\{\(<>([\s\S]*?)<\/>\)\}/)?.[1] || "";
+    expect(badgesBlock).not.toContain("priceForChip");
+    expect(badgesBlock).not.toContain("ModelPrice");
+    // zone：mini chip 内联 + 2 行 clamp；标题行让位 96、zone 吃满
+    expect(component).toContain("canvas-model-picker-zone-tag");
+    const zoneRule = styles.match(/\.canvas-model-picker-zone \{([^}]+)\}/)?.[1] || "";
+    expect(zoneRule).toContain("-webkit-line-clamp: 2");
+    expect(zoneRule).toContain("line-height: 17px");
+    const zoneTagRule = styles.match(/\.canvas-model-picker-zone-tag \{([^}]+)\}/)?.[1] || "";
+    expect(zoneTagRule).toContain("font-size: 11px");
+    expect(zoneTagRule).toContain("padding: 2px 5px");
+    expect(zoneTagRule).toContain("border-radius: 3px");
+    const line1Rule = styles.match(/\.canvas-model-picker-line1 \{([^}]+)\}/)?.[1] || "";
+    expect(line1Rule).toContain("margin-right: 66px");
+    // 无价格行让位收窄 + 选中行（min-height 58）顶对齐零漂移
+    const noPriceRule = styles.match(/\.canvas-model-picker-option\.no-rail-price \.canvas-model-picker-line1 \{([^}]+)\}/)?.[1] || "";
+    expect(noPriceRule).toContain("margin-right: 36px");
+    expect(styles.match(/\.canvas-model-picker-option \{[^}]*align-items: flex-start[^}]*\}/)).toBeTruthy();
+    // 3b 遗产保留：logo 锚顶补偿；✓ 补偿已撤（改轨锚）
+    const logoBlocks = [...styles.matchAll(/\.canvas-model-picker-logo \{([^}]+)\}/g)].map((m) => m[1]);
+    expect(logoBlocks.join("\n")).toContain("margin-top: calc(var(--fs-body) * 0.7 - 12px)");
+    expect(styles).not.toContain("margin-top: calc(var(--fs-body) * 0.7 - 7px)");
+    expect(component).not.toContain("canvas-model-picker-tags-slot");
+    expect(styles).not.toContain(".canvas-model-picker-tags-slot");
+    // hover 只补间背景/边框/颜色：禁 height/padding 补间（果冻感红线，跨任务书保持）
+    const optionRules = styles.match(/\.canvas-model-picker-option[^{,]*\{[^}]*transition[^}]*\}/g) || [];
+    expect(optionRules.length).toBeGreaterThan(0);
+    for (const rule of optionRules) {
+        expect(rule).not.toMatch(/transition:[^;}]*(height|padding)/i);
+    }
+    expect(optionRules.join("\n")).toContain("transition: background-color");
+});

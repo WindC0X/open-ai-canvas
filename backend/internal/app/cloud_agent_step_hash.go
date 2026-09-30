@@ -2,7 +2,7 @@ package app
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 
 	"infinite-canvas/backend/internal/model"
 )
@@ -65,7 +65,9 @@ func cloudAgentRepairSnapshotHashAgainst(call cloudAgentCall, runID, modelHash, 
 	if latest == "" || modelHash == "" || len(modelHash) != len(latest)-1 || latest[:len(modelHash)] != modelHash {
 		return call
 	}
-	log.Printf("agent snapshot hash repaired: run=%s tool=%s", runID, call.Function.Name)
+	// 日志统一出口（2026-09-30 上游 a0f025aa 迁移）：本文件已改用 slog，修复事件降为 Debug
+	// 级别（与同文件 step hash filled/refreshed 一致），避免 info 级噪音。
+	slog.Debug("agent snapshot hash repaired", "run", runID, "tool", call.Function.Name)
 	return cloudAgentRewriteCallSnapshotHash(call, latest)
 }
 
@@ -120,7 +122,7 @@ func (s *Service) cloudAgentRefreshStepSnapshotHash(run *model.CloudAgentExecuti
 			return call
 		}
 		call = cloudAgentRewriteCallSnapshotHash(call, latest)
-		log.Printf("agent step hash filled: run=%s step=%d index=%d tool=%s", run.ID, state.Step, state.CallIndex, call.Function.Name)
+		slog.Debug("agent step hash filled", "run", run.ID, "step", state.Step, "index", state.CallIndex, "tool", call.Function.Name)
 		return call
 	}
 	baseline := state.StepSnapshotHash
@@ -190,6 +192,6 @@ func (s *Service) cloudAgentRefreshStepSnapshotHash(run *model.CloudAgentExecuti
 		return call
 	}
 	call = cloudAgentRewriteCallSnapshotHash(call, latest)
-	log.Printf("agent step hash refreshed: run=%s step=%d index=%d tool=%s", run.ID, state.Step, state.CallIndex, call.Function.Name)
+	slog.Debug("agent step hash refreshed", "run", run.ID, "step", state.Step, "index", state.CallIndex, "tool", call.Function.Name)
 	return call
 }

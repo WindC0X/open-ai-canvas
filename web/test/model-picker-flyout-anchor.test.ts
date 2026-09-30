@@ -6,6 +6,6 @@ test("飞层定位使用实测宽度（无固定 384 常量残留）", async () 
     const component = await Bun.file(new URL("../src/components/model-picker.tsx", import.meta.url)).text();
     expect(component).not.toMatch(/\+ 384 > window\.innerWidth/);
     expect(component).not.toMatch(/mr\.left - 384 - 2/);
-    expect(component).toContain("flyoutRef.current?.offsetWidth || 384");
-    expect(component).toContain("el.offsetWidth || 384");
+    expect(component).toContain("flyoutRef.current?.offsetWidth || 432");
+    expect(component).toContain("el.offsetWidth || 432");
 });

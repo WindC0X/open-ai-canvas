@@ -2,7 +2,6 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSP
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, ChevronRight, Coins, Image as ImageIcon, Info, ListMusic, Pin, Search, Type as TypeIcon, Video as VideoIcon } from "lucide-react";
 import { Popover, Tooltip } from "antd";
-
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor, normalizeModelCapabilityConfig, videoDurationOptions } from "@/lib/model-capabilities";
 import { formatPriceRange, modelQuoteRequest, normalizeTierResolution, priceTierSummaryLabel, priceTiersForCurrentSelection, modelQuoteDescription } from "@/lib/model-pricing";
@@ -12,7 +11,6 @@ import { logicalModelFamilyOf, modelDisplayName, modelIcon, modelOptionName, PUB
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { ModelLogo, modelProviderTitleOf } from "@/components/model-logo";
-import { ModelTags } from "@/components/model-tags";
 import { quoteLogicalModel, type CapabilitySpec, type LogicalModelQuote, quoteModel } from "@/services/api/logical-models";
 
 // flora 语法: 模型置顶(Pinned models 组)。影策无账号级收藏服务, 前端 localStorage 持久化(按浏览器/用户代理隔离)。
@@ -94,6 +92,7 @@ export function ModelPicker({
     const rawTheme = useActiveTheme();
     const theme = (canvasThemes[rawTheme as keyof typeof canvasThemes] ?? canvasThemes.dark) as CanvasTheme;
     const [open, setOpen] = useState(false);
+    const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
     // 收起动画期间不得注入 ant-popover-hidden(display:none 会瞬间抹掉 canvas-panel-out 收起动画,
     // 模型菜单"关=瞬闪消失"); hidden 必须走 props 注入(rc-motion 启动 leave 时按 props 重算 root
     // className, DOM 副作用加的类会被整体抹掉), 因此用 afterOpenChange 门控: 动画走完再隐。
@@ -129,9 +128,9 @@ export function ModelPicker({
         // 横向锚定用 L1 菜单容器(而非行): Provider 行在部分变体下不满宽, 行右缘落在 L1 的
         // 空白列里, L2 会直接叠进 L1(2026-09-19 用户实测)。容器右缘才是 L1 的真实边界。
         const menuRect = menuRef.current?.getBoundingClientRect() || anchor.getBoundingClientRect();
-        // [收口A2 2026-09-24] 宽度用实测值: 2026-09-19 起飞层宽度已改 max-content(实测 260),
-        // 固定 384 会让左翻场景在飞层与 L1 之间留下 ~124px 悬空缝(实测 126px)。
-        const flyoutWidth = flyoutRef.current?.offsetWidth || 384;
+        // [收口A2 2026-09-24] 宽度用实测值: 飞层宽度为 max-content/钉宽 432(2026-09-30 T 行宽裕量),
+        // 预估值仅首帧前的左翻估算, 挂载后立即以 offsetWidth 校正。
+        const flyoutWidth = flyoutRef.current?.offsetWidth || 432;
         // 缝隙 2px(2026-09-19 用户拍板): flora 二级菜单视觉上贴住 L1, 8px 分离缝被读成两个断开面板。
         const x = menuRect.right + 2 + flyoutWidth > window.innerWidth - 12 ? menuRect.left - flyoutWidth - 2 : menuRect.right + 2;
         // y 初值=顶边贴 anchor; 首开时 ref 尚未挂载读不到真实高度(读恒为 0, 永远判"放得下"),
@@ -180,7 +179,7 @@ export function ModelPicker({
             setFlyoutPos((pos) => {
                 const mr = menuRef.current?.getBoundingClientRect() || ar;
                 // [收口A2] 左翻判定同样用实测宽度(挂载后 el 已可用), 保 2px 贴合缝。
-                const fw = el.offsetWidth || 384;
+                const fw = el.offsetWidth || 432;
                 const x = Math.max(12, mr.right + 2 + fw > window.innerWidth - 12 ? mr.left - fw - 2 : mr.right + 2);
                 const y = flyoutClampedY(ar.top);
                 if (Math.abs(pos.x - x) < 1 && Math.abs(pos.y - y) < 1) { stable += 1; return pos; }
@@ -194,7 +193,6 @@ export function ModelPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- flyoutClampedY 读 ref, 非响应式; y 写入不入依赖防回环
     }, [flyoutGroup, flyoutPos.x]);
     // flora Providers 二级语法: L1=渠道/产商行钻取, L2=该组模型列表; 单组直接 L2, 搜索态展开全部
-    const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     // 参数档位会在选中模型后由调用方归一到其能力配置，不能因为旧模型留下的参数而禁止切换。
@@ -284,16 +282,6 @@ export function ModelPicker({
     const quoteRequest = useMemo(() => modelQuoteRequest(config, current, capability, requirements), [capability, config, current, requirements]);
     const [routeQuote, setRouteQuote] = useState<LogicalModelQuote | undefined>();
     const creationVariant = variant === "creation";
-
-    useLayoutEffect(() => {
-        const trigger = triggerRef.current;
-        if (!trigger) return;
-        const updateTriggerWidth = () => setTriggerWidth(Math.ceil(trigger.getBoundingClientRect().width));
-        updateTriggerWidth();
-        const observer = new ResizeObserver(updateTriggerWidth);
-        observer.observe(trigger);
-        return () => observer.disconnect();
-    }, [className, fullWidth, showSelectedPrice, variant, value]);
 
     useEffect(() => {
         if (!showSelectedPrice || !creditsEnabled || !quoteRequest) {
@@ -443,7 +431,7 @@ export function ModelPicker({
                     aria-disabled={Boolean(disabledReason)}
                     disabled={Boolean(disabledReason)}
                     title={disabledReason || pickerModelOptionLabel(config, displayModel, showConfiguredModelName)}
-                    className="canvas-model-picker-option disabled:cursor-not-allowed disabled:opacity-45"
+                    className={cn("canvas-model-picker-option disabled:cursor-not-allowed disabled:opacity-45", !priceForChip && "no-rail-price")}
                     style={{ color: theme.node.text }}
                     onMouseDown={() => {
                         // flora 语义: mousedown 即选中并收起(2026-09-07 实测定案: 选择会触发行重排 detach,
@@ -490,7 +478,6 @@ export function ModelPicker({
                                             {rowBadge.label}
                                         </span>
                                     ) : null}
-                                    {priceForChip ? <ModelPrice price={priceForChip} chip /> : null}
                                     {mediaTypes.map((item) => (
                                         <span key={item.kind} className="canvas-model-picker-chip canvas-model-picker-chip-icon" title={item.label}>
                                             {item.icon}
@@ -499,7 +486,12 @@ export function ModelPicker({
                                 </>
                             )}
                         />
-                        {selected ? <Check className="canvas-model-picker-option-check" style={{ color: theme.node.activeStroke }} /> : null}
+                        {/* T 右轨（2026-09-29 任务书·变体 T）：价格+✓ 绝对定位锚标题行带（中心 ~17.8，跨行高恒定）。
+                            pin 为行组兄弟按钮（button 不可嵌 button），占最右带；标题行让位 96px 见 line1 规则。 */}
+                        <span className="canvas-model-picker-rail">
+                            {priceForChip ? <ModelPrice price={priceForChip} chip /> : null}
+                            {selected ? <Check className="canvas-model-picker-option-check" style={{ color: theme.node.activeStroke }} /> : null}
+                        </span>
                     </span>
                 </button>
                 <button
@@ -632,17 +624,16 @@ export function ModelPicker({
         <div
             ref={menuRef}
             data-canvas-no-zoom
-            // 上游 v1.3 的两级品牌双栏菜单(is-brand-list/is-model-list)与我们 flora flyout 分组菜单在同一区域平行演进,
-            // merge 冲突已取我们侧 —— 此处恢复我们侧根 className, 剔除上游泄漏的 className 三元, 避免两套布局 CSS 杂交。
+            // fork 权威（PATCH-MAP C1 登记）：flora flyout 分组菜单；上游 v1.3 品牌双栏
+            // (is-brand-list/is-model-list)在本仓未接线（无 canvas-model-picker-brand 渲染），
+            // 故保留 fork 根 className，不引入上游三元。
             className={cn("canvas-model-picker-menu max-w-[calc(100vw-24px)]", creationVariant ? "creation-model-picker-menu w-[360px]" : "w-[var(--panel-width-compact)]")}
             style={
                 {
                     /* 背景不在此层: 容器层(surface)承载 flora .9 玻璃, 内容层实色会把毛玻璃糊死(亮底不透的根因之一) */
                     color: theme.node.text,
-                    "--canvas-model-picker-trigger-width": triggerWidth ? String(triggerWidth) + "px" : undefined,
                 } as CSSProperties
-            }
-            role="listbox"
+            }            role="listbox"
             aria-label={placeholder}
             onKeyDown={handleMenuKeyDown}
             onMouseDown={(event) => event.stopPropagation()}
@@ -804,7 +795,6 @@ export function ModelLabel({
     model,
     capability,
     theme,
-    creationVariant,
     showConfiguredModelName,
     label,
     requirements,
@@ -835,36 +825,30 @@ export function ModelLabel({
         disabledReason ||
         logicalCost?.description?.trim() ||
         (logicalSpec ? logicalCapabilitySummary(logicalSpec) : videoProfile ? `${formatDurationSummary(videoProfile)} · ${videoProfile.resolutions.map((item) => item.toUpperCase()).join("/")}` : meta.description);
-    // flora 权威行: logo squircle24-r8; 第一行=名字+消耗+媒体类型(同行, 名字右侧); 第二行=描述 12px/350
-    // (2026-09-07 用户指令: 徽章在模型名右边同行; 名字降部不得截断; 描述溢出 hover 滚动)
-    const subtitleRef = useRef<HTMLSpanElement | null>(null);
-    const [subtitleOverflow, setSubtitleOverflow] = useState(false);
-    useLayoutEffect(() => {
-        const el = subtitleRef.current;
-        if (!el) return;
-        setSubtitleOverflow(el.scrollWidth > el.clientWidth + 1);
-    }, [capabilitySummary, creationVariant]);
+    // flora 权威行(2026-09-29 变体 T 修订): logo squircle24-r8; 标题行=模型名+媒体类型(价格迁右轨);
+    // 下方=两行流式区(标签 mini chip 内联说明行首, 2 行 clamp, 全文 title)。徽章仍在模型名右边同行, 名字降部不得截断。
     return (
         // flex-1(basis 0%+grow)而非 w-full: 上游合并带入 option-body 的 width:100% 后, flex 嵌套两层时
         // 百分比 width 解析失效(indefinite), w-full 塌到 min-content 32px, title 被裁 0(模型名不可见, 徽标挤到行左);  flex-1 脱离百分比链, 实测恢复。
-        <span className="flex flex-1 min-w-0 items-center gap-2 py-0">
+        <span className="flex flex-1 min-w-0 items-start gap-2 py-0">
             <span className="canvas-model-picker-logo grid size-6 shrink-0 place-items-center overflow-hidden rounded-[8px]" style={{ background: "var(--canvas-model-badge-bg, rgba(144,144,144,.14))" }}>
                 <ModelIcon config={config} model={model} />
             </span>
             <span className="min-w-0 flex-1">
-                <span className="flex min-w-0 items-center gap-1.5">
+                {/* T 标题行（2026-09-29 任务书·变体 T）：logo+模型名+能力图标；价格迁右轨，让位 96px（line1 规则）。 */}
+                <span className="canvas-model-picker-line1 flex min-w-0 items-center gap-1.5">
                     <span className="canvas-model-picker-title min-w-0 truncate text-[var(--fs-body)] font-[350] leading-[1.4]" style={{ color: theme.node.text }}>{pickerModelDisplayName(config, model, showConfiguredModelName)}</span>
                     {inlineBadges}
                 </span>
-                <span
-                    ref={subtitleRef}
-                    className={cn("canvas-model-picker-subtitle mt-0.5 block truncate text-xs font-[350]", subtitleOverflow && "is-overflow")}
-                    style={{ color: theme.node.muted }}
-                    title={capabilitySummary}
-                >
-                    <span className="canvas-model-picker-subtitle-inner">{capabilitySummary}</span>
+                {/* T 两行流式区（变体 T）：标签=16px 迷你前缀 chip（11px 字/padding 2 5/radius 3/弱背景）内联于
+                    说明行首，说明自然续排、放不下自动换第二行；区上限 2 行尾部省略，全文走 title。
+                    行高推导：8+19.6+2+17+8=54.6（一行）/ 71.6（两行）→ 任务书 54/71 口径。 */}
+                <span className="canvas-model-picker-zone" style={{ color: theme.node.muted }} title={capabilitySummary}>
+                    {(logicalCost?.tags ?? []).map((tag) => (
+                        <span key={`${tag.text}-${tag.color}`} className="canvas-model-picker-zone-tag" data-tone={tag.color}>{tag.text}</span>
+                    ))}
+                    {capabilitySummary}
                 </span>
-                <ModelTags tags={logicalCost?.tags} />
             </span>
             {showPrice ? <ModelPrice price={modelMenuPrice(config, model, capability, true)} chip /> : null}
         </span>

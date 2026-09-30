@@ -21,8 +21,12 @@ func (s *Service) cloudAgentModelList(intent *ModelRequestIntent) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	logicalModels, err := s.PublicLogicalModels(intent)
+	if err != nil {
+		return nil, err
+	}
 	items := []map[string]any{}
-	for _, m := range catalog.Models {
+	for _, m := range logicalModels {
 		if m.Available && cloudAgentGenerationModeSupported(normalizeCapability(m.Capability)) {
 			items = append(items, map[string]any{"name": m.Name, "capability": m.Capability, "selection": map[string]any{"logicalModelId": m.ID}, "priceLabel": m.PriceLabel, "priceTiers": m.PriceTiers, "options": m.CapabilitySpec, "profiles": m.CapabilityProfiles, "defaults": m.DefaultOptions})
 		}
@@ -30,7 +34,7 @@ func (s *Service) cloudAgentModelList(intent *ModelRequestIntent) (any, error) {
 	for _, channel := range catalog.Channels {
 		for _, m := range channel.Models {
 			if m.Available && cloudAgentGenerationModeSupported(normalizeCapability(m.Capability)) {
-				items = append(items, map[string]any{"name": m.DisplayName, "capability": m.Capability, "selection": map[string]any{"channelId": channel.ID, "channelModelKey": m.ModelKey}, "priceLabel": m.PriceLabel, "priceTiers": m.PriceTiers, "options": m.CapabilityConfig})
+				items = append(items, map[string]any{"name": m.DisplayName, "capability": m.Capability, "selection": map[string]any{"channelId": channel.ID, "channelModelKey": m.ModelKey}, "priceLabel": m.PriceLabel, "priceTiers": m.PriceTiers, "options": m.CapabilityConfig, "defaults": m.DefaultOptions})
 			}
 		}
 	}
@@ -118,6 +122,9 @@ type cloudAgentMediaPlan struct {
 	// 必须写这个真值：Agent 传的 ratio、用户在审批卡选的原始档位都可能在服务端被对齐/收缩。
 	OutpaintFrameW int
 	OutpaintFrameH int
+	// Prepared is populated by the auto path after its dry admission. Approval
+	// mode keeps the same admission in state.Approval.Prepared.
+	Prepared *cloudAgentPreparedMedia `json:"-"`
 }
 
 // A resumed draft's incoming edges must describe the new approved inputs,
@@ -170,7 +177,11 @@ func (s *Service) cloudAgentMediaModelName(a cloudAgentMediaArgs) (string, error
 	if err != nil {
 		return "", err
 	}
-	for _, m := range catalog.Models {
+	logicalModels, err := s.PublicLogicalModels(nil)
+	if err != nil {
+		return "", err
+	}
+	for _, m := range logicalModels {
 		if a.LogicalModelID != "" && m.ID == a.LogicalModelID && m.Available && normalizeCapability(m.Capability) == normalizeCapability(a.Mode) {
 			return m.Name, nil
 		}
@@ -241,11 +252,39 @@ func cloudAgentMediaTargetIssue(node map[string]any, nodeType string) (string, s
 
 type cloudAgentMediaAdmissionError struct {
 	error
-	Reason string
-	NodeID string
+	Reason         string
+	NodeID         string
+	ErrorClass     string
+	Retryable      bool
+	RequiredAction string
 }
 
 func (e *cloudAgentMediaAdmissionError) Unwrap() error { return e.error }
+
+// cloudAgentWrapMediaAdmissionError turns an untyped failure from the media
+// admission boundary into an explicit, non-repairable failure. A billed write
+// must not ask the model to guess alternative sizes, routes, or provider
+// parameters after the server has rejected the admitted contract.
+func cloudAgentWrapMediaAdmissionError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var argumentErr *cloudAgentArgumentError
+	if errors.As(err, &argumentErr) {
+		return err
+	}
+	var admissionErr *cloudAgentMediaAdmissionError
+	if errors.As(err, &admissionErr) {
+		return err
+	}
+	return &cloudAgentMediaAdmissionError{
+		error:          err,
+		Reason:         "media_admission_failed",
+		ErrorClass:     cloudAgentToolErrorAdmission,
+		Retryable:      false,
+		RequiredAction: "report_to_user",
+	}
+}
 
 func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID string, args cloudAgentMediaArgs, transient ...map[string]cloudAgentTransientReference) (*model.CanvasProject, map[string]any, map[string]any, error) {
 	canvas, err := repo.CanvasProjectForUser(userID, canvasID)
@@ -265,7 +304,11 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 		unchanged = dependency == args.Prepared.DependencyHash
 	}
 	if !unchanged {
-		return nil, nil, nil, &cloudAgentMediaAdmissionError{creationConflict("画布内容已变化，请重新读取画布并重新审批；未提交生成任务"), "snapshot_conflict", args.NodeID}
+		return nil, nil, nil, &cloudAgentMediaAdmissionError{
+			error:  creationConflict("画布内容已变化，请重新读取画布并重新审批；未提交生成任务"),
+			Reason: "snapshot_conflict",
+			NodeID: args.NodeID,
+		}
 	}
 	nodes, err := creationObjects(doc["nodes"])
 	if err != nil {
@@ -282,7 +325,11 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 	}
 	if existing != nil {
 		if reason, issue := cloudAgentMediaTargetIssue(existing, targetDescriptor.Type); reason != "" {
-			return nil, nil, nil, &cloudAgentMediaAdmissionError{BadAuthRequest(issue), reason, args.NodeID}
+			return nil, nil, nil, &cloudAgentMediaAdmissionError{
+				error:  BadAuthRequest(issue),
+				Reason: reason,
+				NodeID: args.NodeID,
+			}
 		}
 		if args.DraftRunID == "" {
 			return nil, nil, nil, BadAuthRequest("续用草稿缺少当前运行身份")
@@ -431,17 +478,16 @@ func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime
 	if utf8.RuneCountInString(a.Prompt) > 16000 {
 		return BadAuthRequest(fmt.Sprintf("提示词共%d字符，超过16000字符上限；请先告知用户，不要擅自删改关键内容", utf8.RuneCountInString(a.Prompt)))
 	}
-	if (mode == "image" || mode == "video") && strings.TrimSpace(a.Size) == "" && strings.TrimSpace(a.OutpaintRatio) == "" {
-		return BadAuthRequest("请填写模型支持的具体画幅；用户授权默认时沿用参考图比例或目录默认画幅，无需重复询问")
-	}
+	// 合并口径（2026-09-30）：fork 侧原「size/outpaintRatio 必须显式给出」校验由上游准入自动解析取代
+	// （applyCloudAgentResolvedMediaDefaults 从准入结果回填 size/quality/duration），语义仍满足 fork 原始意图
+	// （不向用户重复询问画幅），故随上游删除。
 	if a.Duration < 0 {
 		return BadAuthRequest("生成时长不能为负数")
 	}
 	switch mode {
 	case "video":
-		if a.Duration == 0 {
-			return BadAuthRequest("视频生成必须明确 durationSeconds")
-		}
+		// 0 means omitted. The selected model's capability defaults are resolved
+		// during task admission; an explicit unsupported value still fails there.
 	case "image", "audio":
 		// 防御层: prepareCloudAgentMedia 已在非视频模式清零这两个错位参数(2026-09-20), 此处正常不可达;
 		// 保留以防未来调用方绕过 prepare 直达本函数。
@@ -617,10 +663,10 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	if err := decodeCloudAgentJSONObject(call.Function.Arguments, &a); err != nil {
 		return CreateTaskRequest{}, nil, cloudAgentJSONArgumentError(err)
 	}
+	a.Mode = strings.ToLower(strings.TrimSpace(a.Mode))
 	if err := validateCloudAgentModelSelection(call.Function.Arguments, a); err != nil {
 		return CreateTaskRequest{}, nil, err
 	}
-	a.Mode = strings.ToLower(strings.TrimSpace(a.Mode))
 	a.DraftRunID = run.ID
 	// 模型常把视频专属参数带进图片/音频请求(2026-09-20 真机实测: 图片生成被"videoGenerateAudio 仅适用于
 	// 视频生成"反复拒绝, 模型坚信该参数必填, 重试循环无法自愈)。这类错位参数没有安全语义, 静默忽略;
@@ -636,6 +682,10 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	if state.Approval != nil && state.Approval.Prepared != nil &&
 		state.Approval.CallHash == cloudAgentApprovalCallHash(call) {
 		a.Prepared = state.Approval.Prepared
+	} else if state.AutoPreparedMedia != nil &&
+		state.AutoPreparedCallHash == cloudAgentApprovalCallHash(call) &&
+		time.Now().Before(state.AutoPreparedMedia.Quote.ExpiresAt) {
+		a.Prepared = state.AutoPreparedMedia
 	}
 	if err := s.fillCloudAgentMediaSnapshotHash(run.UserID, state.Request.CanvasID, &a); err != nil {
 		return CreateTaskRequest{}, nil, err
@@ -727,7 +777,52 @@ func (s *Service) prepareCloudAgentMedia(run *model.CloudAgentExecution, state *
 	for id, ref := range state.TransientReferences {
 		transientSnapshot[id] = ref
 	}
-	return CreateTaskRequest{ProjectID: state.Request.CanvasID, Type: "canvas_" + a.Mode, Operation: operation, Prompt: a.Prompt, LogicalModelID: a.LogicalModelID, Model: a.ChannelModelKey, Input: input}, &cloudAgentMediaPlan{Args: a, CallID: call.ID, OutpaintFrameW: outpaintFrameW, OutpaintFrameH: outpaintFrameH, TransientReferences: transientSnapshot}, nil
+	return CreateTaskRequest{ProjectID: state.Request.CanvasID, Type: "canvas_" + a.Mode, Operation: operation, Prompt: a.Prompt, LogicalModelID: a.LogicalModelID, Model: a.ChannelModelKey, Input: input}, &cloudAgentMediaPlan{Args: a, CallID: call.ID, TransientReferences: transientSnapshot, OutpaintFrameW: outpaintFrameW, OutpaintFrameH: outpaintFrameH, Prepared: a.Prepared}, nil
+}
+
+// applyCloudAgentResolvedMediaDefaults makes the result of the dry admission
+// explicit in both the plan and the request that will be submitted. The
+// regular task admission already owns default resolution; this helper only
+// mirrors that resolved contract back to the Agent state so auto execution does
+// not need to fail once for size/duration and then ask the model to repair it.
+func applyCloudAgentResolvedMediaDefaults(req *CreateTaskRequest, plan *cloudAgentMediaPlan, task *model.Task) error {
+	if req == nil || plan == nil || task == nil {
+		return BadAuthRequest("媒体生成准入结果无效，未提交生成任务")
+	}
+	var input map[string]any
+	if err := json.Unmarshal([]byte(task.InputJSON), &input); err != nil {
+		return err
+	}
+	config, ok := input["config"].(map[string]any)
+	if !ok {
+		return BadAuthRequest("媒体生成未解析出模型配置，未提交生成任务")
+	}
+
+	plan.Args.Size = stringValue(config["size"])
+	if plan.Args.Mode == "image" {
+		plan.Args.Quality = stringValue(config["quality"])
+	}
+	if plan.Args.Mode == "video" {
+		plan.Args.Quality = stringValue(config["vquality"])
+		if raw := stringValue(config["videoSeconds"]); raw != "" {
+			seconds, err := strconv.Atoi(raw)
+			if err != nil || seconds < 0 {
+				return BadAuthRequest("模型目录返回的默认视频时长无效，未提交生成任务")
+			}
+			plan.Args.Duration = seconds
+		}
+		if raw := stringValue(config["videoGenerateAudio"]); raw != "" {
+			audio, err := strconv.ParseBool(raw)
+			if err != nil {
+				return BadAuthRequest("模型目录返回的默认音频参数无效，未提交生成任务")
+			}
+			plan.Args.VideoGenerateAudio = &audio
+		}
+	}
+	plan.Args.Prepared = nil
+	req.Input = input
+	req.Prompt = stringValue(input["prompt"])
+	return nil
 }
 
 func saveCloudAgentDocument(repo *repository.Repository, canvas *model.CanvasProject, doc map[string]any, policy RuntimePolicySetting) error {
@@ -954,7 +1049,7 @@ func completeCloudAgentMediaNode(repo *repository.Repository, userID, canvasID, 
 		}
 		meta["taskStatus"] = string(task.Status)
 		meta["status"] = "error"
-		meta["errorDetails"] = "媒体任务" + string(task.Status) + "：" + cloudAgentSafeMediaTaskError(task)
+		meta["errorDetails"] = cloudAgentSafeMediaTaskError(task)
 		if task.Status == model.TaskStatusSucceeded {
 			id, _ := taskOutputResource(task.ResultJSON, task.Type)
 			resource, e := repo.ResourceForUser(userID, id)

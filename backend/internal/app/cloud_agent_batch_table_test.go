@@ -142,7 +142,7 @@ func TestCloudAgentCanReadAndEditBatchTableRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	call := cloudAgentBatchTableCall(t, "canvas_edit_batch_table", "append-row", map[string]any{
-		"snapshotHash": cloudAgentContentHash(doc), "nodeId": "batch-1", "action": "append",
+		"snapshotHash": cloudAgentCanvasHash(doc), "nodeId": "batch-1", "action": "append",
 		"patch": map[string]any{"inputNodeIds": []string{"image-1", "image-2"}, "prompt": "保持模特身份，替换为参考服装"},
 	})
 	plan, err := prepareCloudAgentBatchTableEdit(s.repo, "user", canvas.ID, call)
@@ -229,7 +229,7 @@ func TestCloudAgentCanSetBatchTableGlobalPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 	appendCall := cloudAgentBatchTableCall(t, "canvas_edit_batch_table", "append-empty-prompt", map[string]any{
-		"snapshotHash": cloudAgentContentHash(doc), "nodeId": "batch-1", "action": "append",
+		"snapshotHash": cloudAgentCanvasHash(doc), "nodeId": "batch-1", "action": "append",
 		"patch": map[string]any{"inputNodeIds": []string{"image-1", "image-2"}, "prompt": " "},
 	})
 	appendResult, err := applyCloudAgentBatchTableMutation(s.repo, "user", canvas.ID, appendCall, policy)
@@ -303,7 +303,7 @@ func TestCloudAgentBatchTableRejectsUnsafeAndStaleEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hash := cloudAgentContentHash(doc)
+	hash := cloudAgentCanvasHash(doc)
 	unsafe := cloudAgentBatchTableCall(t, "canvas_edit_batch_table", "unsafe-row", map[string]any{
 		"snapshotHash": hash, "nodeId": "batch-1", "action": "append",
 		"patch": map[string]any{"inputNodeIds": []string{"image-1"}, "outputNodeId": "forged-output"},
@@ -321,7 +321,7 @@ func TestCloudAgentBatchTableRejectsUnsafeAndStaleEdits(t *testing.T) {
 	stale := cloudAgentBatchTableCall(t, "canvas_edit_batch_table", "stale-row", map[string]any{
 		"snapshotHash": "stale", "nodeId": "batch-1", "action": "set_concurrency", "concurrency": 5,
 	})
-	if _, err := prepareCloudAgentBatchTableEdit(s.repo, "user", canvas.ID, stale); err == nil || !strings.Contains(err.Error(), "画布已变化") {
+	if _, err := prepareCloudAgentBatchTableEdit(s.repo, "user", canvas.ID, stale); err == nil || !strings.Contains(err.Error(), "被修改过") {
 		t.Fatalf("stale snapshot was not rejected: %v", err)
 	}
 }

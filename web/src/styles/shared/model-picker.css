@@ -66,7 +66,6 @@
     }
 
     .creation-model-picker-menu {
-        width: min(384px, calc(100vw - 24px)) !important;
         max-height: min(460px, calc(100vh - 24px));
         overflow-x: hidden;
         overflow-y: auto;
@@ -190,9 +189,6 @@ html:not(.dark) .creation-model-picker.canvas-composer-model-picker[aria-expande
             height: 34px;
         }
 
-        .creation-model-picker-menu {
-            width: min(440px, calc(100vw - 96px)) !important;
-        }
 .creation-model-picker.canvas-composer-model-picker { height: 42px; border-radius: 12px; padding: 0 11px; font-size: 12px; }
 .creation-model-picker.canvas-composer-model-picker { width: min(150px, 44vw); }
 }
@@ -277,11 +273,12 @@ html:not(.dark) .creation-model-picker.canvas-composer-model-picker[aria-expande
 
     .canvas-model-picker-popover {
         filter: none !important;
+        max-width: calc(100vw - 24px);
     }
 
     .canvas-model-picker-menu {
-        width: max-content !important;
-        min-width: max(var(--canvas-model-picker-trigger-width, 0px), 260px);
+        box-sizing: border-box;
+        min-width: 0;
         max-width: calc(100vw - 24px);
         /* [2026-09-24 G7] 420→480: 53px 行高下 8 行曾被 420 cap 裁底行。 */
         max-height: min(480px, calc(100vh - 32px));
@@ -314,19 +311,9 @@ html:not(.dark) .creation-model-picker.canvas-composer-model-picker[aria-expande
         min-width: 0;
         overflow: hidden;
         display: flex;
-        align-items: center;
+        /* 3b：行内容顶部锚定（icon/标题行/✓ 跨行一致，不随标签行漂移） */
+        align-items: flex-start;
         width: 100%;
-    }
-
-    .canvas-model-picker-popover .canvas-model-picker-option > span:first-child > span:nth-child(2) {
-        flex: 1 1 auto;
-        min-width: 0;
-        overflow: visible;
-    }
-
-    .canvas-model-picker-popover .canvas-model-picker-option > span:first-child > span:nth-child(2) > span {
-        overflow: visible;
-        text-overflow: clip;
     }
 
     .canvas-model-picker-option-check {
@@ -586,10 +573,10 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 }
 /* 品牌/模型两级菜单是 ModelPicker 默认结构，不能只写在 creation variant 下。 */
 .canvas-model-picker-menu.is-brand-list {
-    width: min(360px, calc(100vw - 24px)) !important;
+    width: min(360px, calc(100vw - 24px));
 }
 .canvas-model-picker-menu.is-model-list {
-    width: min(800px, calc(100vw - 24px)) !important;
+    width: min(800px, calc(100vw - 24px));
 }
 .canvas-model-picker-two-pane {
     display: grid;
@@ -614,7 +601,7 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 }
 @media (max-width: 720px) {
     .canvas-model-picker-menu:is(.is-brand-list, .is-model-list) {
-        width: calc(100vw - 24px) !important;
+        width: calc(100vw - 24px);
     }
     .canvas-model-picker-two-pane {
         grid-template-columns: minmax(0, 1fr);
@@ -687,6 +674,10 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     border-radius: var(--r-sm);
     background: color-mix(in srgb, var(--model-price-ink) 9%, transparent);
     padding: 2px 5px;
+    max-width: 100%;
+    flex-wrap: wrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -721,7 +712,6 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 .app-user-workspace .creation-model-picker-menu.is-brand-list {
     max-height: none !important;
     overflow: visible !important;
-    width: min(360px, calc(100vw - 24px)) !important;
     padding: 10px !important;
 }
 .app-user-workspace .creation-model-picker-menu .canvas-model-picker-brands { display: grid; gap: 5px; }
@@ -761,7 +751,6 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 .creation-model-picker-surface .creation-model-picker-menu.is-brand-list {
     max-height: none !important;
     overflow: visible !important;
-    width: min(360px, calc(100vw - 24px)) !important;
     padding: 10px !important;
 }
 .creation-model-picker-surface .canvas-model-picker-brands { display: grid; gap: 5px; }
@@ -817,12 +806,6 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     .creation-model-picker-menu .canvas-model-picker-title {
         font-size: 14px;
         font-weight: 350;
-    }
-
-    .creation-model-picker-menu .canvas-model-picker-subtitle {
-        margin-top: 2px;
-        font-size: 12px;
-        opacity: .72;
     }
 
     /* 模型菜单即时开合: 动画时长归零(0s transition 同步派发 transitionend, 不依赖 rAF/帧推进)。
@@ -1084,21 +1067,15 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         font-weight: 350;
     }
 
-    .canvas-model-picker-subtitle {
-        font-size: 12px;
-        line-height: 16px;
-    }
-
-    /* option-body: option 内唯一弹性主体(logo + 文本列 + ✓), 旧 nth-child 结构选择器已废 */
+    /* option-body: option 内唯一弹性主体(logo + 文本列 + ✓), 旧 nth-child 结构选择器已废;
+       3b 顶部锚定: ModelLabel 与 ✓ 都锚行顶, 不随标签行纵向居中漂移 */
     .canvas-model-picker-option-body {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 8px;
         flex: 1 1 auto;
         min-width: 0;
         overflow: hidden;
-        display: flex;
-        align-items: center;
         width: 100%;
     }
 
@@ -1172,43 +1149,12 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         background: transparent;
     }
 
-    /* subtitle hover 溢出滚动(flora marquee 语法) */
-    .canvas-model-picker-subtitle {
-        position: relative;
-        overflow: hidden;
-    }
-
-    .canvas-model-picker-subtitle.is-overflow .canvas-model-picker-subtitle-inner {
-        display: inline-block;
-        min-width: 100%;
-    }
-
-    .canvas-model-picker-subtitle.is-overflow:hover .canvas-model-picker-subtitle-inner {
-        animation: canvas-model-picker-subtitle-scroll 9s linear 0.6s infinite;
-    }
-
-    @keyframes canvas-model-picker-subtitle-scroll {
-        0% { transform: translateX(0); }
-        45% { transform: translateX(calc(-100% + 0px)); }
-        50% { transform: translateX(calc(-100% + 0px)); }
-        95% { transform: translateX(0); }
-        100% { transform: translateX(0); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .canvas-model-picker-subtitle.is-overflow:hover .canvas-model-picker-subtitle-inner {
-            animation: none;
-        }
-    }
-
-    /* 行组: 主行 + pin 兄弟(hover 整显, flora 渐进披露) */
+    /* 行组(2026-09-29 任务书·变体 T): 弃 grid 双列, 仅作定位上下文(rail/pin 锚)与 hover 胶囊;
+       pin 退出文档流改行组绝对定位(见下), option 独占整行宽。 */
     .canvas-model-picker-rowgroup {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
+        position: relative;
         min-width: 0;
         border-radius: 12px;
-        padding: 0 2px 0 0;
         transition: background-color var(--motion-instant) ease-out;
     }
 
@@ -1220,16 +1166,24 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         background: color-mix(in srgb, var(--workspace-accent) 6%, transparent);
     }
 
-    .canvas-model-picker-rowgroup .canvas-model-picker-pin {
-        width: 26px;
-        height: 26px;
-        margin-right: 6px;
+    /* pin: T 右轨最右(行组绝对定位, 20×20, 锚标题行中心; 选中行 ✓ 与 pin 并列由 rail 右衬 35 保证)。
+       top 按上下文 option padding 推导: 基础 6 / creation-menu 8, 均随字号自适应。 */
+    .canvas-model-picker-pin {
+        position: absolute;
+        right: 10px;
+        top: calc(6px + var(--fs-body) * 0.7 - 10px);
+        width: 20px;
+        height: 20px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
+        border-radius: 6px;
         opacity: 0;
         transition: opacity var(--motion-instant) ease-out, background-color var(--motion-instant) ease-out;
+    }
+
+    .creation-model-picker-menu .canvas-model-picker-pin {
+        top: calc(8px + var(--fs-body) * 0.7 - 10px);
     }
 
     .canvas-model-picker-rowgroup:hover .canvas-model-picker-pin,
@@ -1270,10 +1224,11 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     .canvas-model-picker-flyout {
         position: fixed;
         z-index: 1200;
-        /* 宽度跟随内容(单模型组不再渲染成 384px 孤立长条, 2026-09-19 用户实测), 上限仍 384。 */
+        /* 宽度跟随内容(单模型组不再渲染成 384px 孤立长条, 2026-09-19 用户实测); 上限 432
+           (2026-09-30 T 行宽裕量: 384 时行内仅 362, 最长验收名+necessary 同轨元素物理溢出)。 */
         width: max-content;
         min-width: max(var(--canvas-model-picker-trigger-width, 0px), 260px);
-        max-width: 384px;
+        max-width: 432px;
         /* [2026-09-24 G7] 420→480: 53px 行高下 8 行(约440)曾被 420 cap 裁底行; 480 容纳整表, 更高仍滚动。 */
         max-height: min(480px, calc(100vh - 32px));
         overflow-y: auto;
@@ -1331,6 +1286,21 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
         background: color-mix(in srgb, var(--workspace-accent) 13%, transparent) !important;
     }
 
+    /* T 右轨行宽裕量（2026-09-30 真机返工，必须在层内）：creation 变体的 flyout 被本层
+       .canvas-model-picker-menu / 首层 .creation-model-picker-menu 的 384 !important 钉宽
+       → 行内仅 362px，T 六元素同轨 + 最长验收名（sunburst 191/Windows 字宽 ~205）物理溢出：
+       Linux 实测 shrink 边界 196 vs 名宽 191（5px 零裕量）且 caps 尾 283.4 > 价格左缘 280.6
+       （重叠 2.8px）；Windows 字宽 +6~10px → 截断 + 图标压价格（用户真机实锤）。
+       修复：L2 flyout 384 → 432（行内 410，名宽预算 244，真裕量 ~39px；ddcat 长名 209 亦全显）。
+       L1 菜单保持 384。层叠依据：important 声明下层间反序、非分层隐式末层最弱，
+       故必须置本层内、且特异性(0,2,0)压过 384 规则(0,1,0)；agent 域(canvas-cloud-agent.css
+       非分层 !important)反序下不敌分层声明，再补一档高特异性选择器双保险。 */
+    .canvas-model-picker-flyout.creation-model-picker-menu,
+    .agent-model-picker-popover .canvas-model-picker-flyout.creation-model-picker-menu {
+        width: min(432px, calc(100vw - 24px)) !important;
+        max-width: min(432px, calc(100vw - 24px)) !important;
+    }
+
 }
 
 /* ---- G7 迁移区 · 原 unlayered 段（保持 TOP 层叠位） ---- */
@@ -1357,4 +1327,92 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 .creation-model-picker-menu .canvas-model-picker-option[aria-selected="true"] {
     min-height: 58px;
     border-radius: 12px;
+}
+
+/* ── 变体 T：右轨 + 两行流式区（2026-09-29 任务书；权威规格=卡附件 proto-model-row-planA2.html）──
+   标题行让位实测反推为 66px（原型示意值 96 按最宽价格推导，实测装不下验收要求的
+   sunburst 全名 191px：96 时可用 166，66 时可用 194 ≥ 191；且 ✓（轨内右衬 35+14）与
+   pin（右衬 10+20）恒在让位带之外零压名）。残留：≥6 字价格芯片极端行存在 ≤14px
+   静态贴边风险（价格左缘 vs 截断名尾部），登记待观察。
+   zone 吃满宽（rail 只占标题带）。行高自然流：8+19.6+2+17+8 = 54.6（一行）/ 71.6（两行）
+   → 任务书 54/71 口径。锚定按标题行带（高度 --fs-body×1.4）推导，
+   双上下文 top（基础 padding 6 / creation-menu 8）。 */
+.canvas-model-picker-line1 {
+    margin-right: 66px;
+}
+
+/* 无价格行（扩图浮层/积分关闭）：右轨仅 ✓(+pin hover)，让位收窄 36
+   （pin 左缘 286 vs line1 右缘 280，6px 余量；✓ 左缘 267 仅在名+徽章+图标>267 的
+   极端截断行有重叠窗口——当前白名单模型均<256，实测安全） */
+.canvas-model-picker-option.no-rail-price .canvas-model-picker-line1 {
+    margin-right: 36px;
+}
+
+/* 选中行 min-height 58（既有规则不动）下的内容对位：option 改顶对齐，
+   内容带恒从 padding 顶起 → 标题行中心恒 17.8，与 rail/pin 锚点零漂移
+   （原 center 会在 58 行把内容下推 ~2.2px，实测 19.5 vs 17.8）。 */
+.canvas-model-picker-option {
+    align-items: flex-start;
+}
+
+.canvas-model-picker-zone {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 350;
+    line-height: 17px;
+    opacity: .72;
+    min-width: 0;
+}
+
+/* 标签 mini chip：16px 高（11px 字 × lh1 + 2×2 padding），音色 ink 复制 model-tags.css 六音色
+   （弱背景 color-mix 14%），dark 提亮同源；model-tags.css/tsx 仍零改动（C1 收敛）。 */
+.canvas-model-picker-zone-tag {
+    --zone-tag-ink: #6850a1;
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-right: 5px;
+    vertical-align: 1px;
+    background: color-mix(in srgb, var(--zone-tag-ink) 14%, transparent);
+    color: var(--zone-tag-ink);
+}
+.canvas-model-picker-zone-tag[data-tone="blue"] { --zone-tag-ink: #3562b1; }
+.canvas-model-picker-zone-tag[data-tone="green"] { --zone-tag-ink: #26745b; }
+.canvas-model-picker-zone-tag[data-tone="gold"] { --zone-tag-ink: #886310; }
+.canvas-model-picker-zone-tag[data-tone="orange"] { --zone-tag-ink: #a75321; }
+.canvas-model-picker-zone-tag[data-tone="pink"] { --zone-tag-ink: #a43e76; }
+.dark .canvas-model-picker-zone-tag { --zone-tag-ink: #c8b6ed; }
+.dark .canvas-model-picker-zone-tag[data-tone="blue"] { --zone-tag-ink: #a3c3f5; }
+.dark .canvas-model-picker-zone-tag[data-tone="green"] { --zone-tag-ink: #94d6b9; }
+.dark .canvas-model-picker-zone-tag[data-tone="gold"] { --zone-tag-ink: #e6cb83; }
+.dark .canvas-model-picker-zone-tag[data-tone="orange"] { --zone-tag-ink: #edb08b; }
+.dark .canvas-model-picker-zone-tag[data-tone="pink"] { --zone-tag-ink: #e8acce; }
+
+/* 右轨（价格+✓）：absolute 锚标题行带（高度=标题行高，align-center → 中心随上下文 17.8/15.8，
+   跨行高恒定）；右衬 35px = pin 让位（10+20+5）。CB=行组(relative)，逃逸 option-body 的
+   overflow:hidden（CB 链不含裁剪者）。✓ 不再需要 3b 的 margin-top 补偿（轨内居中）。 */
+.canvas-model-picker-rail {
+    position: absolute;
+    right: 35px;
+    top: 6px;
+    height: calc(var(--fs-body) * 1.4);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.creation-model-picker-menu .canvas-model-picker-rail {
+    top: 8px;
+}
+
+/* logo 标题行对位（3b 遗产，T 保留）：24px logo 居中 19.6px 标题行 */
+.canvas-model-picker-logo {
+    margin-top: calc(var(--fs-body) * 0.7 - 12px);
 }

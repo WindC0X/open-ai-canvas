@@ -1579,7 +1579,7 @@ function InfiniteCanvasPage() {
     const canCreateDrawingFromConnection = !pendingConnectionCreate?.batchSourceNodeIds?.length && pendingConnectionSourceNode?.type === CanvasNodeType.Image && Boolean(pendingConnectionSourceNode.metadata?.content);
 
     const openTextNodeEditor = useCallback((node: CanvasNodeData) => {
-        if (node.type !== CanvasNodeType.Text) return;
+        if (node.type !== CanvasNodeType.Text && node.type !== CanvasNodeType.Markdown) return;
         setSelectedNodeIds(new Set([node.id]));
         setSelectedConnectionId(null);
         setContextMenu(null);
@@ -2843,7 +2843,7 @@ function InfiniteCanvasPage() {
                     <div className="relative flex min-h-0 min-w-0 flex-1">
                         <div className="relative min-w-0 flex-1 overflow-hidden">
                             <InfiniteCanvas
-                            interactive={!versions.preview}
+                                interactive={!versions.preview}
                                 containerRef={containerRef}
                                 viewport={viewport}
                                 appearance={canvasAppearance}
@@ -2962,74 +2962,76 @@ function InfiniteCanvasPage() {
                                 </CanvasNodeActionContext.Provider>
                             </InfiniteCanvas>
 
-                            <CanvasActiveTaskPanel tasks={activeTasks} onCancelTask={cancelCanvasTask} topInset={focusMode ? "var(--space-3)" : "var(--canvas-topbar-offset)"} onHeightChange={setActiveTaskPanelHeight} />
+                                <CanvasActiveTaskPanel tasks={activeTasks} onCancelTask={cancelCanvasTask} topInset={focusMode ? "var(--space-3)" : "var(--canvas-topbar-offset)"} />
 
-                            {focusMode ? (
-                                <CanvasFocusModeBar
-                                    syncStatus={<CanvasSyncStatus projectId={projectId} onLoadLatest={reloadLatestCanvasProject} onOpenVersions={openVersions} />}
-                                    versionsOpen={versions.open}
-                                    onToggleVersions={() => { closeAgent(); versions.toggle(); }}
-                                    dockRevealed={focusDockRevealed}
-                                    zoomPercent={viewport.k}
-                                    onToggleDock={() => setFocusDockRevealed((value) => !value)}
-                                    onExit={exitFocusMode}
-                                    onZoomIn={zoomCanvasIn}
-                                    onZoomOut={zoomCanvasOut}
-                                    onFit={fitCanvasContent}
-                                />
-                            ) : null}
+                                {focusMode ? (
+                                    <CanvasFocusModeBar
+                                        syncStatus={<CanvasSyncStatus projectId={projectId} onLoadLatest={reloadLatestCanvasProject} onOpenVersions={openVersions} />}
+                                        versionsOpen={versions.open}
+                                        onToggleVersions={() => { closeAgent(); versions.toggle(); }}
+                                        dockRevealed={focusDockRevealed}
+                                        zoomPercent={viewport.k}
+                                        onToggleDock={() => setFocusDockRevealed((value) => !value)}
+                                        onExit={exitFocusMode}
+                                        onZoomIn={zoomCanvasIn}
+                                        onZoomOut={zoomCanvasOut}
+                                        onFit={fitCanvasContent}
+                                    />
+                                ) : null}
 
-                            <CanvasFileDropOverlay active={fileDropActive} theme={theme} />
+                                <CanvasFileDropOverlay active={fileDropActive} theme={theme} />
 
-                            {emptyCanvasState}
+                                {emptyCanvasState}
 
-                            {!focusMode || focusDockRevealed ? (
-                                <CanvasToolbar
-                                    selectedCount={selectedNodeIds.size}
-                                    workspaceMode={workspaceMode}
-                                    canvasTool={canvasTool}
-                                    onToolChange={setCanvasTool}
-                                    isProjectLinked={Boolean(shortDramaEnabled && currentProject?.projectId)}
-                                    canUndo={historyState.canUndo}
-                                    canRedo={historyState.canRedo}
-                                    appearance={canvasAppearance}
-                                    backgroundMode={backgroundMode}
-                                    showImageInfo={showImageInfo}
-                                    onAddImage={() => createNode(CanvasNodeType.Image)}
-                                    onAddVideo={() => createNode(CanvasNodeType.Video)}
-                                    onAddAudio={() => createNode(CanvasNodeType.Audio)}
-                                    onAddText={() => createNode(CanvasNodeType.Text)}
-                                    onChooseStyle={() => setStylePickerOpen(true)}
-                                    onAddScript={() => createNode(CanvasNodeType.Script)}
-                                    onAddFrame={() => createNode(CanvasNodeType.Frame)}
-                                    onAddFolder={createFolder}
-                                    onAddDrawing={() => createNode(CanvasNodeType.Drawing)}
-                                    onAddExtensionNode={(type) => createNode(type)}
-                                    onAddWorkflow={() => createNode(CanvasNodeType.Config)}
-                                    onOpenDirector={() => setDirectorTemplateRequest({})}
-                                    onUndo={undoCanvas}
-                                    onRedo={redoCanvas}
-                                    onUpload={() => handleUploadRequest()}
-                                    onDelete={() => deleteNodes(new Set(selectedNodeIds))}
-                                    onClear={() => setClearConfirmOpen(true)}
-                                    onDeselect={deselectCanvas}
-                                    onAppearanceChange={applyCanvasAppearance}
-                                    onSaveAppearanceDefault={saveCanvasAppearanceDefault}
-                                    onBackgroundModeChange={setBackgroundMode}
-                                    onShowImageInfoChange={setShowImageInfo}
-                                    onOpenMyAssets={() => {
-                                        openCanvasAssetLibrary();
-                                    }}
-                                    onOpenWorkspace={() => setWorkspaceOpen(value => !value)}
-                                    onOpenProjectCharacters={() => openProjectAssets("character")}
-                                />
-                            ) : null}
-                        </div>
+                                {!focusMode || focusDockRevealed ? (
+                                    <CanvasToolbar
+                                        selectedCount={selectedNodeIds.size}
+                                        workspaceMode={workspaceMode}
+                                        canvasTool={canvasTool}
+                                        onToolChange={setCanvasTool}
+                                        isProjectLinked={Boolean(shortDramaEnabled && currentProject?.projectId)}
+                                        canUndo={historyState.canUndo}
+                                        canRedo={historyState.canRedo}
+                                        appearance={canvasAppearance}
+                                        backgroundMode={backgroundMode}
+                                        showImageInfo={showImageInfo}
+                                        onAddImage={() => createNode(CanvasNodeType.Image)}
+                                        onAddVideo={() => createNode(CanvasNodeType.Video)}
+                                        onAddAudio={() => createNode(CanvasNodeType.Audio)}
+                                        onAddText={() => createNode(CanvasNodeType.Text)}
+                                        onChooseStyle={() => setStylePickerOpen(true)}
+                                        onAddScript={() => createNode(CanvasNodeType.Script)}
+                                        onAddFrame={() => createNode(CanvasNodeType.Frame)}
+                                        onAddFolder={createFolder}
+                                        onAddDrawing={() => createNode(CanvasNodeType.Drawing)}
+                                        onAddExtensionNode={(type) => createNode(type)}
+                                        onAddWorkflow={() => createNode(CanvasNodeType.Config)}
+                                        onOpenDirector={() => setDirectorTemplateRequest({})}
+                                        onUndo={undoCanvas}
+                                        onRedo={redoCanvas}
+                                        onUpload={() => handleUploadRequest()}
+                                        onDelete={() => deleteNodes(new Set(selectedNodeIds))}
+                                        onClear={() => setClearConfirmOpen(true)}
+                                        onDeselect={deselectCanvas}
+                                        onAppearanceChange={applyCanvasAppearance}
+                                        onSaveAppearanceDefault={saveCanvasAppearanceDefault}
+                                        onBackgroundModeChange={setBackgroundMode}
+                                        onShowImageInfoChange={setShowImageInfo}
+                                        onOpenWorkspace={() => setWorkspaceOpen(value => !value)}
+                                        onOpenMyAssets={() => {
+                                            openCanvasAssetLibrary();
+                                        }}
+                                        onOpenProjectCharacters={() => openProjectAssets("character")}
+                                    />
+                                ) : null}
+                            </div>
 
                         <div className={versions.open ? "hidden" : "contents"}>
                             <CanvasCloudAgentPanel
                                 canvasId={projectId}
                                 domainProjectId={currentProject?.projectId}
+                                canvasNodes={nodes}
+                                runningNodeId={runningNodeId}
                                 nodeCount={nodes.length}
                                 selectedNodeIds={Array.from(selectedNodeIds)}
                                 references={agentMentionReferences}
@@ -3040,7 +3042,16 @@ function InfiniteCanvasPage() {
                                 onOpen={openAgent}
                                 onCollapse={closeAgent}
                                 onFocusNode={(nodeId) => {
-                                    if (!nodesRef.current.some((node) => node.id === nodeId)) { message.info("该节点已删除或尚未同步到画布"); return; }
+                                    const currentNodes = nodesRef.current;
+                                    const target = currentNodes.find((node) => node.id === nodeId);
+                                    if (!target) { message.info("该节点已删除或尚未同步到画布"); return; }
+                                    const parent = target.parentId ? currentNodes.find((node) => node.id === target.parentId) : null;
+                                    if (parent?.metadata?.frame?.collapsed) toggleFrameCollapsed(parent.id);
+
+                                    const batchRootId = target.metadata?.batchRootId;
+                                    const batchRoot = batchRootId ? currentNodes.find((node) => node.id === batchRootId) : null;
+                                    if (batchRoot && isHiddenBatchChild(target, currentNodes) && !batchRoot.metadata?.imageBatchExpanded) toggleBatchExpanded(batchRoot.id);
+
                                     focusCanvasNode(nodeId);
                                 }}
                             />
