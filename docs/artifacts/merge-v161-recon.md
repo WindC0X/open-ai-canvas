@@ -134,3 +134,32 @@ canvas-model-policy / agnes-video / asset-batch-delete。
 **③ A线 重大贡献记档**：4 处拆分增量静默丢失的发现与「逐注释/逐 case/逐中文文案全树比对」方法学——这是 H1 教训（schema 与描述两个事实面）的泛化：**拆分类 refactor 中「函数名在场 ≠ 增量在场」**。此方法学进后续所有 merge 任务书模板。
 
 **④ 后续序列**：用户真机抽验（Agent 面板拆分面，需将 :3010 栈切至 v161 worktree）→ push → 测试线整轮（S1 迁移冒烟 + S2 五跑 + VRT 三面，Agent 面板必采）→ F-01 开枝。
+
+---
+
+## 十、测试线整轮裁决 + 批次终审（2026-09-30 23:30）
+
+### 独立核验（4/4）
+
+| 项 | 证据 |
+|---|---|
+| 0cbdd30 单 commit 干净不 push / 基线零变更 | git log/status + --stat 零 snapshots 触碰 ✓ |
+| VRT 06-agent-panel 漂移归因 | credit_accounts.available=99,662,000 → 99.662 与截图值吻合；真实积分消耗渲染，非拆分回归 ✓ |
+| 视频播放器 disconnected 定性 | video-player.tsx / package.json 在 fc8337f9..5e14fbc5 零改动 + 同态切换测试 → 既有缺陷 ✓ |
+| 后端「纯物理拆分」契约核验 | 测试线三重 diff（路由 261=261 / schema 空 / API model 空）——方法学佳，采纳 ✓ |
+
+### 裁定
+
+**① 整轮通过，批次终审 GO。** 阻塞 0 / 非阻塞回归 0 / 环境差异 2（drvfs 冷启动假红 + Go e2e 超时，后者已由 ext4 5/5 消解）。
+
+**② VRT 零视觉影响记档**：本批 227 文件拆分纯重排（对比序6 有真实视觉变化）——拆分类 refactor 的理想结局，「说不出则回滚」纪律执行正确。
+
+**③ 既有缺陷登记（A线 backlog，非本批）**：
+- 视频播放器 remote state disconnected——根因链：播放器初始化用**无签名** `/api/public/resources/<id>/file` → 403 → disconnected（带签名 200）。影响：视频节点重开画布后不进入循环播放态。建议独立任务卡（涉及 F5 loop 的完整体验闭环，F-06 修缮期顺带或单开）。
+- drvfs 冷启动预打包 10-20s（环境差异，stack-up 脚本已内置 waitUntil 修正，无产品动作）。
+
+**④ 测试线贡献记档**：栈切换前的「后端不变」契约三重核验（路由/schema/API struct diff）——把控制线任务书里未验证的假设自行做成了实证，此法进后续任务书模板。
+
+### 批次闭合序列（执行中）
+
+merge-v1.6.1 @ 5e14fbc5 → 合并 local main → push fork → F-01 开枝（任务书已备）。
