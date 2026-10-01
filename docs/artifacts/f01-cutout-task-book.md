@@ -92,3 +92,21 @@
 ### 后续序列
 
 真机抽验 → 测试线整轮 → 合入 local main → push → W4 剩余（flora-overrides 迁移 / F-02）。
+
+## 八、终验驱动的回修批次与 R-4 分层架构终裁（2026-10-01）
+
+用户四轮真机终验（:3010，含 localhost 切换）驱动。回修链：2c2dbf56（进度反馈）→ 5441f2a8（字节进度+dev 大文件）→ 4e82d705（推理段秒表）→ f3693006（ORT 自托管消 jsDelivr 红线违规）→ 6cdba400（冻结口径 docs）→ 442dea0b（三缺陷：官方 background-removal pipeline 换入手搓段净删 83 行；覆盖层去 backdrop-filter 解四象限镜像；toast 缓存区分）。
+
+**关键认知修正**：用户失败图（多主体静物，连续 3 次全黑）定性为 BiRefNet 显著性盲区第二类——无主导主体的多体构图（第一类为小主体 <8%）。官方 pipeline 与手搓路径输出一致（A线 实验实证），故黑图非实现对偶 bug 而是模型能力边界。
+
+**R-4 终裁（用户确认，取代此前所有版本）**：识别/抠图分层 + 四级兜底，全本地——
+- L0 BiRefNet 全图单遍（现状不动，覆盖率 ~5% 阈值判定）
+- L1 magic_touch（MediaPipe InteractiveSegmenterLegacy，6MB tflite 懒加载）自动多点探测：网格试探（VOZEB 网格蓝本）→ 逐点打分 → 强候选 → 泛洪清洗 → 多部件合并 → 区域外扩 30% 裁剪 → BiRefNet 区域精修 → 原位贴回
+- L2 用户点选（W5，本期仅管线钩子）
+- L3 显式提示不黑图（LibTV「未返回抠图结果」同构）；云端精修档留修-9 三级路由位
+
+依据链：DisyLab-Beta/dramaclaw/VOZEB-PRO 本地仓源码实读（DisyLab 同款模型同款盲区实证；dramaclaw MODNet 人像特化；VOZEB magic_touch 生产实证）+ 11 站竞品语料（Magnific SAM-3 分层 / Lovart segment_anything 独立工具 / 竞品全云端无本地先例、本地是我们的差异化）+ 用户多主体静物图为指定验收用例。
+
+阻塞前置：magic_touch 模型文件 + MediaPipe WASM 分发许可核验（红线流程）；实验先行（指定图探测命中率 + 区域精修假设验证，不成立则降级 magic_touch 原生蒙版直接合成）。
+
+排期档位丙：L1+L3 修缮期（+1.5-2 人日），L2+统一任务面+性能预期文案 W5。同批 rider：R-1 HUD 让位接线（project.tsx onHeightChange 断线，上游同病）+ R-2 MediaConversion 节点不弹 prompt panel + R-3 secure-context 依赖审计（IP 访问致 crypto.randomUUID/caches 静默失效，本日实证）。
