@@ -35,6 +35,25 @@ describe("抠图接线守卫", () => {
         expect(worker).not.toContain("huggingface.co");
     });
 
+    test("ORT WASM 运行时自托管：不落 jsDelivr 兜底", () => {
+        const worker = flat(read("workers/background-removal.worker.ts"));
+        // transformers.js 在 wasmPaths 为空时把 ORT 运行时指向 jsDelivr CDN，
+        // 且其排除条件只认 ServiceWorkerGlobalScope —— DedicatedWorker 与主线程
+        // 都会命中，实测 dev 与生产 preview 均拉取该 CDN。必须显式写 wasmPaths。
+        expect(worker).toContain("wasmPaths");
+        expect(worker).toContain("ort-wasm-simd-threaded.asyncify.wasm?url");
+        expect(worker).toContain("ort-wasm-simd-threaded.asyncify.mjs?url");
+        // 不得用 public/ 下的副本：Vite 拒绝 import public/ 内文件，dev 会直接报
+        // no available backend found。
+        expect(worker).not.toContain("/models/ort/");
+        // 只断言赋值面：文件的解释性注释里合法地写着 jsDelivr 的完整 URL
+        // （说明为何必须自托管），整文件 not.toContain 会误伤自己。
+        const assign = worker.slice(worker.indexOf("const ortWasm"), worker.indexOf("const ortWasm") + 400);
+        expect(assign).not.toContain("cdn.jsdelivr.net");
+        expect(assign).toContain("ortMjsUrl");
+        expect(assign).toContain("ortWasmUrl");
+    });
+
     test("worker 用同一份 fp16 权重服务两档设备", () => {
         const worker = flat(read("workers/background-removal.worker.ts"));
         expect(worker).toContain('dtype: "fp16"');

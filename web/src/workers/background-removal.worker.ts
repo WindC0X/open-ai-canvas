@@ -40,6 +40,26 @@ env.allowRemoteModels = false;
 env.allowLocalModels = true;
 env.localModelPath = MODEL_BASE_PATH;
 
+// onnxruntime-web 的 WASM 运行时必须显式自托管。
+//
+// transformers.js 在 wasmPaths 未设置时会把 ORT 运行时指向 jsDelivr CDN
+// （其 dist 里 `https://cdn.jsdelivr.net/npm/onnxruntime-web@${...}/dist/`），
+// 条件只排除了 ServiceWorkerGlobalScope；DedicatedWorker 与主线程都不满足该
+// 排除条件，所以**任何我们用到的环境都会走 jsDelivr**（实测生产 preview 与 dev
+// 均拉取该 CDN 的 .mjs/.wasm，违 F-01「运行期零第三方直连 / 国内可达」硬约束）。
+//
+// 用 ?url 让 Vite 解析成实际资源 URL（dev 给可服务路径，生产给 /assets/ 哈希产物），
+// 再显式写入 wasmPaths。注意不能用 public/ 下的副本：Vite 明确拒绝 import
+// public/ 目录里的文件（"This file is in /public ... should not be imported from
+// source code"），会在 dev 下直接报 no available backend found。
+import ortWasmUrl from "../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm?url";
+import ortMjsUrl from "../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs?url";
+
+const ortWasm = (env as { backends?: { onnx?: { wasm?: { wasmPaths?: unknown } } } }).backends?.onnx?.wasm;
+if (ortWasm) {
+    ortWasm.wasmPaths = { mjs: ortMjsUrl, wasm: ortWasmUrl };
+}
+
 /**
  * WebGPU 可用性探测。失败不抛错——探测本身只是选档依据，
  * 拿不到 adapter 就按 WASM 走（Q-2：两档共用同一份 fp16 权重）。

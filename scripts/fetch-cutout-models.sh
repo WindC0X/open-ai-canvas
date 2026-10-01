@@ -6,6 +6,10 @@
 # 运行期浏览器只从本站 /models/ 取权重，不直连 HuggingFace —— 这是「模型分发
 # 国内可达」硬约束的落点（控制线 Q-3 裁定）。
 #
+# 注：onnxruntime-web 的 WASM 运行时不需要本脚本 —— 它由 Vite 在构建期打包成
+# /assets/ 哈希资源，worker 用 `?url` 导入后显式写进 wasmPaths（见
+# web/src/workers/background-removal.worker.ts 的说明）。
+#
 # 用法：
 #   bash scripts/fetch-cutout-models.sh              # 默认官方源
 #   CANVAS_MODEL_BASE_URL=<镜像> bash scripts/...    # 国内镜像/代理
@@ -37,6 +41,7 @@ FILES=(
     "preprocessor_config.json"
     "onnx/model_fp16.onnx"
 )
+
 
 command -v curl >/dev/null 2>&1 || fail "需要 curl，请先安装"
 

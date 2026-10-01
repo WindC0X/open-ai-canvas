@@ -425,3 +425,106 @@ ONNX_ENV.wasm.wasmPaths = { mjs: `${wasmPathPrefix}ort-wasm-simd-threaded${suffi
 - (b) 用 `vite-plugin-static-copy` 或直接 `import wasmUrl from "...?url"` 走打包产物路径。
 - 倾向 (a)：与既有 `models-manifest.json` 机制一致，且 nginx `/models/` 已配
   immutable 缓存 + CORP same-origin。
+
+## 11. ORT WASM 运行时自托管（控制线裁定后实施，2026-10-01）
+
+### 11.1 根因链（三轮排查，含一次自我误判与纠正）
+
+**第一轮（发现）**：Cache Storage 桶内 2 项是 jsDelivr，命中红线③。
+
+**第二轮（误判并回退）**：发现生产产物里有 `wasmPaths={wasm:new URL('/assets/ort-wasm-...')}`，
+一度判断「生产已自托管、jsDelivr 只是 dev 现象」，遂回退 `wasmPaths` 设置。
+**此判断错误**，实测推翻。
+
+**第三轮（定论）**：关键条件是 transformers.js 里的
+
+```js
+!(typeof ServiceWorkerGlobalScope !== "undefined" && self instanceof ServiceWorkerGlobalScope)
+```
+
+实测 DedicatedWorker 内 `typeof ServiceWorkerGlobalScope === "undefined"`、
+主线程同样（`{hasSWGS:false, isSW:false, ctor:"DedicatedWorkerGlobalScope"}`）。
+即**该排除只对 ServiceWorker 生效，我们所有环境都命中 jsDelivr 分支**。
+
+而产物里那个 `/assets/ort-wasm-...wasm`（25.62MB）是 ORT `initWasm` 内部
+「仅当 wasmPaths 仍为空才设」的兜底；transformers.js 的赋值在**模块顶层同步执行**，
+先占位，所以兜底永不触发 —— **该 25.62MB 是死资源**。
+
+**决定性证据**（生产 preview，`dist` 产物直接实例化 worker）：
+
+```
+✗ https://cdn.jsdelivr.net/npm/onnxruntime-web@.../ort-wasm-simd-threaded.asyncify.mjs
+✗ https://cdn.jsdelivr.net/npm/onnxruntime-web@.../ort-wasm-simd-threaded.asyncify.wasm
+```
+
+生产环境同样拉 jsDelivr → 红线违规确认，必须修。
+
+### 11.2 修法（第三版，前两版作废）
+
+**作废版 1**：`wasmPaths='/models/ort/'` + 把两文件放进 `public/models/ort/`。
+→ dev 下 Vite 拒绝 import `public/` 内文件（`This file is in /public ... should not be
+imported from source code`），worker 直接报 `no available backend found`。
+
+**作废版 2**：回退 `wasmPaths`，指望生产 Vite 已自托管。→ 见 11.1，生产仍在拉 CDN。
+
+**采用版**：用 Vite 的 `?url` 导入，让构建器解析出各环境正确的资源 URL：
+
+```ts
+import ortWasmUrl from "../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm?url";
+import ortMjsUrl from "../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs?url";
+env.backends.onnx.wasm.wasmPaths = { mjs: ortMjsUrl, wasm: ortWasmUrl };
+```
+
+- 不能用包名深导入（`onnxruntime-web/dist/...`）：包的 `exports` 字段拒绝该子路径。
+- dev → `/node_modules/onnxruntime-web/dist/...`（实测两个 URL 均 HTTP 200）
+- 生产 → `/assets/ort-wasm-simd-threaded.asyncify-<hash>.{mjs,wasm}`（Vite 哈希产物）
+
+**顺带删除**：`public/models/ort/` 方案整体作废（26MB 冗余静态副本 + fetch 脚本双清单
++ .gitignore/.dockerignore/Dockerfile 三处改动全部回退），`?url` 已覆盖两环境。
+
+### 11.3 Cache Storage 桶清单证明（控制线要求）
+
+**dev（localhost:3000）**——5 项，零第三方：
+```
+✓ http://localhost:3000/models/birefnet-lite-512/config.json
+✓ http://localhost:3000/models/birefnet-lite-512/onnx/model_fp16.onnx
+✓ http://localhost:3000/models/birefnet-lite-512/preprocessor_config.json
+✓ http://localhost:3000/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs
+✓ http://localhost:3000/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm
+→ 第三方项: 0  ✓
+```
+
+**生产（vite preview :4173，dist 产物）**——5 项，零第三方：
+```
+✓ http://localhost:4173/models/birefnet-lite-512/config.json
+✓ http://localhost:4173/models/birefnet-lite-512/onnx/model_fp16.onnx
+✓ http://localhost:4173/models/birefnet-lite-512/preprocessor_config.json
+✓ http://localhost:4173/assets/ort-wasm-simd-threaded.asyncify-DXIbolS2.mjs
+✓ http://localhost:4173/assets/ort-wasm-simd-threaded.asyncify-CxOG5pUO.wasm
+→ 第三方项: 0  ✓
+```
+
+两环境均走本地，抠图全流程（download → segment → encode → done）正常出图。
+
+**登记为已知事实**：jsDelivr 发 `cross-origin-resource-policy: cross-origin`，
+技术性可通过 COEP require-corp；该事实不作为保留 jsDelivr 的依据（控制线裁定）。
+
+### 11.4 门禁
+
+- `tsc --noEmit` 0 / `eslint` 0
+- `bun run build` 0（4m33s；产物含 `dist/assets/ort-wasm-simd-threaded.asyncify-{mjs,wasm}`）
+- web 全量 **2492 pass / 0 fail / 323 files**（首跑 1 条时序 flake，复跑 0 fail）
+- focused guards **76 pass / 0 fail / 8 files**
+
+### 11.5 探针方法学（入档）
+
+- **worker 内发起的网络请求不产生 `Network.requestWillBeSent`** —— 只看 CDP 网络层
+  会误判「零请求」。判定第三方直连必须查 **Cache Storage 桶清单**（worker 与主线程共享）。
+- 一处自我误判纠正：曾据「产物里有 `/assets/` 路径」判定生产已自托管，未验证
+  「两处 wasmPaths 赋值谁先生效」就下结论。**教训：看到某个赋值存在，不等于它生效；
+  必须确认条件分支与实际执行顺序。**
+
+### 11.6 F-01 冻结
+
+控制线裁定：本项完成后 F-01 冻结，不再接受新的顺带发现扩域。
+ORT 自托管为最后一个扩域项（因其本身即红线项）。
