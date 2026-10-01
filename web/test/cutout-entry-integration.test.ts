@@ -124,9 +124,9 @@ describe("本地抠图进度反馈", () => {
 
     test("三段进度文本必须可读（不能只有微弱边框效果）", () => {
         const node = flat(read("components/canvas/canvas-node.tsx"));
-        expect(node).toContain("正在下载模型…（首次约90MB）");
-        expect(node).toContain("正在识别主体…");
-        expect(node).toContain("正在生成透明图…");
+        expect(node).toContain("正在加载模型…（首次约90MB）");
+        expect(node).toContain("正在识别主体…（已用 ${elapsed}s）");
+        expect(node).toContain("正在生成透明图…（已用 ${elapsed}s）");
         // 覆盖层要能被读屏识别：role=status + aria-live。
         expect(node).toContain('role="status"');
         expect(node).toContain('aria-live="polite"');
@@ -171,6 +171,29 @@ describe("本地抠图进度反馈", () => {
         const mc = flat(read("components/canvas/nodes/media-conversion-node.tsx"));
         expect(mc).toContain("MB / ");
         expect(mc).toContain("formatMegabytes");
+    });
+
+    test("推理阶段（segment/encode）不能只有静态文本", () => {
+        const node = flat(read("components/canvas/canvas-node.tsx"));
+        // ORT 无单次 run 的进度 API，拿不到百分比；用「已用时」+ 不确定扫描条表达在动。
+        expect(node).toContain("已用 ${elapsed}s");
+        expect(node).toContain("window.setInterval");
+        // 扫描条复用既有 keyframe（F-01 硬约束：globals.css 零改动）。
+        expect(node).toContain("canvas-task-progress-shimmer");
+        // 起始时间戳由调用方写入并清理。
+        const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
+        expect(tools).toContain("backgroundRemovalStartedAt: startedAt");
+        expect(tools).toContain("backgroundRemovalStartedAt: undefined");
+    });
+
+    test("缓存命中时文案不谎称「下载」", () => {
+        const node = flat(read("components/canvas/canvas-node.tsx"));
+        // 缓存命中时无网络，但仍有约 13s 的 Cache→WASM 读取；文案必须中实。
+        expect(node).toContain("正在加载模型");
+        const mc = flat(read("components/canvas/nodes/media-conversion-node.tsx"));
+        expect(mc).toContain("正在加载");
+        // 不得再出现「正在下载模型」这种缓存命中时不成立的表述。
+        expect(node).not.toContain("正在下载模型");
     });
 
     test("阶段标记与运行态在同一 finally 里清理（漏清会永久卡「处理中」）", () => {

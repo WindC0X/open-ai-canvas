@@ -294,6 +294,8 @@ export type CanvasNodeMetadata = {
     backgroundRemovalPhase?: "download" | "segment" | "encode";
     /** 下载阶段已下载字节 / 总字节（仅 download 阶段有值）。 */
     backgroundRemovalProgress?: { loaded: number; total: number };
+    /** 本次抠图起始时间戳（ms）；推理阶段无百分比，靠它显示已用时。 */
+    backgroundRemovalStartedAt?: number;
     failedPromptFingerprint?: string;
     lastGenerationRequestFingerprint?: string;
     fontSize?: number;

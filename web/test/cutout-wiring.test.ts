@@ -20,9 +20,10 @@ describe("抠图接线守卫", () => {
         // 守卫条件必须显式放行 cutout，否则会落回「该转换需要先安装并验证本地模型」。
         expect(node).toContain('state.operation !== "cutout"');
         expect(node).toContain("runBrowserCutout(sourceUrl");
-        // 三段进度文案必须接上（首次 90MB 下载是硬要求，不能静默等待）。
+        // 三段进度文案必须接上（首次 90MB 加载是硬要求，不能静默等待）。
+        // 文案用「加载」不用「下载」：缓存命中时没有网络，说「下载」不实。
         expect(node).toContain("cutoutProgressNotice");
-        expect(node).toContain("正在下载抠图模型");
+        expect(node).toContain("正在加载抠图模型");
     });
 
     test("worker 禁掉远端模型，权重只从本站取", () => {

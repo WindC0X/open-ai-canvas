@@ -324,3 +324,104 @@ MASTER-PLAN v1.6 复核块第 5 条立项：统一「图片操作」任务面，
 - 抠图结果节点 `backgroundRemoval.mode` 保持**术语区分度**（不与「云端任务」混称），
   统一面的元数据行设计留给 W5 设计卡，本枝不深做。
 - 后续 F-02 起：任务呈现不单独造云任务 UI，参照统一面口径。
+
+## 10. 用户追问「抠图进度呢」· 推理阶段进度（2026-10-01 第三批）
+
+### 10.1 缺口确认（用户问得对）
+
+上一轮只做了 **download 阶段**的字节进度，`segment`（实际抠图推理）**零进度**。
+实测各阶段耗时（400×300 / 1600×1200，模型已缓存）：
+
+| 尺寸 | download | **segment** | encode | 总 |
+|---|---|---|---|---|
+| 400×300 | 0.1s | **11.6s** | **5.3s** | 17.0s |
+| 1600×1200 | 0.3s | **12.9s** | **5.2s** | 18.5s |
+
+**更正**：上表是我最初读错的版本（把 segment/encode 标反）。重算原始数据后正确分布是：
+
+| 尺寸 | download（含 Cache→WASM 加载）| segment（推理）| encode |
+|---|---|---|---|
+| 400×300 | 11.6s | **5.3s** | **0.02s** |
+| 1600×1200 | 12.9s | **5.2s** | **0.14s** |
+
+拆解验证（processor + model 分测）：`preprocess 110-156ms`、`model.run 5535-6123ms`。
+即 **segment ≈ 5-6s 是纯推理，encode ≈ 0.1s 可忽略**。
+
+### 10.2 关键约束：ORT 无单次推理进度 API
+
+- `onnxruntime-web` 全包无 `onProgress` / 推理进度回调；`session.run()` 是不可分割的阻塞调用。
+- 故 segment **拿不到真实百分比**，只能表达「进行中」。
+
+### 10.3 修法（复用既有 indeterminate 范式）
+
+1. **已用时秒数**：覆盖层在 segment/encode 显示「正在识别主体…（已用 7s）」，
+   秒表每秒刷新——5-6s 等待里数字在走是最实的「在动」信号。
+2. **不确定扫描条**：复用 `globals.css` 既有的 `canvas-task-progress-shimmer`
+   关键帧（`translateX(-100%) → 200%`，1.4s linear infinite，对应 #98 决策3），
+   **F-01 硬约束「globals.css 零改动」保持**。
+3. **`startedAt`**：`metadata.backgroundRemovalStartedAt`，调用方写入、`finally` 清理。
+
+### 10.4 顺带修正的文案缺陷（上一轮引入）
+
+缓存命中时**没有网络下载**，但仍有约 13s 的 **Cache→WASM 内存加载**
+（实测：缓存命中仍有 89 个字节事件，1.3MB→94MB）。上一轮文案写「正在下载模型…」，
+**等于告诉用户一件没发生的事**。已改为「正在加载模型…」，两条呈现路径（节点覆盖层 +
+media-conversion notice）同步。
+
+### 10.5 UX 可见级验证
+
+DOM 断言（产品源码组件 + 应用真实 React 单例渲染）：
+
+| case | 渲染文本 | 进度条 |
+|---|---|---|
+| download + 39MB | 「正在加载模型… 37.2MB / 93.9MB（40%）」 | 实进度条 |
+| download 无字节 | 「正在加载模型…（首次约90MB）」 | 扫描条 |
+| **segment** | 「正在识别主体…**（已用 7s）**」 | **扫描条** |
+| **encode** | 「正在生成透明图…**（已用 8s）**」 | **扫描条** |
+
+截图：`/tmp/f01-segment-progress.png`——「正在识别主体…（已用 17s）」+ 扫描条定格在 55-85% 位置。
+
+> 探针踩坑记录：`/@id/react` 会新建 React 实例，与 `useState` 不匹配导致 hooks 组件渲染为空；
+> 必须用应用真实 deps 路径 `/node_modules/.vite/deps/react.js?v=...`（从
+> `performance.getEntriesByType('resource')` 取），否则 hooks 组件静默渲染空树。
+
+### 10.6 门禁
+
+- `tsc --noEmit` 0 / `eslint` 0 / `bun run build` 0（3m10s）
+- web 全量 **2491 pass / 0 fail / 323 files**
+- focused guards **75 pass / 0 fail / 8 files**
+
+### 10.7 ⚠ 新发现：ORT WASM 运行时从 jsDelivr CDN 加载（红线问题，待控制线裁定）
+
+**证据**：浏览器 Cache Storage 的 `transformers-cache` 桶内 5 项中有 2 项是 jsDelivr：
+
+```
+http://localhost:3000/models/birefnet-lite-512/config.json
+http://localhost:3000/models/birefnet-lite-512/onnx/model_fp16.onnx
+http://localhost:3000/models/birefnet-lite-512/preprocessor_config.json
+https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.mjs   ← ⚠
+https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.wasm  ← ⚠
+```
+
+**根因**：`@huggingface/transformers/dist/transformers.js` 在 `ONNX_ENV.wasm.wasmPaths`
+未设置时，**默认指向 jsDelivr**：
+
+```js
+const wasmPathPrefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_ENV.versions.web}/dist/`;
+ONNX_ENV.wasm.wasmPaths = { mjs: `${wasmPathPrefix}ort-wasm-simd-threaded${suffix}.mjs`, wasm: ... };
+```
+
+**影响面**：
+- 违反 F-01 红线③（模型分发国内可达）——26MB 的 ORT WASM 运行时走境外 CDN。
+- 红线②（第三方子资源 CORP）：实测 jsDelivr 发 `cross-origin-resource-policy: cross-origin`，
+  COEP **不会拦**，技术性过关；但国内可达性不满足。
+- 与「权重自托管、`allowRemoteModels=false`、运行期绝不直连第三方」的 F-01 设计意图冲突：
+  权重确实自托管了，但**运行时本体没有**。
+
+**可选修法**（需控制线裁定，本枝未擅动）：
+- (a) 设 `env.backends.onnx.wasm.wasmPaths = "/models/ort/"`，把
+  `ort-wasm-simd-threaded.asyncify.{mjs,wasm}`（26MB）纳入 `fetch-cutout-models.sh`
+  自托管（与权重同一套 manifest/sha256/nginx `/models/` 缓存策略）。
+- (b) 用 `vite-plugin-static-copy` 或直接 `import wasmUrl from "...?url"` 走打包产物路径。
+- 倾向 (a)：与既有 `models-manifest.json` 机制一致，且 nginx `/models/` 已配
+  immutable 缓存 + CORP same-origin。

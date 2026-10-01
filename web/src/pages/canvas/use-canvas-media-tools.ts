@@ -1278,7 +1278,11 @@ export function useCanvasMediaTools({
                 ? { ...item, metadata: { ...item.metadata, backgroundRemovalPhase: phase, backgroundRemovalProgress: progress } }
                 : item));
         };
+        const startedAt = Date.now();
         markPhase("download", { loaded: 0, total: 0 });
+        setNodes((current) => current.map((item) => item.id === node.id
+            ? { ...item, metadata: { ...item.metadata, backgroundRemovalStartedAt: startedAt } }
+            : item));
         message.info("开始本地抠图，首次需下载约 90MB 模型（仅此一次）");
         // 云端图片地址通常不带 CORS 头，直接取会读不到像素；
         // 优先用本地缓存里的 Blob 构造同源地址（与裁剪同口径）。
@@ -1319,6 +1323,9 @@ export function useCanvasMediaTools({
         } finally {
             // 阶段标记与运行态必须在同一处清掉：漏清会让节点永久卡在「处理中」外观。
             markPhase(undefined);
+            setNodes((current) => current.map((item) => item.id === node.id
+                ? { ...item, metadata: { ...item.metadata, backgroundRemovalStartedAt: undefined } }
+                : item));
             localCutoutInFlightRef.current = false;
             setRunningNodeId(null);
             releaseSource();

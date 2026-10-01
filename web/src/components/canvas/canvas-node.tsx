@@ -453,6 +453,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                         <BackgroundRemovalPhaseOverlay
                             phase={data.metadata.backgroundRemovalPhase}
                             progress={data.metadata.backgroundRemovalProgress}
+                            startedAt={data.metadata.backgroundRemovalStartedAt ?? 0}
                         />
                     ) : null}
                     {/* Agent 未生成草稿角标（批10 A6）：拒绝/未提交的草稿节点在画布上无任何信号。
@@ -865,21 +866,41 @@ function nodeTypeIcon(type: CanvasNodeTypeId) {
 function BackgroundRemovalPhaseOverlay({
     phase,
     progress,
+    startedAt,
 }: {
     phase: "download" | "segment" | "encode";
     progress?: { loaded: number; total: number };
+    /** 本次抠图的起始时间戳；用于显示已用时（推理阶段无百分比，秒数是最实的「在动」信号）。 */
+    startedAt: number;
 }) {
+    // 推理阶段（segment/encode）ORT 无单次 run 的进度 API，拿不到百分比；
+    // 但这两段实测 5-6s 是主要耗时，只给静态文本用户会怀疑卡死。
+    // 用已用时秒数 + 不确定进度条表达「在动」（复用 canvas-active-task-panel 的 indeterminate 范式）。
+    const [elapsed, setElapsed] = useState(0);
+    const isIndeterminate = phase !== "download";
+
+    useEffect(() => {
+        if (!isIndeterminate) return;
+        setElapsed(Math.max(0, Math.round((Date.now() - startedAt) / 1000)));
+        const timer = window.setInterval(() => {
+            setElapsed(Math.max(0, Math.round((Date.now() - startedAt) / 1000)));
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [isIndeterminate, startedAt, phase]);
+
     // 下载阶段优先显示字节数：90MB 在慢环境下要等几分钟，
     // 只有脉冲圆点用户无法判断「在动」还是「卡住了」。
     const hasBytes = phase === "download" && progress?.total;
     const percent = hasBytes ? Math.min(100, Math.round((progress!.loaded / progress!.total) * 100)) : 0;
+    // 缓存命中时没有网络下载，但仍要读 Cache 进 WASM 内存（实测约 13s），
+    // 文案必须区分，否则等于告诉用户一件没发生的事。
     const label = hasBytes
-        ? `正在下载模型… ${(progress!.loaded / 1024 / 1024).toFixed(1)}MB / ${(progress!.total / 1024 / 1024).toFixed(1)}MB（${percent}%）`
+        ? `正在加载模型… ${(progress!.loaded / 1024 / 1024).toFixed(1)}MB / ${(progress!.total / 1024 / 1024).toFixed(1)}MB（${percent}%）`
         : phase === "download"
-            ? "正在下载模型…（首次约90MB）"
+            ? "正在加载模型…（首次约90MB）"
             : phase === "segment"
-                ? "正在识别主体…"
-                : "正在生成透明图…";
+                ? `正在识别主体…（已用 ${elapsed}s）`
+                : `正在生成透明图…（已用 ${elapsed}s）`;
     return (
         <div
             className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-black/45 px-3 backdrop-blur-[1px]"
@@ -890,14 +911,22 @@ function BackgroundRemovalPhaseOverlay({
             <div className="flex max-w-full flex-col items-center gap-2 rounded-[var(--r-md)] bg-black/60 px-3 py-2 text-center text-white">
                 <span className="size-2 animate-pulse rounded-full" style={{ background: "var(--status-loading)" }} />
                 <span className="text-[var(--fs-micro)] font-semibold leading-tight">{label}</span>
-                {hasBytes ? (
-                    <span className="h-1 w-24 overflow-hidden rounded-full bg-white/25">
+                <span className="h-1 w-24 overflow-hidden rounded-full bg-white/25">
+                    {hasBytes ? (
                         <span
                             className="block h-full rounded-full transition-[width] duration-300"
                             style={{ width: `${percent}%`, background: "var(--status-loading)" }}
                         />
-                    </span>
-                ) : null}
+                    ) : (
+                        // 无百分比时的不确定扫描（indeterminate）：复用既有的
+                        // canvas-task-progress-shimmer 关键帧（globals.css 已定义，
+                        // F-01 硬约束要求 globals.css 零改动）。
+                        <span
+                            className="canvas-task-progress-shimmer block h-full w-1/3 rounded-full"
+                            style={{ background: "var(--status-loading)" }}
+                        />
+                    )}
+                </span>
             </div>
         </div>
     );

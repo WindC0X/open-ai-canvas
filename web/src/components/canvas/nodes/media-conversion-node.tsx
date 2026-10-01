@@ -637,9 +637,9 @@ function cutoutProgressNotice(progress: CutoutProgress) {
             const loaded = formatMegabytes(progress.loaded ?? 0);
             const total = formatMegabytes(progress.total);
             const percent = Math.min(100, Math.round(((progress.loaded ?? 0) / progress.total) * 100));
-            return `正在下载抠图模型 ${loaded}MB / ${total}MB（${percent}%）`;
+            return `正在加载抠图模型 ${loaded}MB / ${total}MB（${percent}%）`;
         }
-        return "正在下载抠图模型（首次约 90MB，之后会缓存）";
+        return "正在加载抠图模型（首次约 90MB，之后走浏览器缓存）";
     }
     if (progress.phase === "segment") return "正在识别主体";
     return "正在生成透明 PNG";
