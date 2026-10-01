@@ -547,3 +547,86 @@ ORT 自托管为最后一个扩域项（因其本身即红线项）。
 ```
 f3693006 ← 4e82d705 ← 5441f2a8 ← 2c2dbf56 ← d510be32 ← 468f7cb5 ← 07c1a604（本地 main 基线）
 ```
+
+---
+
+## 12. 用户终验不通过 → 三项回修（2026-10-01，控制线裁定「换官方轮子」）
+
+用户真机终验（:3010）报三项，控制线一手定性全部成立，代码面解冻回修。
+
+### 12.1 缺陷1（阻塞）抠图结果错位/全黑 —— 改用官方 pipeline
+
+**现象**：6 次操作 4 次全黑（整图 alpha=0）+ 1 次丢主体（花束图只保留杯子）。
+
+**定位过程（一手测量，全部可复现）**：
+- processor 几何是**纯拉伸**（1024x512 输入 → 红色边界精确落在 64/512，非 letterbox）→ 几何错位假设证伪。
+- logits dims 恒为 `[1,1,512,512]`，NaN=0 / Inf=0（真实照片全部健康）→ 数值退化假设证伪。
+- 同一张图连续 3 次结果**逐位相同** → 「随机两极」实为**按图内容分化**，不是执行非确定性。
+- 并发 3/6 次（同一 worker 单例）结果与串行完全一致 → 单例污染假设证伪。
+- 真实照片批量（11 张，含 4000x6000）全部正常 → 尺寸/宽高比假设证伪。
+- 决定性对比：**同一用例下官方 pipeline 与手搓路径输出一致**（含小主体图同样全黑）
+  → 小主体全黑是 BiRefNet 显著性检测的模型边界，不是手搓 bug。
+
+**结论与处置**：控制线裁定换入官方 `pipeline("background-removal", MODEL_ID, { progress_callback })`。
+官方 `BackgroundRemovalPipeline._call` 只有 9 行（transformers.js:34639），
+蒙版在 `ImageSegmentationPipeline` 内部 resize 到「从原图捕获的尺寸」再 `putAlpha`
+贴回原图克隆，**对齐是构造性保证的**；手搓段（`logitsToMask` 手动 dims 解析 +
+手动 ImageData 布局 + `destination-in` 合成）每一处都是一次坐标数学的机会，
+已被整体删除（净 -83 行）。
+
+**兼容性一手验证**：`pipeline()` 工厂直接接受 `progress_callback`，实测 520 个
+`progress_total` 字节事件 / 93.9MB —— 字节级进度能力不损失。birefnet-lite-512 走
+通用路径兼容（模型类 `AutoModelForImageSegmentation` 与 `SUPPORTED_TASKS["background-removal"]`
+的 `model` 列表一致）。mask 质量反而更好：输出 alpha 呈双峰分布（54.96% 透明 /
+44.14% 实心，中心 254、角落 0），边缘为软边。
+
+### 12.2 缺陷2（阻塞）处理中源节点画面错乱（四象限镜像万花筒）
+
+**根因**：覆盖层 `backdrop-blur-[1px]` 位于 `canvas-world-layer` 的
+`transform: translate3d(...) scale(k)` 之内（canvas-live-viewport.ts:48），
+Chromium 对缩放祖先内的 `backdrop-filter` 做**分块重采样**，源节点画面呈四象限
+镜像态；覆盖层卸载即恢复，与用户描述完全一致。仓库本就知此问题并在交互态对节点
+面板统一 `backdrop-filter: none !important`（globals.css:11154），覆盖层不在该白名单内。
+
+**处置**：移除覆盖层的 `backdrop-blur-[1px]`，只靠 `bg-black/45` 压暗（覆盖层
+职责是「遮罩 + 报进度」，背景模糊非必需）。守卫断 `className` 面而非整段源码
+（注释会合法引用 `backdrop-filter` 说明原因）。
+
+### 12.3 缺陷3（轻）toast 文案撒谎
+
+**现象**：`message.info("开始本地抠图，首次需下载约 90MB 模型（仅此一次）")` 无条件弹，
+缓存命中（实测约 1s 直达识别段）也说「首次下载」。
+
+**处置**：新增模块级 `isCutoutModelCached()`，读 Cache Storage 的
+`transformers-cache` bucket（transformers.js `env.cacheKey` 默认值，键为完整 URL）
+`match` onnx 文件；命中时只报「开始本地抠图」，未命中才提首次下载。判定失败一律
+按未缓存处理（多提示比漏提示安全）。不引 transformers.js 内部状态。
+
+### 12.4 门禁与验证
+
+| 项 | 结果 |
+|---|---|
+| `tsc --noEmit` | 0 |
+| `bun run lint` | 0 |
+| `bun run build` | 成功（1m22s） |
+| 全量 `bun test`（web/ 内跑） | **2496 pass / 0 fail**（323 文件） |
+| 守卫（cutout-entry-integration + cutout-wiring） | 28 pass / 0 fail |
+| 生产产物 | `dist/assets/background-removal.worker-DrV01EF7.js` 无 `logitsToMask`/`destination-in`/`output.logits` |
+
+**UX 可见级验证**（控制线方法论要求，用应用真实 React 实例 + 真实画布缩放祖先结构）：
+5 个阶段用例全部渲染成功且文本精确匹配 ——
+`正在加载模型… 0.0MB / 93.9MB（0%）` / `正在加载模型… 37.2MB / 93.9MB（40%）` /
+`正在加载模型…（首次约90MB）` / `正在识别主体…（已用 7s）` / `正在生成透明图…（已用 8s）`；
+`role=status` 可见、进度条随字节推进、`backdrop-filter` 计算值为 `none`（缺陷2 修复生效）。
+截图 `/tmp/f01-fix-ux.png`。
+
+**端到端验收**（官方 pipeline，dev :3000）：竖图 3 次结果**完全一致**（1024x1536，
+透明 52.4% / 实心 44.1% 双峰）、横图正常、透明源图正常。
+
+### 12.5 环境事故（如实记录）
+
+排查期间 WSL 内存被灌满至 20GB 上限并卡死。**责任在 A 线**：探针脚本用
+`json/new` 新建标签页后只 `ws.close()` 而**从不关闭标签页**，25+ 个跑过抠图的页面
+各自常驻 98MB 模型 + ORT WASM 线性内存（只增不减），叠加 13 个独立 profile 的
+Chrome 实例。后续已加纪律：探针结束必 `json/close`，批量测试后确认内存回落
+（实测探针后 used 5.9GB / avail 14GB），并加内存看门狗（超 14GB 自动关 Chrome）。

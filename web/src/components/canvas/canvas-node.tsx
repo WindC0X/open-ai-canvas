@@ -903,7 +903,12 @@ function BackgroundRemovalPhaseOverlay({
                 : `正在生成透明图…（已用 ${elapsed}s）`;
     return (
         <div
-            className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-black/45 px-3 backdrop-blur-[1px]"
+            // 不要在这里加 backdrop-filter：本层位于 canvas-world-layer 的
+            // transform: scale() 之内，Chromium 会对缩放祖先内的 backdrop-filter
+            // 做分块重采样，源节点画面呈四象限镜像万花筒态（用户真机抽验 2026-10-01）。
+            // 仓库已在交互态对节点面板统一 backdrop-filter: none（globals.css），
+            // 覆盖层同样只靠半透明底色压暗，不做背景模糊。
+            className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-black/45 px-3"
             role="status"
             aria-live="polite"
             aria-label={label}

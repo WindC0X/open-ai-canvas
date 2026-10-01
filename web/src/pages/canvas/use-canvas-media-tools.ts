@@ -1283,7 +1283,14 @@ export function useCanvasMediaTools({
         setNodes((current) => current.map((item) => item.id === node.id
             ? { ...item, metadata: { ...item.metadata, backgroundRemovalStartedAt: startedAt } }
             : item));
-        message.info("开始本地抠图，首次需下载约 90MB 模型（仅此一次）");
+        // 文案必须区分缓存命中：实测命中时 1s 直达识别段，此时说「首次需下载 90MB」
+        // 是在告诉用户一件没发生的事（用户真机抽验 2026-10-01 缺陷3）。
+        // 只读 Cache Storage 做判定，不引 transformers.js 内部状态。
+        if (await isCutoutModelCached()) {
+            message.info("开始本地抠图");
+        } else {
+            message.info("开始本地抠图，首次需下载约 90MB 模型（仅此一次）");
+        }
         // 云端图片地址通常不带 CORS 头，直接取会读不到像素；
         // 优先用本地缓存里的 Blob 构造同源地址（与裁剪同口径）。
         let releaseSource = () => {};
@@ -1677,6 +1684,25 @@ export function useCanvasMediaTools({
         upscaleNodeId,
     };
 }
+
+/**
+ * 权重是否已落在浏览器 Cache Storage。
+ *
+ * transformers.js 用 Cache API 缓存模型文件（env.cacheKey 默认 transformers-cache，
+ * 键为完整 URL），所以这里查同一个 bucket。仅用于决定 toast 文案（是否提「首次下载」），
+ * 判定失败一律按未缓存处理——多提示一次下载说明比漏提示安全。
+ */
+async function isCutoutModelCached(): Promise<boolean> {
+    try {
+        if (typeof caches === "undefined") return false;
+        const cache = await caches.open("transformers-cache");
+        const onnxUrl = new URL("/models/birefnet-lite-512/onnx/model_fp16.onnx", window.location.origin).href;
+        return Boolean(await cache.match(onnxUrl));
+    } catch {
+        return false;
+    }
+}
+
 
 // 裁剪、切分等像素级操作要求图片同源可读：云端地址若不带 CORS 头，
 // canvas 会被标记为跨域，toDataURL 直接抛 SecurityError。

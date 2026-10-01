@@ -10,7 +10,7 @@
  * 运行期绝不直连 HuggingFace（控制线 Q-3 裁定的「模型分发国内可达」硬约束）。
  */
 
-import { AutoModel, AutoProcessor, RawImage, env } from "@huggingface/transformers";
+import { RawImage, env, pipeline } from "@huggingface/transformers";
 export type CutoutProgressPhase = "download" | "segment" | "encode";
 
 export type CutoutRequest = {
@@ -29,8 +29,16 @@ const MODEL_ID = "birefnet-lite-512";
 const MODEL_BASE_PATH = "/models/";
 
 type Segmenter = {
-    model: Awaited<ReturnType<typeof AutoModel.from_pretrained>>;
-    processor: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>>;
+    /**
+     * 官方 background-removal 管道。
+     *
+     * 为什么不用手搓的 logitsToMask + destination-in：官方 _call 只有 9 行，
+     * 蒙版在 ImageSegmentationPipeline 内部按「从原图捕获的尺寸」resize 后再
+     * 贴回同一张原图克隆，对齐是构造性保证的；手搓段自己解析 dims、自己布局
+     * ImageData、自己做合成，每个环节都是一次坐标数学的机会（用户真机抽验
+     * 2026-10-01 的「结果错位/全黑」就活在被它替代的那一段）。
+     */
+    pipe: Awaited<ReturnType<typeof pipeline<"background-removal">>>;
 };
 
 let segmenterPromise: Promise<Segmenter> | null = null;
@@ -78,19 +86,20 @@ function getSegmenter(onDownloadProgress?: (loaded: number, total: number) => vo
     if (!segmenterPromise) {
         segmenterPromise = (async () => {
             const webgpu = await detectWebGPU();
-            const model = await AutoModel.from_pretrained(MODEL_ID, {
+            // 工厂函数直接接受 progress_callback，字节级进度能力不丢（实测 520 个
+            // progress_total 事件 / 93.9MB）。
+            const pipe = await pipeline("background-removal", MODEL_ID, {
                 dtype: "fp16",
                 device: webgpu ? "webgpu" : "wasm",
                 progress_callback: (info: { status?: string; loaded?: number; total?: number }) => {
                     // transformers.js 的 progress_total 带累计字节（readResponse 逐块上报）；
-                    // 只转发下载阶段，后续 init/done 不占用「正在下载模型」文案。
+                    // 只转发下载阶段，后续 init/done 不占用「正在加载模型」文案。
                     if (info.status === "progress_total") {
                         onDownloadProgress?.(info.loaded ?? 0, info.total ?? 0);
                     }
                 },
             });
-            const processor = await AutoProcessor.from_pretrained(MODEL_ID);
-            return { model, processor };
+            return { pipe };
         })();
         // 初始化失败要允许下次重试，否则 worker 会永久卡在 rejected promise 上。
         segmenterPromise.catch(() => {
@@ -105,69 +114,18 @@ function post(response: CutoutResponse) {
 }
 
 /**
- * 把 sigmoid 后的 alpha 马特与原图按原分辨率合成，返回透明 PNG。
+ * 把官方 pipeline 的输出（RawImage：RGBA + alpha）转成 PNG Blob。
  *
- * Q-4 口径：模型只在 512 上推理（超出会 OOM），但合成回到原图尺寸——
- * 主体保真不受损，边缘精度受模型 512 输入限制。
+ * 对齐由 pipeline 保证：ImageSegmentationPipeline 把蒙版 resize 到「从原图捕获的
+ * 尺寸」再贴到原图克隆上（putAlpha），这里不再做任何坐标数学。
  */
-async function composeTransparentPng(
-    sourceBlob: Blob,
-    width: number,
-    height: number,
-    mask: { data: Uint8ClampedArray; width: number; height: number },
-): Promise<Blob> {
-    const image = await createImageBitmap(sourceBlob);
-    try {
-        const canvas = new OffscreenCanvas(width, height);
-        const context = canvas.getContext("2d");
-        if (!context) throw new Error("无法创建绘图上下文");
-
-        context.drawImage(image, 0, 0, width, height);
-
-        const maskCanvas = new OffscreenCanvas(mask.width, mask.height);
-        const maskContext = maskCanvas.getContext("2d");
-        if (!maskContext) throw new Error("无法创建蒙版上下文");
-        const maskImage = maskContext.createImageData(mask.width, mask.height);
-        // 蒙版只有单通道 alpha；RGB 填 0，alpha 用灰度值。
-        for (let index = 0; index < mask.width * mask.height; index += 1) {
-            const value = mask.data[index];
-            maskImage.data[index * 4] = 0;
-            maskImage.data[index * 4 + 1] = 0;
-            maskImage.data[index * 4 + 2] = 0;
-            maskImage.data[index * 4 + 3] = value;
-        }
-        maskContext.putImageData(maskImage, 0, 0);
-
-        // destination-in：保留原图中蒙版 alpha 非零的像素。
-        context.globalCompositeOperation = "destination-in";
-        context.drawImage(maskCanvas, 0, 0, mask.width, mask.height, 0, 0, width, height);
-        context.globalCompositeOperation = "source-over";
-
-        return await canvas.convertToBlob({ type: "image/png" });
-    } finally {
-        image.close();
-    }
-}
-
-/** 把 logits 张量转成 0-255 的 alpha 蒙版。 */
-function logitsToMask(
-    logits: { data: Float32Array | Uint8Array; dims: number[] },
-): { data: Uint8ClampedArray; width: number; height: number } {
-    // 输出维度可能是 [1, 1, H, W]、[1, H, W] 或 [H, W]，统一取末两维。
-    const dims = logits.dims;
-    const height = dims[dims.length - 2];
-    const width = dims[dims.length - 1];
-    const size = width * height;
-    const data = new Uint8ClampedArray(size);
-    const source = logits.data;
-    const offset = source.length - size;
-    for (let index = 0; index < size; index += 1) {
-        const logit = Number(source[offset + index]);
-        // sigmoid 得到 [0,1] 的 alpha，再映射到 0-255。
-        const alpha = 1 / (1 + Math.exp(-logit));
-        data[index] = Math.round(alpha * 255);
-    }
-    return { data, width, height };
+async function rawImageToPngBlob(image: { data: Uint8ClampedArray; width: number; height: number }): Promise<Blob> {
+    const canvas = new OffscreenCanvas(image.width, image.height);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("无法创建绘图上下文");
+    const pixels = new ImageData(new Uint8ClampedArray(image.data), image.width, image.height);
+    context.putImageData(pixels, 0, 0);
+    return await canvas.convertToBlob({ type: "image/png" });
 }
 
 self.onmessage = async (event: MessageEvent<CutoutRequest>) => {
@@ -179,29 +137,27 @@ self.onmessage = async (event: MessageEvent<CutoutRequest>) => {
             return;
         }
         const sourceBlob = await response.blob();
-        // 处理器只认 RawImage（它才有 .size）；传 ImageBitmap 会在 preprocess 里
-        // 以 undefined is not iterable 炸掉。原图尺寸从 RawImage 上取。
-        const image = await RawImage.fromBlob(sourceBlob);
-        const sourceWidth = image.width;
-        const sourceHeight = image.height;
+        // 原图尺寸在 pipeline 内部捕获（prepareImages），这里只用于回传元数据。
+        const source = await RawImage.fromBlob(sourceBlob);
+        const sourceWidth = source.width;
+        const sourceHeight = source.height;
 
         post({ id, kind: "progress", phase: "download" });
-        const { model, processor } = await getSegmenter((loaded, total) => {
+        const { pipe } = await getSegmenter((loaded, total) => {
             // 字节级进度：覆盖层显示「37.2MB / 94MB」而不是只转圈。
             post({ id, kind: "progress", phase: "download", loaded, total });
         });
 
         post({ id, kind: "progress", phase: "segment" });
-        // 处理器按模型原生尺寸（512）缩放；原图尺寸留给合成阶段。
-        const prepared = await processor(image);
-        const output = await model({ input_image: prepared.pixel_values });
-        const logits = output.logits ?? output.output_image ?? Object.values(output)[0];
+        // 官方管道：prepareImages → 分段 → 蒙版 resize 回原图尺寸 → putAlpha。
+        const output = await pipe(sourceBlob);
+        const cutout = Array.isArray(output) ? output[0] : output;
+        if (!cutout) throw new Error("本地抠图没有返回结果");
 
         post({ id, kind: "progress", phase: "encode" });
-        const mask = logitsToMask(logits as { data: Float32Array; dims: number[] });
-        const blob = await composeTransparentPng(sourceBlob, sourceWidth, sourceHeight, mask);
+        const blob = await rawImageToPngBlob(cutout);
 
-        post({ id, kind: "done", blob, width: sourceWidth, height: sourceHeight });
+        post({ id, kind: "done", blob, width: cutout.width || sourceWidth, height: cutout.height || sourceHeight });
     } catch (error) {
         const message = error instanceof Error ? error.message : "本地抠图失败";
         // 模型缺失是最常见的失败：文案要能直接告诉用户去跑 fetch 脚本。

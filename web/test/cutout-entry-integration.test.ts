@@ -217,3 +217,57 @@ describe("本地抠图进度反馈", () => {
         expect(tools).toContain("message.error");
     });
 });
+
+describe("抠图改用官方 pipeline（用户真机抽验 2026-10-01 三项回修）", () => {
+    test("worker 用官方 background-removal 管道，不自己解析 dims / 合成蒙版", () => {
+        const worker = read("workers/background-removal.worker.ts");
+        // 官方管道：对齐是构造性保证（蒙版 resize 回原图尺寸再 putAlpha）。
+        expect(worker).toContain('pipeline("background-removal"');
+        expect(worker).toContain("progress_callback");
+        // 手搓段必须整体消失：自己解析 dims、自己布局 ImageData、自己做 destination-in
+        // 合成，每一处都是一次坐标数学的机会（缺陷1「结果错位/全黑」的宿主）。
+        // 断代码面而不是整文件：注释里会合法地引用这些名字（同 Xbot/jsDelivr 守卫教训）。
+        const code = worker
+            .split("\n")
+            .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
+            .join("\n");
+        expect(code).not.toContain("logitsToMask");
+        expect(code).not.toContain("composeTransparentPng");
+        expect(code).not.toContain("destination-in");
+        expect(code).not.toContain("output.logits");
+    });
+
+    test("官方管道仍保留自托管 env 三件套与字节进度", () => {
+        const worker = read("workers/background-removal.worker.ts");
+        expect(worker).toContain("env.allowRemoteModels = false");
+        expect(worker).toContain("env.localModelPath");
+        expect(worker).toContain("wasmPaths");
+        expect(worker).toContain("progress_total");
+    });
+
+    test("覆盖层不用 backdrop-filter（缩放祖先内会出四象限镜像伪影）", () => {
+        const node = read("components/canvas/canvas-node.tsx");
+        const start = node.indexOf("function BackgroundRemovalPhaseOverlay");
+        const body = node.slice(start, node.indexOf("function NodeStatusBadge", start));
+        // 节点渲染在 canvas-world-layer 的 transform: scale() 之内，Chromium 对缩放
+        // 祖先内的 backdrop-filter 做分块重采样，源节点画面会呈四象限镜像万花筒态。
+        // 断 className 面而不是整段：注释里会说明为什么不能用 backdrop-filter。
+        const classNames = body.match(/className="[^"]*"/g) ?? [];
+        expect(classNames.join(" ")).not.toContain("backdrop-blur");
+        expect(classNames.join(" ")).not.toContain("backdrop-filter");
+        expect(classNames.join(" ")).toContain("bg-black/45");
+    });
+
+    test("toast 区分缓存命中：已缓存时不说「首次需下载」", () => {
+        const tools = read("pages/canvas/use-canvas-media-tools.ts");
+        expect(tools).toContain("isCutoutModelCached");
+        // 判定必须走 Cache Storage 的公开面（transformers.js 用同一个 bucket 缓存权重）
+        expect(tools).toContain("transformers-cache");
+        expect(tools).toContain("model_fp16.onnx");
+        // 两个分支都要在：命中时只报「开始本地抠图」，未命中才提首次下载
+        const start = tools.indexOf("const removeBackgroundLocally");
+        const body = tools.slice(start, tools.indexOf("const openBackgroundRemovalGenerative", start));
+        expect(body).toContain('message.info("开始本地抠图")');
+        expect(body).toContain("首次需下载约 90MB 模型（仅此一次）");
+    });
+});
