@@ -30,3 +30,7 @@
 - 入口 = S1 starter 卡「商品场景图」（`canvas-ecom-starters.ts` 已有 4 卡 dormant 数据层，含 scene 卡）。
 - 尺寸预设：`ECOM_CHANNEL_PRESETS`（`image-size-presets.ts`）现成。
 - 直线流程要求同 PRODUCT.md 设计原则（小白零画布负担）。
+
+## 6. 统一任务面约束（2026-10-01 MASTER-PLAN v1.6 新增，F-02 生效）
+
+F-02 场景图的生成任务呈现一律按「统一任务面」设计（用户拍板）：不单独为云任务造 UI，呈现位与 F-01 的节点覆盖层同族（画布内角标/覆盖层 + 任务中心收敛），执行位置（云渠道）只作元数据标签（「云端 · 0.0XX 积分」）。详见 MASTER-PLAN v1.6 复核块第 5 条。
