@@ -28,7 +28,16 @@ export class CutoutRuntimeError extends Error {
 
 export type RunBrowserCutoutOptions = {
     signal?: AbortSignal;
-    onProgress?: (phase: CutoutProgressPhase) => void;
+    onProgress?: (progress: CutoutProgress) => void;
+};
+
+/** 进度事件：阶段 + 下载字节（下载阶段才有字节数）。 */
+export type CutoutProgress = {
+    phase: CutoutProgressPhase;
+    /** 已下载字节；仅下载阶段有值。 */
+    loaded?: number;
+    /** 总字节；仅下载阶段有值。 */
+    total?: number;
 };
 
 type PendingRequest = {
@@ -36,7 +45,7 @@ type PendingRequest = {
     reject: (error: Error) => void;
     cleanup: () => void;
     /** 进度回调随请求一起存放和清理，避免 id 复用时串到别的请求上。 */
-    onProgress?: (phase: CutoutProgressPhase) => void;
+    onProgress?: (progress: CutoutProgress) => void;
 };
 
 let cutoutWorker: Worker | null = null;
@@ -78,7 +87,7 @@ function getCutoutWorker() {
         const request = pendingRequests.get(id);
         if (!request) return;
         if (event.data.kind === "progress") {
-            request.onProgress?.(event.data.phase);
+            request.onProgress?.({ phase: event.data.phase, loaded: event.data.loaded, total: event.data.total });
             return;
         }
         pendingRequests.delete(id);

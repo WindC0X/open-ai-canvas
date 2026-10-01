@@ -20,7 +20,7 @@ export type CutoutRequest = {
 };
 
 export type CutoutResponse =
-    | { id: number; kind: "progress"; phase: CutoutProgressPhase; ratio?: number }
+    | { id: number; kind: "progress"; phase: CutoutProgressPhase; ratio?: number; loaded?: number; total?: number }
     | { id: number; kind: "done"; blob: Blob; width: number; height: number }
     | { id: number; kind: "error"; message: string; errorCode: string };
 
@@ -54,16 +54,19 @@ async function detectWebGPU(): Promise<boolean> {
     }
 }
 
-function getSegmenter(): Promise<Segmenter> {
+function getSegmenter(onDownloadProgress?: (loaded: number, total: number) => void): Promise<Segmenter> {
     if (!segmenterPromise) {
         segmenterPromise = (async () => {
             const webgpu = await detectWebGPU();
             const model = await AutoModel.from_pretrained(MODEL_ID, {
                 dtype: "fp16",
                 device: webgpu ? "webgpu" : "wasm",
-                progress_callback: (info: { status?: string }) => {
-                    // 只在下载阶段回报进度；后续 init/done 事件不占用「正在下载模型」文案。
-                    if (info.status === "progress_total") self.postMessage({ id: -1, kind: "progress", phase: "download" });
+                progress_callback: (info: { status?: string; loaded?: number; total?: number }) => {
+                    // transformers.js 的 progress_total 带累计字节（readResponse 逐块上报）；
+                    // 只转发下载阶段，后续 init/done 不占用「正在下载模型」文案。
+                    if (info.status === "progress_total") {
+                        onDownloadProgress?.(info.loaded ?? 0, info.total ?? 0);
+                    }
                 },
             });
             const processor = await AutoProcessor.from_pretrained(MODEL_ID);
@@ -163,7 +166,10 @@ self.onmessage = async (event: MessageEvent<CutoutRequest>) => {
         const sourceHeight = image.height;
 
         post({ id, kind: "progress", phase: "download" });
-        const { model, processor } = await getSegmenter();
+        const { model, processor } = await getSegmenter((loaded, total) => {
+            // 字节级进度：覆盖层显示「37.2MB / 94MB」而不是只转圈。
+            post({ id, kind: "progress", phase: "download", loaded, total });
+        });
 
         post({ id, kind: "progress", phase: "segment" });
         // 处理器按模型原生尺寸（512）缩放；原图尺寸留给合成阶段。

@@ -75,7 +75,7 @@ describe("去除背景入口整合", () => {
         const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
         // 走本地 worker，不是生成任务；带 onProgress 选项（进度反馈缺陷裁定）。
         expect(tools).toContain("runBrowserCutout(source.url, {");
-        expect(tools).toContain("onProgress: (phase) => markPhase(phase)");
+        expect(tools).toContain("onProgress: ({ phase, loaded, total }) => markPhase(");
         expect(tools).toContain('backgroundRemoval: { mode: "local" }');
         // 结果作为子节点连接并选中（与裁剪/标注同范式，不弹对话框）。
         expect(tools).toContain("fromNodeId: node.id, toNodeId: childId");
@@ -135,13 +135,42 @@ describe("本地抠图进度反馈", () => {
 
     test("worker 进度接到源节点（不是接了就丢）", () => {
         const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
-        // onProgress 必须真的传进 runBrowserCutout。
-        expect(tools).toContain("onProgress: (phase) => markPhase(phase)");
+        // onProgress 必须真的传进 runBrowserCutout，且解构出字节数。
+        expect(tools).toContain("onProgress: ({ phase, loaded, total }) => markPhase(");
         // 阶段要落到节点 metadata，UI 才拿得到。
         expect(tools).toContain("backgroundRemovalPhase: phase");
+        expect(tools).toContain("backgroundRemovalProgress: progress");
         // 覆盖层由该字段驱动。
         const node = flat(read("components/canvas/canvas-node.tsx"));
         expect(node).toContain("data.metadata?.backgroundRemovalPhase");
+        expect(node).toContain("progress={data.metadata.backgroundRemovalProgress}");
+    });
+
+    test("下载阶段显示字节数与百分比（不是只转圈）", () => {
+        const node = flat(read("components/canvas/canvas-node.tsx"));
+        // 覆盖层接受 progress 并在有 total 时渲染「x.xMB / y.yMB（N%）」。
+        expect(node).toContain("progress?: { loaded: number; total: number }");
+        expect(node).toContain("MB / ");
+        expect(node).toContain("（${percent}%）");
+        // 进度条随百分比走。
+        expect(node).toContain("transition-[width]");
+
+        // worker 必须把 transformers.js 的字节进度转发出来（原先只发 phase，字节被丢掉）。
+        const worker = flat(read("workers/background-removal.worker.ts"));
+        expect(worker).toContain("progress_callback");
+        expect(worker).toContain("loaded");
+        expect(worker).toContain("total");
+        expect(worker).toContain('phase: "download", loaded, total');
+
+        // 运行时把字节透传给调用方。
+        const runtime = flat(read("services/cutout-runtime.ts"));
+        expect(runtime).toContain("loaded?: number");
+        expect(runtime).toContain("total?: number");
+
+        // 媒体转换节点的 notice 也带字节（另一条呈现路径）。
+        const mc = flat(read("components/canvas/nodes/media-conversion-node.tsx"));
+        expect(mc).toContain("MB / ");
+        expect(mc).toContain("formatMegabytes");
     });
 
     test("阶段标记与运行态在同一 finally 里清理（漏清会永久卡「处理中」）", () => {

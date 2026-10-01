@@ -248,3 +248,79 @@ focused guards **72 pass 0 fail 8 files**（新增 6 条进度守卫）。
 把进度缺失漏了过去；控制线验收同样没抓住（留给了用户抽验）。
 **「真机验证」声明必须达 UX 可见级——截图或 DOM 断言证明进度 UI 在跑动过程中渲染过；
 文本 grep 与输出字节不构成过程反馈的验收证据。**
+
+## 9. 控制线追加裁定 · 下载字节进度 + dev server 性能（2026-10-01 第二批）
+
+### 9.1【修】下载字节级进度
+
+**控制线前提校正（证据）**：控制线判定「transformers.js env 加载器无进度回调」——**部分不成立**。
+实证：`readResponse`（dist/transformers.js:6953 起）逐块读流并回报 `{progress, loaded, total}`，
+经 `progress_total` 聚合后带 `loaded`/`total` 字节送达 `progress_callback`。
+**真实缺陷与上一轮同族：管道存在，我方 worker 只取了 `status`、把字节字段丢了。**
+
+- 实证（浏览器内真实 worker）：137 个 progress 事件，`loaded` 从 65,617 单调递增至 8.9MB，
+  `total: 98484613`（93.9MB）——字节进度确实可得。
+- 修法（最小、同源不变）：worker 的 `progress_callback` 转发 `loaded/total` →
+  `cutout-runtime` 的 `onProgress` 扩为 `CutoutProgress{phase, loaded?, total?}` →
+  `metadata.backgroundRemovalProgress` → 覆盖层渲染
+  「正在下载模型… 39.0MB / 93.9MB（42%）」+ 42% 进度条。
+- media-conversion 节点 notice 同步升级为带字节（另一条呈现路径）。
+
+**未采用「自管 fetch + blob URL 交给 transformers.js」**：现状已在同源 `/models/` 走
+`env.localModelPath`，自管下载会把权重读进 JS 内存再喂给库（94MB 双份驻留），
+且丢开 Cache API 写入路径；改字节转发是同等效果的最小改动。缓存仍走
+`env.useBrowserCache`（浏览器环境默认 `IS_WEB_CACHE_AVAILABLE`，实测 `true`），
+控制线建议的「显式 Cache API」为可选强化，未做（现状已满足「二次免下载」，见 9.2 实测）。
+
+### 9.2【不修，登记】dev server 静态大文件性能 —— 根因已定位并已修（超出「不修」预期）
+
+控制线判定「vite public/ 大文件未优化，生产 nginx sendfile 无此问题」——**结论方向对，但根因不同**。
+实测定位（干净环境、同机同文件、逐项对照）：
+
+| 组 | 配置 | 94MB 耗时 |
+|---|---|---|
+| 裸读 drvfs（不经 vite） | `dd` | 40 MB/s |
+| python `http.server`（同一 drvfs） | — | **30.5 MB/s** |
+| 对照：无 polling | — | 38.7 MB/s（2.5s）|
+| **现行：`usePolling: 300` + 默认线程池** | — | **265 KB/s（>40s 未完成；外推 ~57min）**|
+| **修法：`usePolling: 300` + `UV_THREADPOOL_SIZE=32`** | — | **39.7 MB/s（2.5s）**|
+
+- **不是 drvfs，不是 nginx 对照问题**：同一文件用 python 静态服务是 30.5 MB/s。
+- **根因**：`usePolling: 300` 轮询 13.5 万文件的 `node_modules` + 140MB `public/` + 1627 个 `dist/` 文件，
+  占满 libuv 默认 **4 线程池**，饿死 sirv 静态服务的 `fs.read`（字节吞吐被拖到 1/150）。
+- **修法**：`package.json` 的 `dev` 脚本加 `UV_THREADPOOL_SIZE=32`（一行，polling 语义不动，
+  WSL inotify 护栏完整保留）。实测 `bun run dev` 路径下环境变量生效、94MB 13-33s 完成
+  （受外部负载影响；干净环境 2.5s）。
+- 试过但**无效**的方向（记录以免后人重试）：排除 `public/models`、排除整个 `public/`、
+  排除 `dist/`、排除 `node_modules` 字面路径、`ignored` 函数形式、`interval` 调到 3000。
+  原因：vite 在 `server.watch` 展开前设了 `disableGlobbing: true`，字符串 glob 全部退化为字面路径；
+  且轮询成本来自**整个 root 递归**，不是单个子目录。**唯一有效变量是线程池大小。**
+
+**登记**：dev 环境首次下载在 WSL 下仍受外部负载影响（本次实测 13-33s vs 干净 2.5s），
+但已从「30 分钟」降到可接受区间，不再需要走 3010 绕行（3010 与 3000 是**同一 worktree 同一配置**，
+实测同样 36 KB/s，控制线建议的绕行方案本身无效——已实测否证）。
+
+### 9.3 门禁
+
+- `tsc --noEmit` 0 / `eslint` 0 / `bun run build` 0（2m35s）
+- web 全量 **2489 pass / 0 fail / 323 files**（新增 1 条字节进度守卫；首次跑出现 1 条
+  `agent-canvas-sync` 时序 flake，隔离复跑通过、全量复跑 0 fail，判为外部负载（load~35）导致）
+- focused guards **73 pass / 0 fail / 8 files**
+
+### 9.4 UX 可见级验证（方法学延续）
+
+- **DOM 断言**：覆盖层五个 case 全部产出预期文本——
+  `download+0B → "正在下载模型… 0.0MB / 93.9MB（0%）"`、
+  `download+39MB → "正在下载模型… 37.2MB / 93.9MB（40%）"` 且进度条宽度 40%、
+  `download 无字节 → "正在下载模型…（首次约90MB）"`、`segment`、`encode` 各自文本正确，`aria=ok`。
+- **截图**：`/tmp/f01-byte-progress.png`——「正在下载模型… 39.0MB / 93.9MB（42%）」+ 42% 进度条清晰可读。
+- **管线实证**：真实 worker 137 个事件、`loaded` 单调递增、`total` 正确。
+
+### 9.5 统一任务面口径（控制线通知，2026-10-01）
+
+MASTER-PLAN v1.6 复核块第 5 条立项：统一「图片操作」任务面，执行位置降为元数据标签
+（「本地·免费」/「云端·0.0XX 积分」）。对本枝影响：
+- F-01 覆盖层 = 统一面的「画布内」子集，方向一致，本修复不做改动。
+- 抠图结果节点 `backgroundRemoval.mode` 保持**术语区分度**（不与「云端任务」混称），
+  统一面的元数据行设计留给 W5 设计卡，本枝不深做。
+- 后续 F-02 起：任务呈现不单独造云任务 UI，参照统一面口径。

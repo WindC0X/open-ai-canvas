@@ -450,7 +450,10 @@ export const CanvasNode = React.memo(function CanvasNode({
                     {/* 本地抠图阶段覆盖层：首次要下 90MB，全程可能数十秒到数分钟。
                         没有可读阶段文本时，用户点完只看得到菜单关闭（用户真机抽验 2026-10-01）。*/}
                     {data.metadata?.backgroundRemovalPhase ? (
-                        <BackgroundRemovalPhaseOverlay phase={data.metadata.backgroundRemovalPhase} />
+                        <BackgroundRemovalPhaseOverlay
+                            phase={data.metadata.backgroundRemovalPhase}
+                            progress={data.metadata.backgroundRemovalProgress}
+                        />
                     ) : null}
                     {/* Agent 未生成草稿角标（批10 A6）：拒绝/未提交的草稿节点在画布上无任何信号。
                         草稿判定 = 带 agentDraftRunId 且未提交任务（后端提交时删除该键，见 cloud_agent_media.go）。*/}
@@ -859,12 +862,24 @@ function nodeTypeIcon(type: CanvasNodeTypeId) {
  * 权重首次下载约 90MB，推理全程可能数十秒到数分钟；只给一个 pulse 圆点不够，
  * 必须把当前阶段写成可读文本，否则用户无法区分「在跑」和「点击丢了」。
  */
-function BackgroundRemovalPhaseOverlay({ phase }: { phase: "download" | "segment" | "encode" }) {
-    const label = phase === "download"
-        ? "正在下载模型…（首次约90MB）"
-        : phase === "segment"
-            ? "正在识别主体…"
-            : "正在生成透明图…";
+function BackgroundRemovalPhaseOverlay({
+    phase,
+    progress,
+}: {
+    phase: "download" | "segment" | "encode";
+    progress?: { loaded: number; total: number };
+}) {
+    // 下载阶段优先显示字节数：90MB 在慢环境下要等几分钟，
+    // 只有脉冲圆点用户无法判断「在动」还是「卡住了」。
+    const hasBytes = phase === "download" && progress?.total;
+    const percent = hasBytes ? Math.min(100, Math.round((progress!.loaded / progress!.total) * 100)) : 0;
+    const label = hasBytes
+        ? `正在下载模型… ${(progress!.loaded / 1024 / 1024).toFixed(1)}MB / ${(progress!.total / 1024 / 1024).toFixed(1)}MB（${percent}%）`
+        : phase === "download"
+            ? "正在下载模型…（首次约90MB）"
+            : phase === "segment"
+                ? "正在识别主体…"
+                : "正在生成透明图…";
     return (
         <div
             className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-black/45 px-3 backdrop-blur-[1px]"
@@ -875,6 +890,14 @@ function BackgroundRemovalPhaseOverlay({ phase }: { phase: "download" | "segment
             <div className="flex max-w-full flex-col items-center gap-2 rounded-[var(--r-md)] bg-black/60 px-3 py-2 text-center text-white">
                 <span className="size-2 animate-pulse rounded-full" style={{ background: "var(--status-loading)" }} />
                 <span className="text-[var(--fs-micro)] font-semibold leading-tight">{label}</span>
+                {hasBytes ? (
+                    <span className="h-1 w-24 overflow-hidden rounded-full bg-white/25">
+                        <span
+                            className="block h-full rounded-full transition-[width] duration-300"
+                            style={{ width: `${percent}%`, background: "var(--status-loading)" }}
+                        />
+                    </span>
+                ) : null}
             </div>
         </div>
     );

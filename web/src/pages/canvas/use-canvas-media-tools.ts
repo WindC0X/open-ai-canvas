@@ -1270,12 +1270,15 @@ export function useCanvasMediaTools({
         setRunningNodeId(node.id);
         // 首次要下约 90MB 权重，全程可能数十秒到数分钟；没有可见反馈用户会以为点击丢失
         // （用户真机抽验 2026-10-01）。启动就写阶段，后续由 worker 的 onProgress 推进。
-        const markPhase = (phase: CanvasNodeMetadata["backgroundRemovalPhase"]) => {
+        const markPhase = (
+            phase: CanvasNodeMetadata["backgroundRemovalPhase"],
+            progress?: CanvasNodeMetadata["backgroundRemovalProgress"],
+        ) => {
             setNodes((current) => current.map((item) => item.id === node.id
-                ? { ...item, metadata: { ...item.metadata, backgroundRemovalPhase: phase } }
+                ? { ...item, metadata: { ...item.metadata, backgroundRemovalPhase: phase, backgroundRemovalProgress: progress } }
                 : item));
         };
-        markPhase("download");
+        markPhase("download", { loaded: 0, total: 0 });
         message.info("开始本地抠图，首次需下载约 90MB 模型（仅此一次）");
         // 云端图片地址通常不带 CORS 头，直接取会读不到像素；
         // 优先用本地缓存里的 Blob 构造同源地址（与裁剪同口径）。
@@ -1284,7 +1287,11 @@ export function useCanvasMediaTools({
             const source = await resolveCroppableImageSource(node);
             releaseSource = source.release;
             const result = await runBrowserCutout(source.url, {
-                onProgress: (phase) => markPhase(phase),
+                // 下载阶段带字节数；后续阶段不带，进度显示自动隐去。
+                onProgress: ({ phase, loaded, total }) => markPhase(
+                    phase,
+                    phase === "download" && total ? { loaded: loaded ?? 0, total } : undefined,
+                ),
             });
             const image = await uploadImage(result.blob);
             const size = fitNodeSize(image.width, image.height, node.width, node.height);

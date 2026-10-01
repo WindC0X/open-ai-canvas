@@ -289,8 +289,11 @@ export type CanvasNodeMetadata = {
      *
      * 首次要下 90MB 权重，全程可能持续数十秒到数分钟；没有阶段文本的话
      * 用户只能看到菜单关闭、什么都不发生（用户真机抽验 2026-10-01 抓获）。
+     * download 阶段额外带字节数，覆盖层显示实际进度而非只转圈。
      */
     backgroundRemovalPhase?: "download" | "segment" | "encode";
+    /** 下载阶段已下载字节 / 总字节（仅 download 阶段有值）。 */
+    backgroundRemovalProgress?: { loaded: number; total: number };
     failedPromptFingerprint?: string;
     lastGenerationRequestFingerprint?: string;
     fontSize?: number;

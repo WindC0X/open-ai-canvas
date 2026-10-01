@@ -17,7 +17,7 @@ import {
 import { convertImageLocally, LocalImageConversionError } from "@/lib/media-conversion/local-converter";
 import { composeWhiteBackground, planWhiteBackground } from "@/lib/media-conversion/cutout-white-background";
 import { getActiveUserScope } from "@/lib/user-scope";
-import { runBrowserCutout, CutoutRuntimeError, type CutoutProgressPhase } from "@/services/cutout-runtime";
+import { runBrowserCutout, CutoutRuntimeError, type CutoutProgress } from "@/services/cutout-runtime";
 import { runLocalDepthEstimation } from "@/services/depth-runtime";
 import { runLocalLineartEstimation } from "@/services/lineart-runtime";
 import { runLocalPoseEstimation } from "@/services/pose-runtime";
@@ -180,9 +180,9 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
                     // 抠图跑在浏览器 WASM 里，首次要下 94MB 权重；三段进度走 notice 文案。
                     ? await runBrowserCutout(sourceUrl, {
                         signal: controller.signal,
-                        onProgress: (phase) => {
+                        onProgress: (progress) => {
                             if (controller.signal.aborted) return;
-                            setNotice(cutoutProgressNotice(phase));
+                            setNotice(cutoutProgressNotice(progress));
                         },
                     })
                 : await convertImageLocally(sourceUrl, state.operation, { signal: controller.signal, maxDimension: 1024 });
@@ -630,10 +630,23 @@ function localRuntimeNotice(error: LocalRuntimeClientError, connection: ReturnTy
  * 首次使用要下约 90MB 权重，进度必须可见；之后模型走浏览器缓存，
  * 下载阶段一闪而过，用户基本只会看到后两段。
  */
-function cutoutProgressNotice(phase: CutoutProgressPhase) {
-    if (phase === "download") return "正在下载抠图模型（首次约 90MB，之后会缓存）";
-    if (phase === "segment") return "正在识别主体";
+function cutoutProgressNotice(progress: CutoutProgress) {
+    if (progress.phase === "download") {
+        // 字节数可见：90MB 在慢环境下要等几分钟，只写「下载中」用户无法判断是否在动。
+        if (progress.total) {
+            const loaded = formatMegabytes(progress.loaded ?? 0);
+            const total = formatMegabytes(progress.total);
+            const percent = Math.min(100, Math.round(((progress.loaded ?? 0) / progress.total) * 100));
+            return `正在下载抠图模型 ${loaded}MB / ${total}MB（${percent}%）`;
+        }
+        return "正在下载抠图模型（首次约 90MB，之后会缓存）";
+    }
+    if (progress.phase === "segment") return "正在识别主体";
     return "正在生成透明 PNG";
+}
+
+function formatMegabytes(bytes: number) {
+    return (bytes / 1024 / 1024).toFixed(1);
 }
 
 function cutoutRuntimeNotice(error: CutoutRuntimeError) {
