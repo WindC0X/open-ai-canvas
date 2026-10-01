@@ -64,7 +64,7 @@ function normalizeMaskEditQuality(quality: string | undefined, size: string | un
     return pixels <= 2_000_000 ? "1k" : pixels <= 4_300_000 ? "2k" : pixels <= 8_294_400 ? "4k" : quality || "auto";
 }
 import { defaultConfig, resolveModelRequestConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
-import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type ContextMenuState } from "@/types/canvas";
+import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type ContextMenuState } from "@/types/canvas";
 import type { StartCanvasUploadStatus } from "./use-canvas-upload";
 
 type UseCanvasMediaToolsOptions = {
@@ -1268,13 +1268,24 @@ export function useCanvasMediaTools({
         }
         localCutoutInFlightRef.current = true;
         setRunningNodeId(node.id);
+        // 首次要下约 90MB 权重，全程可能数十秒到数分钟；没有可见反馈用户会以为点击丢失
+        // （用户真机抽验 2026-10-01）。启动就写阶段，后续由 worker 的 onProgress 推进。
+        const markPhase = (phase: CanvasNodeMetadata["backgroundRemovalPhase"]) => {
+            setNodes((current) => current.map((item) => item.id === node.id
+                ? { ...item, metadata: { ...item.metadata, backgroundRemovalPhase: phase } }
+                : item));
+        };
+        markPhase("download");
+        message.info("开始本地抠图，首次需下载约 90MB 模型（仅此一次）");
         // 云端图片地址通常不带 CORS 头，直接取会读不到像素；
         // 优先用本地缓存里的 Blob 构造同源地址（与裁剪同口径）。
         let releaseSource = () => {};
         try {
             const source = await resolveCroppableImageSource(node);
             releaseSource = source.release;
-            const result = await runBrowserCutout(source.url);
+            const result = await runBrowserCutout(source.url, {
+                onProgress: (phase) => markPhase(phase),
+            });
             const image = await uploadImage(result.blob);
             const size = fitNodeSize(image.width, image.height, node.width, node.height);
             const childId = nanoid();
@@ -1299,6 +1310,8 @@ export function useCanvasMediaTools({
             if (error instanceof DOMException && error.name === "AbortError") return;
             message.error(error instanceof Error ? `本地抠图失败：${error.message}` : "本地抠图失败，请重试");
         } finally {
+            // 阶段标记与运行态必须在同一处清掉：漏清会让节点永久卡在「处理中」外观。
+            markPhase(undefined);
             localCutoutInFlightRef.current = false;
             setRunningNodeId(null);
             releaseSource();

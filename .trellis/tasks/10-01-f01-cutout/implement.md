@@ -208,3 +208,43 @@ focused guards 66 pass 0 fail 8 files。
 **未解释项**：本地推理墙钟时间在 drvfs/WSL 上波动极大（19.8s / 139.4s / 457.7s / 571.6s），
 但输出字节完全一致（6357B，透明 87.6% / 主体 11.7%）。判定为环境特性（同 drvfs Pi 导入
 65907ms vs ext4 729ms 的既有教训），非代码缺陷；**未做性能验收**。
+
+## 8. 控制线缺陷裁定 · 进度反馈缺失（2026-10-01，阻塞级）
+
+**现象**（用户真机抽验）：点「去除背景」后菜单关闭，全程零视觉反馈（无进度条/无节点处理态/无启动提示）；
+二次点击才见重入守卫 toast——操作在跑但用户完全看不见。19s-570s 的静默操作不可接受。
+
+**定性**（控制线代码核验，准确）：worker→runtime 的 `onProgress` 三段进度管道完整存在
+（`cutout-runtime.ts:31/39/80-81`），但 `removeBackgroundLocally` 调 `runBrowserCutout` 时未传
+`onProgress`——进度事件无人消费；`setRunningNodeId` 的生成态视觉在普通图片节点上不可感知。
+**接线缺失，不是能力缺失。**
+
+**修复**：
+
+| # | 要求 | 落点 |
+|---|---|---|
+| 1 | 启动反馈 | `message.info("开始本地抠图，首次需下载约 90MB 模型（仅此一次）")` |
+| 2 | 三段进度可见 | `onProgress: (phase) => markPhase(phase)` → 写节点 `metadata.backgroundRemovalPhase` → `BackgroundRemovalPhaseOverlay`（`canvas-node.tsx`，`role="status"` + `aria-live="polite"`）渲染可读文本 |
+| 3 | 完成/失败 | 子节点出现即天然反馈 + 完成 toast；失败走 `message.error`，`finally` 清理阶段标记/inFlight/runningNodeId |
+| 4 | 重入守卫 | 保留 |
+| 5 | 门禁 | 见下 |
+
+**阶段文本**（必须可读，非微弱边框效果）：
+`正在下载模型…（首次约90MB）` / `正在识别主体…` / `正在生成透明图…`
+
+**缓存前提核实**：`env.useBrowserCache` 在浏览器环境默认 `IS_WEB_CACHE_AVAILABLE`（源码确认，
+浏览器内实测 `true`），故「仅此一次」文案成立——否则每次重下 94MB，文案即为谎言。
+
+**门禁复跑**：tsc 0 / eslint 0 / build 0（1m24s）/ web 全量 **2488 pass 0 fail 323 files** /
+focused guards **72 pass 0 fail 8 files**（新增 6 条进度守卫）。
+
+**UX 可见级验证**（本次教训入档的方法学）：
+- **DOM 断言**：把产品源码的组件定义逐行切出、等价转译后注入真实页面渲染，
+  三段 phase 全部产出预期文本、`role=status`、非零可见尺寸、半透明遮罩生效 —— 全 OK。
+- **截图**：`/tmp/f01-progress-overlay.png`，节点上覆盖层文本「正在下载模型…（首次约90MB）」清晰可读。
+- **管线实证**：真实 worker 驱动，首个消息即 `{phase:"download"}`。
+
+**教训（两线各记一笔）**：上一轮的「真机验证(headless Chrome)」只比对了 label/description 文案，
+把进度缺失漏了过去；控制线验收同样没抓住（留给了用户抽验）。
+**「真机验证」声明必须达 UX 可见级——截图或 DOM 断言证明进度 UI 在跑动过程中渲染过；
+文本 grep 与输出字节不构成过程反馈的验收证据。**

@@ -284,6 +284,13 @@ export type CanvasNodeMetadata = {
      * generative = AI 模型重画（消耗积分）。结果节点据此提供「用 AI 模型重新去除」入口。
      */
     backgroundRemoval?: { mode: "local" | "generative" };
+    /**
+     * 本地抠图的进行中阶段（仅运行时写，完成后清空）。
+     *
+     * 首次要下 90MB 权重，全程可能持续数十秒到数分钟；没有阶段文本的话
+     * 用户只能看到菜单关闭、什么都不发生（用户真机抽验 2026-10-01 抓获）。
+     */
+    backgroundRemovalPhase?: "download" | "segment" | "encode";
     failedPromptFingerprint?: string;
     lastGenerationRequestFingerprint?: string;
     fontSize?: number;

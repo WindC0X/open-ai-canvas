@@ -447,6 +447,11 @@ export const CanvasNode = React.memo(function CanvasNode({
                     {showChrome && data.metadata?.status && data.metadata.status !== "idle" && data.type !== CanvasNodeType.Frame ? (
                         <NodeStatusBadge status={data.metadata.status} />
                     ) : null}
+                    {/* 本地抠图阶段覆盖层：首次要下 90MB，全程可能数十秒到数分钟。
+                        没有可读阶段文本时，用户点完只看得到菜单关闭（用户真机抽验 2026-10-01）。*/}
+                    {data.metadata?.backgroundRemovalPhase ? (
+                        <BackgroundRemovalPhaseOverlay phase={data.metadata.backgroundRemovalPhase} />
+                    ) : null}
                     {/* Agent 未生成草稿角标（批10 A6）：拒绝/未提交的草稿节点在画布上无任何信号。
                         草稿判定 = 带 agentDraftRunId 且未提交任务（后端提交时删除该键，见 cloud_agent_media.go）。*/}
                     {data.metadata?.agentDraftRunId && !data.metadata?.taskId && !data.metadata?.generationTaskId && (!data.metadata?.status || data.metadata.status === "idle") && data.type !== CanvasNodeType.Frame ? (
@@ -846,6 +851,33 @@ function nodeTypeIcon(type: CanvasNodeTypeId) {
     if (type === CanvasNodeType.Skill) return BookOpenCheck;
     if (type === ART_CRITIQUE_NODE_TYPE) return ScanSearch;
     return Type;
+}
+
+/**
+ * 本地抠图阶段覆盖层。
+ *
+ * 权重首次下载约 90MB，推理全程可能数十秒到数分钟；只给一个 pulse 圆点不够，
+ * 必须把当前阶段写成可读文本，否则用户无法区分「在跑」和「点击丢了」。
+ */
+function BackgroundRemovalPhaseOverlay({ phase }: { phase: "download" | "segment" | "encode" }) {
+    const label = phase === "download"
+        ? "正在下载模型…（首次约90MB）"
+        : phase === "segment"
+            ? "正在识别主体…"
+            : "正在生成透明图…";
+    return (
+        <div
+            className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-black/45 px-3 backdrop-blur-[1px]"
+            role="status"
+            aria-live="polite"
+            aria-label={label}
+        >
+            <div className="flex max-w-full flex-col items-center gap-2 rounded-[var(--r-md)] bg-black/60 px-3 py-2 text-center text-white">
+                <span className="size-2 animate-pulse rounded-full" style={{ background: "var(--status-loading)" }} />
+                <span className="text-[var(--fs-micro)] font-semibold leading-tight">{label}</span>
+            </div>
+        </div>
+    );
 }
 
 // 节点状态徽章（对应 #97 决策2：左上角状态指示，loading/success/error）

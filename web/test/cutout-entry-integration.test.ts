@@ -73,8 +73,9 @@ describe("去除背景入口整合", () => {
 
     test("本地档落到画布子节点，并标记来源档位", () => {
         const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
-        // 走本地 worker，不是生成任务。
-        expect(tools).toContain("runBrowserCutout(source.url)");
+        // 走本地 worker，不是生成任务；带 onProgress 选项（进度反馈缺陷裁定）。
+        expect(tools).toContain("runBrowserCutout(source.url, {");
+        expect(tools).toContain("onProgress: (phase) => markPhase(phase)");
         expect(tools).toContain('backgroundRemoval: { mode: "local" }');
         // 结果作为子节点连接并选中（与裁剪/标注同范式，不弹对话框）。
         expect(tools).toContain("fromNodeId: node.id, toNodeId: childId");
@@ -103,5 +104,64 @@ describe("去除背景入口整合", () => {
         const project = flat(read("pages/canvas/project.tsx"));
         expect(project).toContain("onRemoveBackgroundLocal={removeBackgroundLocally}");
         expect(project).toContain("onRemoveBackgroundGenerative={openBackgroundRemovalGenerative}");
+    });
+});
+
+/**
+ * 进度反馈守卫（控制线 2026-10-01 缺陷裁定）。
+ *
+ * 用户真机抽验：点「去除背景」后全程零视觉反馈（19s-570s 的静默操作）。
+ * 根因是 onProgress 管道存在但 removeBackgroundLocally 没接——接线缺失，不是能力缺失。
+ * 这些断言盯住三段进度文本与清理路径，防止再次被合并冲掉。
+ */
+describe("本地抠图进度反馈", () => {
+    test("启动即给反馈：toast 说明首次要下约 90MB", () => {
+        const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
+        expect(tools).toContain("开始本地抠图");
+        expect(tools).toContain("首次需下载约 90MB 模型（仅此一次）");
+        expect(tools).toContain('message.info("开始本地抠图');
+    });
+
+    test("三段进度文本必须可读（不能只有微弱边框效果）", () => {
+        const node = flat(read("components/canvas/canvas-node.tsx"));
+        expect(node).toContain("正在下载模型…（首次约90MB）");
+        expect(node).toContain("正在识别主体…");
+        expect(node).toContain("正在生成透明图…");
+        // 覆盖层要能被读屏识别：role=status + aria-live。
+        expect(node).toContain('role="status"');
+        expect(node).toContain('aria-live="polite"');
+        expect(node).toContain("BackgroundRemovalPhaseOverlay");
+    });
+
+    test("worker 进度接到源节点（不是接了就丢）", () => {
+        const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
+        // onProgress 必须真的传进 runBrowserCutout。
+        expect(tools).toContain("onProgress: (phase) => markPhase(phase)");
+        // 阶段要落到节点 metadata，UI 才拿得到。
+        expect(tools).toContain("backgroundRemovalPhase: phase");
+        // 覆盖层由该字段驱动。
+        const node = flat(read("components/canvas/canvas-node.tsx"));
+        expect(node).toContain("data.metadata?.backgroundRemovalPhase");
+    });
+
+    test("阶段标记与运行态在同一 finally 里清理（漏清会永久卡「处理中」）", () => {
+        const source = read("pages/canvas/use-canvas-media-tools.ts");
+        const start = source.indexOf("const removeBackgroundLocally");
+        const body = source.slice(start, source.indexOf("const openBackgroundRemovalGenerative", start));
+        expect(body).toContain("} finally {");
+        expect(body).toContain("markPhase(undefined)");
+        expect(body).toContain("localCutoutInFlightRef.current = false");
+        expect(body).toContain("setRunningNodeId(null)");
+    });
+
+    test("重入守卫 toast 保留", () => {
+        const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
+        expect(tools).toContain("已有本地抠图在进行，请等它完成后再发起");
+    });
+
+    test("失败路径给错误 toast", () => {
+        const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
+        expect(tools).toContain("本地抠图失败");
+        expect(tools).toContain("message.error");
     });
 });
