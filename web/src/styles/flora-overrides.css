@@ -1,0 +1,186 @@
+/* ============================================================================
+   flora-overrides.css — fork 组件覆写层（flora 化 · W4 · 2026-10-03 · feat/flora-overrides）
+   ----------------------------------------------------------------------------
+   加载序：application.tsx 样式链末端（antd reset → globals → shared/* → flora-tokens → 本文件）。
+
+   与 flora-tokens.css 的分工：
+     · flora-tokens.css  = Semantic 层（令牌「值」外置，同名变量后加载覆盖）
+     · 本文件            = Component 层（组件「规则」覆写外置，结构性改动）
+
+   ★ 层级契约（本文件最重要的一条，违反即静默失效）：
+     globals.css 的 fork 增量全部位于 `@layer utilities`（L1463-11327）。
+     @layer 内的规则**永远输给未分层规则**，与加载序无关。
+     因此本文件的规则必须包在 `@layer utilities` 内——同层 + 后加载 ⇒ 保住原有胜出关系。
+     唯一例外：未分层的规则（如 no-motion 关断）迁入时必须同样保持未分层。
+
+   ★ 为什么外置：上游同步时热文件冲突面从「组件规则交错」降为「文件级并列」。
+     globals.css 回归上游原状，fork 的全部组件覆写集中于此。
+
+   外置自 globals.css 的组件规则块（按 W4 四块推进，每块独立 commit）：
+     [1] composer hover 信息态族 + 工具栏 surface 族
+     [2] antd 浮层动画对齐 + 设置面板族
+     [3] 微供给 no-motion 关断（未分层）
+     [4] 生成态视觉族
+
+   纪律：新增组件覆写一律进本文件；globals.css 不回流加值。
+   ============================================================================ */
+
+@layer utilities {
+
+    /* 节点内 hover 信息态 composer(09-15 任务 S1, 用户真机反馈修订): flora 浮卡同构 ——
+       实感毛玻璃+边框+浮起全圆角(贴底渐变在浅色画面上对比度不足, 文字粘连);
+       浮起 inset-x-2 bottom-2 与节点底缘留空, 卡片有明确边界。
+       微亮 .45 悬停全显 1(纯 CSS, 零状态); 引用行 mask 渐隐边缘 + 滚动条隐藏(flora :7893/:17210)。 */
+    .canvas-node-hover-composer {
+        padding: 0 8px 8px;
+    }
+    .canvas-node-hover-composer-surface {
+        border-radius: var(--node-radius);
+        background: rgba(20, 20, 20, 0.88);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        opacity: 0.45;
+        transition: opacity 200ms cubic-bezier(0, 0.8, 0.1, 1);
+    }
+    .canvas-node-hover-composer-surface:hover {
+        opacity: 1;
+    }
+    /* flora AssetChip(0_di9:9952): hover 时壳浮出胶囊底色(58,58,58,.95); JS 兜底通道同参。
+       (meta 尺寸/透明度走组件内 group-hover 工具类, 此处只补壳底色) */
+    .canvas-node-hover-composer-ref.group\/ref:hover,
+    .canvas-node-hover-composer-ref[data-thumb-open] {
+        background: rgba(58, 58, 58, 0.95);
+    }
+    :root:not(.dark) .canvas-node-hover-composer-ref.group\/ref:hover,
+    :root:not(.dark) .canvas-node-hover-composer-ref[data-thumb-open] {
+        background: rgba(240, 240, 240, 0.95);
+    }
+    :root:not(.dark) .canvas-node-hover-composer-surface {
+        background: rgba(255, 255, 255, 0.88);
+        border-color: rgba(15, 23, 42, 0.1);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+    .canvas-node-hover-composer-surface .canvas-node-hover-composer-prompt {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .canvas-node-hover-composer-surface .canvas-node-hover-composer-prompt::-webkit-scrollbar {
+        display: none;
+    }
+    .canvas-node-hover-composer [data-canvas-wheel-scroll] {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .canvas-node-hover-composer [data-canvas-wheel-scroll]::-webkit-scrollbar {
+        display: none;
+    }
+    /* 引用行滚动时左右渐隐; prompt 纵滚时底部渐隐(替代硬切提示) */
+    .canvas-node-hover-composer [data-canvas-wheel-scroll].canvas-node-hover-composer-prompt {
+        mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+        -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+    }
+    .canvas-node-hover-composer-refs.canvas-node-hover-composer-refs-mask {
+        mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
+        -webkit-mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-hover-composer,
+        .canvas-node-hover-composer > div,
+        .canvas-node-hover-composer-surface {
+            transition: none !important;
+        }
+    }
+
+    /* 节点悬浮工具栏: 同一玻璃材质族(2026-09-12 微供给任务)。
+       与模型菜单/参数面板同源值, radius 14(h-11 密度下 16 过圆), 无阴影。 */
+    .canvas-node-toolbar .canvas-node-toolbar-surface {
+        border-radius: 14px !important;
+        background: rgba(32, 32, 32, 0.9) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+    }
+
+    :root:not(.dark) .canvas-node-toolbar .canvas-node-toolbar-surface {
+        background: rgba(255, 255, 255, 0.94) !important;
+        border-color: rgba(15, 23, 42, 0.08) !important;
+    }
+
+    /* ── [1] 工具栏按钮 + 下拉菜单面板族 ─────────────────────────────────── */
+    /* 工具栏内部按钮对齐 composer 底栏按钮语法(密度/圆角/字号/hover), scoped 不影响其它 dock 场景 */
+    .canvas-node-toolbar .aceternity-dock-command {
+        height: 28px !important;
+        border-radius: var(--r-md) !important;
+        font-size: 13px !important;
+        gap: 4px;
+    }
+    .canvas-node-toolbar .aceternity-dock-command:hover:not(:disabled) {
+        background: var(--canvas-composer-control-hover) !important;
+    }
+    .canvas-node-toolbar .aceternity-dock-command.is-active {
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: #fff !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar .aceternity-dock-command.is-active {
+        background: rgba(0, 0, 0, 0.08) !important;
+        color: rgba(0, 0, 0, 0.92) !important;
+    }
+
+    /* 工具栏下拉菜单面板: flora 玻璃族(与模型菜单/参数面板同源), 弹出方向统一朝下 */
+    .canvas-node-toolbar-menu .ant-dropdown-menu {
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 5px !important;
+    }
+    .canvas-node-toolbar-menu {
+        border-radius: 12px !important;
+        background: rgba(32, 32, 32, 0.9) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+        color: rgba(255, 255, 255, 0.85);
+    }
+    .canvas-node-toolbar-menu .ant-dropdown-menu-item {
+        background: transparent !important;
+        border-radius: 8px !important;
+        min-height: 32px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+    .canvas-node-toolbar-menu .ant-dropdown-menu-item:hover:not(.ant-dropdown-menu-item-disabled) {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #fff !important;
+    }
+    .canvas-node-toolbar-menu .ant-dropdown-menu-item-group-title {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55) !important;
+        padding: 6px 8px 2px !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu {
+        background: rgba(255, 255, 255, 0.94) !important;
+        border-color: rgba(15, 23, 42, 0.08) !important;
+        color: rgba(0, 0, 0, 0.85);
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu .ant-dropdown-menu-item {
+        color: rgba(0, 0, 0, 0.85) !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu .ant-dropdown-menu-item:hover:not(.ant-dropdown-menu-item-disabled) {
+        background: rgba(0, 0, 0, 0.06) !important;
+        color: rgba(0, 0, 0, 0.92) !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu .ant-dropdown-menu-item-group-title {
+        color: rgba(0, 0, 0, 0.55) !important;
+    }
+
+    /* ── [1] 工具栏菜单 rc-motion 反制（T4）───────────────────────────────── */
+    /* T4（2026-09-24 三模型复核）：反制——画布节点工具栏菜单（九宫格/宫格切分/样式）在
+       rc-motion 相位期间必须保持可点；失焦节流下相位推进可能滞后数秒，若整树继承上面的
+       pe:none，点击会穿透并被判为外部点击导致菜单自动关闭。仅恢复本方菜单，其它浮层防护不变。 */
+    .canvas-node-toolbar-menu {
+        pointer-events: auto;
+    }
+}
