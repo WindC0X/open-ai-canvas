@@ -111,13 +111,16 @@ test("antd 弹层根常驻 filter(drop-shadow) 已清（静止态玻璃存活，
 });
 
 test("降级动效: composer 退场过渡亦被 reduced-motion / no-motion 关断（2026-09-26 复查修复）", async () => {
-    const css = await Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text();
-    // 区域: 2026-09-12 降级契约块 → .no-motion 变量声明前
+    // W4（2026-10-03）：降级契约块（未分层段）外置到 flora-overrides.css [3]。
+    // 该块在 globals 时期就是未分层规则，外置后保持未分层（@layer utilities 块之后）。
+    const css = await Bun.file(new URL("../src/styles/flora-overrides.css", import.meta.url)).text();
+    // 区域: 2026-09-12 降级契约块 → 该块末尾（.no-motion 变量声明留在 globals，不在本文件）
     const start = css.indexOf("/* 微供给容器:reduced-motion / no-motion 下直接切换");
-    const end = css.indexOf(".no-motion {", start);
+    // 终点取该段最后一条规则结束（.no-motion .canvas-node-panel-affordance ... 之后）
+    const endAnchor = css.indexOf(".no-motion .canvas-node-panel-affordance .canvas-node-panel-enter {", start);
     expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    const region = css.slice(start, end);
+    expect(endAnchor).toBeGreaterThan(start);
+    const region = css.slice(start, css.indexOf("}", endAnchor) + 1);
     // reduced-motion: 25b53569 后 enter 层为 transition 驱动, 原 animation:none 盖不到 → 须显式关断
     expect(region).toMatch(/\.canvas-node-panel-affordance \.canvas-node-panel-enter \{\s*transition: none !important;\s*\}/);
     // no-motion: [data-affordance] 关断之外, enter 内层同样关断
