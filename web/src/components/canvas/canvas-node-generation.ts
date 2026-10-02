@@ -16,6 +16,8 @@ import { isCanvasWorkflowProvider } from "@/lib/canvas/canvas-workflow";
 import { audioFileExtension } from "@/lib/character-voice-formats";
 import type { ModelReferenceLimits } from "@/lib/model-selection";
 import type { Asset } from "@/stores/use-asset-store";
+import { resolvePreferredCharacterRepresentation } from "@/lib/canvas/character-reference-images";
+import type { CharacterRepresentation } from "@/services/api/projects";
 
 export type CharacterGenerationReference = {
     nodeId: string;
@@ -589,8 +591,14 @@ function readCharacterReference(node: CanvasNodeData): CharacterGenerationRefere
     return assetId ? { nodeId: node.id, assetId, requestedVersionId: node.metadata?.characterVersionPolicy === "pinned" ? node.metadata.characterVersionId : undefined } : null;
 }
 
+/**
+ * 参考图选择已抽到 lib/canvas/character-reference-images.ts（W4 骑乘件三，2026-10-03）：
+ * 与 workflow-shot-references.ts 共用同一优先级表，且按火山方舟官方建议
+ * 把单人独立照片（front/side/back）排在三视图（turnaround_sheet）之前。
+ * 保留本函数作为薄包装，避免调用点感知模块搬迁。
+ */
 function preferredCharacterRepresentation(representations: Array<{ id: string; resourceId: string; role: string }>) {
-    return ["turnaround_sheet", "primary", "front", "side", "back"].map((role) => representations.find((item) => item.role === role)).find(Boolean);
+    return resolvePreferredCharacterRepresentation(representations as CharacterRepresentation[]);
 }
 
 function compileResolvedVoicePrompt(voice: ResolvedCharacterVoice) {

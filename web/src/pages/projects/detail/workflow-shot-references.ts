@@ -5,6 +5,7 @@ import type { CharacterRepresentation, ProjectAsset, ProjectDetail, ShotAssetRef
 import type { AssetCategory } from "@/stores/use-asset-store";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio } from "@/types/media";
+import { resolvePreferredCharacterImage } from "@/lib/canvas/character-reference-images";
 
 export type ShotAssetReferenceContext = {
     mentionReferences: CanvasResourceReference[];
@@ -158,11 +159,14 @@ function projectAssetReferenceImage(asset: ProjectAsset, reference?: ShotAssetRe
     };
 }
 
+/**
+ * 参考图选择已抽到 lib/canvas/character-reference-images.ts（W4 骑乘件三，2026-10-03）：
+ * 与 canvas-node-generation.ts 共用同一优先级表，且按火山方舟官方建议
+ * 把单人独立照片（front/side/back）排在三视图（turnaround_sheet）之前。
+ * 保留本函数作为薄包装，避免调用点感知模块搬迁。
+ */
 function preferredVisualRepresentation(representations: CharacterRepresentation[]) {
-    return representations.find((item) => item.role === "turnaround_sheet")
-        || representations.find((item) => item.role === "primary")
-        || representations.find((item) => item.role === "front")
-        || representations.find((item) => item.mediaType.startsWith("image"));
+    return resolvePreferredCharacterImage(representations);
 }
 
 function withShotDialogue(references: ShotPromptAssetReference[], dialogue?: string) {
