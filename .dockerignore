@@ -20,6 +20,8 @@ web/.next
 web/dist
 web/node_modules
 web/out
+# 抠图权重由构建期 fetch-cutout-models.sh 拉取；不要把本地那份 94MB 当构建上下文发出去。
+web/public/models/birefnet-lite-512/onnx
 *.log
 *.db
 *.sqlite

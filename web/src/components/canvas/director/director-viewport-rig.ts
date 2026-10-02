@@ -82,6 +82,8 @@ export function inferDirectorRig(root: Object3D, animationNames: string[]): Dire
         new RegExp(`^${side}hand${finger}${segment}$`),
         new RegExp(`^${side}${finger}${segment}$`),
         new RegExp(`^${finger}0?${segment}${side === "left" ? "l" : "r"}$`),
+        // RobotExpressive 的手指名没有 hand 前缀：Thumb2.L → thumb2l。
+        new RegExp(`^${finger}${segment}${side === "left" ? "l" : "r"}$`),
     ];
     const patterns: Record<DirectorHumanoidBone, RegExp[]> = {
         root: [/^root$/, /armature/],
@@ -90,9 +92,12 @@ export function inferDirectorRig(root: Object3D, animationNames: string[]): Dire
         chest: [/spine2|chest|upperback/],
         neck: [/neck/],
         head: [/head/],
-        leftShoulder: [/leftshoulder|shoulder_l|mixamorigleftshoulder/],
-        leftUpperArm: [/leftupperarm|leftarm|upperarm_l|mixamorigleftarm/],
-        leftLowerArm: [/leftforearm|leftlowerarm|forearm_l|mixamorigleftforearm/],
+        // 默认演员换成 RobotExpressive（CC0）后，骨骼名是 Blender 点号风格：
+        // UpperArm.L 归一化成 upperarml，末尾那批模式就是为它补的。
+        // 保留原有模式不动，既有模型的命中不受影响。
+        leftShoulder: [/leftshoulder|shoulder_l|mixamorigleftshoulder/, /^shoulderl$/],
+        leftUpperArm: [/leftupperarm|leftarm|upperarm_l|mixamorigleftarm/, /^upperarml$/],
+        leftLowerArm: [/leftforearm|leftlowerarm|forearm_l|mixamorigleftforearm/, /^lowerarml$/],
         leftHand: [/^lefthand$/, /^handl$/, /^mixamoriglefthand$/],
         leftThumb1: fingerPatterns("left", "thumb", 1),
         leftThumb2: fingerPatterns("left", "thumb", 2),
@@ -109,9 +114,9 @@ export function inferDirectorRig(root: Object3D, animationNames: string[]): Dire
         leftPinky1: fingerPatterns("left", "pinky", 1),
         leftPinky2: fingerPatterns("left", "pinky", 2),
         leftPinky3: fingerPatterns("left", "pinky", 3),
-        rightShoulder: [/rightshoulder|shoulder_r|mixamorigrightshoulder/],
-        rightUpperArm: [/rightupperarm|rightarm|upperarm_r|mixamorigrightarm/],
-        rightLowerArm: [/rightforearm|rightlowerarm|forearm_r|mixamorigrightforearm/],
+        rightShoulder: [/rightshoulder|shoulder_r|mixamorigrightshoulder/, /^shoulderr$/],
+        rightUpperArm: [/rightupperarm|rightarm|upperarm_r|mixamorigrightarm/, /^upperarmr$/],
+        rightLowerArm: [/rightforearm|rightlowerarm|forearm_r|mixamorigrightforearm/, /^lowerarmr$/],
         rightHand: [/^righthand$/, /^handr$/, /^mixamorigrighthand$/],
         rightThumb1: fingerPatterns("right", "thumb", 1),
         rightThumb2: fingerPatterns("right", "thumb", 2),
@@ -128,12 +133,12 @@ export function inferDirectorRig(root: Object3D, animationNames: string[]): Dire
         rightPinky1: fingerPatterns("right", "pinky", 1),
         rightPinky2: fingerPatterns("right", "pinky", 2),
         rightPinky3: fingerPatterns("right", "pinky", 3),
-        leftUpperLeg: [/leftupleg|leftthigh|thigh_l|mixamorigleftupleg/],
-        leftLowerLeg: [/leftleg|leftcalf|calf_l|mixamorigleftleg/],
-        leftFoot: [/leftfoot|foot_l|mixamorigleftfoot/],
-        rightUpperLeg: [/rightupleg|rightthigh|thigh_r|mixamorigrightupleg/],
-        rightLowerLeg: [/rightleg|rightcalf|calf_r|mixamorigrightleg/],
-        rightFoot: [/rightfoot|foot_r|mixamorigrightfoot/],
+        leftUpperLeg: [/leftupleg|leftthigh|thigh_l|mixamorigleftupleg/, /^upperlegl$/],
+        leftLowerLeg: [/leftleg|leftcalf|calf_l|mixamorigleftleg/, /^lowerlegl$/],
+        leftFoot: [/leftfoot|foot_l|mixamorigleftfoot/, /^footl$/],
+        rightUpperLeg: [/rightupleg|rightthigh|thigh_r|mixamorigrightupleg/, /^upperlegr$/],
+        rightLowerLeg: [/rightleg|rightcalf|calf_r|mixamorigrightleg/, /^lowerlegr$/],
+        rightFoot: [/rightfoot|foot_r|mixamorigrightfoot/, /^footr$/],
     };
     const boneMap = Object.fromEntries(
         Object.entries(patterns)

@@ -21,6 +21,12 @@ export default defineConfig({
         "import.meta.env.VITE_BUILD_TIME": JSON.stringify(buildTime),
     },
     server: {
+        // 本地抠图 worker 用 onnxruntime-web 多线程跑，需要 SharedArrayBuffer；
+        // 浏览器只在 crossOriginIsolated 下才开放它，所以开发态也要发 COOP/COEP。
+        headers: {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+        },
         // WSL /mnt 盘的 inotify 对外部写入(编辑器/脚本/跨会话修改)不可靠, vite 会长期
         // 服务启动时刻的旧转换结果(2026-09-18 两次撞墙: 修复代码在磁盘但浏览器拿旧的)。
         // polling 是 /mnt 环境的标准解; 仅 dev server 生效, 不影响构建。

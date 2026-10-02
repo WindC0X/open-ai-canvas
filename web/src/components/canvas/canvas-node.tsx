@@ -4,6 +4,7 @@ import { AlertCircle, BookOpenCheck, CheckCircle2, ChevronRight, Clapperboard, C
 
 import { useCanvasNodeActions } from "./canvas-node-action-context";
 
+import { isActiveCutoutSession } from "@/lib/media-conversion/cutout-session";
 import { canvasThemes } from "@/lib/canvas-theme";
 import type { CanvasNodeRenderLOD } from "@/lib/canvas/canvas-node-lod";
 import { canvasConnectionTilt } from "@/lib/canvas/canvas-connection-tilt";
@@ -324,7 +325,20 @@ export const CanvasNode = React.memo(function CanvasNode({
     const isOutpaintResult =
         data.metadata?.edit === "outpaint" ||
         (data.metadata?.generationType === "edit" && data.metadata?.manualSize === true && data.metadata?.userResized !== true);
-    const hoverComposerNodeType = (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video) && !isOutpaintResult;
+    // MediaConversion（抠图/线稿/深度/姿态等转换结果）同扩图口径：节点的 metadata.prompt 是
+    // 上游链注入的生成提示词，在转换结果上展示即 "High-fashion portrait..." 类无再编辑语义的浮层
+    // （用户真机终验 2026-10-01 R-2 的 hover 面；R-2 只堵了选中态 dialog，hover 态漏排）。
+    // 参数入口是节点自身 OperationPicker，全文件对 metadata.prompt 引用数为 0。
+    // 历史节点回退指纹：metadata.backgroundRemoval.mode === "local"（本地抠图产出的结果节点必然带）。
+    const isMediaConversionResult =
+        data.type === CanvasNodeType.MediaConversion ||
+        data.metadata?.backgroundRemoval?.mode === "local";
+    // 活跃抠图阶段（测试线 S1 阻塞缺陷 2026-10-02）：phase 存在 且 会话标记匹配本次页面会话。
+    // 收窄成局部量是为了让 TS 拿到 phase 的非 undefined 类型，同时只算一次。
+    const cutoutPhase = isActiveCutoutSession(data.metadata?.backgroundRemovalPhase, data.metadata?.backgroundRemovalSessionId)
+        ? data.metadata!.backgroundRemovalPhase
+        : undefined;
+    const hoverComposerNodeType = (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video) && !isOutpaintResult && !isMediaConversionResult;
     const hoverComposerVisible = hoverComposerNodeType && hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
 
     return (
@@ -446,6 +460,26 @@ export const CanvasNode = React.memo(function CanvasNode({
                     {/* 节点状态徽章（对应 #97 决策2：左上角 loading/success/error，近距离确认信号）*/}
                     {showChrome && data.metadata?.status && data.metadata.status !== "idle" && data.type !== CanvasNodeType.Frame ? (
                         <NodeStatusBadge status={data.metadata.status} />
+                    ) : null}
+                    {/* 本地抠图阶段覆盖层：首次要下 90MB，全程可能数十秒到数分钟。
+                        没有可读阶段文本时，用户点完只看得到菜单关闭（用户真机抽验 2026-10-01）。
+
+                        残留守卫（测试线 S1 阻塞缺陷 2026-10-02）：phase/startedAt 随节点落库，
+                        重开画布后残留脏数据会让覆盖层显示「正在生成透明图…（已用 1790957281s）」
+                        （startedAt 缺失 → ?? 0 → (Date.now()-0)/1000 = Unix 秒）。
+                        判据 = phase 存在 且 会话标记等于本次页面会话——存量脏数据带的是旧会话 id，
+                        比对不等即不渲染。这是数据兼容路径：不迁移、不清理，显示侧直接治愈。
+
+                        注：不能改用 status 守卫。抠图源节点是「有内容的成品图」，其 status 全程为
+                        "success"（抠图函数不写 status），加 status 守卫会连正常运行态一起隐藏，
+                        摧毁 F-01 的「三段进度可见」验收。*/}
+                    {cutoutPhase && data.metadata ? (
+                        <BackgroundRemovalPhaseOverlay
+                            phase={cutoutPhase}
+                            progress={data.metadata.backgroundRemovalProgress}
+                            locate={data.metadata.backgroundRemovalLocate}
+                            startedAt={data.metadata.backgroundRemovalStartedAt}
+                        />
                     ) : null}
                     {/* Agent 未生成草稿角标（批10 A6）：拒绝/未提交的草稿节点在画布上无任何信号。
                         草稿判定 = 带 agentDraftRunId 且未提交任务（后端提交时删除该键，见 cloud_agent_media.go）。*/}
@@ -846,6 +880,107 @@ function nodeTypeIcon(type: CanvasNodeTypeId) {
     if (type === CanvasNodeType.Skill) return BookOpenCheck;
     if (type === ART_CRITIQUE_NODE_TYPE) return ScanSearch;
     return Type;
+}
+
+/**
+ * 本地抠图阶段覆盖层。
+ *
+ * 权重首次下载约 90MB，推理全程可能数十秒到数分钟；只给一个 pulse 圆点不够，
+ * 必须把当前阶段写成可读文本，否则用户无法区分「在跑」和「点击丢了」。
+ */
+function BackgroundRemovalPhaseOverlay({
+    phase,
+    progress,
+    locate,
+    startedAt,
+}: {
+    phase: "queued" | "download" | "segment" | "encode" | "locate";
+    progress?: { loaded: number; total: number };
+    /** 自动定位阶段的窗口进度（L1 扫描）。 */
+    locate?: { attempt: number; attempts: number };
+    /**
+     * 本次抠图的起始时间戳；用于显示已用时（推理阶段无百分比，秒数是最实的「在动」信号）。
+     *
+     * 可选（测试线 S1 阻塞缺陷 2026-10-02）：缺失时**不显示秒数**，绝不回退成 0——
+     * `(Date.now() - 0)/1000` 是 Unix 秒（用户实测 1790957281s）。
+     * 「不显示」与「显示 0」是两种不同的诚实度：前者是不知情，后者是编造。
+     */
+    startedAt?: number;
+}) {
+    // 推理阶段（segment/encode/locate）ORT 无单次 run 的进度 API，拿不到百分比；
+    // 但这两段实测 5-6s 是主要耗时，只给静态文本用户会怀疑卡死。
+    // 用已用时秒数 + 不确定进度条表达「在动」（复用 canvas-active-task-panel 的 indeterminate 范式）。
+    // startedAt 缺失时为 null（不显示秒数），而非 0（会算成 Unix 秒）。
+    const [elapsed, setElapsed] = useState<number | null>(null);
+    const isIndeterminate = phase !== "download";
+
+    useEffect(() => {
+        if (!isIndeterminate) return;
+        if (startedAt === undefined) {
+            setElapsed(null);
+            return;
+        }
+        const tick = () => setElapsed(Math.max(0, Math.round((Date.now() - startedAt) / 1000)));
+        tick();
+        const timer = window.setInterval(tick, 1000);
+        return () => window.clearInterval(timer);
+    }, [isIndeterminate, startedAt, phase]);
+
+    // 下载阶段优先显示字节数：90MB 在慢环境下要等几分钟，
+    // 只有脉冲圆点用户无法判断「在动」还是「卡住了」。
+    const hasBytes = phase === "download" && progress?.total;
+    const percent = hasBytes ? Math.min(100, Math.round((progress!.loaded / progress!.total) * 100)) : 0;
+    // 缓存命中时没有网络下载，但仍要读 Cache 进 WASM 内存（实测约 13s），
+    // 文案必须区分，否则等于告诉用户一件没发生的事。
+    // 秒数后缀：startedAt 缺失时整段省略（不显示 ≠ 显示 0）。
+    const elapsedSuffix = elapsed === null ? "" : `（已用 ${elapsed}s）`;
+    const waitedSuffix = elapsed === null ? "" : `（前一张抠图进行中，已等 ${elapsed}s）`;
+    const label = hasBytes
+        ? `正在加载模型… ${(progress!.loaded / 1024 / 1024).toFixed(1)}MB / ${(progress!.total / 1024 / 1024).toFixed(1)}MB（${percent}%）`
+        : phase === "queued"
+            // 并发上限内排队的请求：worker 串行推理，这里不能伪装成已开始识别。
+            ? `排队中…${waitedSuffix}`
+            : phase === "download"
+                ? "正在加载模型…（首次约90MB）"
+                : phase === "segment"
+                    ? `正在识别主体…${elapsedSuffix}`
+                    : phase === "locate"
+                        ? `正在识别主体 · 自动定位${locate ? ` (${locate.attempt}/${locate.attempts})` : ""}…${elapsedSuffix}`
+                        : `正在生成透明图…${elapsedSuffix}`;
+    return (
+        <div
+            // 不要在这里加 backdrop-filter：本层位于 canvas-world-layer 的
+            // transform: scale() 之内，Chromium 会对缩放祖先内的 backdrop-filter
+            // 做分块重采样，源节点画面呈四象限镜像万花筒态（用户真机抽验 2026-10-01）。
+            // 仓库已在交互态对节点面板统一 backdrop-filter: none（globals.css），
+            // 覆盖层同样只靠半透明底色压暗，不做背景模糊。
+            className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-black/45 px-3"
+            role="status"
+            aria-live="polite"
+            aria-label={label}
+        >
+            <div className="flex max-w-full flex-col items-center gap-2 rounded-[var(--r-md)] bg-black/60 px-3 py-2 text-center text-white">
+                <span className="size-2 animate-pulse rounded-full" style={{ background: "var(--status-loading)" }} />
+                <span className="text-[var(--fs-micro)] font-semibold leading-tight">{label}</span>
+                <span className="h-1 w-24 overflow-hidden rounded-full bg-white/25">
+                    {hasBytes ? (
+                        <span
+                            className="block h-full rounded-full transition-[width] duration-300"
+                            style={{ width: `${percent}%`, background: "var(--status-loading)" }}
+                        />
+                    ) : (
+                        // 无百分比时的不确定扫描（indeterminate）：复用既有的
+                        // canvas-task-progress-shimmer 关键帧（globals.css 已定义，
+                        // F-01 硬约束要求 globals.css 零改动）。
+                        <span
+                            className="canvas-task-progress-shimmer block h-full w-1/3 rounded-full"
+                            style={{ background: "var(--status-loading)" }}
+                        />
+                    )}
+                </span>
+            </div>
+        </div>
+    );
 }
 
 // 节点状态徽章（对应 #97 决策2：左上角状态指示，loading/success/error）

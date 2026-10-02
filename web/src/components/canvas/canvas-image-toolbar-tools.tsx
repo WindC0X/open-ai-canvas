@@ -14,6 +14,10 @@ type ImageToolHandlers = {
     onTextEdit: (node: CanvasNodeData) => void;
     onMaskEdit: (node: CanvasNodeData) => void;
     onRemoveBackground: (node: CanvasNodeData) => void;
+    /** 本地抠图（三级路由基线档）；工具栏默认走这条。 */
+    onRemoveBackgroundLocal: (node: CanvasNodeData) => void;
+    /** 生成式去除背景（精修档，消耗积分）；由结果节点的显式入口触发。 */
+    onRemoveBackgroundGenerative: (node: CanvasNodeData) => void;
     onLayerDecomposition: (node: CanvasNodeData) => void;
     onOutpaint: (node: CanvasNodeData) => void;
     onEmotion: (node: CanvasNodeData) => void;
@@ -37,12 +41,22 @@ type ImageToolDefinition = {
     group: NodeToolbarGroup;
     order: number;
     section?: string;
-    description?: string;
+    description?: string | ((node: CanvasNodeData) => string);
     active?: (node: CanvasNodeData) => boolean;
     run: (node: CanvasNodeData, handlers: ImageToolHandlers, tool: ImageToolDefinition) => void;
     /** 仅 group === "nine_grid" 时使用，对应后端工具 ID */
     toolId?: number;
 };
+
+/**
+ * 该节点是否是本地抠图的产物。
+ *
+ * 是的话，工具位切成「用 AI 模型重新去除」——即三级路由从基线档分流到精修档；
+ * 普通图片仍然默认走本地抠图。
+ */
+function isLocalBackgroundRemovalResult(node: CanvasNodeData) {
+    return node.metadata?.backgroundRemoval?.mode === "local";
+}
 
 /** lucide 组件把 PascalCase 图标名写入 displayName，从 icon 渲染结果反查图标名，未命中时回退 Grid3x3。 */
 function resolveToolIconName(tool: ImageToolDefinition, node: CanvasNodeData) {
@@ -136,12 +150,20 @@ const imageToolDefinitions: ImageToolDefinition[] = [
     },
     {
         id: "removeBackground",
-        label: "去除背景",
-        description: "保留主体并生成透明背景图片",
+        label: (node) => (isLocalBackgroundRemovalResult(node) ? "用 AI 模型重新去除" : "去除背景"),
+        // 默认档（未抠过图）：本地推理，免费、离线、源图不出浏览器。
+        // 精修档（已抠过图的结果节点）：走生成式重画，适合透明/高反光等复杂边缘，消耗积分。
+        // 两档共用同一个工具位，按节点状态切 label/description/run——
+        // 这样既不用新增工具项，也不会让默认入口消失。
+        description: (node) => (isLocalBackgroundRemovalResult(node)
+            ? "AI 模型重画，适合复杂边缘，消耗积分"
+            : "本地识别，免费离线，逐像素保真"),
         icon: () => <WandSparkles className="size-3.5" />,
         group: "process",
         order: 50,
-        run: (node, handlers) => handlers.onRemoveBackground(node),
+        run: (node, handlers) => (isLocalBackgroundRemovalResult(node)
+            ? handlers.onRemoveBackgroundGenerative(node)
+            : handlers.onRemoveBackgroundLocal(node)),
     },
     {
         id: "layerDecomposition",
@@ -360,7 +382,7 @@ export function buildImageToolbarTools(node: CanvasNodeData, handlers: ImageTool
         group: tool.group,
         order: tool.order,
         section: tool.section,
-        description: tool.description,
+        description: tool.description === undefined ? undefined : resolveToolText(tool.description, node),
         active: tool.active?.(node),
         onClick: () => tool.run(node, handlers, tool),
     }));
@@ -388,7 +410,7 @@ export function getNineGridMenuItems(): NineGridMenuItem[] {
             id: tool.id,
             label: typeof tool.label === "function" ? tool.label({} as CanvasNodeData) : tool.label,
             section: tool.section || "常用操作",
-            description: tool.description || "",
+            description: resolveToolText(tool.description ?? "", {} as CanvasNodeData),
             toolId: tool.toolId!,
             toolIconName: resolveToolIconName(tool, {} as CanvasNodeData),
         }));

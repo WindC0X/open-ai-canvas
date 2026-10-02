@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { App } from "antd";
 import { nanoid } from "nanoid";
+import { CUTOUT_SESSION_ID } from "@/lib/media-conversion/cutout-session";
 
 import type { CanvasImageCropRect } from "@/components/canvas/canvas-node-crop-dialog";
 import type { CanvasImageMaskEditPayload } from "@/components/canvas/canvas-node-mask-edit-dialog";
@@ -51,6 +52,7 @@ import { navigateToSettings } from "@/lib/settings-navigation";
 import { storeGeneratedVideo } from "@/services/api/video";
 import { getMediaBlob, uploadMediaFile } from "@/services/file-storage";
 import { getImageBlob, uploadImage } from "@/services/image-storage";
+import { runBrowserCutout, CutoutRuntimeError } from "@/services/cutout-runtime";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import type { GenerationTask } from "@/services/api/task-center";
 
@@ -63,7 +65,7 @@ function normalizeMaskEditQuality(quality: string | undefined, size: string | un
     return pixels <= 2_000_000 ? "1k" : pixels <= 4_300_000 ? "2k" : pixels <= 8_294_400 ? "4k" : quality || "auto";
 }
 import { defaultConfig, resolveModelRequestConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
-import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type ContextMenuState } from "@/types/canvas";
+import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type ContextMenuState } from "@/types/canvas";
 import type { StartCanvasUploadStatus } from "./use-canvas-upload";
 
 type UseCanvasMediaToolsOptions = {
@@ -118,6 +120,8 @@ export function useCanvasMediaTools({
     const extractingVideoFramesNodeIdRef = useRef<string | null>(null);
     const mergeVideoRunningRef = useRef(false);
     const outpaintInFlightRef = useRef(false);
+    // 本地抠图首次要下 90MB 权重，重入会让多个 worker 请求排队。
+    const localCutoutInFlightRef = useRef(0);
     const [cropNodeId, setCropNodeId] = useState<string | null>(null);
     const [annotationNodeId, setAnnotationNodeId] = useState<string | null>(null);
     const [annotationEditNodeId, setAnnotationEditNodeId] = useState<string | null>(null);
@@ -1249,6 +1253,158 @@ export function useCanvasMediaTools({
         setImageEditNodeId(node.id);
     }, []);
 
+    /**
+     * 本地抠图（三级路由的基线档）。
+     *
+     * 工具栏「去除背景」默认走这里：源图不出浏览器、免费、不需要模型配置。
+     * 结果作为子节点落到画布，不上传源图也不扣积分；想用生成式重画时，
+     * 由结果节点的「用 AI 模型重新去除」入口转到 openBackgroundRemoval。
+     */
+    const removeBackgroundLocally = useCallback(async (node: CanvasNodeData) => {
+        if (!node.metadata?.content) return;
+        // 并发守卫（用户真机终验 2026-10-01 P2）：原为全局单例布尔，点第二张图直接被拒，
+        // 与「一次选多张图批量抠」的实际用法相左。放宽为计数器，上限 2——
+        // worker 侧 segmenterPromise 仍是单例（模型只加载一份），推理请求天然串行排队，
+        // 并发 2 实为队列深度 2；再高只增队列内存不增吞吐（WASM 推理本就吃满核）。
+        if (localCutoutInFlightRef.current >= LOCAL_CUTOUT_MAX_CONCURRENT) {
+            message.warning(`已有 ${LOCAL_CUTOUT_MAX_CONCURRENT} 个本地抠图在进行，请等其中一张完成后再发起`);
+            return;
+        }
+        // 已有请求在跑 = 本次要排队：worker 串行推理，排队期间节点显示「排队中」而不是伪装成进行中。
+        const queued = localCutoutInFlightRef.current > 0;
+        localCutoutInFlightRef.current += 1;
+        setRunningNodeId(node.id);
+        // 首次要下约 90MB 权重，全程可能数十秒到数分钟；没有可见反馈用户会以为点击丢失
+        // （用户真机抽验 2026-10-01）。启动就写阶段，后续由 worker 的 onProgress 推进。
+        // phase / progress / locate / startedAt 单次 setNodes 写入。
+        //
+        // 为什么合并（测试线 S1 阻塞缺陷 2026-10-02）：拆成两次 setNodes 会落库出
+        // 「phase 已写、startedAt 未写」的不一致态；重开画布后覆盖层读到
+        // startedAt === undefined，回退成 `?? 0`，已用时 = (Date.now() - 0)/1000 = Unix 秒
+        // （用户实测 1790957281s）。合并写入后该窗口不存在。
+        //
+        // startedAt 语义：仅在本次调用传值时写入，不传时保持原值（进度推进不应刷新起点）。
+        const markPhase = (
+            phase: CanvasNodeMetadata["backgroundRemovalPhase"],
+            progress?: CanvasNodeMetadata["backgroundRemovalProgress"],
+            locate?: CanvasNodeMetadata["backgroundRemovalLocate"],
+            startedAt?: number,
+        ) => {
+            setNodes((current) => current.map((item) => item.id === node.id
+                ? {
+                    ...item,
+                    metadata: {
+                        ...item.metadata,
+                        backgroundRemovalPhase: phase,
+                        backgroundRemovalProgress: progress,
+                        backgroundRemovalLocate: locate,
+                        // 会话标记：本次会话发起的抠图才显示覆盖层（见 canvas-node 显示侧守卫）。
+                        // 终态清理（phase=undefined）时一并清掉。
+                        backgroundRemovalSessionId: phase ? CUTOUT_SESSION_ID : undefined,
+                        ...(startedAt !== undefined ? { backgroundRemovalStartedAt: startedAt } : {}),
+                    },
+                }
+                : item));
+        };
+        const startedAt = Date.now();
+        // 排队请求：worker 串行推理，等待期间显示「排队中」而非伪装成已开始识别。
+        // phase 与 startedAt 必须单次 setNodes 写入（测试线 S1 阻塞缺陷 2026-10-02）：
+        // 两次独立 setNodes 之间存在落库不一致窗口——phase 已持久化而 startedAt 未写，
+        // 重开画布后覆盖层按 startedAt ?? 0 计算已用时 = (Date.now() - 0)/1000 = Unix 秒。
+        markPhase(queued ? "queued" : "download", { loaded: 0, total: 0 }, undefined, startedAt);
+        // 文案必须区分缓存命中：实测命中时 1s 直达识别段，此时说「首次需下载 90MB」
+        // 是在告诉用户一件没发生的事（用户真机抽验 2026-10-01 缺陷3）。
+        // 只读 Cache Storage 做判定，不引 transformers.js 内部状态。
+        // 排队中的请求不提下载（它先要等前一张跑完）。
+        if (queued) {
+            message.info("已加入本地抠图队列，等待前一张完成");
+        } else if (await isCutoutModelCached()) {
+            message.info("开始本地抠图");
+        } else {
+            message.info("开始本地抠图，首次需下载约 90MB 模型（仅此一次）");
+        }
+        // 云端图片地址通常不带 CORS 头，直接取会读不到像素；
+        // 优先用本地缓存里的 Blob 构造同源地址（与裁剪同口径）。
+        let releaseSource = () => {};
+        try {
+            const source = await resolveCroppableImageSource(node);
+            releaseSource = source.release;
+            const result = await runBrowserCutout(source.url, {
+                // 下载阶段带字节数；后续阶段不带，进度显示自动隐去。
+                onProgress: ({ phase, loaded, total, attempt, attempts }) => markPhase(
+                    phase,
+                    phase === "download" && total ? { loaded: loaded ?? 0, total } : undefined,
+                    phase === "locate" && attempt && attempts ? { attempt, attempts } : undefined,
+                ),
+            });
+            const image = await uploadImage(result.blob);
+            const size = fitNodeSize(image.width, image.height, node.width, node.height);
+            const childId = nanoid();
+            const child: CanvasNodeData = {
+                id: childId,
+                type: CanvasNodeType.Image,
+                title: `${node.title || "图片"} · 去除背景`,
+                position: { x: node.position.x + node.width + 96, y: node.position.y },
+                width: size.width,
+                height: size.height,
+                metadata: { ...imageMetadata(image), prompt: node.metadata?.prompt, backgroundRemoval: { mode: "local" } },
+            };
+            setNodes((current) => [...current, child]);
+            setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
+            setSelectedNodeIds(new Set([childId]));
+            setSelectedConnectionId(null);
+            setDialogNodeId(null);
+            await persistMediaNodes([child]);
+            // 分层管线（控制线 R-4 终裁 2026-10-02）：direct/region 都是成功出图。
+            // L1 全部窗口未达标时 worker 走 errorCode="no_subject" 错误通道（不回传空白图），
+            // 由 catch 分支给 L3 可操作出口。
+            if (result.strategy === "region") {
+                message.success("本地抠图完成（已自动定位主体区域）");
+            } else {
+                message.success("本地抠图完成，已生成透明背景图片");
+            }
+        } catch (error) {
+            // 取消不算失败（用户切走/重开），不弹错。
+            if (error instanceof DOMException && error.name === "AbortError") return;
+            // L3：未识别到主体不是执行失败（抠图确实跑完了），但也绝不能交付黑图；
+            // 给框选/云端两条出口（用户真机终验 2026-10-01 R-4）。
+            if (error instanceof CutoutRuntimeError && error.code === "no_subject") {
+                message.warning(error.message);
+                return;
+            }
+            message.error(error instanceof Error ? `本地抠图失败：${error.message}` : "本地抠图失败，请重试");
+        } finally {
+            // 阶段标记与运行态必须在同一处清掉：漏清会让节点永久卡在「处理中」外观。
+            // startedAt 与 phase 同批清理（单次 setNodes），同样消除不一致窗口。
+            setNodes((current) => current.map((item) => item.id === node.id
+                ? {
+                    ...item,
+                    metadata: {
+                        ...item.metadata,
+                        backgroundRemovalPhase: undefined,
+                        backgroundRemovalProgress: undefined,
+                        backgroundRemovalLocate: undefined,
+                        backgroundRemovalStartedAt: undefined,
+                        backgroundRemovalSessionId: undefined,
+                    },
+                }
+                : item));
+            localCutoutInFlightRef.current = Math.max(0, localCutoutInFlightRef.current - 1);
+            setRunningNodeId(null);
+            releaseSource();
+        }
+    }, [message, persistMediaNodes, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds]);
+
+    /**
+     * 生成式去除背景（三级路由的精修档）。
+     *
+     * 保留上游原有的 image-edit 对话框链路：本地档边缘不理想（透明/高反光/发丝）时，
+     * 用户显式选这条，代价是消耗积分。不删上游能力，只把它从默认降为显式选项。
+     */
+    const openBackgroundRemovalGenerative = useCallback((node: CanvasNodeData) => {
+        openBackgroundRemoval(node);
+    }, [openBackgroundRemoval]);
+
     const decomposeImageLayers = useCallback(async (node: CanvasNodeData, payload: CanvasImageLayerDecompositionPayload) => {
         if (!node.metadata?.content || !payload.prompt.trim()) return;
         const baseGenerationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
@@ -1544,8 +1700,7 @@ export function useCanvasMediaTools({
         textEditNodeId,
         outpaintImageNode,
         outpaintNodeId,
-        setOutpaintNodeId,
-        mergeSelectedVideos,
+        setOutpaintNodeId,        mergeSelectedVideos,
         mergeVideosByIds,
         mergeVideoProgress,
         saveAnnotatedImageNode,
@@ -1565,6 +1720,8 @@ export function useCanvasMediaTools({
         setImageEditNodeId,
         setImageEditPreset,
         openBackgroundRemoval,
+        removeBackgroundLocally,
+        openBackgroundRemovalGenerative,
         openLayerDecomposition,
         decomposeImageLayers,
         setLayerDecompositionNodeId,
@@ -1583,6 +1740,34 @@ export function useCanvasMediaTools({
         upscaleNodeId,
     };
 }
+
+/**
+ * 本地抠图并发上限（用户真机终验 2026-10-01 P2）。
+ *
+ * worker 侧 segmenterPromise 单例（模型只加载一份），推理请求串行排队，
+ * 所以并发 2 实为队列深度 2——用户点第二张图不再被直接拒绝。
+ * 不再调高：WASM 推理本就吃满核，更高并发只增队列内存不增吞吐。
+ */
+const LOCAL_CUTOUT_MAX_CONCURRENT = 2;
+
+/**
+ * 权重是否已落在浏览器 Cache Storage。
+ *
+ * transformers.js 用 Cache API 缓存模型文件（env.cacheKey 默认 transformers-cache，
+ * 键为完整 URL），所以这里查同一个 bucket。仅用于决定 toast 文案（是否提「首次下载」），
+ * 判定失败一律按未缓存处理——多提示一次下载说明比漏提示安全。
+ */
+async function isCutoutModelCached(): Promise<boolean> {
+    try {
+        if (typeof caches === "undefined") return false;
+        const cache = await caches.open("transformers-cache");
+        const onnxUrl = new URL("/models/birefnet-lite-512/onnx/model_fp16.onnx", window.location.origin).href;
+        return Boolean(await cache.match(onnxUrl));
+    } catch {
+        return false;
+    }
+}
+
 
 // 裁剪、切分等像素级操作要求图片同源可读：云端地址若不带 CORS 头，
 // canvas 会被标记为跨域，toDataURL 直接抛 SecurityError。

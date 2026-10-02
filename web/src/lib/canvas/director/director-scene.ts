@@ -3,7 +3,10 @@ import { Color, Euler, Quaternion } from "three";
 
 import type { DirectorBoneKeyframe, DirectorBoneTrack, DirectorCamera, DirectorHumanoidBone, DirectorKeyframe, DirectorKeyframeDeleteTarget, DirectorKeyframeEasing, DirectorLight, DirectorObject, DirectorPose, DirectorQuat, DirectorScene, DirectorTransform, DirectorVec3 } from "@/types/director";
 
-export const DIRECTOR_DEFAULT_ACTOR_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r185/examples/models/gltf/Xbot.glb";
+// 默认演员模型自托管（CC0 1.0，来源 three.js examples/models/gltf/RobotExpressive）。
+// 原 Xbot.glb 走 jsDelivr 外链：国内不稳，且在 COEP require-corp 下会被拦；
+// 换模型是为了同时解掉许可（Mixamo 血统再分发权不明确）与可达性两个问题。
+export const DIRECTOR_DEFAULT_ACTOR_URL = "/models/RobotExpressive.glb";
 export const DIRECTOR_ACTOR_COLORS = ["#f1f3f5", "#202329", "#2f7de1", "#d84949", "#dfae3f", "#34a276"] as const;
 
 export const directorIdentityTransform = (position: DirectorVec3 = [0, 0, 0]): DirectorTransform => ({ position, rotation: [0, 0, 0], scale: [1, 1, 1] });
@@ -265,7 +268,7 @@ export function directorPoseLabel(pose: DirectorPose) {
 }
 
 export function directorPoseBoneDeltas(pose: DirectorPose): Partial<Record<DirectorHumanoidBone, DirectorQuat>> {
-    // Soldier 的左右上臂局部 Z 轴方向一致，正向旋转才会把两侧手臂从 T Pose 放下。
+    // 默认演员（RobotExpressive）的左右上臂局部 Z 轴方向一致，正向旋转才会把两侧手臂从 T Pose 放下。
     const armsDown = { leftUpperArm: poseQuaternion(0, 0, 1.28), rightUpperArm: poseQuaternion(0, 0, 1.28) };
     const poses: Record<DirectorPose, Partial<Record<DirectorHumanoidBone, DirectorQuat>>> = {
         neutral: armsDown,

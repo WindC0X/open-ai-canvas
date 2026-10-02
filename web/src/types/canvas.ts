@@ -277,6 +277,36 @@ export type CanvasNodeMetadata = {
     outpaintGeometry?: { rect: { x0: number; y0: number; x1: number; y1: number }; frame: { width: number; height: number } };
     /** 图片编辑操作类型（执行链写入任务源节点 metadata：outpaint/mask 等，前端门控消费）。 */
     edit?: "outpaint" | "mask";
+    /**
+     * 去除背景的来源档位。
+     *
+     * local = 浏览器 WASM 推理（免费、源图不出浏览器）；
+     * generative = AI 模型重画（消耗积分）。结果节点据此提供「用 AI 模型重新去除」入口。
+     */
+    backgroundRemoval?: { mode: "local" | "generative" };
+    /**
+     * 本地抠图的进行中阶段（仅运行时写，完成后清空）。
+     *
+     * 首次要下 90MB 权重，全程可能持续数十秒到数分钟；没有阶段文本的话
+     * 用户只能看到菜单关闭、什么都不发生（用户真机抽验 2026-10-01 抓获）。
+     * download 阶段额外带字节数，覆盖层显示实际进度而非只转圈。
+     */
+    backgroundRemovalPhase?: "queued" | "download" | "segment" | "encode" | "locate";
+    /** 下载阶段已下载字节 / 总字节（仅 download 阶段有值）。 */
+    backgroundRemovalProgress?: { loaded: number; total: number };
+    /** L1 自动定位阶段的窗口进度（「自动定位 (2/4)」）。 */
+    backgroundRemovalLocate?: { attempt: number; attempts: number };
+    /** 本次抠图起始时间戳（ms）；推理阶段无百分比，靠它显示已用时。 */
+    backgroundRemovalStartedAt?: number;
+    /**
+     * 本次页面会话的抠图标记（测试线 S1 阻塞缺陷 2026-10-02）。
+     *
+     * phase/startedAt 会随节点落库，页面重开后残留脏数据会让覆盖层显示
+     * 「正在生成透明图…（已用 1790957281s）」。本字段是模块级内存值：
+     * 页面重开 → 模块重新求值 → 新 id；存量节点带的是旧 id，比对不等即不显示。
+     * 这是数据兼容路径——不迁移、不清理历史节点，显示侧直接治愈。
+     */
+    backgroundRemovalSessionId?: string;
     failedPromptFingerprint?: string;
     lastGenerationRequestFingerprint?: string;
     fontSize?: number;

@@ -11,6 +11,12 @@ COPY CHANGELOG.md /app/CHANGELOG.md
 COPY README.md /app/README.md
 COPY assets /app/assets
 COPY web ./
+# 抠图权重（约 94MB）不进 git，构建期从上游拉取；部署者可设 CANVAS_MODEL_BASE_URL
+# 指向国内镜像。运行期浏览器只从本站 /models/ 取，不直连上游。
+COPY scripts/fetch-cutout-models.sh /app/scripts/fetch-cutout-models.sh
+ARG CANVAS_MODEL_BASE_URL=https://huggingface.co/studioludens/birefnet-lite-512/resolve/main
+ENV CANVAS_MODEL_BASE_URL=${CANVAS_MODEL_BASE_URL}
+RUN bash /app/scripts/fetch-cutout-models.sh
 ARG VITE_TLDRAW_LICENSE_KEY
 ARG BUILD_VERSION
 ARG BUILD_COMMIT=unknown

@@ -210,3 +210,41 @@
 | I13 | `audio-settings-panel.tsx`（§八增补） | `SettingGroup` 增强版（`extra?: ReactNode` + `theme.node.groupTitle`）、共享 `OptionPill` 导入、12 笔改造 | `b0806745` IndexTTS2 情感段（14 键 + emotionFields + 权重 input）+ `d328a257` 格式化 | AudioSettingKey 取上游 14 键；情感段用上游结构；SettingGroup 用 fork 增强版（extra 可选兼容）；`theme.node.muted` 已证存在 |
 | I14 | `CHANGELOG.md` / `pending-test.mdx` | Unreleased 段 / F-06 扩图销账段 | v1.5.9/v1.5.9.1 发布段 / 素材删除+CI 提速+大文件拆分段 | keep-both（G9 惯例）；pending-test 保留 fork 路径 `docs/plans/`（路径分歧先例）+ 融合上游新段 |
 | I15 | `canvas-cloud-agent.css` | fork 增量 | **rider 2 零触碰** | 零冲突直接保留 |
+
+## F-01 入口整合登记（J 系列 · 2026-10-01 · 控制线追加裁定）
+
+> 用户真机抽验发现结构性问题：工具栏「去除背景」走上游原生的生成式重画（云渠道扣积分），
+> 而本枝实现的浏览器 WASM 本地抠图挂在 media-conversion 的 cutout 桩上——两条「去背景」链并存，
+> 最直觉点的入口不走本地推理，违背三级路由的产品形态（基线档应是最易达的默认路径）。
+> 控制线裁定入口整合（用户拍板选项 A），并授权触碰咽喉文件 `canvas-image-toolbar-tools.tsx`：
+> 该文件的本职就是工具定义与 handlers，改动限「去除背景」这一个工具项。
+
+| # | 涉及面 | fork 增量 | 改动内容 | 咽喉授权 |
+|---|---|---|---|---|
+| J1 | `canvas-image-toolbar-tools.tsx` `removeBackground` 工具项 | 工具项由「单一生成式」改为「按节点状态分档」：`label` / `description` / `run` 三者改为 node-aware 函数——普通图片走 `onRemoveBackgroundLocal`（本地 WASM），`metadata.backgroundRemoval.mode === "local"` 的结果节点走 `onRemoveBackgroundGenerative`（既有 image-edit 对话框） | 只动 `removeBackground` 一项；`description` 字段类型放宽为 `string \| ((node) => string)` 并在 `buildImageToolbarTools` 里 `resolveToolText` 解析（原先直接透传，函数会被当成字符串渲染）；新增 `isLocalBackgroundRemovalResult` 私有判定 | **控制线授权例外**：改动限该工具项 + 配套 handler 接线，不碰其他工具 |
+| J2 | `use-canvas-media-tools.ts` 新增 `removeBackgroundLocally` | 本地抠图执行链：`resolveCroppableImageSource`（同源化，避开跨域 canvas 污染）→ `runBrowserCutout` → `uploadImage` → 子节点落画布并连线选中（与裁剪/标注同范式，不弹对话框）；带 `localCutoutInFlightRef` 重入守卫（首次要下 90MB）；结果节点写 `metadata.backgroundRemoval.mode = "local"` | 新增 handler，既有 `openBackgroundRemoval` 原样保留并包一层 `openBackgroundRemovalGenerative` | 同文件既有职责（媒体工具执行链），非新增面 |
+| J3 | `CanvasNodeMetadata.backgroundRemoval` | 新增 `{ mode: "local" \| "generative" }` 字段 | 结果节点据此提供精修入口；不加该字段则 tsc 拒绝写入 | 类型面，非咽喉 |
+| J12 | `project.tsx:2904` 传 `onHeightChange={setActiveTaskPanelHeight}` | HUD 让位接线 | 用户真机终验 R-1（控制线定位到行）：`setActiveTaskPanelHeight` 定义后从未被调用，HUD 的 topInset 让位公式永远吃 0 → 与任务面板重叠。**上游同病**（origin/main 连消费端 `onHeightChange` 都没有），属 fork 补全 | 非咽喉（页面组合层接线）|
+| J11 | `project.tsx:2187` 面板排除清单加 `MediaConversion` | 抠图/转换结果节点选中不弹对话输入面板 | 用户真机终验 R-2：对已产出结果是纯噪音。全类型排除依据：节点对 `metadata.prompt` 引用数为 0、参数入口是节点自身 OperationPicker、`project.tsx:1200` 已有同口径先例 | 非咽喉（页面组合层渲染分支）|
+| J16 | `use-canvas-media-tools.ts` 抠图 phase/startedAt 单次写入 | `markPhase` 增加 `startedAt?` 参数；启动与 finally 各一次 setNodes 写/清 phase+progress+locate+startedAt+sessionId | 测试线 S1 阻塞缺陷：两次独立 setNodes 落库出「phase 已写 startedAt 未写」不一致态，重开画布显示「已用 1790957281s」 | 非咽喉（页面私有 hook）|
+| J17 | `lib/media-conversion/cutout-session.ts` 会话标记（新文件） | `CUTOUT_SESSION_ID = nanoid()` 模块级内存值 + `isActiveCutoutSession(phase, sessionId)` | 显示侧残留守卫的判据。**偏离控制线定位③**：裁定为「加 status 守卫」，但抠图源节点 status 全程为 `"success"`（抠图函数不写 status），残留态与运行态 status 相同，加 status 守卫会连正常运行态一起隐藏、摧毁三段进度验收。改用会话标记：页面重开模块重求值 → 新 id ≠ 节点旧 id → 残留不渲染，且治愈已落库脏数据（数据兼容，不迁移）| 非咽喉（lib 纯函数）|
+| J17b | `canvas-node.tsx` 覆盖层残留守卫 + startedAt 安全回退 | 显示条件改 `isActiveCutoutSession(...)`；`startedAt` 改可选，缺失时 elapsed 为 `null`，文案经 `elapsedSuffix` 条件拼接（不显示 ≠ 显示 0）| 测试线 S1 定位②：`startedAt ?? 0` → `(Date.now()-0)/1000` = Unix 秒 | 非咽喉（画布节点渲染层）|
+| J17c | `types/canvas.ts` 新字段 `backgroundRemovalSessionId?: string` | 会话标记落库字段（供显示侧比对）| 同 J17 | 非咽喉（类型面）|
+| J14 | `canvas-node.tsx` hover composer 排除 MediaConversion | `hoverComposerNodeType` 加 `!isMediaConversionResult`；判据 = 类型排除 + `metadata.backgroundRemoval.mode === "local"` 指纹 | 用户终验第五轮 P1：R-2 只堵了选中态 dialog，hover 态漏排。本地抠图结果实际是 `CanvasNodeType.Image`（:1319 创建），只按类型排除会漏掉工具栏去背景链，故加指纹（对齐扩图结果 :318-326 先例）| 非咽喉（画布节点渲染层）|
+| J15 | `use-canvas-media-tools.ts` 抠图并发 1 → 2 | `localCutoutInFlightRef` 布尔 → 计数器 + `LOCAL_CUTOUT_MAX_CONCURRENT = 2`；新增 `queued` 阶段显示排队态 | 用户终验第五轮 P2：单例布尔点第二张直接被拒。worker `segmenterPromise` 单例保留（模型只加载一份）→ 并发 2 实为队列深度 2。上限 2 而非更高：WASM 推理吃满核，更高只增队列内存 | 非咽喉（页面私有 hook）|
+| J15b | `cutout-runtime.ts` / `types/canvas.ts` / `canvas-node.tsx` / `media-conversion-node.tsx` 排队态类型与呈现 | `CutoutDisplayPhase = CutoutProgressPhase \| "queued"`；覆盖层与节点 notice 双端渲染「排队中…（前一张抠图进行中，已等 Ns）」 | `queued` 是调用侧概念（worker 不知道有队列），故不混进 worker 协议 `CutoutProgressPhase` | 非咽喉（类型面 + 渲染层）|
+| J13 | `background-removal.worker.ts` R-4 分层管线（L0 基线 + L1 双路径） | L0 全图单遍 ≥5% 直接出图；<5% 时弱 logits 质心 → 判别器分流：大构图走 4×4@50% 网格（16 窗，步长 `(dim-side)/(g-1)` 保证 `g×side ≥ max(W,H)` 无空隙）逐像素 max 合并；小主体走 15%→35% 升序扫描（≤4 窗）首个达标即停；均 < `max(L0×0.8, 0.5%)` → L3 `errorCode="no_subject"` | 控制线终裁（2026-10-02，基于三参考项目源码 + 11 站竞品语料 + 用户四轮真机终验）：BiRefNet 显著性盲区两类（小主体、无主导主体的多体构图）需分层兜底。**绝对覆盖率口径**（窗口内主体像素/原图总像素）——窗内占比会结构性奖励小窗口，实测产出花瓣碎片 | 非咽喉（worker 推理实现）|
+| J13b | worker 路由判别器（窗口稳定性） | 同窗心（弱 logits 质心）15% vs 30% 窗绝对覆盖比值，`>1.3 或 <0.7` → 大构图网格，否则小主体扫描 | **L0 同值不可区分**：实测大构图 t1/t2 与小主体 t3-t6 的 L0 同为 0.00%。判别依据：小主体占满窗→窗宽影响小（实测 1.06-1.20），大构图分散→影响大（实测 0.00/4.45），分离度无重叠。成本仅 +2 次推理 | 非咽喉（worker 路由逻辑）|
+| J13c | worker L3 错误通道（不回传空白图） | L1 全部窗口未达标 → `errorCode="no_subject"` 走 error 而非 done；两处调用点把它当可操作提示（`use-canvas-media-tools` 走 warning、`media-conversion-node` 标 `skipped`） | 控制线 L3 口径：**空白透明图正是用户看到的黑图**，回传它等于交付哑失败。文案「未识别到主体，建议框选主体区域重试，或用 AI 重新去除（云端）」 | 非咽喉（worker 协议 + 提示文案）|
+| J13d | `canvas-node.tsx` / `types/canvas.ts` / `media-conversion-node.tsx` L1 进度阶段 | 新增 `locate` 阶段 + `backgroundRemovalLocate { attempt, attempts }`，覆盖层显示「正在识别主体 · 自动定位 (n/16)」；节点 notice 同口径 | 大构图 16 窗实测 85-90s，无窗计数用户无法判断是否卡住。沿用既有秒表 + 不确定扫描条范式，globals.css 零改动 | 非咽喉（画布节点渲染层 + 类型面）|
+| J10 | `background-removal.worker.ts` 换官方 pipeline | 删手搓 `logitsToMask` + `composeTransparentPng`，改 `pipeline("background-removal", MODEL_ID, { progress_callback })`；输出经 `rawImageToPngBlob` 转 PNG | 用户真机终验三项回修（控制线裁定「换官方轮子」2026-10-01）：官方 `_call` 9 行，蒙版 resize 回原图尺寸再 `putAlpha`，**对齐构造性保证**；手搓段每处都是一次坐标数学的机会。工厂函数接受 `progress_callback`，字节进度不丢（实测 520 事件）| 非咽喉（worker 推理实现）|
+| J9 | `canvas-node.tsx` 覆盖层去掉 `backdrop-filter` | 移除 `backdrop-blur-[1px]`，只留 `bg-black/45` 压暗 | 用户真机终验缺陷2：覆盖层在 `canvas-world-layer` 的 `transform: scale()` 内，Chromium 对缩放祖先内 `backdrop-filter` 分块重采样 → 源节点画面四象限镜像。仓库已在 globals.css 对节点面板统一 `backdrop-filter: none`，覆盖层补入同口径 | 非咽喉（画布节点渲染层）|
+| J8b | `use-canvas-media-tools.ts` toast 缓存区分 | 新增模块级 `isCutoutModelCached()` 读 Cache Storage `transformers-cache` bucket `match` onnx；命中时只报「开始本地抠图」 | 用户真机终验缺陷3：原 toast 无条件说「首次需下载 90MB」，缓存命中（约 1s 直达识别段）时撒谎 | 非咽喉（页面私有 hook）|
+| J8 | `background-removal.worker.ts` ORT 运行时自托管 | `?url` 导入 `ort-wasm-simd-threaded.asyncify.{mjs,wasm}` 并显式写 `env.backends.onnx.wasm.wasmPaths` | 红线③修复（控制线裁定）：transformers.js 在 wasmPaths 为空时指向 jsDelivr，其排除条件只认 ServiceWorker，DedicatedWorker/主线程全命中 —— dev 与**生产**实测均拉 CDN 26MB。不能用 public/ 副本（Vite 拒 import，dev 报 no available backend）| 非咽喉（worker 资源导入）|
+| J7 | `canvas-node.tsx` 覆盖层推理阶段进度 | segment/encode 加「已用 Ns」秒表 + 复用既有 `canvas-task-progress-shimmer` 不确定扫描条；`metadata.backgroundRemovalStartedAt` | 用户追问「抠图进度呢」：ORT 无单次 run 进度 API，5-6s 推理原先零进度；globals.css 保持零改动 | 非咽喉（画布节点渲染层）|
+| J6 | `web/package.json` dev 脚本 + 抠图进度管道扩展 | `UV_THREADPOOL_SIZE=32` 修 WSL dev server 静态大文件 150x 慢（根因：usePolling 轮询 13.5 万文件占满 libuv 4 线程池，饿死 sirv 的 fs.read；非 drvfs、非 nginx 对照问题）；抠图 `onProgress` 扩为带 `loaded/total` 字节 | 下载字节进度裁定（2026-10-01 第二批）：transformers.js `readResponse` 本就报字节，我方 worker 原先只取 status 把字节丢了（同族接线缺失）| 非咽喉（构建脚本 + 进度管道）|
+| J5 | `canvas-node.tsx` 新增 `BackgroundRemovalPhaseOverlay` | 本地抠图阶段覆盖层（`role="status"` + `aria-live`，三段可读文本）；由节点 `metadata.backgroundRemovalPhase` 驱动 | 进度反馈缺陷裁定（2026-10-01）修复件：`onProgress` 原先没接，19s-570s 静默操作。与既有 `NodeStatusBadge` / `CanvasNodeLoadingFill`（S04）并列，不替换它们 | 非咽喉（画布节点渲染层）|
+| J4 | `canvas-node-toolbar.tsx` / `project.tsx` / `shared.tsx` | 三个新 handler 透传（`onRemoveBackground` 保留不删） | 访客态 `shared.tsx` 三档全部 `unauthorized`，整合不放行 | 非咽喉（`shared.tsx` 访客态按裁定保持不动） |
+
+**文案红线**：本地档「本地识别，免费离线，逐像素保真」；生成式档「AI 模型重画，适合复杂边缘，消耗积分」。
+两档均不承诺「发丝级」（透明/高反光为已知弱项，由精修档承接）。

@@ -912,6 +912,8 @@ function InfiniteCanvasPage() {
         setImageEditNodeId,
         setImageEditPreset,
         openBackgroundRemoval,
+        removeBackgroundLocally,
+        openBackgroundRemovalGenerative,
         openLayerDecomposition,
         decomposeImageLayers,
         setLayerDecompositionNodeId,
@@ -2178,7 +2180,11 @@ function InfiniteCanvasPage() {
 
     const renderCanvasNodePanel = useCallback(
         (panelNode: CanvasNodeData) => {
-            if (panelNode.type === CanvasNodeType.Script || panelNode.type === CanvasNodeType.Drawing) return null;
+            // MediaConversion 与 Script/Drawing 同待遇：节点的参数入口是自身画布上的
+            // OperationPicker，节点从不消费 metadata.prompt（全文件 0 引用），选中时弹对话
+            // 输入面板对已产出结果是纯噪音（用户真机终验 2026-10-01 R-2）。
+            // 同口径已在 1200 行的另一处排除清单里对 MediaConversion 生效。
+            if (panelNode.type === CanvasNodeType.Script || panelNode.type === CanvasNodeType.Drawing || panelNode.type === CanvasNodeType.MediaConversion) return null;
             return panelNode.type === CanvasNodeType.Config ? (
                 <CanvasConfigComposer
                     /* 同 CanvasNodePromptPanel: 按节点强重建, 防 state 跨节点串扰(2026-09-11)。 */
@@ -2896,7 +2902,10 @@ function InfiniteCanvasPage() {
                                 </CanvasNodeActionContext.Provider>
                             </InfiniteCanvas>
 
-                                <CanvasActiveTaskPanel tasks={activeTasks} onCancelTask={cancelCanvasTask} topInset={focusMode ? "var(--space-3)" : "var(--canvas-topbar-offset)"} />
+                                {/* onHeightChange 必须接：不接时 HUD 的 topInset 让位公式永远吃到 0，
+                                    任务面板出现/展开时右侧对象 HUD 会与它重叠（用户真机截图实证 2026-10-01）。
+                                    上游同病（origin/main 连消费端都没有），属 fork 补全。 */}
+                                <CanvasActiveTaskPanel tasks={activeTasks} onCancelTask={cancelCanvasTask} topInset={focusMode ? "var(--space-3)" : "var(--canvas-topbar-offset)"} onHeightChange={setActiveTaskPanelHeight} />
 
                                 {focusMode ? (
                                     <CanvasFocusModeBar
@@ -3171,6 +3180,8 @@ function InfiniteCanvasPage() {
                             onDelete={(node: CanvasNodeData) => deleteNodes(new Set([node.id]))}
                             onAnnotationEdit={openAnnotationEditNode}
                             onRemoveBackground={openBackgroundRemoval}
+                            onRemoveBackgroundLocal={removeBackgroundLocally}
+                            onRemoveBackgroundGenerative={openBackgroundRemovalGenerative}
                             onLayerDecomposition={openLayerDecomposition}
                             onTextEdit={openTextEditNode}
                         />

@@ -67,3 +67,8 @@ backend/tmp_*
 # Keep the runtime in source control; its optional debug map is not deployed.
 /web/public/live2d/live2dcubismcore.min.js.map
 .zocde/
+
+# 抠图权重约 94MB，不进 git；由 scripts/fetch-cutout-models.sh 下载并校验 sha256。
+# 清单（models-manifest.json）与 config 保留在版本库内，供运行期校验与留档。
+/web/public/models/birefnet-lite-512/onnx/
+/web/public/models/birefnet-lite-512/*.part
