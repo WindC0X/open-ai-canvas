@@ -133,8 +133,14 @@ describe("workspace wallet entry", () => {
         const topBar = source("../src/components/layout/workspace-top-bar.tsx");
         const css = source("../src/styles/globals.css");
 
+        // W4 骑乘件二（2026-10-03）：空白页修复——element 从 {null} 改为立即重定向。
+        // 保留路径本身是刻意的：后端支付回跳硬编码 /wallet?paymentOrder=（payment.go:180/183），
+        // 而 WorkspaceWalletHost 挂在认证布局内，删路由会让回跳落顶层 404、弹窗不弹。
         expect(router).toContain('path: "/wallet"');
-        expect(router).toContain("element: <RequireAuth>{null}</RequireAuth>");
+        expect(router).toContain('<Navigate to="/" replace />');
+        // 负向断言必须看「代码面」而非整文件——注释里合法引用了旧写法（同类教训本仓已复发三次）
+        const routerCode = router.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+        expect(routerCode).not.toContain("{null}</RequireAuth>");
         expect(router).not.toContain("WalletPage");
         expect(router).not.toContain("loadWalletPage");
         expect(modules).not.toContain("pages/wallet");
