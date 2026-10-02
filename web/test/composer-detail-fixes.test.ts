@@ -62,19 +62,28 @@ test("拖动结束不回扯：dragPreview 位移分量恒零（DOM 直写唯一�
 });
 
 test("拖拽关闭/显场对齐：composer 与工具栏同走 hidden 级别，同参过渡", async () => {
-    const [aff, project, globals] = await Promise.all([
+    // W4（2026-10-03）：fork 组件覆写外置到 flora-overrides.css，断言跨两文件成立。
+    const [aff, project, globals, overrides] = await Promise.all([
         Bun.file(new URL("../src/lib/canvas/affordance.ts", import.meta.url)).text(),
         Bun.file(new URL("../src/pages/canvas/project.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text(),
+        Bun.file(new URL("../src/styles/flora-overrides.css", import.meta.url)).text(),
     ]);
+    const styles = globals + "\n" + overrides;
     expect(aff).toContain("guards.nodeDragging || guards.selectionBoxActive");
     expect(project).not.toContain("!selectionBox && !isCanvasNodeMoving ? dialogNode : null");
-    expect(globals).toContain('.canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter');
-    expect(globals).toContain("translateY(-12px) scale(0.97)");
+    expect(styles).toContain('.canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter');
+    expect(styles).toContain("translateY(-12px) scale(0.97)");
 });
 
 test("弹层玻璃不再被 canvas-panel-in 的 filter 灭活（backdrop root 根修，2026-09-26 智能引用透字）", async () => {
-    const css = await Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text();
+    // W4（2026-10-03）：canvas-panel-out 随设置面板族外置到 flora-overrides.css；
+    // canvas-panel-in 仍在 globals。跨两文件查找，断言语义不变（keyframes 内不得有 filter）。
+    const [g, o] = await Promise.all([
+        Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text(),
+        Bun.file(new URL("../src/styles/flora-overrides.css", import.meta.url)).text(),
+    ]);
+    const css = g + "\n" + o;
     // canvas-panel-in 挂 .ant-popover/.ant-dropdown 根元素(fill both)：根上任何 filter(含 saturate(1))
     // 都会把子树变成 backdrop root，令玻璃子级 backdrop-filter 只能模糊空背景 → 清晰透底。
     // 像素判据: 修前 slope 0.110(有效 0.89), 修后 0.024(有效 0.976, 与设置族 0.028 同档)。
