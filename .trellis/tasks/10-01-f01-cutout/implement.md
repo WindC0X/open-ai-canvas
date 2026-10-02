@@ -1268,3 +1268,82 @@ tsc 0 / lint 0 / 全量 bun test **2505 pass 0 fail** / 抠图守卫 **56 pass 0
 
 - **W5-1** 本地抠图进统一任务面（生成任务面板）—— 1-2 人日呈现位收敛设计
 - **W5-2** Agent 批量生成合并审批（一次审批 N 张）+ auto 权限档位语义升级 —— Agent 计费准入设计
+### 16. 测试线 S1 阻塞缺陷回修（2026-10-02）
+
+**现象**：重开画布后 status=success 的抠图节点永久显示
+「正在生成透明图…（已用 1790957281s）」，phase 残留跨会话且已落库
+（另一例 startedAt 有值显示 4537s）。
+
+#### 16.1 根因
+
+三处叠加：
+
+1. **写侧竞态**：phase 与 startedAt 两次独立 setNodes（原 :1285-1291 / :1357-1361），
+   落库出现「phase 已写而 startedAt 未写」的不一致态
+2. **显示侧回退不安全**：`canvas-node.tsx:465` `startedAt ?? 0`
+   → `(Date.now() - 0)/1000` = Unix 秒
+3. **无终态清理**：显示条件只看 phase 存在，不检查节点状态
+
+#### 16.2 修法（含对控制线定位③的方向修正）
+
+**① 写侧（照裁定实现）**：phase 与 startedAt 合并单次 setNodes——
+`markPhase` 增加 `startedAt?: number` 参数，启动时
+`markPhase(queued ? "queued" : "download", { loaded: 0, total: 0 }, undefined, startedAt)`；
+finally 同样单次 setNodes 清理 phase + startedAt + sessionId。
+
+**② 显示侧（照裁定实现）**：`startedAt` 改可选；缺失时 elapsed 为 `null`
+（**不显示秒数**，而非显示 0）。文案经 `elapsedSuffix` / `waitedSuffix` 条件拼接——
+「不显示」与「显示 0」是两种不同的诚实度：前者是不知情，后者是编造。
+
+**③ 残留守卫（方向修正，重要）**：控制线裁定为「加 status 守卫（非进行中不显示）」，
+但**按字面实现会造成回归**：
+
+- 抠图源节点是「有内容的成品图」，其 `metadata.status` 全程为 `"success"`
+  （抠图函数内 status 写入次数 = 0，:1263 守卫要求 `metadata.content` 存在，
+  而有内容图节点的 status 由 `imageMetadata` 固定为 `"success"`）
+- 残留态与运行态的 status **完全相同**，无法区分
+- 加 status 守卫会连正常运行态一起隐藏 → **摧毁 F-01 的「三段进度可见」核心验收**
+
+改用**会话标记**判据（数据兼容路径，不做迁移）：
+
+```ts
+// src/lib/media-conversion/cutout-session.ts
+export const CUTOUT_SESSION_ID = nanoid();   // 模块级内存值，页面重开即变
+export function isActiveCutoutSession(phase, sessionId) {
+    return Boolean(phase) && sessionId === CUTOUT_SESSION_ID;
+}
+```
+
+- 写侧发起抠图时写入 `backgroundRemovalSessionId = CUTOUT_SESSION_ID`
+- 显示侧只在「节点 id === 当前会话 id」时渲染覆盖层
+- 页面重开 → 模块重新求值 → 新 id ≠ 节点旧 id → 残留态不渲染
+- **治愈已落库脏数据**：用户 twin 库的节点无 sessionId（或带旧 id），
+  比对不等即不显示，无需迁移、无需清理
+
+新字段：`CanvasNodeMetadata.backgroundRemovalSessionId?: string`
+
+#### 16.3 验证
+
+**判据层（4/4）**：
+
+| 用例 | 显示 | 期望 |
+|---|---|---|
+| 残留态：phase=encode + startedAt 缺失 + 无 sessionId | false | false ✅ |
+| 残留态：phase=encode + 旧会话 sessionId | false | false ✅ |
+| 运行态：phase=encode + 本次会话 sessionId | true | true ✅ |
+| 终态：phase 已清理 | false | false ✅ |
+
+**DOM 层**：
+- 残留态（startedAt 缺失）→ `正在生成透明图…`（**无秒数**）
+- 正常态（startedAt 有值）→ `正在生成透明图…(已用 13s)`（回归保护）
+- 截图 `/tmp/r4exp/S1_residual_guard.png`
+
+**门禁**：tsc 0 / lint 0 / 全量 bun test **2513 pass 0 fail**（+8 新用例）/
+抠图守卫 **64 pass 0 fail**（5 文件）/ build 2m50s
+
+#### 16.4 新增守卫
+
+- `test/cutout-session.test.ts`（5 例）：会话 id 非空 / 本次会话显示 /
+  旧会话 id 不显示 / 无 sessionId 不显示 / 无 phase 不显示
+- `cutout-entry-integration.test.ts` +3 例：写侧单次 setNodes、
+  显示侧不回退成 0、残留守卫不走 status 判据

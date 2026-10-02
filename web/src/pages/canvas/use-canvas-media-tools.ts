@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { App } from "antd";
 import { nanoid } from "nanoid";
+import { CUTOUT_SESSION_ID } from "@/lib/media-conversion/cutout-session";
 
 import type { CanvasImageCropRect } from "@/components/canvas/canvas-node-crop-dialog";
 import type { CanvasImageMaskEditPayload } from "@/components/canvas/canvas-node-mask-edit-dialog";
@@ -1275,21 +1276,42 @@ export function useCanvasMediaTools({
         setRunningNodeId(node.id);
         // 首次要下约 90MB 权重，全程可能数十秒到数分钟；没有可见反馈用户会以为点击丢失
         // （用户真机抽验 2026-10-01）。启动就写阶段，后续由 worker 的 onProgress 推进。
+        // phase / progress / locate / startedAt 单次 setNodes 写入。
+        //
+        // 为什么合并（测试线 S1 阻塞缺陷 2026-10-02）：拆成两次 setNodes 会落库出
+        // 「phase 已写、startedAt 未写」的不一致态；重开画布后覆盖层读到
+        // startedAt === undefined，回退成 `?? 0`，已用时 = (Date.now() - 0)/1000 = Unix 秒
+        // （用户实测 1790957281s）。合并写入后该窗口不存在。
+        //
+        // startedAt 语义：仅在本次调用传值时写入，不传时保持原值（进度推进不应刷新起点）。
         const markPhase = (
             phase: CanvasNodeMetadata["backgroundRemovalPhase"],
             progress?: CanvasNodeMetadata["backgroundRemovalProgress"],
             locate?: CanvasNodeMetadata["backgroundRemovalLocate"],
+            startedAt?: number,
         ) => {
             setNodes((current) => current.map((item) => item.id === node.id
-                ? { ...item, metadata: { ...item.metadata, backgroundRemovalPhase: phase, backgroundRemovalProgress: progress, backgroundRemovalLocate: locate } }
+                ? {
+                    ...item,
+                    metadata: {
+                        ...item.metadata,
+                        backgroundRemovalPhase: phase,
+                        backgroundRemovalProgress: progress,
+                        backgroundRemovalLocate: locate,
+                        // 会话标记：本次会话发起的抠图才显示覆盖层（见 canvas-node 显示侧守卫）。
+                        // 终态清理（phase=undefined）时一并清掉。
+                        backgroundRemovalSessionId: phase ? CUTOUT_SESSION_ID : undefined,
+                        ...(startedAt !== undefined ? { backgroundRemovalStartedAt: startedAt } : {}),
+                    },
+                }
                 : item));
         };
         const startedAt = Date.now();
         // 排队请求：worker 串行推理，等待期间显示「排队中」而非伪装成已开始识别。
-        markPhase(queued ? "queued" : "download", { loaded: 0, total: 0 });
-        setNodes((current) => current.map((item) => item.id === node.id
-            ? { ...item, metadata: { ...item.metadata, backgroundRemovalStartedAt: startedAt } }
-            : item));
+        // phase 与 startedAt 必须单次 setNodes 写入（测试线 S1 阻塞缺陷 2026-10-02）：
+        // 两次独立 setNodes 之间存在落库不一致窗口——phase 已持久化而 startedAt 未写，
+        // 重开画布后覆盖层按 startedAt ?? 0 计算已用时 = (Date.now() - 0)/1000 = Unix 秒。
+        markPhase(queued ? "queued" : "download", { loaded: 0, total: 0 }, undefined, startedAt);
         // 文案必须区分缓存命中：实测命中时 1s 直达识别段，此时说「首次需下载 90MB」
         // 是在告诉用户一件没发生的事（用户真机抽验 2026-10-01 缺陷3）。
         // 只读 Cache Storage 做判定，不引 transformers.js 内部状态。
@@ -1353,9 +1375,19 @@ export function useCanvasMediaTools({
             message.error(error instanceof Error ? `本地抠图失败：${error.message}` : "本地抠图失败，请重试");
         } finally {
             // 阶段标记与运行态必须在同一处清掉：漏清会让节点永久卡在「处理中」外观。
-            markPhase(undefined);
+            // startedAt 与 phase 同批清理（单次 setNodes），同样消除不一致窗口。
             setNodes((current) => current.map((item) => item.id === node.id
-                ? { ...item, metadata: { ...item.metadata, backgroundRemovalStartedAt: undefined } }
+                ? {
+                    ...item,
+                    metadata: {
+                        ...item.metadata,
+                        backgroundRemovalPhase: undefined,
+                        backgroundRemovalProgress: undefined,
+                        backgroundRemovalLocate: undefined,
+                        backgroundRemovalStartedAt: undefined,
+                        backgroundRemovalSessionId: undefined,
+                    },
+                }
                 : item));
             localCutoutInFlightRef.current = Math.max(0, localCutoutInFlightRef.current - 1);
             setRunningNodeId(null);

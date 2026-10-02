@@ -136,8 +136,10 @@ describe("本地抠图进度反馈", () => {
     test("三段进度文本必须可读（不能只有微弱边框效果）", () => {
         const node = flat(read("components/canvas/canvas-node.tsx"));
         expect(node).toContain("正在加载模型…（首次约90MB）");
-        expect(node).toContain("正在识别主体…（已用 ${elapsed}s）");
-        expect(node).toContain("正在生成透明图…（已用 ${elapsed}s）");
+        // S1 后秒数经 elapsedSuffix 拼接（startedAt 缺失时整段省略）
+        expect(node).toContain("`正在识别主体…${elapsedSuffix}`");
+        expect(node).toContain("`正在生成透明图…${elapsedSuffix}`");
+        expect(node).toContain("const elapsedSuffix = elapsed === null");
         // 覆盖层要能被读屏识别：role=status + aria-live。
         expect(node).toContain('role="status"');
         expect(node).toContain('aria-live="polite"');
@@ -213,7 +215,11 @@ describe("本地抠图进度反馈", () => {
         const start = source.indexOf("const removeBackgroundLocally");
         const body = source.slice(start, source.indexOf("const openBackgroundRemovalGenerative", start));
         expect(body).toContain("} finally {");
-        expect(body).toContain("markPhase(undefined)");
+        // S1 后 finally 走单次 setNodes（phase + startedAt 同批清理），不再调 markPhase(undefined)
+        const fin = body.slice(body.indexOf("} finally {"));
+        expect(fin).toContain("backgroundRemovalPhase: undefined");
+        expect(fin).toContain("backgroundRemovalStartedAt: undefined");
+        expect(fin).toContain("backgroundRemovalSessionId: undefined");
         // P2 后是计数器递减（不是布尔置 false）
         expect(body).toContain("localCutoutInFlightRef.current = Math.max(0, localCutoutInFlightRef.current - 1)");
         expect(body).toContain("setRunningNodeId(null)");
@@ -257,10 +263,49 @@ describe("本地抠图进度反馈", () => {
         expect(node).toContain("const hoverComposerVisible = hoverComposerNodeType &&");
     });
 
+    test("S1 写侧：phase 与 startedAt 单次 setNodes（消除落库不一致窗口）", () => {
+        const source = read("pages/canvas/use-canvas-media-tools.ts");
+        const start = source.indexOf("const removeBackgroundLocally");
+        const body = source.slice(start, source.indexOf("const openBackgroundRemovalGenerative", start));
+        // markPhase 签名收 startedAt（单次写入）
+        expect(body).toContain("startedAt?: number,");
+        expect(body).toContain("...(startedAt !== undefined ? { backgroundRemovalStartedAt: startedAt } : {})");
+        // 启动写入走单次 markPhase，不再有独立的 startedAt setNodes
+        expect(body).toContain('markPhase(queued ? "queued" : "download", { loaded: 0, total: 0 }, undefined, startedAt)');
+        expect(body).not.toContain("backgroundRemovalStartedAt: startedAt } }");
+        // finally 同批清理 phase + startedAt
+        const fin = body.slice(body.indexOf("} finally {"));
+        expect(fin).toContain("backgroundRemovalPhase: undefined");
+        expect(fin).toContain("backgroundRemovalStartedAt: undefined");
+    });
+
+    test("S1 显示侧：startedAt 缺失不显示秒数（不回退成 0 = Unix 秒）", () => {
+        const node = read("components/canvas/canvas-node.tsx");
+        // 不再有 ?? 0 回退
+        expect(node).not.toContain("backgroundRemovalStartedAt ?? 0");
+        // startedAt 可选 + elapsed 为 null 时不显示
+        expect(node).toContain("startedAt?: number;");
+        expect(node).toContain("const [elapsed, setElapsed] = useState<number | null>(null);");
+        expect(node).toContain("if (startedAt === undefined) {");
+        expect(node).toContain("const elapsedSuffix = elapsed === null ? \"\" : `（已用 ${elapsed}s）`;");
+    });
+
+    test("S1 残留守卫：非本次会话的 phase 不渲染覆盖层（治愈已落库脏数据）", () => {
+        const node = read("components/canvas/canvas-node.tsx");
+        // 显示条件走会话判定，不再只看 phase 存在
+        expect(node).toContain("const cutoutPhase = isActiveCutoutSession(");
+        expect(node).toContain("{cutoutPhase && data.metadata ? (");
+        expect(node).not.toMatch(/\{data\.metadata\?\.backgroundRemovalPhase \? \(/);
+        // 明确不用 status 守卫（会隐藏正常运行态：源节点 status 全程 success）
+        expect(node).toContain("不能改用 status 守卫");
+        expect(node).toContain("data.metadata?.backgroundRemovalSessionId");
+    });
+
     test("P2 排队态进度文案（覆盖层 + 节点 notice 两端）", () => {
         const node = read("components/canvas/canvas-node.tsx");
         expect(node).toContain('phase === "queued"');
-        expect(node).toContain("排队中…（前一张抠图进行中，已等 ${elapsed}s）");
+        expect(node).toContain("`排队中…${waitedSuffix}`");
+        expect(node).toContain("const waitedSuffix = elapsed === null");
         expect(read("components/canvas/nodes/media-conversion-node.tsx")).toContain('progress.phase === "queued"');
         // 类型面：queued 是调用侧阶段，不能混进 worker 协议
         const runtime = read("services/cutout-runtime.ts");

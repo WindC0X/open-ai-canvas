@@ -298,6 +298,15 @@ export type CanvasNodeMetadata = {
     backgroundRemovalLocate?: { attempt: number; attempts: number };
     /** 本次抠图起始时间戳（ms）；推理阶段无百分比，靠它显示已用时。 */
     backgroundRemovalStartedAt?: number;
+    /**
+     * 本次页面会话的抠图标记（测试线 S1 阻塞缺陷 2026-10-02）。
+     *
+     * phase/startedAt 会随节点落库，页面重开后残留脏数据会让覆盖层显示
+     * 「正在生成透明图…（已用 1790957281s）」。本字段是模块级内存值：
+     * 页面重开 → 模块重新求值 → 新 id；存量节点带的是旧 id，比对不等即不显示。
+     * 这是数据兼容路径——不迁移、不清理历史节点，显示侧直接治愈。
+     */
+    backgroundRemovalSessionId?: string;
     failedPromptFingerprint?: string;
     lastGenerationRequestFingerprint?: string;
     fontSize?: number;
