@@ -120,7 +120,7 @@ export function useCanvasMediaTools({
     const mergeVideoRunningRef = useRef(false);
     const outpaintInFlightRef = useRef(false);
     // 本地抠图首次要下 90MB 权重，重入会让多个 worker 请求排队。
-    const localCutoutInFlightRef = useRef(false);
+    const localCutoutInFlightRef = useRef(0);
     const [cropNodeId, setCropNodeId] = useState<string | null>(null);
     const [annotationNodeId, setAnnotationNodeId] = useState<string | null>(null);
     const [annotationEditNodeId, setAnnotationEditNodeId] = useState<string | null>(null);
@@ -1261,12 +1261,17 @@ export function useCanvasMediaTools({
      */
     const removeBackgroundLocally = useCallback(async (node: CanvasNodeData) => {
         if (!node.metadata?.content) return;
-        // 重入守卫：模型首次加载要下 90MB，重复点按会并发起多个 worker 请求。
-        if (localCutoutInFlightRef.current) {
-            message.warning("已有本地抠图在进行，请等它完成后再发起");
+        // 并发守卫（用户真机终验 2026-10-01 P2）：原为全局单例布尔，点第二张图直接被拒，
+        // 与「一次选多张图批量抠」的实际用法相左。放宽为计数器，上限 2——
+        // worker 侧 segmenterPromise 仍是单例（模型只加载一份），推理请求天然串行排队，
+        // 并发 2 实为队列深度 2；再高只增队列内存不增吞吐（WASM 推理本就吃满核）。
+        if (localCutoutInFlightRef.current >= LOCAL_CUTOUT_MAX_CONCURRENT) {
+            message.warning(`已有 ${LOCAL_CUTOUT_MAX_CONCURRENT} 个本地抠图在进行，请等其中一张完成后再发起`);
             return;
         }
-        localCutoutInFlightRef.current = true;
+        // 已有请求在跑 = 本次要排队：worker 串行推理，排队期间节点显示「排队中」而不是伪装成进行中。
+        const queued = localCutoutInFlightRef.current > 0;
+        localCutoutInFlightRef.current += 1;
         setRunningNodeId(node.id);
         // 首次要下约 90MB 权重，全程可能数十秒到数分钟；没有可见反馈用户会以为点击丢失
         // （用户真机抽验 2026-10-01）。启动就写阶段，后续由 worker 的 onProgress 推进。
@@ -1280,14 +1285,18 @@ export function useCanvasMediaTools({
                 : item));
         };
         const startedAt = Date.now();
-        markPhase("download", { loaded: 0, total: 0 });
+        // 排队请求：worker 串行推理，等待期间显示「排队中」而非伪装成已开始识别。
+        markPhase(queued ? "queued" : "download", { loaded: 0, total: 0 });
         setNodes((current) => current.map((item) => item.id === node.id
             ? { ...item, metadata: { ...item.metadata, backgroundRemovalStartedAt: startedAt } }
             : item));
         // 文案必须区分缓存命中：实测命中时 1s 直达识别段，此时说「首次需下载 90MB」
         // 是在告诉用户一件没发生的事（用户真机抽验 2026-10-01 缺陷3）。
         // 只读 Cache Storage 做判定，不引 transformers.js 内部状态。
-        if (await isCutoutModelCached()) {
+        // 排队中的请求不提下载（它先要等前一张跑完）。
+        if (queued) {
+            message.info("已加入本地抠图队列，等待前一张完成");
+        } else if (await isCutoutModelCached()) {
             message.info("开始本地抠图");
         } else {
             message.info("开始本地抠图，首次需下载约 90MB 模型（仅此一次）");
@@ -1348,7 +1357,7 @@ export function useCanvasMediaTools({
             setNodes((current) => current.map((item) => item.id === node.id
                 ? { ...item, metadata: { ...item.metadata, backgroundRemovalStartedAt: undefined } }
                 : item));
-            localCutoutInFlightRef.current = false;
+            localCutoutInFlightRef.current = Math.max(0, localCutoutInFlightRef.current - 1);
             setRunningNodeId(null);
             releaseSource();
         }
@@ -1699,6 +1708,15 @@ export function useCanvasMediaTools({
         upscaleNodeId,
     };
 }
+
+/**
+ * 本地抠图并发上限（用户真机终验 2026-10-01 P2）。
+ *
+ * worker 侧 segmenterPromise 单例（模型只加载一份），推理请求串行排队，
+ * 所以并发 2 实为队列深度 2——用户点第二张图不再被直接拒绝。
+ * 不再调高：WASM 推理本就吃满核，更高并发只增队列内存不增吞吐。
+ */
+const LOCAL_CUTOUT_MAX_CONCURRENT = 2;
 
 /**
  * 权重是否已落在浏览器 Cache Storage。

@@ -324,7 +324,15 @@ export const CanvasNode = React.memo(function CanvasNode({
     const isOutpaintResult =
         data.metadata?.edit === "outpaint" ||
         (data.metadata?.generationType === "edit" && data.metadata?.manualSize === true && data.metadata?.userResized !== true);
-    const hoverComposerNodeType = (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video) && !isOutpaintResult;
+    // MediaConversion（抠图/线稿/深度/姿态等转换结果）同扩图口径：节点的 metadata.prompt 是
+    // 上游链注入的生成提示词，在转换结果上展示即 "High-fashion portrait..." 类无再编辑语义的浮层
+    // （用户真机终验 2026-10-01 R-2 的 hover 面；R-2 只堵了选中态 dialog，hover 态漏排）。
+    // 参数入口是节点自身 OperationPicker，全文件对 metadata.prompt 引用数为 0。
+    // 历史节点回退指纹：metadata.backgroundRemoval.mode === "local"（本地抠图产出的结果节点必然带）。
+    const isMediaConversionResult =
+        data.type === CanvasNodeType.MediaConversion ||
+        data.metadata?.backgroundRemoval?.mode === "local";
+    const hoverComposerNodeType = (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video) && !isOutpaintResult && !isMediaConversionResult;
     const hoverComposerVisible = hoverComposerNodeType && hovered && !dialogOpen && !isGenerating && !recentlyGenerated && !batchExpanded && !mediaActive;
 
     return (
@@ -870,7 +878,7 @@ function BackgroundRemovalPhaseOverlay({
     locate,
     startedAt,
 }: {
-    phase: "download" | "segment" | "encode" | "locate";
+    phase: "queued" | "download" | "segment" | "encode" | "locate";
     progress?: { loaded: number; total: number };
     /** 自动定位阶段的窗口进度（L1 扫描）。 */
     locate?: { attempt: number; attempts: number };
@@ -900,13 +908,16 @@ function BackgroundRemovalPhaseOverlay({
     // 文案必须区分，否则等于告诉用户一件没发生的事。
     const label = hasBytes
         ? `正在加载模型… ${(progress!.loaded / 1024 / 1024).toFixed(1)}MB / ${(progress!.total / 1024 / 1024).toFixed(1)}MB（${percent}%）`
-        : phase === "download"
-            ? "正在加载模型…（首次约90MB）"
-            : phase === "segment"
-                ? `正在识别主体…（已用 ${elapsed}s）`
-                : phase === "locate"
-                    ? `正在识别主体 · 自动定位${locate ? ` (${locate.attempt}/${locate.attempts})` : ""}…（已用 ${elapsed}s）`
-                    : `正在生成透明图…（已用 ${elapsed}s）`;
+        : phase === "queued"
+            // 并发上限内排队的请求：worker 串行推理，这里不能伪装成已开始识别。
+            ? `排队中…（前一张抠图进行中，已等 ${elapsed}s）`
+            : phase === "download"
+                ? "正在加载模型…（首次约90MB）"
+                : phase === "segment"
+                    ? `正在识别主体…（已用 ${elapsed}s）`
+                    : phase === "locate"
+                        ? `正在识别主体 · 自动定位${locate ? ` (${locate.attempt}/${locate.attempts})` : ""}…（已用 ${elapsed}s）`
+                        : `正在生成透明图…（已用 ${elapsed}s）`;
     return (
         <div
             // 不要在这里加 backdrop-filter：本层位于 canvas-world-layer 的

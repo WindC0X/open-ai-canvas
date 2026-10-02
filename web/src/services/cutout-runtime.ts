@@ -38,9 +38,17 @@ export type RunBrowserCutoutOptions = {
     onProgress?: (progress: CutoutProgress) => void;
 };
 
+/**
+ * 调用侧进度阶段：worker 协议阶段 + 调用方自己产生的排队态。
+ *
+ * "queued" 只出现在调用侧：并发守卫允许第二个请求入队时，worker 还不知道有队列
+ * （它只会串行收到下一个请求），所以不能放进 worker 的 CutoutProgressPhase。
+ */
+export type CutoutDisplayPhase = CutoutProgressPhase | "queued";
+
 /** 进度事件：阶段 + 下载字节（下载阶段才有字节数）。 */
 export type CutoutProgress = {
-    phase: CutoutProgressPhase;
+    phase: CutoutDisplayPhase;
     /** 已下载字节；仅下载阶段有值。 */
     loaded?: number;
     /** 总字节；仅下载阶段有值。 */

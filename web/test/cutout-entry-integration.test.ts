@@ -214,19 +214,58 @@ describe("本地抠图进度反馈", () => {
         const body = source.slice(start, source.indexOf("const openBackgroundRemovalGenerative", start));
         expect(body).toContain("} finally {");
         expect(body).toContain("markPhase(undefined)");
-        expect(body).toContain("localCutoutInFlightRef.current = false");
+        // P2 后是计数器递减（不是布尔置 false）
+        expect(body).toContain("localCutoutInFlightRef.current = Math.max(0, localCutoutInFlightRef.current - 1)");
         expect(body).toContain("setRunningNodeId(null)");
     });
 
-    test("重入守卫 toast 保留", () => {
+    test("并发守卫：上限 2（用户真机终验 P2）", () => {
+        const source = read("pages/canvas/use-canvas-media-tools.ts");
+        const start = source.indexOf("const removeBackgroundLocally");
+        const body = source.slice(start, source.indexOf("const openBackgroundRemovalGenerative", start));
+        // 上限常量与计数器判据（不再是布尔单例）
+        expect(source).toContain("const LOCAL_CUTOUT_MAX_CONCURRENT = 2");
+        expect(body).toContain("if (localCutoutInFlightRef.current >= LOCAL_CUTOUT_MAX_CONCURRENT)");
+        expect(body).toContain("localCutoutInFlightRef.current += 1");
+        // 计数器，不是布尔
+        expect(source).toContain("const localCutoutInFlightRef = useRef(0)");
+        // 排队态：第二个请求显示「排队中」而不是伪装成进行中
+        expect(body).toContain("const queued = localCutoutInFlightRef.current > 0");
+        expect(body).toContain('markPhase(queued ? "queued" : "download"');
+        expect(body).toContain("已加入本地抠图队列，等待前一张完成");
+    });
+
+    test("超限守卫 toast 保留（拒绝文案带上限值）", () => {
         const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
-        expect(tools).toContain("已有本地抠图在进行，请等它完成后再发起");
+        expect(tools).toContain("个本地抠图在进行，请等其中一张完成后再发起");
     });
 
     test("失败路径给错误 toast", () => {
         const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
         expect(tools).toContain("本地抠图失败");
         expect(tools).toContain("message.error");
+    });
+
+    test("P1 抠图结果节点不显示 hover composer 浮层（R-2 的 hover 面）", () => {
+        const node = read("components/canvas/canvas-node.tsx");
+        // 判据两条：类型排除 + 本地抠图结果指纹（对齐扩图结果 :318-326 的指纹法）
+        expect(node).toContain("const isMediaConversionResult =");
+        expect(node).toContain('data.type === CanvasNodeType.MediaConversion ||');
+        expect(node).toContain('data.metadata?.backgroundRemoval?.mode === "local"');
+        // 必须真的进 hoverComposerNodeType 的否定条件
+        expect(node).toMatch(/const hoverComposerNodeType = .*&& !isMediaConversionResult;/);
+        expect(node).toContain("const hoverComposerVisible = hoverComposerNodeType &&");
+    });
+
+    test("P2 排队态进度文案（覆盖层 + 节点 notice 两端）", () => {
+        const node = read("components/canvas/canvas-node.tsx");
+        expect(node).toContain('phase === "queued"');
+        expect(node).toContain("排队中…（前一张抠图进行中，已等 ${elapsed}s）");
+        expect(read("components/canvas/nodes/media-conversion-node.tsx")).toContain('progress.phase === "queued"');
+        // 类型面：queued 是调用侧阶段，不能混进 worker 协议
+        const runtime = read("services/cutout-runtime.ts");
+        expect(runtime).toContain('export type CutoutDisplayPhase = CutoutProgressPhase | "queued"');
+        expect(read("workers/background-removal.worker.ts")).toContain('export type CutoutProgressPhase = "download" | "segment" | "encode" | "locate"');
     });
 });
 

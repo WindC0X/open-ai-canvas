@@ -1204,3 +1204,67 @@ L0 全图单遍（官方 pipeline）
 - 大构图：1 + 2 + 16 = **≤19 次**（实测 85-90s）
 
 进度条带窗计数（`locate(n/16)` / `locate(n/4)`），用户可见。
+### 15. 用户终验第五轮回修（P1 + P2，2026-10-02）
+
+控制线裁定：P1/P2 本批修，W5-1（统一任务面）/W5-2（Agent 批量审批）入 backlog。
+
+#### 15.1 P1 · 抠图结果节点 hover 浮层（R-2 的 hover 面）
+
+**缺陷**：`canvas-node.tsx` 的 `hoverComposerNodeType` 只排除了扩图结果，
+MediaConversion 类型与本地抠图结果节点漏排——两者 `metadata.prompt` 是上游链注入的
+生成提示词（如 "High-fashion portrait..."），在抠图结果上 hover 即显示无再编辑语义的浮层。
+
+**修法**（对齐扩图结果 :318-326 的指纹法）：
+```ts
+const isMediaConversionResult =
+    data.type === CanvasNodeType.MediaConversion ||
+    data.metadata?.backgroundRemoval?.mode === "local";
+const hoverComposerNodeType = (...) && !isOutpaintResult && !isMediaConversionResult;
+```
+
+**为什么加指纹**：本地抠图结果实际是 `CanvasNodeType.Image`（`use-canvas-media-tools.ts:1319`
+创建），不是 MediaConversion — 只按类型排除会漏掉工具栏「去除背景」这条链。
+`backgroundRemoval.mode === "local"` 是该链的必然标记。
+
+**判据验证（4/4）**：
+
+| 用例 | 期望 | 实际 |
+|---|---|---|
+| MediaConversion 节点 | 不显示 | 不显示 ✅ |
+| 本地抠图结果（Image + mode=local） | 不显示 | 不显示 ✅ |
+| 普通生成图片 | 显示 | 显示 ✅（回归保护） |
+| 扩图结果（既有排除） | 不显示 | 不显示 ✅ |
+
+#### 15.2 P2 · 本地抠图并发 1 → 2
+
+**缺陷**：`localCutoutInFlightRef` 是全局单例布尔，点第二张图直接被拒，与
+「一次选多张图批量抠」的实际用法相左。
+
+**修法**：
+- `useRef(false)` → `useRef(0)` 计数器，上限 `LOCAL_CUTOUT_MAX_CONCURRENT = 2`
+- 守卫 `>= 2` 才 toast；`finally` 递减
+- worker 侧 `segmenterPromise` 保持单例（模型只加载一份），推理请求天然串行排队
+  → 并发 2 实为**队列深度 2**
+- 排队态可见：`queued` 阶段 + `markPhase(queued ? "queued" : "download")`，
+  覆盖层显示「排队中…（前一张抠图进行中，已等 Ns）」
+
+**为什么上限 2 而非更高**：WASM 推理本就吃满核，更高并发只增队列内存不增吞吐。
+
+**类型面设计**：`queued` 是**调用侧概念**（worker 不知道有队列），
+所以放在 `CutoutDisplayPhase = CutoutProgressPhase | "queued"`，
+不混进 worker 协议 `CutoutProgressPhase`。
+
+**验证**：
+- 真实并发 2（`Promise.all` 两张图同时 `runBrowserCutout`）：均成功，
+  A 静物 111.6s / B 小主体 54.8s，阶段序列完整
+- DOM 渲染 5 种阶段文案全部正确（排队中 0s/23s、自动定位 1/16、9/16、识别主体）
+- 截图 `/tmp/r4exp/UX_p1p2.png`（覆盖层真实渲染）
+
+#### 15.3 门禁
+
+tsc 0 / lint 0 / 全量 bun test **2505 pass 0 fail** / 抠图守卫 **56 pass 0 fail**（+3 新用例）
+
+#### 15.4 入 backlog（控制线裁定，本批不实现）
+
+- **W5-1** 本地抠图进统一任务面（生成任务面板）—— 1-2 人日呈现位收敛设计
+- **W5-2** Agent 批量生成合并审批（一次审批 N 张）+ auto 权限档位语义升级 —— Agent 计费准入设计

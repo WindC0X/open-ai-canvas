@@ -640,6 +640,8 @@ function localRuntimeNotice(error: LocalRuntimeClientError, connection: ReturnTy
  * 下载阶段一闪而过，用户基本只会看到后两段。
  */
 function cutoutProgressNotice(progress: CutoutProgress) {
+    // 并发排队（worker 串行推理）：不能伪装成已开始处理。
+    if (progress.phase === "queued") return "已加入本地抠图队列，等待前一张完成";
     if (progress.phase === "download") {
         // 字节数可见：90MB 在慢环境下要等几分钟，只写「下载中」用户无法判断是否在动。
         if (progress.total) {
