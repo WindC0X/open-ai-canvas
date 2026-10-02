@@ -6,6 +6,17 @@ import { CanvasNodeType, type CanvasNodeData } from "../src/types/canvas";
 
 const read = (path: string) => readFileSync(resolve(import.meta.dir, "../src", path), "utf8");
 const flat = (text: string) => text.replace(/\s+/g, " ");
+/**
+ * 去掉注释行再做否定断言。
+ *
+ * 生产代码的注释会正当地引用被禁的名字（例如解释「为什么不用 jsDelivr」时写出
+ * 那个 URL），直接对全文 not.toContain 会误报——历次守卫踩过三次的同一个坑。
+ */
+const stripComments = (text: string) =>
+    text
+        .split("\n")
+        .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+        .join("\n");
 
 /**
  * 入口整合守卫（控制线 2026-10-01 追加裁定）。
@@ -75,7 +86,7 @@ describe("去除背景入口整合", () => {
         const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
         // 走本地 worker，不是生成任务；带 onProgress 选项（进度反馈缺陷裁定）。
         expect(tools).toContain("runBrowserCutout(source.url, {");
-        expect(tools).toContain("onProgress: ({ phase, loaded, total }) => markPhase(");
+        expect(tools).toContain("onProgress: ({ phase, loaded, total, attempt, attempts }) => markPhase(");
         expect(tools).toContain('backgroundRemoval: { mode: "local" }');
         // 结果作为子节点连接并选中（与裁剪/标注同范式，不弹对话框）。
         expect(tools).toContain("fromNodeId: node.id, toNodeId: childId");
@@ -135,11 +146,12 @@ describe("本地抠图进度反馈", () => {
 
     test("worker 进度接到源节点（不是接了就丢）", () => {
         const tools = flat(read("pages/canvas/use-canvas-media-tools.ts"));
-        // onProgress 必须真的传进 runBrowserCutout，且解构出字节数。
-        expect(tools).toContain("onProgress: ({ phase, loaded, total }) => markPhase(");
+        // onProgress 必须真的传进 runBrowserCutout，且解构出字节数与 L1 窗口计数。
+        expect(tools).toContain("onProgress: ({ phase, loaded, total, attempt, attempts }) => markPhase(");
         // 阶段要落到节点 metadata，UI 才拿得到。
         expect(tools).toContain("backgroundRemovalPhase: phase");
         expect(tools).toContain("backgroundRemovalProgress: progress");
+        expect(tools).toContain("backgroundRemovalLocate: locate");
         // 覆盖层由该字段驱动。
         const node = flat(read("components/canvas/canvas-node.tsx"));
         expect(node).toContain("data.metadata?.backgroundRemovalPhase");
@@ -269,5 +281,89 @@ describe("抠图改用官方 pipeline（用户真机抽验 2026-10-01 三项回�
         const body = tools.slice(start, tools.indexOf("const openBackgroundRemovalGenerative", start));
         expect(body).toContain('message.info("开始本地抠图")');
         expect(body).toContain("首次需下载约 90MB 模型（仅此一次）");
+    });
+});
+
+describe("rider 批次回修（用户终验第四轮 2026-10-01）", () => {
+    test("R-1 HUD 让位接线：任务面板高度必须回传到宿主", () => {
+        const project = read("pages/canvas/project.tsx");
+        // setActiveTaskPanelHeight 定义后必须被消费：不接时 HUD 的 topInset 让位公式
+        // 永远吃到 0，任务面板出现/展开时与右侧对象 HUD 重叠。
+        expect(project).toContain("onHeightChange={setActiveTaskPanelHeight}");
+        // 让位公式仍要读这个 state（接线与消费两端都在）
+        expect(project).toContain("activeTaskPanelHeight > 0");
+    });
+
+    test("R-2 MediaConversion 不弹对话输入面板", () => {
+        const project = read("pages/canvas/project.tsx");
+        const start = project.indexOf("const renderCanvasNodePanel");
+        const body = project.slice(start, start + 900);
+        expect(body).toContain("CanvasNodeType.MediaConversion");
+        // 与 Script/Drawing 同一条排除语句（不是另起分支）
+        expect(body).toMatch(/CanvasNodeType\.Script\s*\|\|\s*panelNode\.type\s*===\s*CanvasNodeType\.Drawing\s*\|\|\s*panelNode\.type\s*===\s*CanvasNodeType\.MediaConversion/);
+    });
+
+    test("R-4 L1 分层管线：弱 logits 定位 + 判别器 + 双路径", () => {
+        const worker = read("workers/background-removal.worker.ts");
+        // L0 门槛与 L1 接受门槛（绝对覆盖率口径）
+        expect(worker).toContain("MIN_SUBJECT_COVERAGE = 0.05");
+        expect(worker).toContain("L1_MIN_COVERAGE = 0.005");
+        expect(worker).toContain("L1_MIN_COVERAGE_RATIO = 0.8");
+        // 小主体路径：升序扫描
+        expect(worker).toContain("SCAN_WINDOWS = [0.15, 0.2, 0.25, 0.35]");
+        // 大构图路径：4×4@50% 网格（无空隙）
+        expect(worker).toContain("GRID_SIZE = 4");
+        expect(worker).toContain("GRID_WINDOW = 0.5");
+        // 路由判别器（L0 同值不可区分时的分流依据）
+        expect(worker).toContain("ROUTE_RATIO_HIGH = 1.3");
+        expect(worker).toContain("ROUTE_RATIO_LOW = 0.7");
+        expect(worker).toContain("function shouldUseGrid");
+        // 复用已加载的 model/processor 拿原始 logits（不重新加载权重）
+        expect(worker).toContain("function readWeakLogits");
+        expect(worker).toContain("function weakCentroid");
+        expect(worker).toContain("LOCATE_PERCENTILE = 0.001");
+        // 绝对覆盖率口径：窗口内主体像素 / 原图总像素（不是窗内占比）
+        expect(worker).toContain("alphaCoverage(cutout) * ((side * side) / (sourceWidth * sourceHeight))");
+        // L0 正常图不付 L1 成本
+        expect(worker).toContain("if (directCoverage >= MIN_SUBJECT_COVERAGE)");
+    });
+
+    test("R-4 L3：无主体不回传空白图，走错误通道", () => {
+        const worker = read("workers/background-removal.worker.ts");
+        const body = stripComments(worker);
+        // L3 必须走 error 而不是 done —— 空白透明图正是用户看到的黑图
+        expect(worker).toContain('errorCode: "no_subject"');
+        expect(worker).toContain("未识别到主体，建议框选主体区域重试，或用 AI 重新去除（云端）");
+        // 不再有 strategy "none" 的 done 分支（那会交付空白图）
+        expect(body).not.toContain('strategy: "none"');
+        // 两个调用点都要把 no_subject 当作可操作提示而不是执行失败
+        expect(read("pages/canvas/use-canvas-media-tools.ts")).toContain('error.code === "no_subject"');
+        expect(read("components/canvas/nodes/media-conversion-node.tsx")).toContain('error.code === "no_subject"');
+    });
+
+    test("R-4 L1 进度阶段可见（覆盖层 + 节点 notice）", () => {
+        const canvasNode = read("components/canvas/canvas-node.tsx");
+        // 覆盖层文案含阶段名与窗口计数
+        expect(canvasNode).toContain("正在识别主体 · 自动定位");
+        expect(canvasNode).toContain("locate.attempt");
+        // 节点侧 notice 同口径
+        const node = read("components/canvas/nodes/media-conversion-node.tsx");
+        expect(node).toContain("自动定位 (${progress.attempt}/${progress.attempts})");
+        // 元数据字段全链路存在
+        expect(read("types/canvas.ts")).toContain("backgroundRemovalLocate");
+        expect(read("pages/canvas/use-canvas-media-tools.ts")).toContain("backgroundRemovalLocate");
+    });
+
+    test("R-4 coverage 与 strategy 从 worker 一路透传到调用方", () => {
+        const worker = read("workers/background-removal.worker.ts");
+        expect(worker).toContain("function alphaCoverage");
+        expect(worker).toContain("coverage: directCoverage");
+        expect(worker).toContain('strategy: "direct"');
+        expect(worker).toContain('strategy: "region"');
+        const runtime = read("services/cutout-runtime.ts");
+        expect(runtime).toContain("coverage: number");
+        expect(runtime).toContain("coverage: event.data.coverage");
+        expect(runtime).toContain("strategy: CutoutStrategy");
+        expect(runtime).toContain("strategy: event.data.strategy");
     });
 });

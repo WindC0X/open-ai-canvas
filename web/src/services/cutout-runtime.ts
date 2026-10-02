@@ -5,14 +5,21 @@
  * AbortSignal 支持、worker 崩溃时拒绝全部在途请求并允许重建。
  */
 
-import type { CutoutProgressPhase, CutoutRequest, CutoutResponse } from "../workers/background-removal.worker";
+import type { CutoutProgressPhase, CutoutRequest, CutoutResponse, CutoutStrategy } from "../workers/background-removal.worker";
 
-export type { CutoutProgressPhase };
+export type { CutoutProgressPhase, CutoutStrategy };
 
 export type CutoutResult = {
     blob: Blob;
     width: number;
     height: number;
+    /**
+     * 主体检出置信度（0-1）：direct 为全图覆盖率，region 为命中窗口覆盖率。
+     * 低于阈值说明模型未识别到显著主体，调用方据此给可操作提示而不是哑失败。
+     */
+    coverage: number;
+    /** 实际生效的抠图策略（控制线 R-4 分层管线）。 */
+    strategy: CutoutStrategy;
 };
 
 /** 抠图失败时携带机器可读原因，调用方据此决定节点状态与文案。 */
@@ -38,6 +45,10 @@ export type CutoutProgress = {
     loaded?: number;
     /** 总字节；仅下载阶段有值。 */
     total?: number;
+    /** 仅 locate 阶段：当前扫描窗口序号。 */
+    attempt?: number;
+    /** 仅 locate 阶段：扫描窗口总数。 */
+    attempts?: number;
 };
 
 type PendingRequest = {
@@ -87,7 +98,13 @@ function getCutoutWorker() {
         const request = pendingRequests.get(id);
         if (!request) return;
         if (event.data.kind === "progress") {
-            request.onProgress?.({ phase: event.data.phase, loaded: event.data.loaded, total: event.data.total });
+            request.onProgress?.({
+                phase: event.data.phase,
+                loaded: event.data.loaded,
+                total: event.data.total,
+                attempt: event.data.attempt,
+                attempts: event.data.attempts,
+            });
             return;
         }
         pendingRequests.delete(id);
@@ -96,7 +113,13 @@ function getCutoutWorker() {
             request.reject(new CutoutRuntimeError(event.data.errorCode, event.data.message));
             return;
         }
-        request.resolve({ blob: event.data.blob, width: event.data.width, height: event.data.height });
+        request.resolve({
+            blob: event.data.blob,
+            width: event.data.width,
+            height: event.data.height,
+            coverage: event.data.coverage,
+            strategy: event.data.strategy,
+        });
     };
     worker.onerror = (event) => {
         const error = new Error(event.message || "本地抠图服务初始化失败");

@@ -51,7 +51,7 @@ import { navigateToSettings } from "@/lib/settings-navigation";
 import { storeGeneratedVideo } from "@/services/api/video";
 import { getMediaBlob, uploadMediaFile } from "@/services/file-storage";
 import { getImageBlob, uploadImage } from "@/services/image-storage";
-import { runBrowserCutout } from "@/services/cutout-runtime";
+import { runBrowserCutout, CutoutRuntimeError } from "@/services/cutout-runtime";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import type { GenerationTask } from "@/services/api/task-center";
 
@@ -1273,9 +1273,10 @@ export function useCanvasMediaTools({
         const markPhase = (
             phase: CanvasNodeMetadata["backgroundRemovalPhase"],
             progress?: CanvasNodeMetadata["backgroundRemovalProgress"],
+            locate?: CanvasNodeMetadata["backgroundRemovalLocate"],
         ) => {
             setNodes((current) => current.map((item) => item.id === node.id
-                ? { ...item, metadata: { ...item.metadata, backgroundRemovalPhase: phase, backgroundRemovalProgress: progress } }
+                ? { ...item, metadata: { ...item.metadata, backgroundRemovalPhase: phase, backgroundRemovalProgress: progress, backgroundRemovalLocate: locate } }
                 : item));
         };
         const startedAt = Date.now();
@@ -1299,9 +1300,10 @@ export function useCanvasMediaTools({
             releaseSource = source.release;
             const result = await runBrowserCutout(source.url, {
                 // 下载阶段带字节数；后续阶段不带，进度显示自动隐去。
-                onProgress: ({ phase, loaded, total }) => markPhase(
+                onProgress: ({ phase, loaded, total, attempt, attempts }) => markPhase(
                     phase,
                     phase === "download" && total ? { loaded: loaded ?? 0, total } : undefined,
+                    phase === "locate" && attempt && attempts ? { attempt, attempts } : undefined,
                 ),
             });
             const image = await uploadImage(result.blob);
@@ -1322,10 +1324,23 @@ export function useCanvasMediaTools({
             setSelectedConnectionId(null);
             setDialogNodeId(null);
             await persistMediaNodes([child]);
-            message.success("本地抠图完成，已生成透明背景图片");
+            // 分层管线（控制线 R-4 终裁 2026-10-02）：direct/region 都是成功出图。
+            // L1 全部窗口未达标时 worker 走 errorCode="no_subject" 错误通道（不回传空白图），
+            // 由 catch 分支给 L3 可操作出口。
+            if (result.strategy === "region") {
+                message.success("本地抠图完成（已自动定位主体区域）");
+            } else {
+                message.success("本地抠图完成，已生成透明背景图片");
+            }
         } catch (error) {
             // 取消不算失败（用户切走/重开），不弹错。
             if (error instanceof DOMException && error.name === "AbortError") return;
+            // L3：未识别到主体不是执行失败（抠图确实跑完了），但也绝不能交付黑图；
+            // 给框选/云端两条出口（用户真机终验 2026-10-01 R-4）。
+            if (error instanceof CutoutRuntimeError && error.code === "no_subject") {
+                message.warning(error.message);
+                return;
+            }
             message.error(error instanceof Error ? `本地抠图失败：${error.message}` : "本地抠图失败，请重试");
         } finally {
             // 阶段标记与运行态必须在同一处清掉：漏清会让节点永久卡在「处理中」外观。

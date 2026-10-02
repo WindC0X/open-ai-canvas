@@ -291,9 +291,11 @@ export type CanvasNodeMetadata = {
      * 用户只能看到菜单关闭、什么都不发生（用户真机抽验 2026-10-01 抓获）。
      * download 阶段额外带字节数，覆盖层显示实际进度而非只转圈。
      */
-    backgroundRemovalPhase?: "download" | "segment" | "encode";
+    backgroundRemovalPhase?: "download" | "segment" | "encode" | "locate";
     /** 下载阶段已下载字节 / 总字节（仅 download 阶段有值）。 */
     backgroundRemovalProgress?: { loaded: number; total: number };
+    /** L1 自动定位阶段的窗口进度（「自动定位 (2/4)」）。 */
+    backgroundRemovalLocate?: { attempt: number; attempts: number };
     /** 本次抠图起始时间戳（ms）；推理阶段无百分比，靠它显示已用时。 */
     backgroundRemovalStartedAt?: number;
     failedPromptFingerprint?: string;

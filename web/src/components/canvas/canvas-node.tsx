@@ -453,6 +453,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                         <BackgroundRemovalPhaseOverlay
                             phase={data.metadata.backgroundRemovalPhase}
                             progress={data.metadata.backgroundRemovalProgress}
+                            locate={data.metadata.backgroundRemovalLocate}
                             startedAt={data.metadata.backgroundRemovalStartedAt ?? 0}
                         />
                     ) : null}
@@ -866,14 +867,17 @@ function nodeTypeIcon(type: CanvasNodeTypeId) {
 function BackgroundRemovalPhaseOverlay({
     phase,
     progress,
+    locate,
     startedAt,
 }: {
-    phase: "download" | "segment" | "encode";
+    phase: "download" | "segment" | "encode" | "locate";
     progress?: { loaded: number; total: number };
+    /** 自动定位阶段的窗口进度（L1 扫描）。 */
+    locate?: { attempt: number; attempts: number };
     /** 本次抠图的起始时间戳；用于显示已用时（推理阶段无百分比，秒数是最实的「在动」信号）。 */
     startedAt: number;
 }) {
-    // 推理阶段（segment/encode）ORT 无单次 run 的进度 API，拿不到百分比；
+    // 推理阶段（segment/encode/locate）ORT 无单次 run 的进度 API，拿不到百分比；
     // 但这两段实测 5-6s 是主要耗时，只给静态文本用户会怀疑卡死。
     // 用已用时秒数 + 不确定进度条表达「在动」（复用 canvas-active-task-panel 的 indeterminate 范式）。
     const [elapsed, setElapsed] = useState(0);
@@ -900,7 +904,9 @@ function BackgroundRemovalPhaseOverlay({
             ? "正在加载模型…（首次约90MB）"
             : phase === "segment"
                 ? `正在识别主体…（已用 ${elapsed}s）`
-                : `正在生成透明图…（已用 ${elapsed}s）`;
+                : phase === "locate"
+                    ? `正在识别主体 · 自动定位${locate ? ` (${locate.attempt}/${locate.attempts})` : ""}…（已用 ${elapsed}s）`
+                    : `正在生成透明图…（已用 ${elapsed}s）`;
     return (
         <div
             // 不要在这里加 backdrop-filter：本层位于 canvas-world-layer 的

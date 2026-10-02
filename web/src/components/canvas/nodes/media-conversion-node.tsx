@@ -239,6 +239,13 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
             }
             setResultUrl(url);
             setShowResult(true);
+            // 同 use-canvas-media-tools：分层管线（控制线 R-4 终裁 2026-10-02）——
+            // L1 全部窗口未达标时 worker 走 errorCode="no_subject" 错误通道（不回传空白图），
+            // 这里只标记 L1 命中路径。
+            const cutoutStrategy = state.operation === "cutout" && "strategy" in result ? (result as { strategy?: unknown }).strategy : undefined;
+            if (cutoutStrategy === "region") {
+                setNotice("已自动定位主体区域并完成抠图");
+            }
         } catch (error) {
             if (controller.signal.aborted) return;
             const aborted = error instanceof LocalImageConversionError && error.code === "aborted";
@@ -256,7 +263,9 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
             }
             if (error instanceof CutoutRuntimeError) {
                 // 模型缺失（fetch 脚本未跑）属于环境问题，标 unavailable 而不是失败。
-                const nextStatus = error.code === "model_missing" ? "unavailable" : "error";
+                // no_subject 是 L3：抠图跑完了但无显著主体——标 skipped 而非 error，
+                // 语义上不是执行失败，且 worker 不回传空白图（控制线 R-4 终裁）。
+                const nextStatus = error.code === "model_missing" ? "unavailable" : error.code === "no_subject" ? "skipped" : "error";
                 updateState({ status: nextStatus, errorCode: error.code, errorMessage: error.message, updatedAt: new Date().toISOString() });
                 setNotice(cutoutRuntimeNotice(error));
                 return;
@@ -642,6 +651,12 @@ function cutoutProgressNotice(progress: CutoutProgress) {
         return "正在加载抠图模型（首次约 90MB，之后走浏览器缓存）";
     }
     if (progress.phase === "segment") return "正在识别主体";
+    // L1 自动定位：全图无显著主体时的区域扫描（窗口计数可见，否则多出来的几秒像是卡住）。
+    if (progress.phase === "locate") {
+        return progress.attempt && progress.attempts
+            ? `正在识别主体 · 自动定位 (${progress.attempt}/${progress.attempts})`
+            : "正在识别主体 · 自动定位";
+    }
     return "正在生成透明 PNG";
 }
 
