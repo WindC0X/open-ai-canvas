@@ -27,10 +27,18 @@ export type ScenePreset = {
     hint: string;
     category: SceneCategory;
     /**
-     * spec 变量（对齐 Flora 六要素）。
+     * spec 变量（对齐 Flora 六要素）—— **模型面**，英文，直接填 SCENE_SPEC_TEMPLATE。
      * 未填的项由管线保留占位符（暴露漏填），调用方应尽量填全。
      */
     variables: Omit<SceneSpecVariables, "product">;
+    /**
+     * 场景中文描述 —— **用户面**，用于回填 brief / 卡片 tooltip。
+     *
+     * 为什么要与 variables 分开：variables 是喂图像模型的英文素材（`a sunlit
+     * minimalist kitchen`），直接拼进中文 brief 会产出「把商品放进a sunlit...」
+     * 这类中英夹杂的文案。两个受众、两套文案，不混用。
+     */
+    brief: string;
     /** 推荐的渠道尺寸预设 id（对齐 `ECOM_CHANNEL_PRESETS`）。 */
     recommendedPresetId?: "amazon-main" | "detail-3x4" | "douyin-vertical";
 };
@@ -64,6 +72,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "warm morning rays streaming through a window",
             mood: "cozy, quiet, and inviting",
         },
+        brief: "把商品放在阳光充足的极简厨房里，承托面是回收橡木台面，点缀散落的烘焙咖啡豆和一块亚麻餐巾，用穿过窗户的清晨暖光，整体氛围安静温馨。",
         recommendedPresetId: "amazon-main",
     },
     {
@@ -78,6 +87,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "soft, diffused afternoon daylight",
             mood: "calm, warm, and effortlessly comfortable",
         },
+        brief: "把商品放在明亮的居家客厅里，承托面是铺亚麻布的边桌，点缀干花陶瓶和一摞画册，用柔和的午后散射光，整体氛围松弛舒适。",
         recommendedPresetId: "amazon-main",
     },
     {
@@ -92,6 +102,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "directional window light with soft falloff",
             mood: "urban, refined, and unhurried",
         },
+        brief: "把商品放在安静的精品咖啡店里，承托面是带纹理的大理石桌，点缀一份折起的报纸和一杯清水，用有方向的侧窗光，整体氛围都市从容。",
         recommendedPresetId: "detail-3x4",
     },
     {
@@ -106,6 +117,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "focused warm overhead light with gentle rim highlights",
             mood: "intimate, elegant, and appetizing",
         },
+        brief: "把商品放在高级餐厅的用餐场景里，承托面是深胡桃木餐桌，点缀亚麻桌旗和一副擦亮的餐具，用聚焦的暖色顶光配柔和轮廓光，整体氛围精致诱人。",
         recommendedPresetId: "detail-3x4",
     },
     {
@@ -120,6 +132,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "bright natural sunlight with dappled shade",
             mood: "cheerful, fresh, and outdoorsy",
         },
+        brief: "把商品放在阳光明媚的开阔草地上，承托面是格纹棉质野餐垫，点缀藤编篮和散落的野花，用明亮的自然日光配斑驳树影，整体氛围轻快清爽。",
         recommendedPresetId: "douyin-vertical",
     },
     {
@@ -134,6 +147,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "hard directional sunlight casting crisp shadows",
             mood: "clean, grounded, and sculptural",
         },
+        brief: "把商品放在极简的户外露台上，承托面是带肌理的天然石板，点缀几颗光滑鹅卵石和一枝绿植，用硬朗的直射阳光投出清晰阴影，整体氛围干净利落。",
         recommendedPresetId: "amazon-main",
     },
     {
@@ -148,6 +162,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "large softbox lighting with controlled gradient falloff",
             mood: "clean, premium, and distraction-free",
         },
+        brief: "把商品放在专业产品摄影棚里，承托面是无缝的哑光渐变背景，点缀一块微反光的亚克力台，用大面积柔光箱配受控渐变，整体氛围纯净高级。",
         recommendedPresetId: "amazon-main",
     },
     {
@@ -162,6 +177,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "a narrow hard key light with deep falloff and rim separation",
             mood: "dramatic, bold, and high-contrast",
         },
+        brief: "把商品放在全黑棚拍的场景里，承托面是深色石板基座，点缀一个几何道具块，用一束窄硬光配深度衰减和轮廓分离，整体氛围戏剧高反差。",
         recommendedPresetId: "amazon-main",
     },
     {
@@ -176,6 +192,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "bright, direct lighting that casts strong, distinct shadows",
             mood: "joyful, festive, and energetic",
         },
+        brief: "把商品放在热闹的派对庆典里，承托面是挺括的白色亚麻桌布，点缀散落的金属星形圆形纸屑、派对吹龙和水晶香槟杯，用明亮直射光投出强烈清晰的阴影，整体氛围欢乐热烈（Flora 实例场景）。",
         recommendedPresetId: "douyin-vertical",
     },
     {
@@ -190,6 +207,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
             lighting: "low golden-hour light with long soft shadows",
             mood: "nostalgic, warm, and comforting",
         },
+        brief: "把商品放在温馨的秋日室内，承托面是暖色调的质朴木板，点缀干枫叶和粗针织织物，用低角度的黄金时刻光拉出柔和长影，整体氛围怀旧温暖。",
         recommendedPresetId: "detail-3x4",
     },
 ];
