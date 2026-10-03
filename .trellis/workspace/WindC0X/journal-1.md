@@ -379,3 +379,42 @@ Review 报告（工作流 4 代理 + 人工复核，OCR 通道失败放弃）后
 - **验收依据**：门2/门3 GO（测试线轻量门 `23209f4`：链路 6/6 + VRT 24/24 零 diff +
   bun 2589/7 既有基线）；控制线独立抽查通过（fast-forward 拓扑确认 +
   canvas-asset-repair 单文件复跑 10/10 绿）。
+
+---
+
+## 2026-10-03 O-03 层2 图片超分合入 main（8-commit 批次 · --no-ff · de63c0aa）
+
+- **合入拓扑**：`git merge --no-ff feat/o03-l2-superresolve`（@ `44dead1e`）→ `de63c0aa`。
+  merge-base `7e19af47`；合入前文件重叠检查**零重叠**（O-03 侧 13 文件 vs main 侧
+  22 文件无交集）；语义交叉检查：main 侧 `types/canvas.ts` 仅新增可选字段
+  `scenePresetId?`（F-02），O-03 不依赖其变更 —— 无语义冲突。
+- **批次统计**：8 commit / 13 文件 +1062/−9（含 4 新文件：`capability-entries.ts`、
+  `super-resolve-params.ts`、`canvas-node-super-resolve-dialog.tsx`、
+  `super-resolve.test.ts`；1 新任务书 `docs/artifacts/o03-l2-task-book.md`）。
+- **批次内容**：注册表原生条目**首例**（`image.superResolve` 全字段独立 seed）+
+  入口可达修复（`onSuperResolve` 死 prop → 补工具条目）+ 计费 selector 修复
+  （`image_upscale` 独立价格档）+ **传输层覆盖缺陷回修**（`backendGenerationTaskInput()`
+  按 mode 二次覆盖 operation，超分在 HTTP 层之前被丢回 `image`）。
+- **★ 本批最大产出 = 教训库三族假命中集齐**（任务书 §12）：
+  ① 中文文案子串双向失真（`/AI 超分/` 误中「调整尺寸」描述「不是 AI 超分」= 假命中；
+  `!includes("调整尺寸")` 因自己正文引用该词 = 假失败）；
+  ② 注释引用旧代码致 `not.toContain` 假失败（既有）；
+  ③ **`includes` 弱断言 + 跨层断层**（本次新增：字符串断言只证明代码存在，
+  无法证明运行时行为；go test 绕过 HTTP 层）。
+  统一处置：行为断言落函数返回值/渲染结果；源码结构断言先剥注释再精确匹配。
+- **合入后门禁**：`bun run build` ✓ 2m21s；全量 `bun test 2>&1` **2614 pass / 0 fail**
+  （332 文件）。计数核对：2596（F-02 后）+ 18（O-03 新增）= 2614 ✓。
+- **★ 跑法口径差异说明（控制线裁定，不必追改）**：本地全量报 **0 fail**，测试线报
+  **7 fail**（mock-leak 基建），差异 = **单文件隔离跑法 vs 同盘全量跑法**；
+  本批无引入性失败已双方确认（测试线 450dd45：DB 实测 `tasks.operation=image_upscale`
+  修复后贯通 ✓ / 修复前 `image` 对照 ✓ / `go TestSKUSelector` 7/7 无回归 ✓ /
+  结构断言可证伪性独立复验 ✓）。本地 `super-resolve.test.ts` 单文件复跑 18/0 ✓。
+- **push**：`fork`（WindC0X）`809387b1..de63c0aa main -> main`；
+  local `main` == `fork/main` == `de63c0aa` ✅；`origin`（ddcat-ai，只读）未动。
+- **验收依据**：门2/门3 GO（测试线复验 450dd45）。
+
+## 2026-10-03 W4 硬点收官
+
+W4 硬点全部闭合：**F-01 合入 + flora 外置 + F-02 合入 + O-03 层2 合入 + 文档批落笔**。
+下一任务 = **W4 架构方案正式化**（《能力组织层架构方案》，五件硬清单见
+`canvas/能力组织层方案-2026-10-03.md` §9），本合入收尾后即开，不再等窗口。
