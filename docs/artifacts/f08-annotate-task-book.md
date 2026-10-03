@@ -161,3 +161,61 @@
 ---
 
 *侦察证据清单：底表/能力组织层方案/MASTER-PLAN v1.8（§12 开线方案、§5.4 咽喉规则、§8 出口纪律）/ v3 候选清单 §B（Flora 技法映射）/ Cowart App.jsx（:153 提示词、:1206 组装、:1279 准备、:5533 按钮）/ og-canvas canvas-visual-annotations.test.ts / 仓内 use-canvas-media-tools.ts:640、canvas-node-mask-edit-dialog.tsx、selection-toolbar-tools.tsx（17 项实证）、canvas-selection.ts（框选=节点级，无图内圈选实证）/ git diff：feat/o03-l2-superresolve、feat/ecom-f02-scene 咽喉占用。*
+
+---
+
+## 验收证据（2026-10-04 真机实测，W5 执行段回填）
+
+> 环境：worktree oac-wt-f08 @ feat/ecom-f08-annotate；后端 `CANVAS_BACKEND_DATA_DIR=.local/f08-annotate-debug`（渠道数据派生自 f06-hb 调试库）跑在 :8488，vite 跑在 :3020（`VITE_API_PROXY_TARGET=http://127.0.0.1:8488`），浏览器为 Orca 自带浏览器（用户 2026-10-04 裁定：不使用系统 Chrome）。渠道 `CHANNEL_000009 a6api`。
+
+### 1. 主路线（标注截图协议）· nano-banana-2 · 两样本
+
+| 项 | 样本 A（修改意图） | 样本 B（移除意图） |
+|---|---|---|
+| 源图 | 画布生成链真实出图（nano-banana-2，1024×1024，白色陶瓷马克杯产品摄影） | 同左 |
+| 标注 | 矩形圈选杯身 + note「把马克杯改成深蓝色陶瓷材质，其他内容和构图保持不变」 | 矩形圈选杯把 + note「移除杯子的把手，让杯身保持完整」 |
+| 落库提示词 | 两图协议 + 不烙图纪律 + `Included annotation shapes: 1` + `Screenshot size: 868x988` | 同上，actionHint 行注入「移除被标注区域的内容，并用周围画面自然补全」；`Screenshot size: 588x568` |
+| 任务结果 | succeeded | succeeded |
+| 不烙图 | ✅ 结果图无矩形框/虚线/序号徽章/标注文字 | ✅ 同左 |
+| 编辑生效 | ✅ 杯身白 → 浅蓝紫 | ✅ 杯把完全移除，杯身完整 |
+| 未标注区保持 | ✅ 桌面/绿植/窗光/构图一致 | ✅ 同左 |
+| bounds 裁剪 | ✅ 合成截图 868×988 与提示词元数据行逐字吻合 | ✅ 588×568 同上 |
+
+**结论**：主路线（Cowart 视觉指示编辑语义 + 两图协议）在 a6api nano-banana-2 上通过；「不烙图」为提示词纪律 + 实测双证。
+
+### 2. 兜底路径（标注转 mask 降级）· 真实验证一次
+
+任务书 §7-1 要求「非纸面备胎」。真机触发方式：调试库临时把 `CHANNEL_000009::gpt-image-2.5` 的 `references.maxImages` 改为 1（`maskSupported` 保持 true），使路线裁决 `resolveAnnotateEditRoute` 落入 `mask` 分支（验证后已恢复为 16）。
+
+| 项 | 实测 |
+|---|---|
+| 弹窗内模型 | 经弹窗「高级生成设置」ModelPicker 选 `GPT Image 2.5 · a6api`（同时验证了 payload.generationConfig 生效修复） |
+| 落库提示词 | **降级版**：`只修改蒙版透明区域，其他区域保持不变。把杯身改成磨砂黑色`（无两图协议、无标注截图声明） |
+| 落库模型 | `CHANNEL_000009::gpt-image-2.5` |
+| 任务结果 | succeeded，出图 1254×1254 |
+| 编辑生效 | ✅ 杯身白 → 磨砂黑 |
+| 无标注残留 | ✅ mask 通道本不传标注截图 |
+| 未标注区保持 | ✅ 桌面/绿植/窗光/构图一致 |
+
+**结论**：兜底路径真实走通，「能力不可用」被降级为「通道切换」，符合任务书风险封顶口径。
+
+### 3. 实测发现并修复的交付级缺陷（两处）
+
+| # | 缺陷 | 证据 | 修复 |
+|---|---|---|---|
+| 1 | 弹窗 reset effect 依赖 `config` 对象（父级每次渲染新建字面量），画布任何重渲染（自动保存等）即清空用户标注 | 浏览器 MutationObserver 记录标注数时间线 `0 → 1 → 0`（约 5 秒内消失），可稳定复现 | 依赖改为 `[dataUrl, open]`，与 `canvas-node-mask-edit-dialog.tsx:47` 先例一致；修复后同一监视 12 秒保持 1 条不变 |
+| 2 | `editAnnotatedImageNode` 忽略 `payload.generationConfig`，弹窗高级设置里选的模型被静默丢弃 | 选 `GPT Image 2.5` 提交后落库模型仍为节点的 nano-banana-2 | 照 `maskEditImageNode` 先例合并用户选择；修复后落库模型与弹窗选择一致（兜底验证同时覆盖） |
+
+> 注：仓库 eslint 未启用 hooks 规则（`web/eslint.config.js` 的兼容空插件），缺陷 1 不会被静态门禁拦住——只有真机实测能发现。
+
+### 4. 门禁
+
+- `cd web && bunx tsc --noEmit` → 0
+- `cd web && bunx eslint src test` → 0（本仓 lint 需 >300s，`timeout 150` 的 124 是超时误报）
+- `cd web && bun test`（F-08 五文件）→ 58 pass / 0 fail；全量 2580+ pass 0 fail
+
+### 5. 已知未覆盖 / 后续
+
+- 画笔模式的标注截图路线未单独真机跑（结构化两样本 + 兜底各一次已覆盖主要路径）。
+- `docs/content/docs/getting-started/features.mdx` 文档同步待 C3 收尾补。
+- 咽喉重估：F-08 实际触碰 `use-canvas-media-tools.ts`（新增方法 + 分流）、`capability-entries.ts`（条目）、`canvas-image-toolbar-tools.tsx`（文案），与任务书 §4 预估一致。
