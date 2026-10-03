@@ -206,3 +206,36 @@ describe("跨片：AssetKind 标签与落枚举纪律", () => {
         expect(ASSET_KIND_LABELS["model/checkpoint"]).toBeUndefined();
     });
 });
+
+describe("片 2 全链：legacy 预设提取为可索引数据源", () => {
+    test("★ 18 条 legacy 预设可从 lib 导入（不再困在页面组件里）", async () => {
+        const { LEGACY_CANVAS_STYLE_PRESETS } = await import("../src/lib/canvas/legacy-style-presets");
+        expect(LEGACY_CANVAS_STYLE_PRESETS.length).toBe(18);
+    });
+
+    test("★ 18 条全部可适配为统一 schema（逐条验证，非抽样）", async () => {
+        const { LEGACY_CANVAS_STYLE_PRESETS } = await import("../src/lib/canvas/legacy-style-presets");
+        const assets = LEGACY_CANVAS_STYLE_PRESETS.map(registryAssetFromLegacyStylePreset);
+        expect(assets.length).toBe(18);
+        for (const asset of assets) {
+            expect(asset.assetKind).toBe("preset/style");
+            expect(asset.origin).toBe("local-fallback");
+            expect(asset.slug).toBeTruthy();
+            expect(asset.title).toBeTruthy();
+            expect(asset.group).toBeTruthy();
+            expect(asset.prompt.length).toBeGreaterThan(0);
+        }
+    });
+
+    test("★ 适配后 slug 无重复（防收编撞车）", async () => {
+        const { LEGACY_CANVAS_STYLE_PRESETS } = await import("../src/lib/canvas/legacy-style-presets");
+        const slugs = LEGACY_CANVAS_STYLE_PRESETS.map((preset) => preset.id);
+        expect(new Set(slugs).size).toBe(slugs.length);
+    });
+
+    test("★ 视频域窗口标注：18 条 style 全部对用户可见", async () => {
+        const { LEGACY_CANVAS_STYLE_PRESETS } = await import("../src/lib/canvas/legacy-style-presets");
+        const assets = LEGACY_CANVAS_STYLE_PRESETS.map(registryAssetFromLegacyStylePreset);
+        expect(assets.every((asset) => isAssetVisibleToUser(asset))).toBe(true);
+    });
+});
