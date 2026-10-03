@@ -150,4 +150,6 @@ HTTP 请求 -> handler -> service（稳定导入面 / 别名）-> app（组合�
 - `internal/service` 别名 → `internal/app/tools_bridge.go`（资源归属校验）→ `internal/tools`（可见性策略、输入合同、token 展开和内置种子）→ `internal/repository/tools.go`。
 - 任务入队 `internal/app/task_creation.go` 与生成执行 `internal/app/provider.go` 共用严格 token 解析。
 - 前端 `canvas-tool-presentation.ts` 共享轻量展示配置，`canvas-resource-references.ts` 统一 token；节点提示词与工具面板共用同一持久状态，不复制到 metadata 风格字段。
+- **能力登记处与注册表资产层**（架构方案 `docs/artifacts/capability-registry-architecture.md`）：`web/src/lib/canvas/capability-entries.ts` 登记可执行能力条目（id 为 `域.动作` 含点形态、tier 四档、contextRequirement 谓词、entryPoints 入口关联、registryVersion 版本锚点），与按钮层 `tool-registry/`（id 不含点）分属两个命名空间，由 `web/test/registry-namespace-guard.test.ts` 机器护栏保证零撞车；`web/src/lib/canvas/registry-asset.ts` 是预设/配方类资产的统一 schema（AssetKind 归类标签、RegistryAsset 记录、`isAssetVisibleToUser` 承载视频域窗口标注）。
+- 内置工具 seed 的 schema 版本锚点：`backend/internal/tools/seed/tools.json` 的 `version` 字段与 `tools_seed.go` 的 `BuiltinToolsSeedVersion` 常量必须一致，不一致时 `EnsureBuiltinTools` 启动即失败（防代码与数据版本漂移）；收编改 seed 前先跑 `scripts/snapshot-registry-seeds.sh` 出带 sha256 的快照（回滚=快照覆盖+重启）。
 - `canvas-workspace-panel.tsx` 提供常驻左侧菜单，按需挂载节点、资产、工具、任务和历史面板；资产面板复用素材分页服务与画布插入合同；主分支项目章节侧栏与工作区互斥。
