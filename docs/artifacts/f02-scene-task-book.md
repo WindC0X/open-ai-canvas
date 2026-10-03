@@ -387,12 +387,43 @@ nano-banana-2 的产物 URL 走该域）。已在 `probe2.py` 中用 `ProxyHandl
   且 Agent 草稿节点由后端 patch 创建 —— 前端入口无法直接写节点元数据。
   W5 设计卡出稿后标记应显式传递（`metadata.scenePresetId` 已预留），文本识别退为兜底。
 
-### 11.8 待办（本枝未完项）
+### 11.8 ★ 验收② 降智退化档真机可演示（2026-10-03，接渠道实跑）
 
-- [ ] 降智退化档的**真机可演示**（验收②）—— 代码路径已通（`degraded: true` 单测覆盖），
-      待接渠道实跑出图
-- [ ] 端到端出图（上传商品图 → 选场景 → 出图全链截图）—— 需接渠道
+**证据**：`.local/f02-evidence/05-degraded-run-output.png`、`06-degraded-compare.png`
+
+链路：`buildScenePrompt({degraded: true})` → 979 字符提示词 → a6api · nano-banana-2 → 出图（80.8s）
+
+提示词（模板+变量，**不依赖 LLM 产出质量**）：
+```
+INPUT ROLES:
+@[product] = PRODUCT_REFERENCE. ROLE: exact product reproduction only. ...
+
+A detailed still life of a matte black ceramic coffee dripper, resting gracefully on a crisp
+white linen tablecloth. The item is situated within a lively party celebration, surrounded by
+subtle contextual props such as scattered metallic star and circle confetti, party blowouts,
+and crystal champagne flutes. The scene is illuminated by bright, direct lighting that casts
+strong, distinct shadows to highlight the product textures perfectly. ...
+```
+
+产出判读（视觉核验）：
+- ✅ **商品正确入景**：黑色哑光陶瓷滴滤器（V60 锥形 + 环形把手）完整呈现，材质与形状保真
+- ✅ **Flora 实例道具逐字落地**：金属星形/圆形纸屑（金/银/炭色）、派对吹龙（绿管金穗 + 白管彩纹 + 紫黄条纹）、水晶香槟杯（几何刻花 + 棱镜折射）
+- ✅ **光照契约生效**：`strong, distinct shadows` → 左上直射光投出长而清晰的斜影
+- ✅ **氛围契约生效**：`joyful, festive, and energetic` → 暖金串灯散景 + 节日枝叶
+- ✅ **@[ref] 防误用生效**：源图（透明 PNG 抠图产物）的玻璃瓶/咖啡杯/书本**未**被复制进场景 —— 模型只取商品本体，未把参考图当第二主体
+
+⇒ **降智期出图下限可接受**：即使 LLM 完全不可用（`sceneBrief: ""`），模板+变量仍产出完整可用的商拍场景图。
+
+### 11.9 待办（本枝未完项）
+
+- [ ] 端到端出图（上传商品图 → 选场景 → **画布内**出图全链截图）——
+      本次已验「管线 → 渠道 → 出图」（§11.8），但未走画布 UI 的完整链路
+      （需 Agent 面板提交 → 建节点 → 生成执行器 → 任务面），属集成验收范畴
 - [ ] PATCH-MAP 登记（本次零新增 CSS，样式全部复用既有类族，待确认是否需登记）
+
+### 11.10 门禁（最终）
+
+tsc 0 / eslint 0 / 全量 bun test **2596 pass 0 fail**（331 文件，累计 +65 新用例）
 
 ### 11.9 门禁（第 6 件后复跑）
 
