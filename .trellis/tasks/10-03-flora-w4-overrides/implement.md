@@ -111,3 +111,51 @@ K1-K7 已登记（外置层 / globals 迁出 / 动效收编 / 护栏 / wallet / 
 ## 待控制线验收
 - 四块外置 + 三骑乘件共 6 个 commit，未推送
 - worktree `/mnt/f/CODE/Project/oac-wt-flora`（分支 `feat/flora-overrides`）
+
+---
+
+## 门3 裁定 + 合入记档（2026-10-03）
+
+### 门3 后轮验收（控制线）
+**PASS**。VRT 24/24 零 diff，归因干净：
+- 1 组消失 = 等价拆分（规则存在性不变，物理位置变更）
+- 8 条同名 = 三值收编（动效 token 化后的等价时长）
+- 覆写目标外 0 条
+
+**方法论增量（控制线记档）**：VRT 对时长变化存在结构性盲区——Playwright 截图
+以 `animations: disabled` 快进到终态，因此 180ms→150ms 这类纯时长变化在像素上
+不可见。**computed style 探针是覆盖该盲区的必要手段**，VRT 零 diff 不能单独
+证明动效收编无副作用。本批已用 computed style 实证
+（`animationName=affordance-in` 证明 `.canvas-node-toolbar` 退役生效）。
+
+### 合入
+- 分支 `feat/flora-overrides` @ `cea67b76` → `main`
+- 方式 `--no-ff` 保留拓扑（分支 7 提交）
+- **合入 SHA `cfa8cbbf`**
+- 重叠分析：merge-base = `d3e40cd3` = main tip，main 自 `d3e40cd3` 后 0 新增 ⇒ 零冲突
+- 合入后门禁：build ✅ 2m26s / 全量 bun test **2524 pass 0 fail**
+  （首跑 1 例失败为已知 flaky `agent-canvas-sync` 时间窗测试，
+  该测试文件与其源文件在本次合入中 hash 完全未变，且其注释自记控制线此前裁决；
+  复跑 3 次均 2524/0）
+
+### PATCH-MAP 终查
+K1-K7 连续无断号，登记完整。
+
+### 骑乘护栏两件（控制线合入令 ⑥，commit `25cd8430`）
+
+**⑥a 关键组件时长快照**（补 VRT 盲区）：静态解析 var() 链到解析后毫秒值并快照
+10 个关键组件时长；另有 ⑥a-bis 单独断言显/隐不对称性未被抹平（显场必须严格慢于隐场）。
+**⑥b @layer 契约机器护栏**：@layer utilities 之外的顶层规则只允许 no-motion 关断段三条，
+把文件头契约从人工遵守升级为机器护栏（违反后果是静默失效，人工评审易漏）。
+
+**反证实验**：注入 180→150ms 漂移 → ⑥a 立即报错；恢复后 7 pass/0 fail。
+确认护栏可失败、非摆设，且覆盖的正是 VRT 看不见的那类漂移。
+
+### 合入后门禁与 flaky 说明
+合入后首跑全量出现 1 例失败：`agent-canvas-sync` 的
+「fallback snapshots obey the configured minimum refresh interval」。
+**判定为已知 flaky，与本次合入无关**，依据三条：
+① 该测试文件与其源文件在本次合入中 hash 完全未变（`git diff --name-only` 零命中）；
+② 测试自身注释（L69-71）已记录控制线此前对它的裁决：正等待窗口 120→250ms，
+   全量并行 + /mnt/f 慢 IO 下 100ms 间隔的定时器回调可被延迟出窗 → 假红；
+③ 复跑 3 次全量均 2524 pass / 0 fail。
