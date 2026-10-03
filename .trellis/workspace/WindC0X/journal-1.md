@@ -418,3 +418,27 @@ Review 报告（工作流 4 代理 + 人工复核，OCR 通道失败放弃）后
 W4 硬点全部闭合：**F-01 合入 + flora 外置 + F-02 合入 + O-03 层2 合入 + 文档批落笔**。
 下一任务 = **W4 架构方案正式化**（《能力组织层架构方案》，五件硬清单见
 `canvas/能力组织层方案-2026-10-03.md` §9），本合入收尾后即开，不再等窗口。
+
+---
+
+## 2026-10-03 架构方案正式化合入（W4 收官件）
+
+**合入**：`docs/capability-registry-architecture` @ `85343d10` → main `f8a15f23`（--no-ff，2 commits，单文件 659 行，零冲突）
+
+**批次统计**：merge-base `b858bd1d`（= main tip，main 侧 0 新提交）；分支侧 1 文件 +659；合并后 main 21 文件（docs 单提交）
+
+**内容**：能力组织层架构文档 —— 五件硬清单（① schema 字段表 ② AssetKind 15 值全集+归类映射 ③ 真值源裁定 ④ ID 命名空间防撞 ⑤ 收编回滚策略）+ 收编清单（167+3 渠道规格+评审资产）+ routeSlug 规格
+
+**★ 三处实测修正（控制线采纳）**：
+1. 收编基数 **81 → 80**（creationFeaturedWorks 实为 22）—— 差 1 根因=**计数方法陷阱**：`grep -c 'title:'` 误计类型定义行（第 3 行 `export type CreationInspiration = { title: string; ... }`），第 23 条数据不存在；同类污染审计：legacyCanvasStylePresets +5 / recommendedSelections +16 / CAMERA_PROFILES +10 / LENS_PROFILES +10 / 光照 clean
+2. motion 33「收编但用户面不下发」升为**正式口径**（收编解决数据结构统一，跳过会让视频线启动时返工）
+3. 待回改实码两项（`entryPoints` 入口登记 + `registryVersion` 版本锚点）列入 R25m 开工检查表
+
+**教训入库（计数纪律，与「源码断言命中注释」indexOf 假命中家族合并登记）**：
+资产计数**必须用数组元素配对**（或 AST），**禁止** `grep -c '<字段名>:'` —— 类型定义行/注释/样例代码均污染计数。
+
+**两处纪律（控制线提示）**：§2.1 落枚举纪律（本枝不全落 15 值，防「定义了但没人用」反模式 #11 同族，audio/checkpoint 留槽）；§6.3 开工检查表 6 项设为 R25m 验收门。
+
+**push**：`b858bd1d..f8a15f23` → fork WindC0X（fork/main == local main）；origin（ddcat-ai）未推。
+
+**下一步**：R25m 收编枝开工令已下 —— 验收门=§6.3 六项检查表；范围=最小切片片 1-2（tools.json style 45 + legacyCanvasStylePresets 18）；只交分支不合入，门后合。
