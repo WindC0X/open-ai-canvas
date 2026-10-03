@@ -442,3 +442,52 @@ W4 硬点全部闭合：**F-01 合入 + flora 外置 + F-02 合入 + O-03 层2 �
 **push**：`b858bd1d..f8a15f23` → fork WindC0X（fork/main == local main）；origin（ddcat-ai）未推。
 
 **下一步**：R25m 收编枝开工令已下 —— 验收门=§6.3 六项检查表；范围=最小切片片 1-2（tools.json style 45 + legacyCanvasStylePresets 18）；只交分支不合入，门后合。
+
+---
+
+## 2026-10-04 R25m 收编枝合入（片 1-2 最小切片 + 门六项）
+
+**合入**：`feat/r25m-registry-collection` @ `707231ae` → main `7e18af3c`（--no-ff，13 commits）
+
+**批次统计**：merge-base `980fdef2`（= main tip，main 侧 0 新提交，0 上游同步 merge）；17 文件 **+1727 / −352**；合并后 main tip `7e18af3c`
+
+**验收门六项（架构方案 §6.3 检查表，独立复验非采信记录）**：
+| # | 检查项 | 独立验证 | 结果 |
+|---|---|---|---|
+| ① | 统一 schema 回改实码（`entryPoints` + `registryVersion` 升必填） | 读类型定义 | ✅ |
+| ② | AssetKind 按**落枚举纪律** | 提取 union 实测 | ✅ **13 值**（非全落 15）；`asset/audio`、`model/checkpoint` 未落 |
+| ③ | 命名空间守卫 L1 | 跑测试 | ✅ 12 tests / 103 expects |
+| ④ | Go seed schema 对齐（`version` + 启动期校验） | 读 `tools.json` + go test | ✅ `version: 1` |
+| ⑤ | 快照脚本 + sha256 | **实战三步** | ✅ 退出码 0/2/0 |
+| ⑥ | docs 同步点 | 读 `code-map.mdx` | ✅ 登记注册表层 |
+
+**片 1-2 全链**：
+- 片 1：`tools.json` style(45) → seed → DB → API → 统一 schema（改动逐字透传验证）
+- 片 2：`legacyCanvasStylePresets`(18) 页面私有常量 → lib 数据源 → 统一 schema → 降级态 UI
+- 读取器语义：**服务端优先 + 降级必须标注 + 空列表不降级**（空态 ≠ 降级）
+
+**门禁（合入后复跑）**：`build` 2m52s ✓ / 全量 `bun test` **2651 pass 0 fail**（334 文件，与合入前逐字一致）/ `go build 0` / `go test ./internal/tools/...` ok
+**`internal/app` 5 失败**：main 基线独立复跑，失败测试名逐字相同（5/5）→ 既有基建（cloud agent runtime E2E，需 Node），非本批引入
+
+**★ 教训入库（合并纪律族 —— 与假命中家族并列，控制线指定单独成行）**：
+**文本零冲突 ≠ 语义兼容**。`git merge` auto-merge 静默通过（R25m 与 F-08 两个重叠文件均自动合并成功），但合并态 `tsc --noEmit` 报 **`TS2739`**：
+```
+src/lib/canvas/capability-entries.ts(155,5): error TS2739: Type '{...}' is missing
+the following properties from type 'CapabilityEntry': entryPoints, registryVersion
+```
+文本合并会静默通过，**只有类型系统/机器护栏能抓住阻断**。这是门①字段强制（把 `entryPoints`/`registryVersion` 升为必填）**第一次在跨枝场景实战得手**。
+
+**试合并实测三步（临时，已回退）**：① `git merge --no-commit --no-ff b182ef97` → 文本零冲突 ② 合并态 `tsc` → TS2739 ③ `git merge --abort` → 恢复 `6a8be55a` 树干净。
+
+**跨枝条款入档**（架构方案 §1.4）：在飞条目合入前须同步补齐门①字段 —— 补字段是各枝自己的事，不由先合入方代改。
+**F-08 需补两条**（非一条）：其 `image.superResolve` 条目也基于旧 schema（F-08 从 `b858bd1d` 起枝，早于 R25m 门①）；方案 A 修订版已发 B 线。
+
+**两处口径澄清（控制线裁定）**：
+1. 最终条目数 **= 2**（superResolve + annotateEdit），控制线原「3」口径已修正 —— 本枝全 refs 实测 + F-08 任务书（+1）+ F-08 测试（「两个原生条目」）三重证据
+2. 方案 A 采纳（F-08 补字段），方案 B（可选化）否决 —— 可选化让待建字段失去强制力
+
+**本枝附带修正**：架构方案 §2.1 落枚举计数 **7 → 9**（纪律提示文字与值列表不符）
+
+**push**：`980fdef2..7e18af3c` → fork WindC0X（fork/main == local main）；origin（ddcat-ai）未推
+
+**下一步**：片 3-9 待 F-08 合入、条目稳定后按序推进；明天双卡规格（统一任务面 / 直线入口）。
