@@ -286,13 +286,18 @@ export async function prepareBackendGenerationTask(options: BackendGenerationTas
 
 function backendGenerationTaskInput(options: BackendGenerationTaskOptions, prepared: PreparedGenerationReferences): CreateTaskInput {
     const { projectId, mode, prompt, config, metadata } = options;
-    const videoOperation = generationOperation(options);
+    // ★ 变量名是历史遗留（曾只服务 video）；generationOperation() 现在对三种语义都
+    // 返回正确的 operation：video → resolveVideoOperation(...)，image 超分 →
+    // "image_upscale"，其余 → options.mode。**必须直接用它**，不能再按 mode 二次覆盖 ——
+    // 曾经写成 `operation: mode === "video" ? videoOperation : mode`，导致超分在 HTTP 层
+    // 之前就被丢回 "image"，后端的 image_upscale selector 永不命中（超分与普通改图同价）。
+    const operation = generationOperation(options);
     const workflow = resolveGenerationWorkflowExecution(config, mode);
     const logicalModelId = workflow ? "" : logicalModelIDForConfig(config);
     return {
         ...(projectId ? { projectId } : {}),
         type: `canvas_${mode}`,
-        operation: mode === "video" ? videoOperation : mode,
+        operation,
         prompt,
         ...(workflow ? { provider: workflow.provider } : {}),
         model: workflow?.taskModel || config.model,

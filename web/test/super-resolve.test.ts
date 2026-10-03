@@ -4,6 +4,8 @@ import { join } from "node:path";
 
 import { CAPABILITY_ENTRIES, capabilityContextSatisfied, capabilityEntriesByTier, findCapabilityEntry } from "@/lib/canvas/capability-entries";
 import { DEFAULT_SUPER_RESOLVE_PARAMS, SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, isFaithfulDefault } from "@/lib/canvas/super-resolve-params";
+import { prepareBackendGenerationTask } from "@/services/api/generation-task";
+import { createModelChannel, defaultConfig, encodeChannelModel } from "@/stores/use-config-store";
 
 /**
  * O-03 层2 AI 超分 —— 注册表条目 + 参数面 + 入口可达性。
@@ -16,6 +18,31 @@ import { DEFAULT_SUPER_RESOLVE_PARAMS, SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGET
  */
 
 const webRoot = join(import.meta.dir, "..");
+
+/** 构造一个可过 assertBackendRuntimeConfigured 的配置（零网络：参考图为空）。 */
+function superResolveTestConfig(capability: "image" | "video" = "image") {
+    const model = capability === "video" ? "test-video-model" : "test-image-model";
+    const channel = createModelChannel({
+        id: "o03-test",
+        name: "O-03 test",
+        baseUrl: "https://relay.example.com",
+        apiKey: "test-key",
+        // assertBackendRuntimeConfigured 要求 channelId 或 interfaceType 之一存在；
+        // 只给 apiFormat 不够（resolveModelRequestConfig 回填的 interfaceType 为空）。
+        interfaceType: "chat-completion",
+        apiFormat: "openai",
+        models: [model],
+        modelCosts: [{ model, capability, billingMode: "fixed_request", unitPriceMicrocredits: 1 }],
+    });
+    const encoded = encodeChannelModel(channel.id, model);
+    return {
+        ...defaultConfig,
+        channels: [channel],
+        model: encoded,
+        imageModel: capability === "image" ? encoded : defaultConfig.imageModel,
+        videoModel: capability === "video" ? encoded : defaultConfig.videoModel,
+    };
+}
 const read = (relative: string) => readFileSync(join(webRoot, relative), "utf8");
 
 describe("能力条目 schema（控制线裁定：全字段登记，不许缺字段）", () => {
@@ -137,12 +164,41 @@ describe("★ 入口可达性（反模式 #12：有代码≠能用）", () => {
         expect(source.includes("superResolveImageNode(node, params)")).toBe(true);
     });
 
-    test("★ 计费 operation 贯通：执行函数传 canvasEditOperation=image_upscale", () => {
-        const source = read("src/pages/canvas/use-canvas-media-tools.ts");
-        expect(source.includes('canvasEditOperation: "image_upscale"')).toBe(true);
-        // generation-task.ts 把它映射为 operation（后端 selector 据此选价格档）。
-        const taskSource = read("src/services/api/generation-task.ts");
-        expect(taskSource.includes('options.metadata?.canvasEditOperation === "image_upscale"')).toBe(true);
+    test("★ 计费 operation 贯通：传输层返回值 operation === image_upscale（结构断言）", async () => {
+        // ★★ 为什么必须是结构断言（2026-10-03 测试线增量门抓到的 NO-GO）：
+        // 本用例原先是 source.includes 字符串断言 —— 只证明「代码存在」，
+        // 而真实缺陷恰恰在字符串断言看不到的地方：backendGenerationTaskInput()
+        // 拿到 generationOperation() 的返回值后又按 mode 二次覆盖
+        // （`operation: mode === "video" ? videoOperation : mode`），
+        // 超分在 HTTP 层之前就被丢回 "image"，后端 selector 永不命中，
+        // DB 实测 tasks.operation="image"（超分与普通改图同价）。
+        // ⇒ 断言必须落在**函数的实际返回值**上，不能落在源码文本上。
+        const input = await prepareBackendGenerationTask({
+            mode: "image",
+            prompt: "AI 超分 · 2K · 保真放大",
+            config: superResolveTestConfig(),
+            metadata: { canvasEditOperation: "image_upscale" },
+        });
+        expect(input.operation).toBe("image_upscale");
+    });
+
+    test("★ 回归保护：非超分图片任务仍是 image（不被超分分支污染）", async () => {
+        const input = await prepareBackendGenerationTask({
+            mode: "image",
+            prompt: "画一只猫",
+            config: superResolveTestConfig(),
+        });
+        expect(input.operation).toBe("image");
+    });
+
+    test("★ 回归保护：video 任务的 operation 仍由 generationOperation() 决定", async () => {
+        const input = await prepareBackendGenerationTask({
+            mode: "video",
+            prompt: "小猫在流泪",
+            config: superResolveTestConfig("video"),
+            referenceImages: [{ id: "r1", name: "r.png", type: "image/png", url: "https://cdn.example.com/r.png" }],
+        });
+        expect(input.operation).toBe("image_to_video");
     });
 });
 
