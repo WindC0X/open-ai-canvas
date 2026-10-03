@@ -38,9 +38,28 @@ type toolSeedGroup struct {
 }
 
 type builtinToolsFile struct {
+	// Version 是 seed 文件的 schema 版本锚点（架构方案 §3.3 契约）。
+	// 前端消费侧据此校验版本，不符则拒绝使用（防新旧 schema 混用）。
+	Version int    `json:"version"`
+	Updated string `json:"updated"`
+	Note    string `json:"note"`
+
 	Style    toolSeedGroup `json:"style"`
 	Motion   toolSeedGroup `json:"motion"`
 	NineGrid toolSeedGroup `json:"nine_grid"`
+}
+
+// BuiltinToolsSeedVersion 是当前内置工具 seed 的 schema 版本。
+//
+// 递增时机：seed 结构变化（新增/删除字段、语义变更）时同步改 tools.json 的
+// version 字段与本常量 —— 二者不一致时启动即失败，避免「代码与数据版本漂移」。
+const BuiltinToolsSeedVersion = 1
+
+// BuiltinToolsSeedJSON 返回内嵌的 seed 原始字节。
+//
+// 供测试做版本/结构断言（生产代码不应直接消费原始 JSON —— 走 EnsureBuiltinTools）。
+func BuiltinToolsSeedJSON() []byte {
+	return builtinToolsJSON
 }
 
 const (
@@ -58,6 +77,11 @@ func EnsureBuiltinTools(repo Repository) error {
 	var file builtinToolsFile
 	if err := json.Unmarshal(builtinToolsJSON, &file); err != nil {
 		return fmt.Errorf("解析内置工具失败: %w", err)
+	}
+	// 版本锚点校验（架构方案 §3.3 契约）：seed 文件与代码常量必须一致。
+	// 不一致说明数据与消费代码漂移，宁可在启动期失败也不要带着错配 schema 运行。
+	if file.Version != BuiltinToolsSeedVersion {
+		return fmt.Errorf("内置工具 seed 版本不符: 文件=%d 代码期望=%d", file.Version, BuiltinToolsSeedVersion)
 	}
 
 	var tools []model.Tool

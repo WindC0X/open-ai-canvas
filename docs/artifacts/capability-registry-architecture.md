@@ -96,6 +96,17 @@ export function capabilityContextSatisfied(
 
 **控制线裁定**：发现实码字段不足时**在方案里扩并标注「需回改实码」**——本节即为该标注。
 
+**★ 跨枝条款（控制线裁定 2026-10-04，R25m 实战发现）**：
+
+**在飞条目合入前须同步补齐门①字段（`entryPoints` + `registryVersion`）**。
+
+背景：R25m 把这两字段升为 `CapabilityEntry` **必填**后，在飞枝上按旧 schema 编写的条目
+（如 F-08 的 `image.annotateEdit`）会缺字段 → **无论哪侧先合入都阻断**
+（`tsc` 报 missing property + `registry-namespace-guard.test.ts` 抛 TypeError/断言失败）。
+
+处置：**补字段是各枝自己的事**，不由先合入方代改 —— 先合入方无阻断
+（其自身条目字段已全），后合入方在合入前补齐即可。
+
 ### 1.5 两个实证样本并列（校验 schema 可承载性）
 
 | 字段 | `image.superResolve`（O-03） | `image.annotateEdit`（F-08） | schema 是否承载 |
@@ -159,7 +170,7 @@ export type AssetKind =
 
 | 批次 | 落哪些值 | 触发条件 |
 |---|---|---|
-| **R25m 本枝** | `capability/tool` + `capability/workflow`（保留 2 值）+ 收编清单用到的 7 个：`preset/style` / `preset/lighting` / `preset/camera` / `preset/lens` / `preset/motion` / `preset/channel-spec` / `template/canvas` / `spec/prompt-template` / `spec/generation` | 立即 |
+| **R25m 本枝** | `capability/tool` + `capability/workflow`（保留 2 值）+ 收编清单用到的 **9** 个：`preset/style` / `preset/lighting` / `preset/camera` / `preset/lens` / `preset/motion` / `preset/channel-spec` / `template/canvas` / `spec/prompt-template` / `spec/generation` | 立即 |
 | **留槽** | `asset/image` / `asset/video` / `asset/audio` / `model/checkpoint` | **有真实消费者再进枚举** |
 
 > 说明：`asset/image` / `asset/video` 是**实码已有的 3 值之二**（O-03 时就在），

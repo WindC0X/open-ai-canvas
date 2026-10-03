@@ -6,6 +6,8 @@ import { LoaderCircle, Palette, Wrench, X } from "lucide-react";
 
 import { listTools, type ToolScope, type ToolSummary } from "@/services/api/tools";
 import { FEED_TABS, SUB_TAB_TAGS, toAbsoluteUrl } from "@/lib/canvas/canvas-tool-presentation";
+import { degradedNoticeText, loadStyleAssets } from "@/lib/canvas/registry-reader";
+import { LEGACY_CANVAS_STYLE_PRESETS } from "@/lib/canvas/legacy-style-presets";
 
 const STYLE_TOOL_PAGE_SIZE = 40;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -62,6 +64,29 @@ export function CanvasChooseImageStylePicker({
     const activeTool = tools.find((tool) => tool.id === activeToolId);
     const resolvedLabel = activeTool?.label || activeLabel;
 
+    // 服务端不可达时的离线降级（架构方案 §3.2：降级必须标注，不得静默）。
+    // 走统一读取器取降级结果 —— 它与正常路径共享同一适配器与视频域窗口标注。
+    const [degradedState, setDegradedState] = useState<{ assets: { slug: string; title: string; coverUrl?: string }[]; notice: string } | null>(null);
+    useEffect(() => {
+        if (!actualOpen || !toolsQuery.isError) {
+            setDegradedState(null);
+            return;
+        }
+        let cancelled = false;
+        void loadStyleAssets({ localFallback: LEGACY_CANVAS_STYLE_PRESETS })
+            .then((result) => {
+                if (cancelled || !result.degraded) return;
+                setDegradedState({
+                    assets: result.assets.map((asset) => ({ slug: asset.slug, title: asset.title, coverUrl: asset.coverUrl })),
+                    notice: degradedNoticeText({ assets: result.assets, degraded: true, degradedReason: result.degradedReason }) ?? "",
+                });
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [actualOpen, toolsQuery.isError]);
+
     const handleSelect = (tool: ToolSummary) => {
         setOpen(false);
         onSelect(tool.id, tool.label);
@@ -115,7 +140,36 @@ export function CanvasChooseImageStylePicker({
                                     <LoaderCircle className="size-4 animate-spin" />
                                 </div>
                             ) : toolsQuery.isError ? (
-                                <div className="col-span-3 grid h-24 place-items-center text-xs text-foreground/40">风格工具加载失败，请稍后重试</div>
+                                degradedState && degradedState.assets.length ? (
+                                    <div className="col-span-5 flex flex-col gap-1.5">
+                                        {/* ★ 降级态必须明示（架构方案 §3.2 纪律）：用户须知道这不是完整列表 */}
+                                        <p className="rounded-[var(--r-sm)] bg-[var(--surface-hover)] px-2 py-1 text-[11px] text-foreground/55">{degradedState.notice}</p>
+                                        <div className="grid grid-cols-5 gap-1.5">
+                                            {degradedState.assets.map((asset) => (
+                                                <button
+                                                    key={asset.slug}
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={false}
+                                                    title={asset.title}
+                                                    className="group flex flex-col gap-1 rounded-[var(--r-md)] border border-transparent p-1.5 text-left opacity-80 transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:outline-none"
+                                                    onClick={() => {
+                                                        // 降级清单项无服务端 toolId，回填 label 供用户继续；
+                                                        // 不做静默提交，交由既有 onSelect 语义处理。
+                                                        setOpen(false);
+                                                    }}
+                                                >
+                                                    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[var(--r-sm)] border border-border/60">
+                                                        {asset.coverUrl ? <img src={toAbsoluteUrl(asset.coverUrl)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-foreground/30"><Wrench className="size-4" /></div>}
+                                                    </div>
+                                                    <span className="truncate text-center text-[11px] font-medium leading-4 text-foreground">{asset.title}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="col-span-3 grid h-24 place-items-center text-xs text-foreground/40">风格工具加载失败，请稍后重试</div>
+                                )
                             ) : tools.length === 0 ? (
                                 <div className="col-span-3 grid h-24 place-items-center text-xs text-foreground/40">{searchText ? "没有匹配的风格" : "暂无风格工具"}</div>
                             ) : (
