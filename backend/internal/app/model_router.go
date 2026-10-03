@@ -302,6 +302,13 @@ func skuSelectorForIntent(intent ModelRequestIntent) map[string]string {
 			selector["videoGenerateAudio"] = audio
 		}
 	case "image":
+		// AI 超分是图片域内的独立计价操作（O-03 层2）：渠道按 operation 配置
+		// 独立价格档，不能归并到 image_to_image，否则超分与普通改图同价。
+		// 归一化以 intent.Operation 为准（前端经 canvasEditOperation=image_upscale 传入）。
+		if strings.EqualFold(strings.TrimSpace(intent.Operation), "image_upscale") {
+			selector["operation"] = "image_upscale"
+			break
+		}
 		if intent.Inputs["image"] > 0 {
 			selector["operation"] = "image_to_image"
 		} else {

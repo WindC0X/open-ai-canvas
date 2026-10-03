@@ -126,6 +126,37 @@ func TestSKUSelectorHandlesMissingImageOptions(t *testing.T) {
 	}
 }
 
+func TestSKUSelectorKeepsImageUpscaleOperation(t *testing.T) {
+	// O-03 层2：AI 超分必须保留自己的 operation，否则会被归并到 image_to_image，
+	// 导致渠道无法为超分配置独立价格档（超分与普通改图同价）。
+	selector := skuSelectorForIntent(ModelRequestIntent{Capability: "image", Operation: "image_upscale", Inputs: map[string]int{"image": 1}, Options: map[string]any{"quality": "2k"}})
+	if selector["operation"] != "image_upscale" {
+		t.Fatalf("operation = %q, want image_upscale (selector=%#v)", selector["operation"], selector)
+	}
+	// 大小写与空白必须归一化后仍命中（前端传入不保证大小写）。
+	for _, operation := range []string{"IMAGE_UPSCALE", " image_upscale "} {
+		selector := skuSelectorForIntent(ModelRequestIntent{Capability: "image", Operation: operation, Inputs: map[string]int{"image": 1}})
+		if selector["operation"] != "image_upscale" {
+			t.Errorf("operation=%q: selector[operation] = %q, want image_upscale", operation, selector["operation"])
+		}
+	}
+}
+
+func TestSKUSelectorKeepsImageToImageForOtherEdits(t *testing.T) {
+	// 回归保护：非超分的图片编辑仍走 image_to_image，不被超分分支影响。
+	for _, operation := range []string{"", "image_to_image", "mask_edit"} {
+		selector := skuSelectorForIntent(ModelRequestIntent{Capability: "image", Operation: operation, Inputs: map[string]int{"image": 1}})
+		if selector["operation"] != "image_to_image" {
+			t.Errorf("operation=%q: selector[operation] = %q, want image_to_image", operation, selector["operation"])
+		}
+	}
+	// 无输入图时仍是 text_to_image（超分分支不得改变该判定）。
+	selector := skuSelectorForIntent(ModelRequestIntent{Capability: "image", Operation: "image_upscale"})
+	if selector["operation"] != "image_upscale" {
+		t.Fatalf("超分无输入图也应保留 operation，got %q", selector["operation"])
+	}
+}
+
 func TestSKUSelectorIncludesVideoReferenceImageCount(t *testing.T) {
 	selector := skuSelectorForIntent(ModelRequestIntent{Capability: "video", Inputs: map[string]int{"image": 5}, Options: map[string]any{"vquality": "720p"}})
 	if selector["imageCount"] != "5" || selector["vquality"] != "720p" {
