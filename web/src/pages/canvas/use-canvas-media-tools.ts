@@ -8,7 +8,8 @@ import type { CanvasImageMaskEditPayload } from "@/components/canvas/canvas-node
 import type { CanvasImageEditPayload } from "@/components/canvas/canvas-node-image-edit-dialog";
 import type { CanvasImageLayerDecompositionPayload } from "@/components/canvas/canvas-node-layer-decomposition-dialog";
 import { buildCanvasTextEditPrompt, type CanvasImageTextEditPayload, type CanvasImageTextLine } from "@/components/canvas/canvas-node-text-edit-dialog";
-import type { CanvasImageAnnotationPayload } from "@/components/canvas/canvas-node-annotation-dialog";
+import type { CanvasAnnotateEditPayload } from "@/components/canvas/canvas-node-annotate-edit-dialog";
+import { buildAnnotateEditSubmission } from "@/lib/canvas/annotate-edit-submission";
 import type { CanvasImageSplitParams } from "@/components/canvas/canvas-node-split-dialog";
 import type { CanvasImageUpscaleParams } from "@/components/canvas/canvas-node-upscale-dialog";
 import { SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, type SuperResolveParams } from "@/lib/canvas/super-resolve-params";
@@ -1206,7 +1207,7 @@ export function useCanvasMediaTools({
         setAnnotationEditNodeId(node.id);
     }, [message]);
 
-    const editAnnotatedImageNode = useCallback(async (node: CanvasNodeData, payload: CanvasImageAnnotationPayload) => {
+    const editAnnotatedImageNode = useCallback(async (node: CanvasNodeData, payload: CanvasAnnotateEditPayload) => {
         const source = nodeReferenceImage(node);
         if (!source) return;
         const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
@@ -1214,26 +1215,37 @@ export function useCanvasMediaTools({
             navigateToSettings({ continueCreation: true });
             return;
         }
-        const annotatedReference = { id: `${node.id}-annotation`, name: "annotation.png", type: "image/png", dataUrl: payload.annotatedDataUrl };
-        const prompt = "根据第二张参考图中的彩色标注，只修改被标记的区域；第一张图是原图，保持未标记区域、构图、主体和细节完全不变。标注线和标记本身不要出现在最终图片中。请完成自然、无缝的图片编辑。";
+        // F-08 合并路线（控制线 2026-10-05 裁定 A）：提示词/参考图/元数据由纯函数单点构造，
+        // 取代此前的内联硬编码提示词；结构化与画笔两模式的提交面在此统一。
+        const submission = buildAnnotateEditSubmission({
+            nodeId: node.id,
+            source,
+            annotatedDataUrl: payload.annotatedDataUrl,
+            actionHint: payload.actionHint,
+            annotationCount: payload.annotations.length,
+            strokeCount: payload.strokeCount,
+            exportWidth: payload.exportWidth,
+            exportHeight: payload.exportHeight,
+        });
+        const { prompt, referenceImages, metadata: submitMetadata } = submission;
         const childId = nanoid();
-        const generationMetadata = buildImageGenerationMetadata("edit", generationConfig, 1, [source, annotatedReference]);
+        const generationMetadata = buildImageGenerationMetadata("edit", generationConfig, 1, referenceImages);
         setAnnotationEditNodeId(null);
         setRunningNodeId(childId);
-        setNodes((current) => [...current, { id: childId, type: CanvasNodeType.Image, title: `${node.title || "图片"} · 标注编辑`, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: node.width, height: node.height, metadata: { ...canvasGenerationPromptMetadata("标注编辑", prompt), status: NODE_STATUS_LOADING, pluginId: "image-tools", pluginNodeId: "annotation-edit", ...generationMetadata } }]);
+        setNodes((current) => [...current, { id: childId, type: CanvasNodeType.Image, title: `${node.title || "图片"} · 圈选改图`, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: node.width, height: node.height, metadata: { ...canvasGenerationPromptMetadata("圈选改图", prompt), status: NODE_STATUS_LOADING, pluginId: "image-tools", pluginNodeId: "annotation-edit", ...generationMetadata } }]);
         setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
         setSelectedNodeIds(new Set([childId]));
         setSelectedConnectionId(null);
         setDialogNodeId(childId);
         const controller = startGenerationRequest(childId, node.id, childId);
         try {
-            const result = await runBackendCanvasGenerationTask({ projectId, nodeId: childId, mode: "image", prompt, config: generationConfig, referenceImages: [source, annotatedReference], signal: controller.signal, metadata: { sourceNodeId: node.id, edit: "annotation", annotationReference: true }, onTaskCreated: (task) => bindGenerationTask(childId, task) });
+            const result = await runBackendCanvasGenerationTask({ projectId, nodeId: childId, mode: "image", prompt, config: generationConfig, referenceImages, signal: controller.signal, metadata: submitMetadata, onTaskCreated: (task) => bindGenerationTask(childId, task) });
             const image = result.images?.find((item) => item?.dataUrl);
-            if (!image?.dataUrl) throw new Error("标注编辑任务没有返回图片");
+            if (!image?.dataUrl) throw new Error("圈选改图任务没有返回图片");
             const uploaded = await uploadImage(image.dataUrl);
             const size = fitNodeSize(uploaded.width, uploaded.height, node.width, node.height);
             const currentNode = nodesRef.current.find((item) => item.id === childId);
-            if (!currentNode) throw new Error("标注编辑节点已被删除");
+            if (!currentNode) throw new Error("圈选改图节点已被删除");
             const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: commitProducedModel({ ...currentNode.metadata, ...imageMetadata(uploaded), prompt, status: NODE_STATUS_SUCCESS, ...generationMetadata }) };
             setNodes((current) => current.map((item) => item.id === childId ? finalizedNode : item));
             await persistMediaNodes([finalizedNode]);
@@ -1247,7 +1259,7 @@ export function useCanvasMediaTools({
             finishGenerationRequest(childId, controller);
             setRunningNodeId(null);
         }
-    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, nodesRef, persistMediaNodes, projectId, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
+    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, navigateToSettings, nodesRef, persistMediaNodes, projectId, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
 
     const openBackgroundRemoval = useCallback((node: CanvasNodeData) => {
         setImageEditPreset("remove-background");
