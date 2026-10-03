@@ -308,3 +308,80 @@ worktree `/mnt/f/CODE/Project/oac-wt-o03`。等 W5 B 线会话接管或控制线
 按 §1.2，本枝只做闭环骨架 + 计费映射；真实超分渠道（火山 veImageX 0.00276 元/次 /
 Replicate real-esrgan $0.002）未接入，渠道由 W5 B 线或后续渠道枝接。
 执行链已预留：`canvasEditOperation=image_upscale` → 后端 selector 独立价格档。
+
+
+---
+
+## 十二、★ 测试线增量门 NO-GO 与修复（2026-10-03）
+
+### 12.1 缺陷链（测试线抓到，实码复核确认）
+
+**表象**：后端 `skuSelectorForIntent` 的 `image_upscale` 分支写对了，但 selector 永不命中，
+DB 实测 `tasks.operation="image"` —— 超分与普通改图同价。
+
+**根因**：`generation-task.ts` 的 `backendGenerationTaskInput()` 拿到
+`generationOperation()` 的返回值后，**又按 mode 二次覆盖**：
+
+```ts
+const videoOperation = generationOperation(options);
+// ...
+operation: mode === "video" ? videoOperation : mode,   // ← 非 video 时丢弃 image_upscale
+```
+
+`generationOperation()` 对超分**已经正确返回** `"image_upscale"`，但该返回值在非 video
+分支被 `mode`（`"image"`）覆盖 —— 缺陷在 HTTP 层之前，后端拿到的就是 `"image"`。
+
+**修复**（测试线方案，1 行）：变量名 `videoOperation` → `operation`，字段直接用它。
+一行同时保住三语义：
+- `video` → `resolveVideoOperation(...)`
+- `image` + 超分 → `"image_upscale"`（提前返回）
+- 其余 → `options.mode`
+
+### 12.2 ★★ 两条漏检断层（教训库，均入档）
+
+| # | 断层 | 说明 |
+|---|---|---|
+| 1 | **`includes` 弱断言** | 原测试 `expect(taskSource.includes('canvasEditOperation === "image_upscale"')).toBe(true)` —— 只证明**代码存在**，而缺陷恰在字符串断言看不到的**运行时覆盖**处（代码确实存在，但结果被覆盖）。**字符串断言 ≠ 行为断言**。 |
+| 2 | **go test 绕过传输层** | `go test` 直接构造 `ModelRequestIntent` 调 `skuSelectorForIntent` —— 完全绕过 HTTP 层，传输前覆盖无人覆盖。**单元测试的边界 = 被测量模块的边界，跨层契约需跨层测试**。 |
+
+### 12.3 教训库条目（与既有条目归并）
+
+**假命中/假通过三族**（本枝集齐三例）：
+
+1. **中文文案子串双向失真**（既有教训扩展）：`/AI 超分/` 误中「调整尺寸」的描述
+   「插值放大像素尺寸，**不是 AI 超分**」→ 假命中；`!includes("调整尺寸")` 因自己的
+   对话框正文引用该词 → 假失败。**中文 UI 文案的对照说明让朴素子串匹配双向失真**。
+2. **注释引用旧代码**（既有）：`not.toContain` 对源码断言时，注释里的旧代码引用导致假失败。
+3. **`includes` 弱断言 + 跨层断层**（本次新增）：字符串断言证明代码存在，但无法证明
+   运行时行为；跨层契约（前端传输 → 后端 selector）必须在**每一层**都有行为断言。
+
+**统一处置**：涉及行为的断言落在**函数返回值/渲染结果**上；涉及源码结构的断言先剥离
+注释、再做**精确匹配**（`startsWith`/锚定渲染节点）而非全文子串。
+
+### 12.4 测试升级（防回归）
+
+`test/super-resolve.test.ts`：
+- 原 `includes` 断言 → 对 `prepareBackendGenerationTask()` 返回值的**结构断言**
+  `expect(input.operation).toBe("image_upscale")`
+- 新增 2 条回归保护：
+  - 非超分图片任务仍为 `"image"`（不被超分分支污染）
+  - `video` 任务仍由 `generationOperation()` 决定（`image_to_video`）
+- **可证伪性已验证**：临时注入旧缺陷 → 该断言立刻失败（1 fail）；恢复 → 18 pass 0 fail
+
+### 12.5 传输链实测（前端侧决定性验证）
+
+```
+★ HTTP 请求体的 operation 字段 = "image_upscale"
+★ 完整请求体片段: {"type":"canvas_image","operation":"image_upscale"}
+普通改图 operation = "image"（不误伤）
+```
+
+后端侧 `go test ./internal/app/ -run TestSKUSelector` 7 pass（含 2 条本枝新增：
+`TestSKUSelectorKeepsImageUpscaleOperation` / `...KeepsImageToImageForOtherEdits`）。
+
+### 12.6 测试线两条非阻塞建议（记档）
+
+| # | 建议 | 处置 |
+|---|---|---|
+| ① | `maxImages=0` 时超分入口给模型切换引导 | **W5 双卡一并考虑** |
+| ② | 任务面展开态基线待 main 校准 | **合入后做** |
