@@ -3,6 +3,8 @@ import { Button, Modal } from "antd";
 import { XCircle } from "lucide-react";
 
 import { CanvasImagePreview } from "@/components/canvas/canvas-image-preview";
+import { CanvasNodeSuperResolveDialog } from "@/components/canvas/canvas-node-super-resolve-dialog";
+import type { SuperResolveParams } from "@/lib/canvas/super-resolve-params";
 import { TaskDetailItem } from "./canvas-project-feedback";
 import { canCancelGenerationTask, generationTaskShowsProgress, generationTaskStageLabel } from "@/lib/generation-task-display";
 import { formatTaskLog, type GenerationTask, type TaskLog } from "@/services/api/task-center";
@@ -21,6 +23,7 @@ type CanvasProjectStatusDialogsProps = {
     onCancelTask?: (task: GenerationTask) => void;
     superResolveNode: CanvasNodeData | null;
     onCloseSuperResolve: () => void;
+    onSuperResolve: (node: CanvasNodeData, params: SuperResolveParams) => void;
     previewNode: CanvasNodeData | null;
     onClosePreview: () => void;
     clearConfirmOpen: boolean;
@@ -28,7 +31,7 @@ type CanvasProjectStatusDialogsProps = {
     onConfirmClear: () => void;
 };
 
-export function CanvasProjectStatusDialogs({ theme, task, taskLogs, taskLoading, superResolveNode, previewNode, clearConfirmOpen, onCloseTask, onCancelTask, onCloseSuperResolve, onClosePreview, onCancelClear, onConfirmClear }: CanvasProjectStatusDialogsProps) {
+export function CanvasProjectStatusDialogs({ theme, task, taskLogs, taskLoading, superResolveNode, previewNode, clearConfirmOpen, onCloseTask, onCancelTask, onCloseSuperResolve, onSuperResolve, onClosePreview, onCancelClear, onConfirmClear }: CanvasProjectStatusDialogsProps) {
     const config = useEffectiveConfig();
     return (
         <>
@@ -73,9 +76,9 @@ export function CanvasProjectStatusDialogs({ theme, task, taskLogs, taskLoading,
                 ) : null}
             </Modal>
 
-            <Modal title="AI 超分" open={Boolean(superResolveNode?.metadata?.content)} centered footer={null} onCancel={onCloseSuperResolve}>
-                <div className="py-8 text-center text-base font-medium">暂未实现</div>
-            </Modal>
+            {superResolveNode?.metadata?.content ? (
+                <CanvasNodeSuperResolveDialog dataUrl={superResolveNode.metadata.content} open onClose={onCloseSuperResolve} onConfirm={(params) => onSuperResolve(superResolveNode, params)} />
+            ) : null}
 
             <AppModal
                 title="视频预览"
