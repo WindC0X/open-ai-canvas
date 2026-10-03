@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端 spec 索引，确定本枝适用的规范条目"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "新弹窗组件（canvas-node-annotate-edit-dialog）的组件模式"}
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证纪律：bun test 必须在 web/ 内跑、drvfs 特性、提交信息与证据一致"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "复用同构先例（mask-edit-dialog / maskEditImageNode / canvas-selection）的判定依据"}
+{"file": "docs/artifacts/f08-annotate-task-book.md", "reason": "正式任务书：七节范围、三裁定、咽喉清单、切片与验收"}

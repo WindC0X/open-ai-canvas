@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "检查口径：单测覆盖、门禁清单"}
+{"file": ".trellis/spec/frontend/verification-env-discipline.md", "reason": "验证纪律：证据与声明一致性（反例 b66c11a）"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层数据流检查：弹窗标注 → 合成导出 → 生成执行链 → 落节点"}
+{"file": "docs/artifacts/f08-annotate-task-book.md", "reason": "验收标准与三裁定的原始定义"}
