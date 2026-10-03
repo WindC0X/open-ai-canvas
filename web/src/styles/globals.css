@@ -339,7 +339,10 @@
     --motion-scale: 0;
 }
 
-/* infinite 装饰动画在 reduced-motion / no-motion 下降级（对应 #99 三级降级）*/
+/* infinite 装饰动画在 reduced-motion / no-motion 下降级（对应 #99 三级降级）
+   [D8 纪律 2026-10-03] 本块为装饰动画显式降级清单（11 站对照中影策独有的完整形态，neowow 458 个 infinite 仅配 52 降级块为反面教材）。
+   新增任何 animation infinite 循环，必须同时在本清单两个选择器组（@media reduce 组 + .no-motion 组）登记该选择器，
+   并遵守 DESIGN.md D7（不用 keyframes 数量做度量）与动效六规则第 4 条（装饰性循环动画禁止新增，状态反馈类单次脉动除外）。*/
 @media (prefers-reduced-motion: reduce) {
     .canvas-connection-flow,
     .canvas-connection-comet,

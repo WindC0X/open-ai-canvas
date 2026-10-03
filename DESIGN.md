@@ -32,6 +32,15 @@ product——设计服务于创作任务,不喧宾夺主(与 PRODUCT.md 一致)�
 
 flora 实测常量对齐:BORDER_FADE 150ms、SPAWN 200ms、GENERATION_REVEAL 400ms(与档位冲突时以实测为准并在此登记)。
 
+### 时长/缓动体系对齐注记(2026-10-03 深拆 S15d 吸收,[D] D1/D2/D4)
+
+- **D1 三值收编**:旧代码内游离毫秒值 `160ms`(114 处)+`180ms`(107 处)+`140ms`(44 处)=265 处不在 token 表——已在 flora 批收编:180ms→`--motion-state`、160ms→`--motion-dur-fast-calc`、100ms→`--motion-dur-instant-calc`(4 处白名单豁免除外)。新增装饰动画禁止裸毫秒字面值(CI bare-ms 守卫已落地,flora-overrides-guard.test.ts)。**规格表 3 档 vs globals.css 5 档(80/150/250/400/600)的口径差就此登记**:规格表为「用途档位」,globals.css 为「Primitive 全集」,新动效先查 Primitive 再映射档位,两表不冲突但引用时须声明用哪个。
+- **D2 强出场曲线升 Primitive**:`--ease-product-enter: cubic-bezier(.16,1,.3,1)` 目前只是语义别名(20 次消费);与 higgsfield `--hf-ease-out-expo`(逐字符同值)同源,补 `quart` 族后升级为 Primitive 档,不再当别名用。
+- **D4 过渡默认缓动**:`transition` 用 `ease-out` 为默认(现状 `ease` 282 次 > `ease-out` 218 次,正滑向默认派);`animation` 内禁 `ease`。新代码按此,存量随触碰收敛,不专项清洗。
+- **D3 `--animate-*` 命名化动画层（规划档，未实现）**：现状 61 个 keyframes 直接写在 `animation:` 简写里、无动画级 token 层（higgsfield 有 52 条）。规划：按三态收敛 `--animate-enter/exit/settle-*`；新动画必须消费命名层，不再新增内联 keyframes；存量 61 个随触碰迁移，不专项清洗。此条为**规划登记**，Primitive 落地随注册表升格批执行。
+- **D1 范围与余量如实登记（2026-10-03 三模型审查勘误）**：本批收编仅覆盖 flora 批触达文件（8 处）+ 白名单 4 处豁免；存量游离毫秒值仍有约 48 处（globals.css 内 `140ms` 等未清），**随触碰收敛，不专项清洗**。原裁定的 `--motion-dur-micro: 140ms` Primitive **未废弃、待补**（下批 Primitive 落地时建立），在此之前 140ms 存量保持原值不误改。上句"265 处"为扫描口径，已收编数以 flora 批实绩为准。
+- 完整 26 条前端吸收清单见 `canvas/竞品深拆-吸收落地方案-2026-10-01.md` §四;11 站动效基线数据见 `_synthesis/S15d-MOTION.md`。
+
 ### 动效六规则
 
 1. 只动 transform/opacity(合成器属性);
@@ -59,6 +68,14 @@ CSS 变量:`--motion-fast / --motion-base / --motion-reveal`、`--ease-out / --e
 | 连线 | 现状带色 | 静默化:常态更淡(仅选中/悬停增强)——**归属 Phase 3 连线切片再动**,此处不预设值 | flora relation 语法 |
 
 禁改清单(本补录不触碰):页面布局几何(工作区壳 gutter/侧栏宽)、AntD 组件密度、字体栈、画布背景模式(dots/lines/blank 用户可选语义)。
+
+### 两套阴影语义纪律（[D] C2，2026-10-03 深拆 §四 吸收；三模型交叉审查补录）
+
+影策的两套阴影语义各只有竞品的一半蓝本（figma-weave 的 `inset 0 0 .5px` hairline 与 magnific 的 `--color-surface-border-alpha-*`），**影策的区分是完整的、应保持并写清**：
+
+- `--shadow-*`：暗色翻白系——节点/卡片在暗背景上的"抬升"表达；
+- `--elevation-*`：双主题黑影 + hairline 系——浮层/弹层的"贴面"表达；
+- 消费规则：抬升面（节点体/卡片）禁用 hairline，贴面浮层（popover/dialog）禁用彩色投影；两系不得互换取值。新增组件先判"抬升还是贴面"再选系。
 
 ### 有意覆盖登记(对默认值的覆盖,持续维护)
 
@@ -89,6 +106,16 @@ CSS 变量:`--motion-fast / --motion-base / --motion-reveal`、`--ease-out / --e
 
 `needs owner decision`:**暂无**。新增能力进入实现前必须先在此登记决策。
 
+### 入口面与路由接口(2026-10-03 深拆落地方案 §四吸收,[D] A1/A2/B2)
+
+**四档判据（MASTER-PLAN §14 落点①兑现）**：按「复杂度 × 交互形态」分配界面层级，同一资产多入口——高复杂度（多步编排/专属参数面）→独立工具页；中复杂度→画布内弹窗/浮层；低复杂度→画布外通用交互页（预设卡/快捷指令/chips）；零复杂度（纯资产）→模板/预设直接套用。机制详载《能力组织层方案》§4，本节登记其在 DESIGN.md 词汇中的落点。
+
+- **A1 画布工具子路径(P0)**:`/canvas/:id` 增 `/canvas/:id/:tool`,白名单 `grid`/`portrait`/`angle`/`upscale`/`batch`,用 **`history.replaceState`(不 push,不产生历史栈噪音)**。定位=工作台派接口:画布内高复杂度操作的 URL 化,与未来独立工具页(四档第 2 档)是两档不同入口。蓝本=Magnific/RunningHub 工具子路径。
+- **A2 单产物公开页(P1)**:新增 `/share/artifact/:token` 只读页(handler/canvas_share.go 补 token 校验)。5/11 站有此形态;小白把成品发给客户的交付形态,也是 Higgsfield Effects「独立 URL+可分享产物」的一手蓝本。与既有 `/share/canvas/:token`(整画布分享)并存,粒度不同。
+- **B2 发现面(P0)**:不为工具发现新增一级导航项;模板/发现面复用 `/share/canvas/:token` 与未来配方画廊承载。一级导航上限 8 不破(与能力组织层方案 §3 工具目录条件触发同源)。
+- **B1 node-hover 二级分组(P0)**:`node-hover-tools.tsx` 20 项平铺改用 `nodeToolbar.section` 分组(`tool-definition.ts:190` 已有字段,`add-node-menu-tools.tsx` 已用);与能力组织层毕业机制(引导态露 6 动作)同批实现。
+- **B5 slash 场景预设(P1)**:三组画布菜单(九宫格/人像/视角)扩为 slash 条目(LibTV 蓝本);归属=能力组织层配方画廊的画布内分发位。
+
 ## Negative constraints(定稿 2026-09-03)
 
 禁止回潮的旧 UI 元素清单。任何切片验收时逐条核对:
@@ -102,6 +129,11 @@ CSS 变量:`--motion-fast / --motion-base / --motion-reveal`、`--ease-out / --e
 - 同一交互面不得混用 antd 与画布原语两套词汇;
 - 空态不得是"暂无数据"式死文案,必须含"这里是什么 + 下一步入口"(异常空态说明原因);
 - "增强提示词"类动作必须是悬停/聚焦供给或本地化动作,不得是常驻标签。
+- **A4 不为工具发现新增一级页(P0,负向)**:`/admin` 30 子路由是 11 站唯一「后台路由>产品路由」形态(54%),这是特性不是缺陷;工具发现走 ⌘K/卡网格/配方画廊,不新开一级页(对照 11 站导航项数≠功能数的反直觉结论)。
+- **C1 不重构为 surface×foreground 正交(P0,负向)**:竞品 5/11 站按正交组织;影策多轨并存,重构会同时触碰 627 个定义与全部组件消费点——**token 数量不是问题,层级才是**(S15c 结论 1)。不做。
+- **D6 分级降级优于一刀切(P0,负向)**:`--motion-scale` 连续降级+`.no-motion` 是影策 L0/L1/L2 唯一分级方案,11 站未见等价物;runninghub 的 `.01ms` 与 opentu 全局兜底是一刀切——**不应改成布尔开关**。
+- **D7 不用 keyframes 数量做度量(P1,负向)**:neowow 726 keyframes/5 变量 vs higgsfield 128/83 token——数量大≠规范强。引用 `_s15/` 预提取时长表必须先回算(`.15s`→`150ms`,11/11 站全中此坑)。
+- **负向四不**(:§四) :工具不迁独立路由(6/11 站主选择是节点工具条)/不照搬「工具=画布元素」/一级导航不扩到 15-24 项/不做 flowith 式 iframe 微前端编辑器。
 
 ### 证据纪律(台账 evidence-gap-ledger §9"不得复制"清单,2026-09-03 并入)
 
@@ -127,6 +159,14 @@ CSS 变量:`--motion-fast / --motion-base / --motion-reveal`、`--ease-out / --e
 - admin/设置/表单:antd 6.5.1(现有)。
 - 画布面:影策画布原语(`web/src/components/canvas/primitives/`,行为底座 Base UI,动效 motion,图标动效 animate-ui icons,agent 质感 ElevenLabs UI / AICSS 参考)——经 04 号清单许可证门与包装规则采纳。
 - 第三方组件词汇不得散落在业务代码,一律包装进影策原语 API。
+
+### 组件词汇补充约束(2026-10-03 深拆落地方案 §四吸收,[D] B4/B7/C3/C5/C6)
+
+- **C5 双轨维持(P0,确认)**:admin/设置/表单=antd、画布面=画布原语的双轨方向正确(竞品 React 8/Vue 2/自研 3);Celadon UI 四层+「不引入 Radix」维持。不因竞品栈动摇。
+- **C6 skin 双主题纪律(P1)**:画布独立主题+用户可配 skin 是影策差异化(8 站只有 `.dark` 类);**skin 新增必须同时提供明暗双份 tokens**(`skin-themes.ts` 的 `tokens[mode]` 已强制),此条为维护纪律。
+- **C3 主色=定位选择(P1)**:无彩反相(亮 #171717/暗 #f5f5f5)与 runninghub 同族,是定位选择不是缺陷;**品牌识别不能依赖主色**,避免未来把「主色不够醒目」当 bug 改。
+- **B4 徽标体系(P1)**:新增 `lib/feature-badges.ts` 四档(`new`/`experimental`/`legacy`/`member`);`AddNodeMenuCommand.badge?: string`(`tool-definition.ts:218`)已存在→**扩展现有字段不另起炉灶**。实现细则落 `canvas-floating-controls.mdx`。
+- **B7 三态可见性(P1)**:功能门控三态 `allowed|locked|hidden`(TapNow 25 面+15 字段蓝本),引入到 RequireFeature 之上;**「隐藏」和「禁用」是两种沟通方式**。与能力组织层毕业机制(门控默认关、主动解锁)同批实现。实现细则落 `canvas-floating-controls.mdx`。
 
 ## Verification
 

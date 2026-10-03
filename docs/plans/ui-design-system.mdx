@@ -108,3 +108,17 @@ Button/Input 全量、Dialog/Modal、Drawer、Popconfirm、Tabs、Combobox/Selec
 - [ ] 图标以组件引用传入且由组件定尺寸；动效走统一工具并尊重 reduced-motion
 - [ ] 键盘可操作、焦点环可见、持久状态 `aria-pressed` 可感知
 - [ ] 满足进库门槛；PR 描述写明对标对象；替换场景已删私有实现
+
+## 附：状态色消费规则与动效偏好反向查询（2026-10-03 深拆落地方案 §四吸收，[d] C4/D5）
+
+### C4 状态色成对 halo/dot 消费规则
+
+`--palette-status-*` 4 色 + `--status-*` 语义引用 + 暗色重定义的组合比多数竞品完整（S15c 实测），既有表述升级为消费规则：
+
+- 状态表达成对使用：**halo（发光圈）用于需要远处可辨的状态**（节点角标、任务徽标），**dot（实心点）用于近距紧凑位**（列表项、tab）；
+- 同一状态在同一视图内只用一种形态，不混用；
+- 遵循 PRODUCT.md 无障碍条款：状态不得只用颜色表达，成对形态必须伴随图标/文案之一。
+
+### D5 `no-preference` 反向查询（可选档）
+
+现状：70 个 `@media` 全是 `prefers-reduced-motion: reduce`、0 个 `no-preference`——默认路径永远「有动画」。可选引入 `@media (prefers-reduced-motion: no-preference)` 反向包裹，适用于 34 处 `infinite` 装饰动画（默认关、允许时开，higgsfield `motion-safe:` 110 处范式）。**注意与 DESIGN.md D6 分级降级方案的关系**：这是装饰动画的锦上添花档，不替代 L0/L1/L2 分级；无新装饰动画需求时不主动改造存量。

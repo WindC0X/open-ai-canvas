@@ -177,3 +177,11 @@ box-shadow: 0 14px 44px color-mix(in srgb, var(--foreground) 12%, transparent),
 - [ ] 账户菜单、公告中心浮层：不透明、无阴影、边框层级
 - [ ] ⌘K 命令面板打开/过滤/快捷键提示
 - [ ] 设置分区子项展开 + 引导线对齐 + 激活自动展开
+
+## 附：工具条用户化产品面（2026-10-03 深拆落地方案 §四吸收，[d] B6）
+
+`tool-persistence.ts` 的 `ToolbarPrefs{order[], hidden[]}` 已在位（主工具栏/节点悬停/多选/添加菜单四注册表独立偏好），但**无用户可拖拽/隐藏的产品面**——偏好只被代码消费，用户改不了。补齐方向：
+
+- 设置面板增「工具条自定义」入口：拖拽排序 + 显隐开关，读写既有 ToolbarPrefs，零新存储；
+- 蓝本 = RunningHub `rh-canvas-toolbar-layout-v1:<userId>`（用户维度键 + 变更广播事件 + v1→v2 迁移），其迁移与广播机制是 tool-persistence 的完成态样本；
+- 边界：分组结构（nodeToolbar.section）不开放用户编辑，只开放组内排序与显隐——保持 B1 分组的语义稳定。

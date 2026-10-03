@@ -104,3 +104,11 @@ SEO 标题建议控制在 70 字符内，描述 200 字符内，关键词 300 �
 - [Ant Design：定制主题与动态切换](https://ant.design/docs/react/customize-theme/?theme=dark)
 - [Ant Design：CSS Variables](https://5x.ant.design/docs/react/css-variables/)
 - [MDN：Using CSS custom properties](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Cascading_variables/Using_custom_properties)
+
+## 附：主色定位声明（2026-10-03 深拆落地方案 §四吸收，[d] C3 补充细则）
+
+C3 已在 DESIGN.md 登记为词汇约束，此处补 skin 维度的实施细则：
+
+- 无彩反相主色（亮 #171717 / 暗 #f5f5f5）在 11 站主色普查中与 runninghub（#6e6e6e）同属最少数派——这是**定位选择**（专业/直接/可控的品牌人格），不是待修缺陷；
+- **品牌识别不能依赖主色**：skin 新增时若引入彩色主色，须同步评估画布面/工作区面的状态色与品牌色冲突（`--palette-status-*` 优先级高于品牌装饰色）；
+- 禁止把「主色不够醒目」类反馈直接转化为改主色的任务——先走归属面评审，确认是识别问题还是密度问题。
