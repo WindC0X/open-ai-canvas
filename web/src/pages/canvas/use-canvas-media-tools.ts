@@ -9,7 +9,8 @@ import type { CanvasImageEditPayload } from "@/components/canvas/canvas-node-ima
 import type { CanvasImageLayerDecompositionPayload } from "@/components/canvas/canvas-node-layer-decomposition-dialog";
 import { buildCanvasTextEditPrompt, type CanvasImageTextEditPayload, type CanvasImageTextLine } from "@/components/canvas/canvas-node-text-edit-dialog";
 import type { CanvasAnnotateEditPayload } from "@/components/canvas/canvas-node-annotate-edit-dialog";
-import { buildAnnotateEditSubmission } from "@/lib/canvas/annotate-edit-submission";
+import { buildAnnotateEditSubmission, buildAnnotateMaskSubmission, resolveAnnotateEditRoute } from "@/lib/canvas/annotate-edit-submission";
+import { buildAnnotateMaskFallbackPrompt, composeAnnotationMaskDataUrl, composeBrushMaskDataUrl } from "@/lib/canvas/annotate-edit-mask";
 import type { CanvasImageSplitParams } from "@/components/canvas/canvas-node-split-dialog";
 import type { CanvasImageUpscaleParams } from "@/components/canvas/canvas-node-upscale-dialog";
 import { SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, type SuperResolveParams } from "@/lib/canvas/super-resolve-params";
@@ -1210,24 +1211,61 @@ export function useCanvasMediaTools({
     const editAnnotatedImageNode = useCallback(async (node: CanvasNodeData, payload: CanvasAnnotateEditPayload) => {
         const source = nodeReferenceImage(node);
         if (!source) return;
-        const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
+        const baseGenerationConfig = buildGenerationConfig(effectiveConfig, node, "image");
+        const selectedModel = payload.generationConfig?.model || payload.generationConfig?.imageModel || baseGenerationConfig.model;
+        // 弹窗高级设置里的模型/尺寸/质量选择必须生效（照 maskEditImageNode 先例；
+        // 原先直接忽略 payload.generationConfig，用户选了模型也被静默丢弃）。
+        const generationConfig = {
+            ...baseGenerationConfig,
+            ...payload.generationConfig,
+            model: selectedModel,
+            imageModel: payload.generationConfig?.imageModel || payload.generationConfig?.model || effectiveConfig.imageModel,
+            count: "1",
+        };
         if (!isAiConfigReady(generationConfig, generationConfig.model)) {
             navigateToSettings({ continueCreation: true });
             return;
         }
+        // 路线裁决（任务书 §7-1 兜底路线）：标注截图协议需 [原图, 标注图] 两张参考图，
+        // 模型参考图上限不足时若支持蒙版则降级走既有 mask 通道（标注转蒙版），
+        // 两者都不满足才报错——能力不可用与效果降级是两回事。
+        const imageProfile = modelCapabilityConfigFor(generationConfig, generationConfig.model).image;
+        const route = resolveAnnotateEditRoute({
+            maxReferenceImages: imageProfile?.references.maxImages ?? 0,
+            maskSupported: Boolean(imageProfile?.references.maskSupported),
+        });
+        if (route === "unsupported") {
+            message.error("当前图片模型既不支持两张参考图，也不支持蒙版编辑，无法圈选改图");
+            return;
+        }
         // F-08 合并路线（控制线 2026-10-05 裁定 A）：提示词/参考图/元数据由纯函数单点构造，
         // 取代此前的内联硬编码提示词；结构化与画笔两模式的提交面在此统一。
-        const submission = buildAnnotateEditSubmission({
-            nodeId: node.id,
-            source,
-            annotatedDataUrl: payload.annotatedDataUrl,
-            actionHint: payload.actionHint,
-            annotationCount: payload.annotations.length,
-            strokeCount: payload.strokeCount,
-            exportWidth: payload.exportWidth,
-            exportHeight: payload.exportHeight,
-        });
+        const annotationCount = payload.annotations.length;
+        const submission = route === "annotation"
+            ? buildAnnotateEditSubmission({
+                  nodeId: node.id,
+                  source,
+                  annotatedDataUrl: payload.annotatedDataUrl,
+                  actionHint: payload.actionHint,
+                  annotationCount,
+                  strokeCount: payload.strokeCount,
+                  exportWidth: payload.exportWidth,
+                  exportHeight: payload.exportHeight,
+              })
+            : buildAnnotateMaskSubmission({
+                  nodeId: node.id,
+                  source,
+                  maskDataUrl: annotationCount > 0
+                      ? composeAnnotationMaskDataUrl(payload.annotations, payload.imageWidth, payload.imageHeight)
+                      : composeBrushMaskDataUrl(payload.strokes, payload.imageWidth, payload.imageHeight),
+                  prompt: buildAnnotateMaskFallbackPrompt(payload.annotations),
+                  actionHint: payload.actionHint,
+                  annotationCount,
+                  strokeCount: payload.strokeCount,
+              });
         const { prompt, referenceImages, metadata: submitMetadata } = submission;
+        const maskReference = "mask" in submission ? submission.mask : undefined;
+        if (route === "mask") message.info("当前模型不支持标注截图路线，已自动降级为蒙版编辑");
         const childId = nanoid();
         const generationMetadata = buildImageGenerationMetadata("edit", generationConfig, 1, referenceImages);
         setAnnotationEditNodeId(null);
@@ -1239,7 +1277,7 @@ export function useCanvasMediaTools({
         setDialogNodeId(childId);
         const controller = startGenerationRequest(childId, node.id, childId);
         try {
-            const result = await runBackendCanvasGenerationTask({ projectId, nodeId: childId, mode: "image", prompt, config: generationConfig, referenceImages, signal: controller.signal, metadata: submitMetadata, onTaskCreated: (task) => bindGenerationTask(childId, task) });
+            const result = await runBackendCanvasGenerationTask({ projectId, nodeId: childId, mode: "image", prompt, config: generationConfig, referenceImages, ...(maskReference ? { mask: maskReference } : {}), signal: controller.signal, metadata: submitMetadata, onTaskCreated: (task) => bindGenerationTask(childId, task) });
             const image = result.images?.find((item) => item?.dataUrl);
             if (!image?.dataUrl) throw new Error("圈选改图任务没有返回图片");
             const uploaded = await uploadImage(image.dataUrl);

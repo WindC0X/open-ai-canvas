@@ -44,6 +44,71 @@ export type AnnotateEditSubmission = {
     };
 };
 
+/**
+ * 执行路线裁决（纯函数）：标注截图协议 vs 蒙版降级。
+ *
+ * 标注截图路线需要 [原图, 标注图] 两张参考图；模型参考图上限不足时，
+ * 若它支持蒙版则降级走既有 mask 通道（任务书 §7-1 兜底路线），
+ * 否则返回 unsupported 由调用方给明确报错。
+ */
+export type AnnotateEditRoute = "annotation" | "mask" | "unsupported";
+
+export function resolveAnnotateEditRoute(input: { maxReferenceImages: number; maskSupported: boolean }): AnnotateEditRoute {
+    if (input.maxReferenceImages >= 2) return "annotation";
+    if (input.maskSupported) return "mask";
+    return "unsupported";
+}
+
+export type AnnotateMaskSubmissionInput = {
+    nodeId: string;
+    /** 源图参考（nodeReferenceImage(node) 的产物）。 */
+    source: ReferenceImage;
+    /** 已合成的蒙版 dataUrl（白底 + 标注区透明）。 */
+    maskDataUrl: string;
+    /** 降级提示词（标注文字合并版）。 */
+    prompt: string;
+    actionHint: AnnotateEditAction;
+    annotationCount: number;
+    strokeCount: number;
+};
+
+export type AnnotateMaskSubmission = {
+    prompt: string;
+    /** 单图 + 蒙版：mask 通道不接受标注截图。 */
+    referenceImages: [ReferenceImage];
+    mask: ReferenceImage;
+    metadata: {
+        sourceNodeId: string;
+        edit: "annotation";
+        annotateEdit: {
+            actionHint: AnnotateEditAction;
+            annotationCount: number;
+            strokeCount: number;
+            /** 降级标记：重试/审计据此区分走了哪条通道。 */
+            fallback: "mask";
+        };
+    };
+};
+
+/** 构造蒙版降级路线的提交物（提示词 + 单图 + 蒙版 + 元数据）。 */
+export function buildAnnotateMaskSubmission(input: AnnotateMaskSubmissionInput): AnnotateMaskSubmission {
+    return {
+        prompt: input.prompt,
+        referenceImages: [input.source],
+        mask: { id: `${input.nodeId}-annotation-mask`, name: "annotation-mask.png", type: "image/png", dataUrl: input.maskDataUrl },
+        metadata: {
+            sourceNodeId: input.nodeId,
+            edit: "annotation",
+            annotateEdit: {
+                actionHint: input.actionHint,
+                annotationCount: input.annotationCount,
+                strokeCount: input.strokeCount,
+                fallback: "mask",
+            },
+        },
+    };
+}
+
 /** 构造圈选改图的提交物（提示词 + 两图参考 + 元数据）。 */
 export function buildAnnotateEditSubmission(input: AnnotateEditSubmissionInput): AnnotateEditSubmission {
     const annotatedReference: ReferenceImage = {

@@ -40,6 +40,8 @@ type Stroke = BrushStroke;
 export type CanvasAnnotateEditPayload = {
     /** 结构化标注（shape 模式；brush 模式为空数组）。 */
     annotations: AnnotateEditAnnotation[];
+    /** 画笔笔迹（brush 模式；shape 模式为空数组）。降级蒙版需要原始笔迹。 */
+    strokes: BrushStroke[];
     /** 编辑意图。 */
     actionHint: AnnotateEditAction;
     /** 合成/整图标注 dataUrl（执行链参考图 2）。 */
@@ -48,6 +50,9 @@ export type CanvasAnnotateEditPayload = {
     sourceDataUrl: string;
     /** 画笔笔数（brush 模式的元数据行；shape 模式为 0）。 */
     strokeCount: number;
+    /** 源图自然像素尺寸（降级蒙版必须与源图同尺寸，不能用节点显示尺寸）。 */
+    imageWidth: number;
+    imageHeight: number;
     /** 导出截图尺寸（元数据行）。 */
     exportWidth: number;
     exportHeight: number;
@@ -92,7 +97,10 @@ export function CanvasNodeAnnotateEditDialog({ dataUrl, storageKey, open, config
         setError("");
         setAdvancedOpen(false);
         setGenerationConfig(config);
-    }, [dataUrl, open, config]);
+        // 依赖只认会话身份（dataUrl, open）：config 由父级每次渲染新建字面量，
+        // 若入依赖会让画布重渲染（自动保存等）清空用户标注（实测 2026-10-04）。
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataUrl, open]);
 
     // 源图读取：storageKey 优先（大图 dataUrl 直读代价高），失败回退 dataUrl。
     useEffect(() => {
@@ -256,10 +264,13 @@ export function CanvasNodeAnnotateEditDialog({ dataUrl, storageKey, open, config
         if (!sourceImage) return;
         onConfirm({
             annotations: mode === "shape" ? annotations.map((annotation) => ({ ...annotation, note: annotation.note.trim() })) : [],
+            strokes: mode === "brush" ? strokes : [],
             actionHint,
             annotatedDataUrl: annotated.dataUrl,
             sourceDataUrl: source,
             strokeCount: mode === "brush" ? strokes.length : 0,
+            imageWidth: image.width,
+            imageHeight: image.height,
             exportWidth: annotated.width,
             exportHeight: annotated.height,
             generationConfig: { model: generationConfig.model, imageModel: generationConfig.imageModel, size: generationConfig.size, quality: generationConfig.quality, count: generationConfig.count, transparentBackground: generationConfig.transparentBackground },

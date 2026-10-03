@@ -90,6 +90,28 @@ export function normalizedRectToPixels(annotation: AnnotateEditAnnotation, image
 }
 
 /**
+ * 单条标注的像素包围盒。
+ *
+ * region 取矩形本身；arrow 取箭尾→终点线段包围盒（箭头语义是「指向」，
+ * 几何层不做目标检测，线段包围盒是标注自身的确定范围）。
+ */
+export function annotationPixelBounds(annotation: AnnotateEditAnnotation, imageWidth: number, imageHeight: number): PixelRect {
+    if (annotation.shape === "arrow") {
+        const startX = Math.round(clampUnit(annotation.x) * imageWidth);
+        const startY = Math.round(clampUnit(annotation.y) * imageHeight);
+        const endX = Math.round(clampUnit(annotation.endX ?? annotation.x) * imageWidth);
+        const endY = Math.round(clampUnit(annotation.endY ?? annotation.y) * imageHeight);
+        return {
+            left: Math.min(startX, endX),
+            top: Math.min(startY, endY),
+            width: Math.abs(endX - startX),
+            height: Math.abs(endY - startY),
+        };
+    }
+    return normalizedRectToPixels(annotation, imageWidth, imageHeight);
+}
+
+/**
  * 全标注联合 bounds（像素空间）+ padding，clamp 到原图内。
  *
  * arrow 计入箭尾与终点；region 计入矩形四角。无标注返回 null。
@@ -102,24 +124,11 @@ export function annotationUnionBounds(annotations: AnnotateEditAnnotation[], ima
     let bottom = Number.NEGATIVE_INFINITY;
 
     for (const annotation of annotations) {
-        const points: Array<[number, number]> = annotation.shape === "arrow"
-            ? [
-                  [Math.round(clampUnit(annotation.x) * imageWidth), Math.round(clampUnit(annotation.y) * imageHeight)],
-                  [Math.round(clampUnit(annotation.endX ?? annotation.x) * imageWidth), Math.round(clampUnit(annotation.endY ?? annotation.y) * imageHeight)],
-              ]
-            : (() => {
-                  const rect = normalizedRectToPixels(annotation, imageWidth, imageHeight);
-                  return [
-                      [rect.left, rect.top],
-                      [rect.left + rect.width, rect.top + rect.height],
-                  ] as Array<[number, number]>;
-              })();
-        for (const [px, py] of points) {
-            left = Math.min(left, px);
-            top = Math.min(top, py);
-            right = Math.max(right, px);
-            bottom = Math.max(bottom, py);
-        }
+        const rect = annotationPixelBounds(annotation, imageWidth, imageHeight);
+        left = Math.min(left, rect.left);
+        top = Math.min(top, rect.top);
+        right = Math.max(right, rect.left + rect.width);
+        bottom = Math.max(bottom, rect.top + rect.height);
     }
 
     const paddedLeft = Math.max(0, left - padding);
