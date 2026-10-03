@@ -132,6 +132,37 @@ describe("★ 场景库 → 管线端到端（降智档变量填充）", () => {
         }
     });
 
+    test("★ 产出无英文双冠词（模板不硬编码 a/an，冠词归变量）", () => {
+        // 实现中实测暴露的缺陷：模板写 "within a {scenario}" 而变量自带冠词
+        // （"a lively party celebration"）→ 产出 "within a a lively party celebration"。
+        // 修正为冠词归变量（Flora 原文的 [Insert ...] 占位符同样把冠词交给填写者）。
+        for (const preset of SCENE_PRESETS) {
+            const result = buildScenePrompt({
+                sceneBrief: "",
+                product: "test product",
+                degraded: true,
+                variables: preset.variables,
+            });
+            expect({
+                id: preset.id,
+                doubleArticle: /\b(a|an|the)\s+(a|an|the)\b/i.test(result.prompt),
+            }).toEqual({ id: preset.id, doubleArticle: false });
+        }
+    });
+
+    test("场景变量的冠词齐备（模板依赖变量自带冠词）", () => {
+        for (const preset of SCENE_PRESETS) {
+            for (const key of ["surface", "scenario"] as const) {
+                const value = preset.variables[key];
+                expect({
+                    id: preset.id,
+                    key,
+                    hasArticle: /^(a|an|the)\s/i.test(value),
+                }).toEqual({ id: preset.id, key, hasArticle: true });
+            }
+        }
+    });
+
     test("Flora 实例场景（节庆派对）保留其逐字道具与光照", () => {
         const preset = findScenePreset("festive-party");
         const result = buildScenePrompt({

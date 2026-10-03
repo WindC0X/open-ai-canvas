@@ -116,7 +116,10 @@ export type SceneSpecVariables = {
  */
 export const SCENE_SPEC_TEMPLATE =
     "A detailed still life of {product}, resting gracefully on {surface}. " +
-    "The item is situated within a {scenario}, surrounded by subtle contextual props such as {props}. " +
+    // ★ 冠词归属：由**变量**携带（`a reclaimed oak countertop`），模板不再硬编码 "a" ——
+    // 否则产出 "within a a lively party celebration" 双冠词（实现中实测暴露后修正）。
+    // Flora 原文的 `[Insert Surface Type]` 占位符同样把冠词交给填写者。
+    "The item is situated within {scenario}, surrounded by subtle contextual props such as {props}. " +
     "The scene is illuminated by {lighting} to highlight the product textures perfectly. " +
     "The overall atmosphere feels {mood}. " +
     "The composition is entirely unpopulated and devoid of people, focusing purely on the product " +
