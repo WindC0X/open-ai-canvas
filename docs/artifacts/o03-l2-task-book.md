@@ -215,3 +215,96 @@ label 写「超分」，但 onClick 走 `setUpscaleNodeId` → `CanvasNodeUpscal
 
 三模型交叉审查（glm-5.3-flash / deepseek-v4.1-flash / gemini-3.8-flash）后台审能力组织层方案
 与吸收闭环；结论若涉及本枝会补发指令，**不影响当前开工**。
+
+
+---
+
+## 十一、执行记录（2026-10-03）
+
+### 11.1 交付 commit（4 件）
+
+| # | commit | 内容 |
+|---|---|---|
+| 1 | `35439371` | 任务书（侦察：占位对话框不可达 + HUD 命名违规） |
+| 2 | `2f1f132f` | 任务书增补第二发现 |
+| 3 | `5da1e013` | 任务书按控制线裁定修正（全字段 + C 方案 + 命名清扫） |
+| 4 | `0b3ef557` | 后端 `image_upscale` 计费映射（超分独立价格档） |
+| 5 | `a17cc62c` | 前端闭环（入口 + 注册表条目 + 参数面 + 执行链 + 占位换真） |
+
+### 11.2 ★ 验收证据（控制线 · 反模式 #6 口径）
+
+证据目录：`.local/o03-evidence/`
+
+| 文件 | 证明 |
+|---|---|
+| `A1-canvas-empty.png` | 新建画布成功 |
+| `A2-after-upload.png` | 经真实 file input 上传图片 → 节点建立 |
+| `B1-image-tools-menu.png` | ★ 「图片工具」菜单含 **AI 超分**（与「调整尺寸」并列） |
+| `C1-super-resolve-dialog.png` | ★ 点击后弹出 **AI 超分** 对话框（非占位「暂未实现」） |
+
+**菜单项实测**（DOM 读取）：
+```
+["裁剪","扩图","调整尺寸","AI 超分","标注","标注编辑","宫格切分","去除背景","AI 图层拆分"]
+```
+
+**C1 对话框实测内容**（模态框内文本）：
+```
+AI 超分
+云端重建像素细节，另存为新图片，保留原图。与「调整尺寸」的插值放大不同，
+AI 超分会生成新的真实细节，消耗积分。
+源图 | 800 x 600 px
+目标档 | 2K · 2048px | 4K · 4096px
+放大方式 | 保真放大（只重建细节，不改画面内容）| AI 增强（允许模型改写细节质感…）
+输出尺寸 | 2048 x 1536 px
+开始超分
+```
+视觉核验（截图判读）：标题「AI 超分」；源图预览 800×600；目标档 2K 选中；
+**保真放大为默认选中态**；AI 增强未选中；输出尺寸按 4:3 等比算得 2048×1536；
+主按钮「开始超分」。占位「暂未实现」已消失。
+
+### 11.3 HUD 假按钮改名 before / after
+
+★ HUD（`ObjectHudPanel`）是 canvas 绘制层，DOM 查询取不到其按钮，
+故以源码级 diff 为证据（同一行、仅 label 变化）：
+
+```diff
+- { label: "超分", icon: <ZoomIn className="size-3.5" />, onClick: () => setUpscaleNodeId(toolbarNode.id) },
++ { label: "调整尺寸", icon: <ZoomIn className="size-3.5" />, onClick: () => setUpscaleNodeId(toolbarNode.id) },
+```
+（`git diff 5da1e013 HEAD -- web/src/pages/canvas/project.tsx`）
+
+### 11.4 入口不可达缺口的独立旁证
+
+既有测试 `test/canvas-node-toolbar.test.ts:88` 原本断言：
+```ts
+expect(tools.some((tool) => tool.id === "superResolve")).toBe(false);
+```
+—— 缺口被测试固定成了「预期状态」。本枝把该断言改为记录新语义
+（`group === "process"` + 描述含「消耗积分」），**非削弱**。
+
+### 11.5 ★ 验证过程中两次同族假命中（方法论教训）
+
+1. **`/AI 超分/` 子串误中**：「调整尺寸」的描述原文是「插值放大像素尺寸，**不是 AI 超分**」，
+   用 `/AI 超分/` 找菜单项命中的是**插值**条目 → 截到的第一版 C1 截图其实是「调整尺寸」对话框。
+   修正：改 `startsWith("AI 超分")`。
+2. **全文子串误判标题**：断言 `!text.includes("调整尺寸")` 恒假 —— 因为**我的对话框正文
+   主动引用**了「调整尺寸」作对照。修正：判据锚定标题行，不是全文子串。
+
+⇒ 与既有教训（「注释引用旧代码导致 `not.toContain` 假失败」）**同族**：
+中文 UI 文案的对照说明会让朴素子串匹配双向失真（假命中 + 假失败）。
+
+### 11.6 门禁
+
+- 前端：`tsc` 0 / `eslint` 0 / 全量 `bun test` **2543 pass 0 fail**（327 文件，+16 新用例）
+- 后端：`go build -buildvcs=false ./...` 0 / `go test ./internal/app/ -run TestSKUSelector` 7 pass
+
+### 11.7 交付形态
+
+**只交分支不合入**（控制线指令）：分支 `feat/o03-l2-superresolve`，
+worktree `/mnt/f/CODE/Project/oac-wt-o03`。等 W5 B 线会话接管或控制线明示。
+
+### 11.8 未接真实渠道（本枝范围外）
+
+按 §1.2，本枝只做闭环骨架 + 计费映射；真实超分渠道（火山 veImageX 0.00276 元/次 /
+Replicate real-esrgan $0.002）未接入，渠道由 W5 B 线或后续渠道枝接。
+执行链已预留：`canvasEditOperation=image_upscale` → 后端 selector 独立价格档。
