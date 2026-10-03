@@ -62,19 +62,28 @@ test("拖动结束不回扯：dragPreview 位移分量恒零（DOM 直写唯一�
 });
 
 test("拖拽关闭/显场对齐：composer 与工具栏同走 hidden 级别，同参过渡", async () => {
-    const [aff, project, globals] = await Promise.all([
+    // W4（2026-10-03）：fork 组件覆写外置到 flora-overrides.css，断言跨两文件成立。
+    const [aff, project, globals, overrides] = await Promise.all([
         Bun.file(new URL("../src/lib/canvas/affordance.ts", import.meta.url)).text(),
         Bun.file(new URL("../src/pages/canvas/project.tsx", import.meta.url)).text(),
         Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text(),
+        Bun.file(new URL("../src/styles/flora-overrides.css", import.meta.url)).text(),
     ]);
+    const styles = globals + "\n" + overrides;
     expect(aff).toContain("guards.nodeDragging || guards.selectionBoxActive");
     expect(project).not.toContain("!selectionBox && !isCanvasNodeMoving ? dialogNode : null");
-    expect(globals).toContain('.canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter');
-    expect(globals).toContain("translateY(-12px) scale(0.97)");
+    expect(styles).toContain('.canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter');
+    expect(styles).toContain("translateY(-12px) scale(0.97)");
 });
 
 test("弹层玻璃不再被 canvas-panel-in 的 filter 灭活（backdrop root 根修，2026-09-26 智能引用透字）", async () => {
-    const css = await Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text();
+    // W4（2026-10-03）：canvas-panel-out 随设置面板族外置到 flora-overrides.css；
+    // canvas-panel-in 仍在 globals。跨两文件查找，断言语义不变（keyframes 内不得有 filter）。
+    const [g, o] = await Promise.all([
+        Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text(),
+        Bun.file(new URL("../src/styles/flora-overrides.css", import.meta.url)).text(),
+    ]);
+    const css = g + "\n" + o;
     // canvas-panel-in 挂 .ant-popover/.ant-dropdown 根元素(fill both)：根上任何 filter(含 saturate(1))
     // 都会把子树变成 backdrop root，令玻璃子级 backdrop-filter 只能模糊空背景 → 清晰透底。
     // 像素判据: 修前 slope 0.110(有效 0.89), 修后 0.024(有效 0.976, 与设置族 0.028 同档)。
@@ -102,13 +111,16 @@ test("antd 弹层根常驻 filter(drop-shadow) 已清（静止态玻璃存活，
 });
 
 test("降级动效: composer 退场过渡亦被 reduced-motion / no-motion 关断（2026-09-26 复查修复）", async () => {
-    const css = await Bun.file(new URL("../src/styles/globals.css", import.meta.url)).text();
-    // 区域: 2026-09-12 降级契约块 → .no-motion 变量声明前
+    // W4（2026-10-03）：降级契约块（未分层段）外置到 flora-overrides.css [3]。
+    // 该块在 globals 时期就是未分层规则，外置后保持未分层（@layer utilities 块之后）。
+    const css = await Bun.file(new URL("../src/styles/flora-overrides.css", import.meta.url)).text();
+    // 区域: 2026-09-12 降级契约块 → 该块末尾（.no-motion 变量声明留在 globals，不在本文件）
     const start = css.indexOf("/* 微供给容器:reduced-motion / no-motion 下直接切换");
-    const end = css.indexOf(".no-motion {", start);
+    // 终点取该段最后一条规则结束（.no-motion .canvas-node-panel-affordance ... 之后）
+    const endAnchor = css.indexOf(".no-motion .canvas-node-panel-affordance .canvas-node-panel-enter {", start);
     expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    const region = css.slice(start, end);
+    expect(endAnchor).toBeGreaterThan(start);
+    const region = css.slice(start, css.indexOf("}", endAnchor) + 1);
     // reduced-motion: 25b53569 后 enter 层为 transition 驱动, 原 animation:none 盖不到 → 须显式关断
     expect(region).toMatch(/\.canvas-node-panel-affordance \.canvas-node-panel-enter \{\s*transition: none !important;\s*\}/);
     // no-motion: [data-affordance] 关断之外, enter 内层同样关断

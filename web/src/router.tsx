@@ -133,10 +133,18 @@ export const router = createBrowserRouter([
                     </RequireAuth>
                 ),
             },
-            {
-                path: "/wallet",
-                element: <RequireAuth>{null}</RequireAuth>,
-            },
+            // /wallet 空白页修复（W4 骑乘件二，2026-10-03）。
+            //
+            // 原实现 element: <RequireAuth>{null}</RequireAuth> —— 主区渲染空，用户看到空白页。
+            // 但不能直接删路由：后端支付回跳硬编码该路径（payment.go:180/183 →
+            // 302 /wallet?paymentOrder=<id>），而 WorkspaceWalletHost 唯一挂载点在
+            // AppWorkspaceShell（认证布局内，app-top-nav.tsx:115），顶层 catch-all 在布局之外
+            // （router.tsx 末尾 fullScreenDeferred(NotFound)）。删掉路由会让支付回跳落到
+            // 顶层 404 —— 布局不渲染、host 不挂载、钱包弹窗不弹、paymentOrder 丢失。
+            //
+            // 因此保留路径（URL 仍落在布局内，host 的 pathname === "/wallet" effect 照常
+            // 捕获 query 并弹窗），同时立刻重定向到首页，不再停在空白主区。
+            { path: "/wallet", element: <RequireAuth><Navigate to="/" replace /></RequireAuth> },
             { path: "/settings", element: <RequireAuth>{deferred(<SettingsPage />)}</RequireAuth> },
             { path: "/test-voice-recording", element: <RequireAuth>{deferred(<TestVoiceRecording />)}</RequireAuth> },
             {

@@ -1,0 +1,620 @@
+/* ============================================================================
+   flora-overrides.css — fork 组件覆写层（flora 化 · W4 · 2026-10-03 · feat/flora-overrides）
+   ----------------------------------------------------------------------------
+   加载序：application.tsx 样式链末端（antd reset → globals → shared/* → flora-tokens → 本文件）。
+
+   与 flora-tokens.css 的分工：
+     · flora-tokens.css  = Semantic 层（令牌「值」外置，同名变量后加载覆盖）
+     · 本文件            = Component 层（组件「规则」覆写外置，结构性改动）
+
+   ★ 层级契约（本文件最重要的一条，违反即静默失效）：
+     globals.css 的 fork 增量全部位于 `@layer utilities`（L1463-11327）。
+     @layer 内的规则**永远输给未分层规则**，与加载序无关。
+     因此本文件的规则必须包在 `@layer utilities` 内——同层 + 后加载 ⇒ 保住原有胜出关系。
+     唯一例外：未分层的规则（如 no-motion 关断）迁入时必须同样保持未分层。
+
+   ★ 为什么外置：上游同步时热文件冲突面从「组件规则交错」降为「文件级并列」。
+     globals.css 回归上游原状，fork 的全部组件覆写集中于此。
+
+   外置自 globals.css 的组件规则块（按 W4 四块推进，每块独立 commit）：
+     [1] composer hover 信息态族 + 工具栏 surface 族
+     [2] antd 浮层动画对齐 + 设置面板族
+     [3] 微供给 no-motion 关断（未分层）
+     [4] 生成态视觉族
+
+   纪律：新增组件覆写一律进本文件；globals.css 不回流加值。
+   ============================================================================ */
+
+@layer utilities {
+
+    /* 节点内 hover 信息态 composer(09-15 任务 S1, 用户真机反馈修订): flora 浮卡同构 ——
+       实感毛玻璃+边框+浮起全圆角(贴底渐变在浅色画面上对比度不足, 文字粘连);
+       浮起 inset-x-2 bottom-2 与节点底缘留空, 卡片有明确边界。
+       微亮 .45 悬停全显 1(纯 CSS, 零状态); 引用行 mask 渐隐边缘 + 滚动条隐藏(flora :7893/:17210)。 */
+    .canvas-node-hover-composer {
+        padding: 0 8px 8px;
+    }
+    .canvas-node-hover-composer-surface {
+        border-radius: var(--node-radius);
+        background: rgba(20, 20, 20, 0.88);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        opacity: 0.45;
+        transition: opacity var(--motion-state) cubic-bezier(0, 0.8, 0.1, 1);
+    }
+    .canvas-node-hover-composer-surface:hover {
+        opacity: 1;
+    }
+    /* flora AssetChip(0_di9:9952): hover 时壳浮出胶囊底色(58,58,58,.95); JS 兜底通道同参。
+       (meta 尺寸/透明度走组件内 group-hover 工具类, 此处只补壳底色) */
+    .canvas-node-hover-composer-ref.group\/ref:hover,
+    .canvas-node-hover-composer-ref[data-thumb-open] {
+        background: rgba(58, 58, 58, 0.95);
+    }
+    :root:not(.dark) .canvas-node-hover-composer-ref.group\/ref:hover,
+    :root:not(.dark) .canvas-node-hover-composer-ref[data-thumb-open] {
+        background: rgba(240, 240, 240, 0.95);
+    }
+    :root:not(.dark) .canvas-node-hover-composer-surface {
+        background: rgba(255, 255, 255, 0.88);
+        border-color: rgba(15, 23, 42, 0.1);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+    .canvas-node-hover-composer-surface .canvas-node-hover-composer-prompt {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .canvas-node-hover-composer-surface .canvas-node-hover-composer-prompt::-webkit-scrollbar {
+        display: none;
+    }
+    .canvas-node-hover-composer [data-canvas-wheel-scroll] {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .canvas-node-hover-composer [data-canvas-wheel-scroll]::-webkit-scrollbar {
+        display: none;
+    }
+    /* 引用行滚动时左右渐隐; prompt 纵滚时底部渐隐(替代硬切提示) */
+    .canvas-node-hover-composer [data-canvas-wheel-scroll].canvas-node-hover-composer-prompt {
+        mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+        -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+    }
+    .canvas-node-hover-composer-refs.canvas-node-hover-composer-refs-mask {
+        mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
+        -webkit-mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-hover-composer,
+        .canvas-node-hover-composer > div,
+        .canvas-node-hover-composer-surface {
+            transition: none !important;
+        }
+    }
+
+    /* 节点悬浮工具栏: 同一玻璃材质族(2026-09-12 微供给任务)。
+       与模型菜单/参数面板同源值, radius 14(h-11 密度下 16 过圆), 无阴影。 */
+    .canvas-node-toolbar .canvas-node-toolbar-surface {
+        border-radius: 14px !important;
+        background: rgba(32, 32, 32, 0.9) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+    }
+
+    :root:not(.dark) .canvas-node-toolbar .canvas-node-toolbar-surface {
+        background: rgba(255, 255, 255, 0.94) !important;
+        border-color: rgba(15, 23, 42, 0.08) !important;
+    }
+
+    /* ── [1] 工具栏按钮 + 下拉菜单面板族 ─────────────────────────────────── */
+    /* 工具栏内部按钮对齐 composer 底栏按钮语法(密度/圆角/字号/hover), scoped 不影响其它 dock 场景 */
+    .canvas-node-toolbar .aceternity-dock-command {
+        height: 28px !important;
+        border-radius: var(--r-md) !important;
+        font-size: 13px !important;
+        gap: 4px;
+    }
+    .canvas-node-toolbar .aceternity-dock-command:hover:not(:disabled) {
+        background: var(--canvas-composer-control-hover) !important;
+    }
+    .canvas-node-toolbar .aceternity-dock-command.is-active {
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: #fff !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar .aceternity-dock-command.is-active {
+        background: rgba(0, 0, 0, 0.08) !important;
+        color: rgba(0, 0, 0, 0.92) !important;
+    }
+
+    /* 工具栏下拉菜单面板: flora 玻璃族(与模型菜单/参数面板同源), 弹出方向统一朝下 */
+    .canvas-node-toolbar-menu .ant-dropdown-menu {
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 5px !important;
+    }
+    .canvas-node-toolbar-menu {
+        border-radius: 12px !important;
+        background: rgba(32, 32, 32, 0.9) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+        color: rgba(255, 255, 255, 0.85);
+    }
+    .canvas-node-toolbar-menu .ant-dropdown-menu-item {
+        background: transparent !important;
+        border-radius: 8px !important;
+        min-height: 32px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+    .canvas-node-toolbar-menu .ant-dropdown-menu-item:hover:not(.ant-dropdown-menu-item-disabled) {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #fff !important;
+    }
+    .canvas-node-toolbar-menu .ant-dropdown-menu-item-group-title {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55) !important;
+        padding: 6px 8px 2px !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu {
+        background: rgba(255, 255, 255, 0.94) !important;
+        border-color: rgba(15, 23, 42, 0.08) !important;
+        color: rgba(0, 0, 0, 0.85);
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu .ant-dropdown-menu-item {
+        color: rgba(0, 0, 0, 0.85) !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu .ant-dropdown-menu-item:hover:not(.ant-dropdown-menu-item-disabled) {
+        background: rgba(0, 0, 0, 0.06) !important;
+        color: rgba(0, 0, 0, 0.92) !important;
+    }
+    :root:not(.dark) .canvas-node-toolbar-menu .ant-dropdown-menu-item-group-title {
+        color: rgba(0, 0, 0, 0.55) !important;
+    }
+
+    /* ── [1] 工具栏菜单 rc-motion 反制（T4）───────────────────────────────── */
+    /* T4（2026-09-24 三模型复核）：反制——画布节点工具栏菜单（九宫格/宫格切分/样式）在
+       rc-motion 相位期间必须保持可点；失焦节流下相位推进可能滞后数秒，若整树继承上面的
+       pe:none，点击会穿透并被判为外部点击导致菜单自动关闭。仅恢复本方菜单，其它浮层防护不变。 */
+    .canvas-node-toolbar-menu {
+        pointer-events: auto;
+    }
+
+    /* ── [2] 上游规则差异修正 ────────────────────────────────────────────────
+       上游 `.canvas-floating-dock, .canvas-floating-panel, .canvas-node-toolbar`
+       共享 canvas-panel-in 入场动画。fork 把 .canvas-node-toolbar 从该组移出
+       （改由微供给 AffordanceSurface 管显隐：opacity 过渡与 canvas-panel-in 的
+       fill both 锁帧互相压制，入场动画随之退役），并给 5 个 settings popover 挂上同一动画。
+
+       外置形态：globals.css 回归上游原状（保留 .canvas-node-toolbar），
+       fork 的差异在本文件表达——先退役工具栏动画，再给 settings popover 挂上。 */
+
+    /* 工具栏动画退役（覆盖上游那条的 animation；同为 @layer utilities，后加载胜出） */
+    .canvas-node-toolbar {
+        animation: none;
+    }
+
+    /* 5 个生成参数设置面板沿用 canvas-panel-in 入场（fork 新增，上游无此条） */
+    .canvas-image-settings-popover,
+    .canvas-video-settings-popover,
+    .canvas-text-settings-popover,
+    .canvas-audio-settings-popover,
+    .canvas-count-settings-popover {
+        animation: canvas-panel-in var(--motion-dur-fast-calc) var(--motion-ease-out) both;
+    }
+
+    /* ── [2] antd 浮层动画对齐 + 设置面板族 ────────────────────────────────── */
+    /* composer 底部按钮面板展开/关闭动画统一(2026-09-11): antd 浮层(模型菜单/智能引用等)
+       的 rc-motion zoom-big 时长/缓动/位移全部对齐自建面板 canvas-panel-in/out
+       (150ms ease-out + 上浮6px + scale0.97), 首开(appear)/复开(enter)/收起(leave)三态全覆盖;
+       dropdown 的 motion 类为 slide-up/down(placement 决定), 单独在下方对齐时长。 */
+    /* rc-motion 的 motion 类挂在 .ant-popover/.ant-dropdown 根元素自身 —— 必须用复合选择器
+       (历史教训: 写成后代选择器从未命中, 所有浮层一直跑 antd 默认 0.2s 动画)。 */
+    /* 动画播放态走 antd keyframes(antZoomBigIn: scale(.8)->1, antSlideUpIn: translateY(-100%)->0),
+       transition 强制在播放期不参与 —— 必须换 animation-name 为自绘微浮动画
+       (antd 规则带 :where() 0 特异性前缀, 普通选择器即可覆盖; scale/-100% 位移
+       正是"打开瞬间与触发按钮间隔大、随后面板整体落位"跳变的来源)。 */
+    .ant-popover.ant-zoom-big-appear-active,
+    .ant-popover.ant-zoom-big-enter-active,
+    .ant-dropdown.ant-zoom-big-appear-active,
+    .ant-dropdown.ant-zoom-big-enter-active,
+    .ant-dropdown.ant-slide-up-appear-active,
+    .ant-dropdown.ant-slide-up-enter-active,
+    .ant-dropdown.ant-slide-down-appear-active,
+    .ant-dropdown.ant-slide-down-enter-active {
+        animation-name: canvas-panel-in !important;
+        animation-duration: var(--motion-dur-fast-calc) !important;
+        animation-timing-function: var(--motion-ease-out) !important;
+        animation-fill-mode: both !important;
+    }
+    .ant-popover.ant-zoom-big-leave-active,
+    .ant-dropdown.ant-zoom-big-leave-active,
+    .ant-dropdown.ant-slide-up-leave-active,
+    .ant-dropdown.ant-slide-down-leave-active {
+        animation-name: canvas-panel-out !important;
+        animation-duration: var(--motion-dur-fast-calc) !important;
+        animation-timing-function: var(--motion-ease-out) !important;
+        animation-fill-mode: both !important;
+    }
+    /* 仅覆盖出现态初值(appear/enter-prepare): prepare 是动画起点, 用 important 钉初值安全。
+       leave-active 绝不能进本块 —— important 声明在级联上压过 @keyframes 动画值,
+       钉住即杀死 canvas-panel-out 收起动画(收起瞬闪消失, 开合不对称感来源; 2026-09-13 根修)。 */
+    .ant-popover.ant-zoom-big-appear-prepare,
+    .ant-popover.ant-zoom-big-enter-prepare,
+    .ant-dropdown.ant-slide-up-appear-prepare,
+    .ant-dropdown.ant-slide-up-enter-prepare,
+    .ant-dropdown.ant-slide-down-appear-prepare,
+    .ant-dropdown.ant-slide-down-enter-prepare {
+        opacity: 0 !important;
+        /* prepare 只钉透明: 位移交给动画 keyframes 的 from(fill both 在 active 帧起效)。
+           prepare 钉 transform 会在 rc-motion 类序列异常(后台 tab 冻结/重挂)时把 ±6px
+           位移残留成稳定偏移(2026-09-13 用户复验的"贴合后瞬间偏移"风险源), 帧不可见则值无意义。 */
+    }
+    /* Dropdown 按 placement 用 slide-up/down motion(类名非 zoom-big), 只对齐时长/缓动,
+       slide 位移语义保留 antd 自带值(强制 translateY 会与滑入冲突)。 */
+    .ant-dropdown.ant-slide-up-appear-active,
+    .ant-dropdown.ant-slide-up-enter-active,
+    .ant-dropdown.ant-slide-up-leave-active,
+    .ant-dropdown.ant-slide-down-appear-active,
+    .ant-dropdown.ant-slide-down-enter-active,
+    .ant-dropdown.ant-slide-down-leave-active {
+        transition-duration: var(--motion-dur-fast-calc) !important;
+        transition-timing-function: var(--motion-ease-out) !important;
+    }
+
+    /* 设置气泡统一关闭动画: open=false 后 150ms exit 窗口内加 .canvas-settings-popover-closing (usePopoverExit)。 */
+    .canvas-settings-popover-closing {
+        animation: canvas-panel-out var(--motion-dur-fast-calc) var(--motion-ease-out) both;
+    }
+
+    @keyframes canvas-panel-out {
+        from {
+            opacity: 1;
+            transform: scale(1);
+        }
+        to {
+            opacity: 0;
+            transform: scale(0.96);
+        }
+    }
+
+    /* 选项亮度语义(用户拍板 2026-09-11, flora 参考): 选中不靠边框, 靠内部+文字亮度。
+       选中 = 内部提亮 rgba(255,255,255,.12) + 字纯白 + 无边框;
+       未选中 = 内部透明 + 字暗(.55);
+       hover = 字亮(近白)但内部不亮(保持透明);
+       图标随 currentColor。组件不再 inline background/border/color(收口唯一源)。 */
+
+/* 参数面板内自研 Switch: 组件开态 bg-foreground(近白)在玻璃面板上过亮(用户实测),
+   面板语境降为半透明白, thumb 反色保持可辨; data-state 覆盖点是组件既定扩展点。 */
+.canvas-image-settings-popover [data-slot="switch"][data-state="on"],
+.canvas-video-settings-popover [data-slot="switch"][data-state="on"],
+.canvas-audio-settings-popover [data-slot="switch"][data-state="on"],
+.canvas-count-settings-popover [data-slot="switch"][data-state="on"] {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* 参数面板组卡片(用户 2026-09-11: 组块要有背景色分块, 参考 flora 分组卡)。 */
+.canvas-settings-group {
+    border-radius: 12px;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.035);
+}
+.dark .canvas-settings-group {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+    .canvas-settings-option {
+        border: none !important;
+        background: transparent !important;
+        /* !important 对抗 antd/dist/reset.css(unlayered button{color/font-size:inherit}) 的全层压制。 */
+        color: rgba(255, 255, 255, 0.55) !important;
+        cursor: pointer;
+        /* transform 纳入过渡支攩按下 scale(0.97) 反馈(设计契约 press 列)。 */
+        transition: background-color var(--motion-dur-fast-calc) var(--motion-ease-out), color var(--motion-dur-fast-calc) var(--motion-ease-out), transform var(--motion-dur-instant-calc) var(--motion-ease-out);
+    }
+
+    :root:not(.dark) .canvas-settings-option {
+        color: rgba(0, 0, 0, 0.55) !important;
+    }
+
+    .canvas-settings-option:hover:not([aria-pressed="true"]):not([aria-checked="true"]):not(.is-selected):not(:disabled) {
+        color: #ffffff !important;
+    }
+
+    :root:not(.dark) .canvas-settings-option:hover:not([aria-pressed="true"]):not([aria-checked="true"]):not(.is-selected):not(:disabled) {
+        color: rgba(0, 0, 0, 0.92) !important;
+    }
+
+    .canvas-settings-option[aria-pressed="true"],
+    .canvas-settings-option[aria-checked="true"],
+    .canvas-settings-option.is-selected {
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: #ffffff !important;
+    }
+
+    :root:not(.dark) .canvas-settings-option[aria-pressed="true"],
+    :root:not(.dark) .canvas-settings-option[aria-checked="true"],
+    :root:not(.dark) .canvas-settings-option.is-selected {
+        background: rgba(0, 0, 0, 0.08) !important;
+        color: rgba(0, 0, 0, 0.92) !important;
+    }
+
+    /* 生成参数设置面板统一 surface(设计契约 v2 §四): flora 权威玻璃与模型菜单同源
+       (globals 7392 批注: bg rgba(32,32,32,.9) + blur16 + border 白.05 + radius16 + 无阴影),
+       亮色用白玻璃。几何(left/top/width/maxHeight)仍由组件 inline 动态提供,
+       本规则只接管表面四件套(background/border/radius/shadow),组件不再各自 inline。 */
+    .canvas-image-settings-popover,
+    .canvas-video-settings-popover,
+    .canvas-audio-settings-popover,
+    .canvas-count-settings-popover {
+        border-radius: 16px !important;
+        background: rgba(255, 255, 255, 0.94) !important;
+        border: 1px solid rgba(15, 23, 42, 0.08) !important;
+        box-shadow: none !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    .dark .canvas-image-settings-popover,
+    .dark .canvas-video-settings-popover,
+    .dark .canvas-audio-settings-popover,
+    .dark .canvas-count-settings-popover {
+        background: rgba(32, 32, 32, 0.9) !important;
+        border-color: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    /* 按下即响应(设计契约 §四 press 列: scale 0.97/100ms; apple: 按下即反馈, 无 hover 延迟)。 */
+    /* 微供给 composer 面板: 容器层恒为 pointer-events:none(inline), 交互面按级别控制。
+       micro 主体 pe:none(回归 og-canvas 语义): 855px 宽的半透明面板 pe:auto 会形成巨大命中域,
+       拦截其后/旁节点的指针并让"节点 hover"在面板外侧空白区触发(用户实测); 升级走顶部感应带。
+       full(选中/感应带触发后)主体恢复可交互。 */
+    .canvas-node-panel-affordance[data-affordance="micro"] [data-canvas-node-panel],
+    .canvas-node-panel-affordance[data-affordance="hidden"] [data-canvas-node-panel] {
+        pointer-events: none;
+    }
+
+    /* full 态主体已可交互, 顶部感应带不再拦截内容区点击 */
+    .canvas-node-panel-affordance[data-affordance="full"] [data-canvas-panel-sense-band] {
+        pointer-events: none;
+    }
+
+    /* 微供给进场动画: 实例挂载(从 hidden 进入 micro/full)时从透明起步渐显;
+       to 缺省=元素当前 opacity(micro 0.45 / full 1), 与 inline transition 不冲突。
+       hidden→micro 边界穿越时重启(匹配态变化), micro↔full 之间不重启。 */
+    @keyframes affordance-in {
+        from {
+            opacity: 0;
+        }
+    }
+
+    /* 空间展开动画(og-canvas 语法: 从节点方向滑出 + scale 收放), 绑内层避免与外层定位 transform 冲突。
+       工具栏在节点上方 => 从下方上来(+12px); composer 在节点下方 => 从上方下来(-10px)。 */
+    @keyframes affordance-expand-in {
+        from {
+            opacity: 0;
+            transform: translateY(var(--affordance-enter-offset, 12px)) scale(0.97);
+        }
+    }
+    @keyframes affordance-expand-out {
+        to {
+            opacity: 0;
+            transform: translateY(var(--affordance-enter-offset, 12px)) scale(0.97);
+        }
+    }
+    .canvas-node-toolbar-surface {
+        --affordance-enter-offset: 12px;
+        animation: affordance-expand-in var(--motion-state) var(--motion-ease-out) backwards;
+    }
+    .canvas-node-panel-affordance .canvas-node-panel-enter {
+        /* 坠落/展开两拍已迁至 CanvasNodePanelOverlay inline transition(2026-09-17 感知定稿),
+           enter 层现在只承担 layout 定位; [2026-09-26 拖动对齐] 隐藏/显场改级别驱动 transition，
+           与工具栏同参：显场 180ms ease-out 回位，隐藏 160ms ease-in 朝节点收拢（见下条 hidden 规则）。 */
+        transition: opacity var(--motion-state) var(--motion-ease-out), transform var(--motion-state) var(--motion-ease-out);
+    }
+    /* 挂件入场动画已改为 CanvasNodePanelOverlay 内 inline transition(2026-09-17):
+       CSS animation 六轮在用户浏览器全部表现为闪现而 inline transition 可见,
+       机制归因与迁移见 overlays 组件注释。孤儿 pendant-expand keyframes 与
+       --pendant-from-w 变量已删(P2 清理, git 历史即回溯)。 */
+    /* 挂件外形(2026-09-18 用户对照上游原版拍板): 删除 S2 的顶角取直设计,
+       composer 回归四角全圆(var(--canvas-composer-radius))的独立悬浮卡形态 —
+       直角顶角让面板视觉上焊死在节点下, 正是「贴合感」的真正来源(两轮调间距无感的原因)。 */
+    /* 退场(hidden 期): 工具条向节点方向收拢渐隐（keyframe，保持原语义）。 */
+    .canvas-node-toolbar[data-affordance="hidden"] .canvas-node-toolbar-surface {
+        animation: affordance-expand-out var(--motion-dur-fast-calc) var(--motion-ease-in) forwards;
+    }
+    /* [2026-09-26 用户拍板「拖拽关闭/展开与工具栏对齐」] composer 退场由 keyframe 改级别驱动 transition：
+       隐藏 = 160ms 向上（朝节点）12px + scale .97 收拢渐隐（镜像工具栏 +12px 向下），
+       显场 = 基条目的 180ms 回位（与工具栏 affordance-expand-in 同参）；
+       原 affordance-drop-out(-160px) keyframes 随之删除，拖拽期挂件不再直接卸载。 */
+    .canvas-node-panel-affordance[data-affordance="hidden"] .canvas-node-panel-enter {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.97);
+        transition: opacity var(--motion-dur-fast-calc) var(--motion-ease-in), transform var(--motion-dur-fast-calc) var(--motion-ease-in);
+    }
+    /* 供给本体(canvas-node-toolbar / canvas-node-panel-affordance)的进场渐显。
+       不用裸 [data-affordance] 属性选择器: 归属域标注(设置气泡面板也带该属性以进 hover
+       归属域)与视觉进场动画是两回事, 裸属性会把气泡的 canvas-panel-in 开合动画覆盖掉。 */
+    .canvas-node-toolbar[data-affordance="micro"],
+    .canvas-node-toolbar[data-affordance="full"],
+    .canvas-node-panel-affordance[data-affordance="micro"],
+    .canvas-node-panel-affordance[data-affordance="full"] {
+        animation: affordance-in var(--motion-state) var(--motion-ease-out) backwards;
+    }
+
+    .canvas-settings-option:active:not(:disabled) {
+        transform: scale(0.97);
+        transition-duration: var(--motion-dur-instant-calc);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-settings-option:active:not(:disabled) {
+            transform: none;
+        }
+    }
+
+    /* 禁用态与双行卡同口径(45% + 保留可读性, 由各面板 title 说明原因)。 */
+    .canvas-settings-option:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    /* 视频时长滑块(flora 步进语法, 用户参考图 2026-09-11): 2px 细轨 + 12px 白拇指,
+       离散刻度点由组件 inline radial-gradient 画在轨道(webkit track 透明透出)。 */
+    .video-duration-range {
+        appearance: none;
+        height: 12px;
+        background: transparent;
+        outline-offset: 4px;
+    }
+
+    .video-duration-range::-webkit-slider-runnable-track {
+        height: 2px;
+        border-radius: 999px;
+        background-color: rgba(255, 255, 255, 0.14);
+        background-image: var(--ticks-image, none);
+        background-size: 100% 100%;
+        background-repeat: repeat-x;
+    }
+
+    .video-duration-range::-webkit-slider-thumb {
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        margin-top: -5px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: none;
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.25);
+        transition: transform var(--motion-dur-fast-calc) var(--motion-ease-out);
+    }
+
+    .video-duration-range:hover::-webkit-slider-thumb,
+    .video-duration-range:focus-visible::-webkit-slider-thumb {
+        transform: scale(1.15);
+    }
+
+    .video-duration-range::-moz-range-track {
+        height: 2px;
+        border-radius: 999px;
+        background-color: rgba(255, 255, 255, 0.14);
+        background-image: var(--ticks-image, none);
+        background-size: 100% 100%;
+        background-repeat: repeat-x;
+    }
+
+    .video-duration-range::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: none;
+    }
+
+    :root:not(.dark) .video-duration-range::-webkit-slider-runnable-track,
+    :root:not(.dark) .video-duration-range::-moz-range-track {
+        background: rgba(0, 0, 0, 0.12);
+    }
+
+    /* ── [4] 生成态视觉族（S04）───────────────────────────────────────────── */
+    /* 生成中状态(DESIGN.md S04; flora phase43 实证语法): 旋转渐变边框 + 媒体区骨架脉动 */
+    @property --flora-generating-angle {
+        syntax: "<angle>";
+        initial-value: 0deg;
+        inherits: false;
+    }
+    @keyframes flora-generating-border-rotate {
+        to { --flora-generating-angle: 360deg; }
+    }
+    .node-generating-border {
+        position: relative;
+    }
+    .node-generating-border::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 2px;
+        z-index: 2;
+        background: conic-gradient(from var(--flora-generating-angle), #ffffff, #ffffff10 25%, #ffffff 50%, #ffffff10 75%, #ffffff);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+        animation: flora-generating-border-rotate 4s linear infinite;
+        pointer-events: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .node-generating-border::before { animation: none; }
+    }
+    /* 生成中媒体区进度填充(S04, flora BlockLoadingState 对齐):
+       三态 = 真实进度(内联 --loading-target-scale + transition) / fallback 5% 小条 / 回跳 correction 桥接。
+       填充色走 canvas-theme node.loadingFill(明暗各一值),不走硬编码。 */
+    .canvas-node-loading-fill {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+    .canvas-node-loading-fill-bar {
+        position: absolute;
+        inset: 0;
+        transform-origin: left center;
+        transform: scaleX(var(--loading-target-scale, 0));
+    }
+    .canvas-node-loading-fill-bar[data-phase="fallback"] {
+        /* flora 066 chunk 原文: durationMs 6e4 linear fromScale 0 toScale .05 —— 无精确进度时 60s 缓爬表达"进行中" */
+        animation: canvas-loading-fill-fallback 60s linear forwards;
+    }
+    .canvas-node-loading-fill-bar[data-phase="correction"] {
+        animation: canvas-loading-fill-correction 0.3s var(--motion-ease-out) forwards;
+    }
+    @keyframes canvas-loading-fill-fallback {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(0.05); }
+    }
+    @keyframes canvas-loading-fill-correction {
+        from { transform: scaleX(var(--loading-from-scale, 0)); }
+        to { transform: scaleX(var(--loading-to-scale, 0)); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node-loading-fill-bar[data-phase] { animation: none; }
+    }
+}
+
+/* ============================================================================
+   ── [3] 微供给 reduced-motion / no-motion 关断（★ 未分层段）────────────────
+   ★ 层级契约例外：本段必须留在 @layer 之外。
+   globals.css 的 fork 增量绝大多数位于 @layer utilities，但本段是未分层规则。
+   级联铁律：未分层规则永远赢过任何 @layer 内的规则——一旦把本段放进 @layer，
+   它对 [data-affordance] 的关断会立刻失效（被未分层的其它规则盖过）。
+   因此外置时保持未分层，与 globals 时期的相对序语义一致。
+
+   微供给容器:reduced-motion / no-motion 下直接切换,无过渡(2026-09-12 契约)
+   ============================================================================ */
+
+/* 微供给容器:reduced-motion / no-motion 下直接切换,无过渡(2026-09-12 契约) */
+@media (prefers-reduced-motion: reduce) {
+    [data-affordance] {
+        transition: none !important;
+        animation: none !important;
+    }
+    .canvas-node-toolbar-surface,
+    .canvas-node-panel-affordance .canvas-node-panel-enter {
+        animation: none !important;
+    }
+    /* [2026-09-26 复查修复] 挂件退场改级别驱动 transition 后(25b53569), 本层输出已不只有 animation——
+       "直接切换"契约须连同 transition 一并关断(该层不带 [data-affordance], 上面那条盖不到)。 */
+    .canvas-node-panel-affordance .canvas-node-panel-enter {
+        transition: none !important;
+    }
+}
+.no-motion [data-affordance] {
+    transition: none !important;
+}
+.no-motion .canvas-node-panel-affordance .canvas-node-panel-enter {
+    transition: none !important;
+}
