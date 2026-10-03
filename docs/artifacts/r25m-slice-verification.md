@@ -100,6 +100,14 @@
 | `go build -buildvcs=false ./...` | 0 |
 | `go test ./internal/tools/...` | ok（含新增版本漂移测试） |
 | `gofmt -l` | 无待格式化 |
+| `go test ./internal/app/...` | **5 fail（既有基建，非本批引入）** ↓ |
+
+**★ `internal/app` 5 个失败的性质认定**（预存在，非本批引入）：
+- 失败集：`TestCloudAgentRuntimeCompletesToolRoundTrip` / `TestCloudAgentRuntimeApprovalWriteRoundTrip` /
+  `TestCloudAgentLiveRecallLessonsStreamingRoundTrip` / `TestCloudAgentLiveRetriesTransientUpstreamFailure` /
+  `TestCloudAgentLiveDoesNotRetryRejectedRequest`（均为 cloud agent runtime E2E，需 Node runtime）
+- 判定依据：在**未改动的 main 基线**上跑同一包，失败测试名**逐字相同**（5/5 一致，仅耗时不同）
+- 本枝 backend 改动面 = `tools.json` / `tools_seed.go` / `tools_integration_test.go`（与 cloud agent 零交集）
 
 **途中发现并修复的自身回归**：门①为导出 `imageToolDefinitions` 写的注释里提到了登记处文件名，
 触发 O-03 既有守卫 `test/super-resolve.test.ts:92`（「登记位独立」断言不含该字符串）。
