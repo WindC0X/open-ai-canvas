@@ -153,6 +153,19 @@ export type AssetKind =
     | "model/checkpoint";        // 模型橱窗留槽——现在不消费，将来开橱窗成本≈零
 ```
 
+**★ 落枚举纪律（控制线审查提示，R25m 实现约束）**：
+
+**本枝不得一次性全落 15 值** —— 防「定义了但没人用」的反模式（#11 同族）。
+
+| 批次 | 落哪些值 | 触发条件 |
+|---|---|---|
+| **R25m 本枝** | `capability/tool` + `capability/workflow`（保留 2 值）+ 收编清单用到的 7 个：`preset/style` / `preset/lighting` / `preset/camera` / `preset/lens` / `preset/motion` / `preset/channel-spec` / `template/canvas` / `spec/prompt-template` / `spec/generation` | 立即 |
+| **留槽** | `asset/image` / `asset/video` / `asset/audio` / `model/checkpoint` | **有真实消费者再进枚举** |
+
+> 说明：`asset/image` / `asset/video` 是**实码已有的 3 值之二**（O-03 时就在），
+> 保留它们是**兼容既有实码**，不是新增；`asset/audio` 与 `model/checkpoint` 是**纯留槽**，
+> 无消费者前不进枚举（避免枚举膨胀 + 死代码）。
+
 **扩的理由（逐条对实证）**：
 - 实码 3 值只覆盖 `capability/tool` —— 而 O-03 与 F-08 **都用它**，说明该值够用但**不足以承载收编清单**
 - 81 条内容资产横跨**风格/光照/相机/镜头/提示词模板/灵感卡**至少 6 种形状（§2.3 实测），3 值无法归类
@@ -189,8 +202,42 @@ export type AssetKind =
 
 **★ 口径修正结论**：
 - **实际收编总量 = 80 条**（不是 81）
-- 差异来源：`creationFeaturedWorks` 实为 **22 条**（规格记 23）—— 规格本体撰写时的计数误差
+- 差异来源：`creationFeaturedWorks` 实为 **22 条**（规格记 23）
 - **处置**：本文以**实测 80** 为收编基数；规格本体 §2.2 的「81」标注为**口径差**（不追改规格本体，在本文登记）
+
+**★★ 差 1 的根因（控制线审查追问项，2026-10-03 定论）**：
+
+**不是**「23 条里有 1 条不可收编」，而是**计数方法陷阱** —— 第 23 条数据**不存在**，无需在附录 A 标注去向。
+
+| 证据 | 结果 |
+|---|---|
+| 数组元素·`title` 精确匹配 | **22** |
+| 数组元素·顶层对象配对 | **22** |
+| `grep -c 'title:'`（含类型定义行） | **23** ← 污染源 |
+| git 首次提交 `4eaadef8`（2026-09-16）的数组实测 | **22**（自始未变） |
+
+**污染机制**：`creation-inspirations.ts` 第 3 行是类型定义
+`export type CreationInspiration = { title: string; description: string; ... }` ——
+该行**含 `title:` 字段声明**，任何 `grep -c 'title:'` 风格的计数都会把它算作第 23 条数据。
+
+**⚠ 同类污染在其他类别同样存在（但规格数字恰好未被污染）**：
+
+| 类别 | 数组实测 | grep 风格计数 | 污染量 |
+|---|---|---|---|
+| creation-inspirations | 22 | 23 | +1 ← **规格数字被污染** |
+| legacyCanvasStylePresets | 18 | 23 | +5 |
+| recommendedSelections | 8 | 24 | +16 |
+| 光照 STYLE_PRESETS | 8 | 8 | clean |
+| 相机 CAMERA_PROFILES | 8 | 18 | +10 |
+| 镜头 LENS_PROFILES | 8 | 18 | +10 |
+
+⇒ **教训（计数纪律）**：资产计数**必须用数组元素配对**（或 AST），
+**禁止** `grep -c '<字段名>:'` —— 类型定义行、注释、样例代码都会污染计数。
+本仓同类前科：源码断言命中注释而非渲染点（`indexOf` 假命中家族）。
+
+**诚实边界**：规格作者实际用的计数方法**无法回溯**（「23」的确切来源未能确证）；
+本节证明的是「该 grep 方法会恰好产出 23」与「第 23 条数据不存在」两点事实，
+「规格用了该 grep」是**最可能的解释，非确证**。
 - **额外发现**：`inspirationSource.notice` 自述「8 条文本模板依据公开领域提示词翻译改编」—— 这 8 条是**改编自 CC0 提示词**（`awesome-chatgpt-prompts` rev `f78a1c51`），收编时**许可证字段必须保留**（见 §3.4）
 
 ### 2.4 87 项 tools.json 实测核对
@@ -488,6 +535,10 @@ if (payload.registryVersion !== EXPECTED_REGISTRY_VERSION) {
 | 评审资产 | 待界定 | `lib/art-critique/` + `components/canvas/art-critique/` | `spec/generation`? | 片 10 | W5（需先界定边界） |
 | **合计** | **170 + 评审资产** | | | | |
 
+**★ 注（控制线澄清项定论）**：`creationFeaturedWorks` 的 **22** 是**数组实测**（三种方法交叉），
+非「23 条里有 1 条不可收编」—— 第 23 条数据**不存在**，根因是 `grep -c 'title:'` 误计类型定义行（详见 §2.3）。
+⇒ **附录 A 无需为该条标注去向**（下线/合并/重复均不适用）。
+
 ### 6.2 ★ motion 33 的视频域窗口标注
 
 **依据**：`tools.json` motion 组实测 33 条，按 `tag` 分布：
@@ -509,10 +560,13 @@ if (payload.registryVersion !== EXPECTED_REGISTRY_VERSION) {
 
 ### 6.3 收编前置条件（R25m 开工检查表）
 
+> **★ 控制线裁定（2026-10-03 审查）**：本表 6 项前置将**设为 R25m 验收门** ——
+> **逐项打勾后才准动收编**。开工令下达时以此为门禁，未打勾项不得绕过。
+
 - [ ] 本文 §1 schema 定稿（含 `entryPoints` / `registryVersion` 回改实码）
-- [ ] 本文 §2 AssetKind 全集落进实码（扩 `capability-entries.ts` 的窄枚举）
+- [ ] 本文 §2 AssetKind **按落枚举纪律**（§2.1 ★）落进实码 —— **不是全落 15 值**
 - [ ] 本文 §4 防撞守卫 L1 落地（`web/test/` 新增）
-- [ ] Go seed 侧 schema 对齐（`toolSeedItem` 补 `desc`/`ratio` 可选字段说明）
+- [ ] Go seed 侧 schema 对齐（`toolSeedItem` 补 `desc`/`ratio` 可选字段说明 + 补 `version` 字段）
 - [ ] 快照脚本就绪（§5.2 防线 1）
 - [ ] `docs/artifacts/` 与 `docs/content/docs/reference/backend/backend-database.mdx` 的同步点确认
 
@@ -585,6 +639,8 @@ if (payload.registryVersion !== EXPECTED_REGISTRY_VERSION) {
 | ⑤ | 收编回滚策略 | §5 | ✅ |
 | + | 收编清单（81+87+渠道规格+评审资产，含 motion 33 窗口标注） | §6 | ✅ |
 | + | routeSlug 机制规格 | §7 | ✅ |
+
+**控制线审查结论（2026-10-03）**：**PASS，质量超预期**。实码抽查四节（§3 真值源 / §2 AssetKind / §4 命名空间 / §5 回滚）关键论证全部成立。采纳三处（80 基数实测为准 / motion 33「收编但不下发」升为正式口径 / 待回改实码两项列入 R25m 开工检查表），另附两处纪律提示（§2.1 落枚举纪律、§6.3 开工检查表设为验收门），澄清项定论见 §2.3 与 §6.1 注。
 
 ---
 
