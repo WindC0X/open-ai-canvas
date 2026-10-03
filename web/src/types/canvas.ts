@@ -307,6 +307,14 @@ export type CanvasNodeMetadata = {
      * 这是数据兼容路径——不迁移、不清理历史节点，显示侧直接治愈。
      */
     backgroundRemovalSessionId?: string;
+    /**
+     * F-02 场景图任务标记：由商拍场景入口写入命中的场景预设 id。
+     *
+     * 用途：生成链路据此判定「这是场景图任务」，从而把 Flora 的 @[ref] 角色声明
+     * 与 mask 语义预写追加进最终提示词（见 lib/canvas/scene-execution.ts）。
+     * 无此标记的节点不受影响 —— 既有生成路径零介入。
+     */
+    scenePresetId?: string;
     failedPromptFingerprint?: string;
     lastGenerationRequestFingerprint?: string;
     fontSize?: number;

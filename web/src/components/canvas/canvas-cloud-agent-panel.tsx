@@ -56,6 +56,8 @@ import { buildSkillMentionReferences, resolveSkillMentions } from "@/services/sk
 import { AGENT_SCENE_DEFS, AgentChatComposer, AgentChatMessage, AgentOperationFeed, parseCloudAgentFormAnswer, AgentPlanBar, AgentQuestionBar, AgentReasoningFeed, AgentSceneCapsules, AgentUndoBar, AgentWorkingMessage, type AgentSceneBucket, type CloudAgentChatMessage, type CloudAgentPlanItem } from "./canvas-cloud-agent-chat-ui";
 import { CanvasAgentSkillLibraryModal } from "./canvas-agent-skill-library-modal";
 import { CanvasCloudAgentSettings, type AgentContextKey } from "./canvas-cloud-agent-settings";
+// F-02 商拍场景入口（过渡形态，W5 直线入口设计卡出稿后统一；任务书 §六-1）。
+import { ScenePresetChips } from "./scene-preset-chips";
 import { useAgentPanelLayout } from "./use-agent-panel-layout";
 import { useCanvasOverlayLayer } from "./canvas-overlay-layer";
 // fork 增量（浮层置顶族）：面板外观基线用于 useAppearanceStore 回退（上游拆分后由本文件直接消费）。
@@ -1139,14 +1141,22 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                         />
                                     ) : null}
                                     {historyHydrated && !messages.some((message) => message.role === "user" || message.role === "assistant") && !run ? (
-                                        <AgentSceneCapsules
-                                            buckets={sceneBuckets}
-                                            installedIds={installedSkillIds}
-                                            theme={theme}
-                                            disabled={busy || running || !pendingHydrated || Boolean(presetApplyingId)}
-                                            onPick={(preset) => void applyScenePreset(preset)}
-                                            onPickSkill={(skill) => void applySingleSkill(skill)}
-                                        />
+                                        <>
+                                            <AgentSceneCapsules
+                                                buckets={sceneBuckets}
+                                                installedIds={installedSkillIds}
+                                                theme={theme}
+                                                disabled={busy || running || !pendingHydrated || Boolean(presetApplyingId)}
+                                                onPick={(preset) => void applyScenePreset(preset)}
+                                                onPickSkill={(skill) => void applySingleSkill(skill)}
+                                            />
+                                            {/* F-02 商拍场景入口（过渡形态）：点场景回填完整 brief 到输入框，
+                                                由用户确认后再提交 —— 不直接发起生成，与 starter 卡同族。 */}
+                                            <ScenePresetChips
+                                                disabled={busy || running || !pendingHydrated || Boolean(presetApplyingId)}
+                                                onPick={(brief) => setPrompt(brief)}
+                                            />
+                                        </>
                                     ) : null}
                                     {pendingQuestion ? <AgentQuestionBar question={pendingQuestion} theme={theme} disabled={approvalSubmitting || connectionStatus !== "connected"} onAnswer={(label) => void submit(label)} /> : null}
                                     <AgentChatComposer
