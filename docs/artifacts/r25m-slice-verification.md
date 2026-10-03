@@ -153,3 +153,70 @@
    合入后其条目需补 `entryPoints`（否则守卫会报「entryPoints.length > 0」失败）。这是**预期的**
    跨枝约束，非缺陷。
 4. **`asset/audio` 与 `model/checkpoint` 留槽未落** —— 按落枚举纪律，等真实消费者。
+
+---
+
+## 九、★ 跨枝约束核查（控制线 2026-10-04 知会项）
+
+控制线知会：F-08 已裁定 **A 合并路线**（既有 annotationEdit 链的工程化增强），
+`capability-entries.ts` 将出现第三个条目 `image.annotateEdit`，R25m 分片验收时
+「条目可查」检查以**最终条目数 3** 为口径。
+
+### 9.1 实测：条目数口径需澄清
+
+**全 refs 实测**（`git for-each-ref` 遍历，含远端）：
+
+| ref | capability-entries.ts 条目数 | 条目 id |
+|---|---|---|
+| `main` | 1 | `image.superResolve` |
+| `fork/main` | 1 | `image.superResolve` |
+| `feat/r25m-registry-collection`（本枝） | 1 | `image.superResolve` |
+| `feat/ecom-f08-annotate`（F-08，**未提交**） | **2** | `image.superResolve` + `image.annotateEdit` |
+| `feat/o03-l2-superresolve` | 1 | `image.superResolve` |
+
+**F-08 侧证据**：
+- `web/src/lib/canvas/capability-entries.ts` 为 **`M`（已修改未提交）**，含 `image.annotateEdit`（L123）
+- `web/test/annotate-edit-entry.test.ts` 为 **`??`（未跟踪）**，其断言原文（L163）：
+  「档 1 筛选包含**两个**原生条目（superResolve + annotateEdit）」
+- F-08 任务书原文（`/tmp/f08-recon-draft.md` L89）：`capability-entries.ts` → **+1 条目**
+
+⇒ **F-08 交付后总数 = 2 条**（1 既有 + 1 新增），**不是 3 条**。
+「3 条」口径与 F-08 任务书（+1）和 F-08 测试（两个）**均不一致**。
+
+**处置**：本枝按**实测口径**推进（当前 1 条，F-08 合入后 2 条）；
+若控制线确需 3 条，请指明**第三条的来源**（本枝未发现任何第三条目规划，
+全 refs 搜索 `image.annotateEdit` 仅命中 F-08 一处）。
+
+### 9.2 ★ 跨枝阻断风险（R25m 门① 与 F-08 条目不兼容）
+
+**风险**：R25m 门① 把 `entryPoints` 与 `registryVersion` 升为 **`CapabilityEntry` 必填字段**，
+而 F-08 的条目（在 F-08 枝上编写，早于 R25m 合入）**不含这两个字段**：
+
+| 条目 | `entryPoints` | `registryVersion` |
+|---|---|---|
+| `image.superResolve`（R25m 本枝） | ✓ | ✓ |
+| `image.annotateEdit`（F-08 枝） | **✗ 缺失** | **✗ 缺失** |
+
+**合入后果（无论先后）**：
+1. `tsc --noEmit` 报错：`Type '{ id: ... }' is missing 'entryPoints' / 'registryVersion'`
+2. `registry-namespace-guard.test.ts:80` → `expect(entry.entryPoints.length)` 抛 TypeError
+3. `registry-namespace-guard.test.ts:91` → `expect(Number.isInteger(undefined))` 失败
+
+**这是门①「回改实码」的必然跨枝外溢** —— 架构方案 §1.4 把两字段列为「待建（需回改实码）」，
+但**未写明「既有/在飞条目需同步补字段」**。本枝发现并登记。
+
+**建议处置（交控制线裁定，本枝不擅自改 F-08 枝）**：
+- **方案 A（推荐）**：F-08 合入前，在其枝上补两字段 ——
+  `entryPoints: [{ kind: "node-toolbar", target: "annotationEdit" }]`（F-08 实测工具栏 id）
+  + `registryVersion: 1`。R25m 门① 的类型定义与守卫即自然通过。
+- **方案 B**：两字段改为可选 + 守卫跳过缺失项 —— **不推荐**（会让「待建字段」失去强制力，
+  违背控制线「不许缺字段」的裁定精神）。
+
+**F-08 入口 id 实测**（供方案 A 使用）：`canvas-image-toolbar-tools.tsx` L124 `id: "annotationEdit"`，
+label「圈选改图」，group `process`，order 45。
+
+### 9.3 本枝对「条目可查」的现状
+
+R25m 的守卫（`registry-namespace-guard.test.ts`）对 `CAPABILITY_ENTRIES` **逐条遍历**，
+不硬编码条目数 —— 因此 F-08 补字段后合入时，守卫**自动覆盖**新条目，无需改守卫代码。
+⇒ R25m 侧对条目数**无硬编码约束**，「条目可查」检查天然适配最终条目数。
