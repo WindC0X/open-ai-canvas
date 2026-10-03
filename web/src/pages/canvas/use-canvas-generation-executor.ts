@@ -11,6 +11,7 @@ import { buildPortraitTexturePrompt } from "@/lib/canvas/canvas-portrait-texture
 import { buildCameraPrompt } from "@/lib/canvas/camera-prompt-library";
 import { buildTextRewritePrompt } from "@/lib/prompts";
 import { resolveCanvasStyleExecution } from "@/lib/canvas/canvas-style-execution";
+import { resolveSceneExecution } from "@/lib/canvas/scene-execution";
 import { generationErrorMessage, generationFailureMetadata } from "@/lib/generation-error";
 import { modelCompatibilityError, modelGroupReferenceLimits, modelPromptLengthError, modelRequestOptions, type ModelRequirements } from "@/lib/model-selection";
 import { navigateToSettings } from "@/lib/settings-navigation";
@@ -184,6 +185,8 @@ export function useCanvasGenerationExecutor({
                     }
                     let effectivePrompt = skillExecution.prompt.trim();
                     let styleMetadata = {};
+            // F-02 场景图执行元数据（任务面元数据标签用）
+            let sceneMetadata: { scenePresetId?: string; sceneDegraded?: boolean } = {};
                     if (mode === "image") {
                         try {
                             const styleRuntime = resolveCanvasStyleExecution(nodesRef.current, sourceNode, effectivePrompt, generationConfig, mode);
@@ -197,7 +200,25 @@ export function useCanvasGenerationExecutor({
                             return;
                         }
                     }
-                    const promptLengthError = mode === "video" ? modelPromptLengthError(generationConfig, generationConfig.model, mode, effectivePrompt) : "";
+                    // F-02 场景图接线（同 style execution 的改写器范式）：
+                // 节点带 scenePresetId 标记时，把 Flora 的 @[ref] 角色声明与 mask 语义
+                // 追加进最终提示词（协议面，不追加则参考图会被误用）。
+                // 无标记的节点完全不介入 —— 既有生成路径零影响。
+                if (mode === "image") {
+                    // 场景参考图判据：多张参考图时，第二张起视为场景/风格参考
+                    // （与 Flora 原文一致：「use the first image as reference for product,
+                    // and use the second image as reference for loose scene/photography/style」）。
+                    // hasMask 不在此推断 —— 蒙版语义段当前由 F-01→F-02 串联路径显式传入，
+                    // 本链路默认 false（不做基于文件名的猜测）。
+                    const sceneRuntime = resolveSceneExecution(sourceNode, effectivePrompt, {
+                        hasSceneReference: rawGenerationContext.referenceImages.length > 1,
+                    });
+                    if (sceneRuntime) {
+                        effectivePrompt = sceneRuntime.prompt;
+                        sceneMetadata = { scenePresetId: sceneRuntime.scenePresetId, sceneDegraded: sceneRuntime.degraded };
+                    }
+                }
+                const promptLengthError = mode === "video" ? modelPromptLengthError(generationConfig, generationConfig.model, mode, effectivePrompt) : "";
                     if (promptLengthError) {
                         message.error(promptLengthError);
                         return;
