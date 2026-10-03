@@ -352,3 +352,30 @@ Review 报告（工作流 4 代理 + 人工复核，OCR 通道失败放弃）后
 - 验证：tsc 0 / build ✓ / 全量 2361 测试（309 文件）→ 15 红逐名=冻结基线零额外（+7 新测试）；走查 s7/s7a/s8（`.local/o03-walkthrough/`）。
 - 报备：缺口 G1-G4 未修（上报制）；同 fallback 链 tool 类引用仍落 T/Image 缺省（授权范围外，观察项）；环境注记（本环境「小白鼠 Gpt Image 2」含 4K）。
 - 行政：`fc78f10e` 落卡；`5af47ab4` 归档；全枝功能项完结，待合并批次任务书（flora + 轻量枝一批合入）。
+
+---
+
+## 2026-10-03 F-02 商拍场景图合入 main（10-commit 批次 · --no-ff · 53af70b2）
+
+- **合入拓扑**：`git merge --no-ff feat/ecom-f02-scene`（@ `8cb02bf9`）→ `53af70b2`。
+  **merge-base 登记**：F-02 起点 `7e19af47`，其祖先含上游同步 `d328a257`；
+  `7e19af47..53af70b2` 区间**无新的上游同步合并**（仅本次 F-02 merge）——本次为纯内部合入。
+  合入前文件重叠检查：F-02 批次 vs 同期文档批（`7079fca4`）零重叠文件，合入零冲突。
+- **批次构成（10 commit）**：任务书 `eb2873ec` → 两段式管线 `09f71614` → 场景库 `b32fa4f0`
+  → 入口过渡形态 `f581a25e` → 统一任务面 `d81a22db` → 执行记录 `3e3a8b74`
+  → 生成链路接线 `579fc853` → 执行记录补齐 `37adc98c` → 双冠词修正 `1b81aec6`
+  → 验收②记录 `8cb02bf9`。
+- **批次统计**：15 文件 +1945/−10（含 8 个新文件：4 个 lib + 4 个 test）。
+- **同期文档批（先于合入）**：`7079fca4` docs(design) 前端吸收 26 条落笔——
+  DESIGN.md 四节 19[D] + docs/design 细则 7[d] + globals.css D8 纪律注释 + PRODUCT.md
+  Anti-references 补句（措辞=裁定原文逐字）。
+- **合入后门禁**：`bun run build` ✓ 2m13s；全量 `bun test 2>&1` **2596 pass / 0 fail**
+  （331 文件）。控制线点名的 `canvas-asset-repair` 7 红：单文件复跑 **10 pass / 0 fail**，
+  确认基建归因（非本次合入引入）。
+- **push**：`fork`（WindC0X）`7e19af47..53af70b2 main -> main`；
+  local `main` == `fork/main` == `53af70b2` ✅；`origin`（ddcat-ai，只读）未动。
+- **环境收尾**：:3021 / :3020 / :8080 / :9230 / :9231 全空闲；:3010 归测试线 twins 独占
+  （PID 1125057，oac-wt-f01 vite），未触碰。
+- **验收依据**：门2/门3 GO（测试线轻量门 `23209f4`：链路 6/6 + VRT 24/24 零 diff +
+  bun 2589/7 既有基线）；控制线独立抽查通过（fast-forward 拓扑确认 +
+  canvas-asset-repair 单文件复跑 10/10 绿）。
