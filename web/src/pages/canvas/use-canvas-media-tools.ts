@@ -11,6 +11,7 @@ import { buildCanvasTextEditPrompt, type CanvasImageTextEditPayload, type Canvas
 import type { CanvasImageAnnotationPayload } from "@/components/canvas/canvas-node-annotation-dialog";
 import type { CanvasImageSplitParams } from "@/components/canvas/canvas-node-split-dialog";
 import type { CanvasImageUpscaleParams } from "@/components/canvas/canvas-node-upscale-dialog";
+import { SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, type SuperResolveParams } from "@/lib/canvas/super-resolve-params";
 import type { CanvasImageAngleParams } from "@/components/canvas/canvas-node-angle-dialog";
 import type { CanvasVideoSegmentParams } from "@/components/canvas/canvas-video-segment-dialog";
 import { buildLightingLabel, type CanvasImageLightingOptions } from "@/components/canvas/canvas-node-lighting-dialog";
@@ -1497,6 +1498,70 @@ export function useCanvasMediaTools({
         }
     }, [message, persistMediaNodes, setConnections, setDialogNodeId, setNodes, setSelectedNodeIds]);
 
+    /**
+     * O-03 层2 AI 超分（云端任务链，消耗积分）。
+     *
+     * ★ 与 upscaleImageNode 的分工（命名分流红线 MASTER-PLAN L399）：
+     * - `upscaleImageNode`：纯前端 canvas 插值，免费，无任务行
+     * - `superResolveImageNode`（本函数）：云端 AI 重建细节，计费，走统一任务面
+     *
+     * 骨架照 maskEditImageNode，但去掉了提示词与风格执行段 —— 超分不是生成式编辑，
+     * 是像素级重建，不需要 prompt；输入固定 1 张源图，输出固定 1 张。
+     */
+    const superResolveImageNode = useCallback(async (node: CanvasNodeData, params: SuperResolveParams) => {
+        if (!node.metadata?.content) return;
+        const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
+        if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+            navigateToSettings({ continueCreation: true });
+            return;
+        }
+        const source = nodeReferenceImage(node);
+        if (!source) return;
+        const childId = nanoid();
+        const imageSpec = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
+        const target = SUPER_RESOLVE_TARGETS.find((item) => item.value === params.targetResolution) ?? SUPER_RESOLVE_TARGETS[0];
+        const modeLabel = SUPER_RESOLVE_MODES.find((item) => item.value === params.mode)?.title || "保真放大";
+        const title = `AI 超分 · ${target.label} · ${modeLabel}`;
+        const generationMetadata = buildImageGenerationMetadata("edit", generationConfig, 1, [source]);
+        setRunningNodeId(childId);
+        setNodes((current) => [...current, { id: childId, type: CanvasNodeType.Image, title, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: imageSpec.width, height: imageSpec.height, metadata: { prompt: title, status: NODE_STATUS_LOADING, superResolve: { targetResolution: params.targetResolution, mode: params.mode }, ...generationMetadata } }]);
+        setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
+        setSelectedNodeIds(new Set([childId]));
+        setDialogNodeId(childId);
+        const controller = startGenerationRequest(childId, node.id, childId);
+        try {
+            const result = await runBackendCanvasGenerationTask({
+                projectId,
+                nodeId: childId,
+                mode: "image",
+                prompt: title,
+                config: generationConfig,
+                referenceImages: [source],
+                signal: controller.signal,
+                // canvasEditOperation 经 generation-task.ts 的 generationOperation() 映射为
+                // operation=image_upscale，使后端按超分独立价格档计费（而非 image_to_image）。
+                metadata: { sourceNodeId: node.id, edit: "superResolve", canvasEditOperation: "image_upscale", superResolve: { targetResolution: params.targetResolution, mode: params.mode } },
+                onTaskCreated: (task) => bindGenerationTask(childId, task),
+            });
+            const image = result.images?.[0];
+            if (!image?.dataUrl) throw new Error("后端任务没有返回图片");
+            const uploaded = await uploadImage(image.dataUrl);
+            const size = fitNodeSize(uploaded.width, uploaded.height, imageSpec.width, imageSpec.height);
+            const currentNode = nodesRef.current.find((item) => item.id === childId);
+            if (!currentNode) throw new Error("超分节点已被删除");
+            const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: commitProducedModel({ ...currentNode.metadata, ...imageMetadata(uploaded), prompt: title, ...generationMetadata }) };
+            setNodes((current) => current.map((item) => (item.id === childId ? finalizedNode : item)));
+            await persistMediaNodes([finalizedNode]);
+        } catch (error) {
+            if (isGenerationCanceled(error)) return;
+            const details = generationErrorMessage(error);
+            setNodes((current) => current.map((item) => (item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: details } } : item)));
+        } finally {
+            finishGenerationRequest(childId, controller);
+            setRunningNodeId(null);
+        }
+    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, navigateToSettings, nodesRef, persistMediaNodes, projectId, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedNodeIds, startGenerationRequest]);
+
     const generateAngleNode = useCallback(async (node: CanvasNodeData, params: CanvasImageAngleParams) => {
         if (!node.metadata?.content) return;
         const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
@@ -1738,6 +1803,7 @@ export function useCanvasMediaTools({
         openVideoSegmentExtractor,
         upscaleImageNode,
         upscaleNodeId,
+        superResolveImageNode,
     };
 }
 

@@ -929,6 +929,7 @@ function InfiniteCanvasPage() {
         openVideoFrameExtractor,
         openVideoSegmentExtractor,
         upscaleImageNode,
+        superResolveImageNode,
         upscaleNodeId,
     } = useCanvasMediaTools({
         projectId,
@@ -3051,7 +3052,10 @@ function InfiniteCanvasPage() {
                         onViewImage={(node: CanvasNodeData) => setPreviewNodeId(node.id)}
                         actions={toolbarNode?.type === "image" ? ([
                             { label: "裁切", icon: <Scissors className="size-3.5" />, onClick: () => setCropNodeId(toolbarNode.id) },
-                            { label: "超分", icon: <ZoomIn className="size-3.5" />, onClick: () => setUpscaleNodeId(toolbarNode.id) },
+                            // label 必须与所调动作一致：本按钮走 setUpscaleNodeId（免费插值，见 CanvasNodeUpscaleDialog），
+// 不得写「超分」—— MASTER-PLAN L399 命名分流红线要求 upscale（插值，免费）与
+// superResolve（AI 超分，云端计费）严格分开，禁用模糊词。
+{ label: "调整尺寸", icon: <ZoomIn className="size-3.5" />, onClick: () => setUpscaleNodeId(toolbarNode.id) },
                             { label: "局部编辑", icon: <Brush className="size-3.5" />, onClick: () => setMaskEditNodeId(toolbarNode.id) },
                         ] as ObjectHudAction[]) : undefined}
                     />
@@ -3579,6 +3583,7 @@ function InfiniteCanvasPage() {
                             onCancelTask={cancelCanvasTask}
                             superResolveNode={superResolveNode}
                             onCloseSuperResolve={() => setSuperResolveNodeId(null)}
+                            onSuperResolve={(node, params) => { setSuperResolveNodeId(null); void superResolveImageNode(node, params).catch((error) => message.error(error instanceof Error ? error.message : "AI 超分失败")); }}
                             previewNode={previewNode}
                             onClosePreview={() => setPreviewNodeId(null)}
                             clearConfirmOpen={clearConfirmOpen}

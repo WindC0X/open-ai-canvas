@@ -201,6 +201,9 @@ export async function runBackendGenerationTaskBatch(options: BackendGenerationTa
 }
 
 function generationOperation(options: BackendGenerationTaskOptions) {
+    // O-03 层2：AI 超分是图片域内的独立 operation，不是普通 image_to_image ——
+    // 渠道需按 operation 配置独立价格档（后端 model_router.go 的 selector 机制）。
+    if (options.metadata?.canvasEditOperation === "image_upscale") return "image_upscale";
     if (options.mode !== "video") return options.mode;
     return resolveVideoOperation({
         textCount: 0,

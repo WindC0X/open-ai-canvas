@@ -1,5 +1,5 @@
 import { isValidElement, type ReactNode } from "react";
-import { Brush, Camera, Clapperboard, Contrast, Copy, Crop, Expand, FastForward, FileText, Globe2, Grid2x2, Grid3x3, Layers3, Lock, LockOpen, Maximize2, Package, PencilLine, PersonStanding, Rewind, Scaling, ScanFace, SlidersHorizontal, Smile, Sun, Upload, WandSparkles } from "lucide-react";
+import { Brush, Camera, Clapperboard, Contrast, Copy, Crop, Expand, FastForward, FileText, Globe2, Grid2x2, Grid3x3, Layers3, Lock, LockOpen, Maximize2, Package, PencilLine, PersonStanding, Rewind, Scaling, ScanFace, SlidersHorizontal, Smile, Sparkles, Sun, Upload, WandSparkles } from "lucide-react";
 
 import type { CanvasNodeData } from "@/types/canvas";
 import type { NodeToolbarGroup } from "@/lib/canvas/tool-registry";
@@ -233,6 +233,19 @@ const imageToolDefinitions: ImageToolDefinition[] = [
         group: "process",
         order: 20,
         run: (node, handlers) => handlers.onUpscale(node),
+    },
+    {
+        // O-03 层2 AI 超分入口。★ 此前该能力只有 handler 声明与页面透传，没有工具
+        // 条目 —— 占位对话框因此不可达（本次侦察发现）。补上条目后 onSuperResolve
+        // 才真正被消费。与 upscale 同组同形态（图片加工语义位），语义是云端 AI 重建。
+        id: "superResolve",
+        label: "AI 超分",
+        section: "构图与尺寸",
+        description: "云端重建像素细节，消耗积分",
+        icon: () => <Sparkles className="size-3.5" />,
+        group: "process",
+        order: 21,
+        run: (node, handlers) => handlers.onSuperResolve(node),
     },
     {
         id: "angle",

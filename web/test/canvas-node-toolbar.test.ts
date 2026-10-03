@@ -85,7 +85,10 @@ describe("canvas node toolbar model", () => {
 
         expect(tools.find((tool) => tool.id === "angle")?.group).toBe("viewpoint");
         expect(tools.find((tool) => tool.id === "maskEdit")?.group).toBe("primary");
-        expect(tools.some((tool) => tool.id === "superResolve")).toBe(false);
+        // O-03 层2（2026-10-03）：superResolve 从「只有 handler 声明、无工具条目」
+        // 补为真实条目 —— 此前断言 false 记录的是缺口状态（占位对话框因此不可达）。
+        expect(tools.find((tool) => tool.id === "superResolve")?.group).toBe("process");
+        expect(tools.find((tool) => tool.id === "superResolve")?.description).toContain("消耗积分");
         expect(tools.find((tool) => tool.id === "emotion")?.group).toBe("portrait");
         expect(tools.find((tool) => tool.id === "upscale")?.description).toContain("不是 AI 超分");
         expect(tools.find((tool) => tool.id === "crop")?.section).toBe("构图与尺寸");
