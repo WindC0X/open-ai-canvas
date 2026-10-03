@@ -1,6 +1,8 @@
 package tools_test
 
 import (
+	"encoding/json"
+
 	"infinite-canvas/backend/internal/database"
 	"infinite-canvas/backend/internal/model"
 	"infinite-canvas/backend/internal/repository"
@@ -96,5 +98,26 @@ func TestToolsVisibilityTokensSeedAndReferences(t *testing.T) {
 	db.First(&preserved, 1)
 	if preserved.Label != "keep" {
 		t.Fatal("user tool overwritten")
+	}
+}
+
+// TestBuiltinToolsSeedVersionMatchesCode 校验 seed 文件的 version 字段与代码常量一致。
+//
+// ★ 为什么需要（架构方案 §3.3 契约）：tools.json 此前**无 version 字段** ——
+// 前端消费侧的版本校验没有锚点，schema 漂移无法被发现。本测试是该锚点的机器护栏：
+// 改 seed 结构忘了递增版本（或反之）时立即失败。
+func TestBuiltinToolsSeedVersionMatchesCode(t *testing.T) {
+	var file struct {
+		Version int `json:"version"`
+	}
+	if err := json.Unmarshal(tools.BuiltinToolsSeedJSON(), &file); err != nil {
+		t.Fatalf("解析 tools.json 失败: %v", err)
+	}
+	if file.Version == 0 {
+		t.Fatal("tools.json 缺 version 字段（架构方案 §3.3 契约要求）")
+	}
+	if file.Version != tools.BuiltinToolsSeedVersion {
+		t.Fatalf("seed 版本漂移: 文件=%d 代码=%d —— 结构变更时须同步递增二者",
+			file.Version, tools.BuiltinToolsSeedVersion)
 	}
 }
