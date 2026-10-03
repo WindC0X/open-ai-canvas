@@ -132,8 +132,8 @@ export const imageToolDefinitions: ImageToolDefinition[] = [
     {
         id: "annotationEdit",
         section: "拆分与标记",
-        description: "用画笔标记区域并让模型按标记修改",
-        label: "标注编辑",
+        description: "圈选或涂抹要修改的区域，按标注生成新图",
+        label: "圈选改图",
         icon: () => <Brush className="size-3.5" />,
         group: "process",
         order: 45,
