@@ -195,7 +195,10 @@
 | 条目 | `entryPoints` | `registryVersion` |
 |---|---|---|
 | `image.superResolve`（R25m 本枝） | ✓ | ✓ |
+| `image.superResolve`（F-08 枝，旧 schema） | **✗ 缺失** | **✗ 缺失** |
 | `image.annotateEdit`（F-08 枝） | **✗ 缺失** | **✗ 缺失** |
+
+⇒ **F-08 需补两条**（其 `superResolve` 条目也基于旧 schema，非仅新增的那条）。
 
 **合入后果（无论先后）**：
 1. `tsc --noEmit` 报错：`Type '{ id: ... }' is missing 'entryPoints' / 'registryVersion'`
@@ -204,6 +207,32 @@
 
 **这是门①「回改实码」的必然跨枝外溢** —— 架构方案 §1.4 把两字段列为「待建（需回改实码）」，
 但**未写明「既有/在飞条目需同步补字段」**。本枝发现并登记。
+
+### 9.2.1 ★ 实测确证（2026-10-04，控制线裁定后补）
+
+**F-08 tip 已移至 `b182ef97`（C3 注册表与入口已落地）**，本枝做了**临时试合并实测**：
+
+| 步骤 | 命令 | 结果 |
+|---|---|---|
+| ① 试合并 | `git merge --no-commit --no-ff b182ef97` | **文本无冲突**（两处 auto-merging 自动完成） |
+| ② 合并态 tsc | `tsc --noEmit` | **`TS2739` 报错**（见下） |
+| ③ 回退 | `git merge --abort` | 恢复 `6a8be55a`，树干净 ✓ |
+
+**tsc 原文**：
+```
+src/lib/canvas/capability-entries.ts(155,5): error TS2739: Type '{ id: string; name: string;
+tier: 1; contextRequirement: "single_image"; assetKind: "capability/tool"; parameterSurface:
+[...]; executionChain: {...}; zeroParameterPreset: string; }' is missing the following
+properties from type 'CapabilityEntry': entryPoints, registryVersion
+```
+
+**三点确证**：
+1. **文本层零冲突 ≠ 语义层兼容** —— git 自动合并成功，但类型层阻断。
+   这正是「机器护栏」的价值：文本合并会静默通过，只有类型系统/守卫能抓住。
+2. **阻断点精确定位** —— `capability-entries.ts:155`，F-08 的 `image.annotateEdit` 条目。
+3. **F-08 tip `b182ef97` 的两个条目均缺字段**（不只是 annotateEdit）——
+   F-08 基于 `b858bd1d` 起枝，早于 R25m 的门①，因此其 `image.superResolve` 条目
+   也是旧 schema 版本（**F-08 需补两条，不只是新增的那条**）。
 
 **建议处置（交控制线裁定，本枝不擅自改 F-08 枝）**：
 - **方案 A（推荐）**：F-08 合入前，在其枝上补两字段 ——
