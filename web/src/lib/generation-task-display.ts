@@ -102,6 +102,34 @@ export const taskTypeLabel: Record<string, string> = {
     canvas_text: "画布文本",
 };
 
+/**
+ * 执行位置元数据标签（F-02，MASTER-PLAN v1.6 §6「统一任务面」约束）。
+ *
+ * ★ 设计口径（用户拍板，任务书 §六-2）：**执行位置只作元数据标签，不单独造 UI**。
+ * 云任务与本地任务共用同一任务面（画布内活动面板 + 任务中心收敛），
+ * 执行位置以一行文字标签呈现（如「云端 · 0.0XX 积分」），不是独立面板/独立列表。
+ *
+ * 判据（为何用 provider 而非新字段）：
+ *   `GenerationTask.provider` 是后端已有的上游供应商标识；本地能力（F-01 浏览器
+ *   WASM 抠图）不走任务队列，故**没有任务行**——凡是进任务面的必然是云端执行。
+ *   因此本函数在当前架构下恒返回「云端」，保留判据分支以便后续接入本地任务行。
+ *
+ * @param task 任务（只需 provider / model 字段）
+ * @param options.creditsEnabled 积分体系是否启用（关闭时不显示积分部分）
+ * @param options.billingLabel 已格式化的计费文案（由调用方按既有 formatCredits 生成，
+ *        本函数不做积分格式化——避免与 constant/credits 的单一来源重复）
+ */
+export function generationTaskExecutionLabel(
+    task: Pick<GenerationTask, "provider" | "model">,
+    options: { creditsEnabled: boolean; billingLabel?: string },
+): string {
+    // 本地任务行当前不存在（F-01 本地抠图不入队）；分支保留以备接入。
+    const location = task.provider || task.model ? "云端" : "本地";
+    if (location === "本地") return "本地";
+    if (!options.creditsEnabled || !options.billingLabel) return "云端";
+    return `云端 · ${options.billingLabel}`;
+}
+
 export function formatTaskKind(task: GenerationTask) {
     const typeLabel = taskTypeLabel[task.type];
     const operationLabel = task.operation ? operationLabelByValue.get(task.operation) : "";

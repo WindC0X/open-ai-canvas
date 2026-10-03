@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { formatCredits } from "@/constant/credits";
 import { aceternityMotion } from "@/lib/aceternity-motion";
-import { canCancelGenerationTask, formatTaskKind, generationTaskShowsProgress, generationTaskStageLabel, generationTaskStatusLabel } from "@/lib/generation-task-display";
+import { canCancelGenerationTask, formatTaskKind, generationTaskExecutionLabel, generationTaskShowsProgress, generationTaskStageLabel, generationTaskStatusLabel } from "@/lib/generation-task-display";
 import { canvasThemes } from "@/lib/canvas-theme";
 import type { GenerationTask } from "@/services/api/task-center";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
@@ -163,6 +163,11 @@ function ActiveTaskCard({
     const elapsedMs = Math.max(0, now - parseTime(startedAt));
     const durationLabel = `${task.status === "queued" ? "已等待" : "已运行"} ${formatDuration(elapsedMs)}`;
     const billingLabel = task.billing ? `冻结 ${formatCredits(task.billing.amountMicrocredits)} 积分` : "未计费";
+    // F-02 统一任务面（MASTER-PLAN v1.6 §6）：执行位置只作元数据标签，不单独造 UI。
+    const executionLabel = generationTaskExecutionLabel(task, {
+        creditsEnabled,
+        billingLabel: task.billing ? formatCredits(task.billing.amountMicrocredits) : undefined,
+    });
     const statusTone = task.status === "running" ? theme.accent.primary : theme.node.muted;
     const transition = reducedMotion ? { duration: 0 } : aceternityMotion.spring.panel;
 
@@ -249,6 +254,14 @@ function ActiveTaskCard({
                             <span>当前阶段</span>
                             <span className="max-w-[200px] truncate text-right" style={{ color: theme.node.text }}>
                                 {generationTaskStageLabel(task)}
+                            </span>
+                        </div>
+                        {/* 执行位置元数据标签（F-02 统一任务面）：云/本地共用同一任务面，
+                            位置只作标签，不是独立 UI。 */}
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                            <span>执行位置</span>
+                            <span className="max-w-[200px] truncate text-right" style={{ color: theme.node.text }} title={executionLabel}>
+                                {executionLabel}
                             </span>
                         </div>
                         {onCancelTask && canCancelGenerationTask(task) ? (
