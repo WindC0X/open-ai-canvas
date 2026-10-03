@@ -72,7 +72,15 @@ function nineGridRun(node: CanvasNodeData, handlers: ImageToolHandlers, tool: Im
     handlers.onNineGrid(node, tool.toolId, resolveToolText(tool.label, node), resolveToolIconName(tool, node));
 }
 
-const imageToolDefinitions: ImageToolDefinition[] = [
+/**
+ * 图片工具栏的静态定义清单。
+ *
+ * ★ 导出理由（架构方案 §1.4 缺口收口）：能力条目（capability-entries.ts）声明的
+ * entryPoints.target 需要与真实入口做**机器可校验**的关联 —— 此前这份定义是
+ * 模块私有的，能力层与按钮层「只有注释约定」。导出后由
+ * web/test/registry-namespace-guard.test.ts 校验声明入口真实存在。
+ */
+export const imageToolDefinitions: ImageToolDefinition[] = [
     {
         id: "copyPrompt",
         section: "生成信息",

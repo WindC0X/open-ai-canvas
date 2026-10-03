@@ -14,6 +14,8 @@
  * 字段口径依据：`/mnt/f/CODE/Project/canvas/能力组织层方案-2026-10-03.md` §2.1 + §4。
  */
 
+import type { AssetKind } from "./registry-asset";
+
 /** 目标界面档位（能力组织层方案 §4 的四档）。 */
 export type CapabilityEntryTier =
     /** 档 0：点卡出图（/create 卡网格），端到端不见画布 */
@@ -40,6 +42,21 @@ export type CapabilityContextRequirement =
     /** 需要选区（多节点或框选区域） */
     | "selection";
 
+/**
+ * 入口登记 —— 该能力在 UI 上暴露的入口点（架构方案 §1.4 待建字段）。
+ *
+ * ★ 为什么需要（架构方案 §1.4）：实码此前**没有入口登记** —— O-03 的工具栏条目
+ * 是手工接线（`canvas-image-toolbar-tools.tsx` 里独立写了一份 id），能力条目与
+ * 按钮层只有注释层面的约定，没有机器可校验的关联。补本字段后，升格枝可校验
+ * 「每个已声明入口都真实存在」。
+ */
+export type CapabilityEntryPoint = {
+    /** 入口形态 */
+    kind: "node-toolbar" | "selection-toolbar" | "main-toolbar" | "command-palette" | "create-card" | "canvas-route";
+    /** 入口在对应层里的 id（须与真实定义一致，守卫测试校验） */
+    target: string;
+};
+
 /** 能力条目 —— 注册表条目层的单元。 */
 export type CapabilityEntry = {
     /** 能力 id（`能力域.动作` 形态，与按钮层 id 区分）。 */
@@ -53,8 +70,11 @@ export type CapabilityEntry = {
      * 解耦命令协议：入口按此谓词过滤，不满足时不渲染/禁用。
      */
     contextRequirement: CapabilityContextRequirement;
-    /** 所属资产形态（元数据，不是用户概念）。 */
-    assetKind: "capability/tool" | "asset/image" | "asset/video";
+    /**
+     * 所属资产形态（元数据，不是用户概念）。
+     * 类型引用统一 schema（registry-asset.ts 的 AssetKind，架构方案 §2.1）。
+     */
+    assetKind: AssetKind;
     /**
      * 参数面引用：该能力的可调参数清单。
      * `field` 对应参数面的字段名，`options` 为可选取值（空数组 = 自由输入）。
@@ -80,6 +100,16 @@ export type CapabilityEntry = {
      * 显式写「暂无」—— 控制线裁定不许缺字段。
      */
     zeroParameterPreset: string;
+    /**
+     * 入口登记（架构方案 §1.4 待建字段，R25m 落）。
+     * 每个入口的 target 须指向真实存在的按钮/命令 id —— 由守卫测试校验。
+     */
+    entryPoints: CapabilityEntryPoint[];
+    /**
+     * 注册表版本锚点（架构方案 §1.4 待建字段，R25m 落）。
+     * 回滚策略（§5）与跨文件收编需要能判断「这条记录属于哪次收编」。
+     */
+    registryVersion: number;
 };
 
 /**
@@ -118,6 +148,9 @@ export const CAPABILITY_ENTRIES: CapabilityEntry[] = [
             primaryChannel: "a6api · nano-banana-2",
         },
         zeroParameterPreset: "暂无",
+        // O-03 实际入口：图片工具栏（手工接线层 canvas-image-toolbar-tools.tsx 的 id）。
+        entryPoints: [{ kind: "node-toolbar", target: "superResolve" }],
+        registryVersion: 1,
     },
 ];
 
