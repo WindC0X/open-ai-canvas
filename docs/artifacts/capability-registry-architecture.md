@@ -159,7 +159,7 @@ export type AssetKind =
 
 | 批次 | 落哪些值 | 触发条件 |
 |---|---|---|
-| **R25m 本枝** | `capability/tool` + `capability/workflow`（保留 2 值）+ 收编清单用到的 7 个：`preset/style` / `preset/lighting` / `preset/camera` / `preset/lens` / `preset/motion` / `preset/channel-spec` / `template/canvas` / `spec/prompt-template` / `spec/generation` | 立即 |
+| **R25m 本枝** | `capability/tool` + `capability/workflow`（保留 2 值）+ 收编清单用到的 **9** 个：`preset/style` / `preset/lighting` / `preset/camera` / `preset/lens` / `preset/motion` / `preset/channel-spec` / `template/canvas` / `spec/prompt-template` / `spec/generation` | 立即 |
 | **留槽** | `asset/image` / `asset/video` / `asset/audio` / `model/checkpoint` | **有真实消费者再进枚举** |
 
 > 说明：`asset/image` / `asset/video` 是**实码已有的 3 值之二**（O-03 时就在），
