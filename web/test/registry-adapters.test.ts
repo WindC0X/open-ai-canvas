@@ -11,7 +11,10 @@ import { ASSET_KIND_LABELS, isStyleAsset, registryAssetFromCameraProfile, regist
 import { findLegacyLightingPreset, LEGACY_LIGHTING_PRESETS } from "../src/lib/canvas/legacy-lighting-presets";
 import { CAMERA_PROFILES, LENS_PROFILES } from "../src/lib/canvas/camera-prompt-library";
 import { readFileSync } from "node:fs";
-import { degradedNoticeText, loadStyleAssets } from "../src/lib/canvas/registry-reader";
+import { degradedNoticeText, loadSkillPresetAssets, loadStyleAssets } from "../src/lib/canvas/registry-reader";
+import { registryAssetFromSkillPreset } from "../src/lib/canvas/registry-adapters";
+import type { RegistryAsset } from "../src/lib/canvas/registry-asset";
+import type { SkillPreset } from "../src/services/api/skills";
 import { isAssetVisibleToUser, PRESET_ASSET_KINDS } from "../src/lib/canvas/registry-asset";
 import type { CanvasStylePreset } from "../src/lib/canvas/canvas-style-system";
 
@@ -34,6 +37,18 @@ const SERVER_STYLE_TOOL = {
     favorited: false,
     createdAt: "2026-01-01 00:00:00",
     updatedAt: "2026-01-01 00:00:00",
+};
+
+/** 服务端技能场景预设样例（照 presets.json 首条的真实字段）。 */
+const SKILL_PRESET: SkillPreset = {
+    presetId: "short-drama-starter",
+    name: "短剧爆款起步",
+    scene: "drama",
+    skillIds: ["16000000000081", "16000000000077", "16000000000091", "14811816970508"],
+    rationale: "新手第一站：实战手册管钩子/反转/爽点方法论。",
+    source: "hand-curated",
+    evidence: "E4",
+    upgrade: "singles 上架后替换对应域包位。",
 };
 
 /** legacy 预设样例（照 canvas-style-picker-modal.tsx 的真实结构）。 */
@@ -327,5 +342,78 @@ describe("注册表资产层——片 4 机位/镜头预设适配", () => {
         expect(PRESET_ASSET_KINDS.includes("preset/lighting")).toBe(true);
         expect(PRESET_ASSET_KINDS.includes("preset/camera")).toBe(true);
         expect(PRESET_ASSET_KINDS.includes("preset/lens")).toBe(true);
+    });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// 片 5：skills presets（服务端源 GET /api/skills/presets）
+// ────────────────────────────────────────────────────────────────────────────
+
+describe("注册表资产层——片 5 技能场景预设适配", () => {
+    test("服务端 SkillPreset 适配为 spec/prompt-template（origin: server）", () => {
+        const asset = registryAssetFromSkillPreset(SKILL_PRESET);
+        expect(asset.assetKind).toBe("spec/prompt-template");
+        expect(asset.origin).toBe("server");
+        expect(asset.slug).toBe("short-drama-starter");
+        expect(asset.title).toBe("短剧爆款起步");
+        expect(asset.group).toBe("drama");
+    });
+
+    test("★ prompt 留空 —— 不用 rationale（人面）冒充模型面提示词", () => {
+        const asset = registryAssetFromSkillPreset(SKILL_PRESET);
+        // 本源无模型面提示词；rationale 是人面说明，混入 prompt 会污染提示词链路
+        expect(asset.prompt).toBe("");
+        expect(asset.prompt).not.toContain("新手第一站");
+    });
+
+    test("语义细节不丢 —— skillIds/evidence/upgrade 并入 description", () => {
+        const asset = registryAssetFromSkillPreset(SKILL_PRESET);
+        expect(asset.description).toContain("新手第一站");
+        expect(asset.description).toContain("技能组合：4 项");
+        expect(asset.description).toContain("证据等级：E4");
+    });
+});
+
+describe("注册表资产层——片 5 降级分支（控制线要求必带）", () => {
+    test("服务端不可达 + 无降级源 → degraded=true 且空列表（不造数据）", async () => {
+        const result = await loadSkillPresetAssets();
+        // 测试环境无后端 → 走 catch 分支
+        expect(result.degraded).toBe(true);
+        expect(result.assets).toEqual([]);
+        expect(result.degradedReason).toBeTruthy();
+    });
+
+    test("服务端不可达 + 有降级源 → degraded=true 且只收 local-fallback 记录", async () => {
+        const fallback: RegistryAsset = {
+            assetId: "local-1",
+            assetKind: "spec/prompt-template",
+            slug: "local-1",
+            title: "本地兜底",
+            group: "drama",
+            prompt: "",
+            origin: "local-fallback",
+        };
+        const result = await loadSkillPresetAssets({ localFallback: [fallback] });
+        expect(result.degraded).toBe(true);
+        expect(result.assets).toHaveLength(1);
+        expect(result.assets[0].origin).toBe("local-fallback");
+    });
+
+    test("降级文案可读（沿用既有 degradedNoticeText）", async () => {
+        const result = await loadSkillPresetAssets();
+        const notice = degradedNoticeText(result);
+        expect(notice).toContain("已离线展示内置预设");
+        expect(notice).toContain("未能连接服务端");
+    });
+
+    test("★ 降级源纪律：混入 server 记录被过滤（防 fallback 冒充服务端数据）", async () => {
+        const mixed: RegistryAsset[] = [
+            { assetId: "a", assetKind: "spec/prompt-template", slug: "a", title: "A", group: "", prompt: "", origin: "local-fallback" },
+            { assetId: "b", assetKind: "spec/prompt-template", slug: "b", title: "B", group: "", prompt: "", origin: "server" },
+        ];
+        const result = await loadSkillPresetAssets({ localFallback: mixed });
+        expect(result.degraded).toBe(true);
+        expect(result.assets).toHaveLength(1);
+        expect(result.assets[0].slug).toBe("a");
     });
 });

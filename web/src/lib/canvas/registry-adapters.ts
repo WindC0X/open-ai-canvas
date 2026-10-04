@@ -14,6 +14,7 @@ import type { CanvasStylePreset } from "./canvas-style-system";
 import type { CameraProfile, LensProfile } from "./camera-prompt-library";
 import type { LegacyLightingPreset } from "./legacy-lighting-presets";
 import { assetKindFromToolType, type AssetKind, type RegistryAsset } from "./registry-asset";
+import type { SkillPreset } from "@/services/api/skills";
 import type { ToolItem, ToolSummary } from "@/services/api/tools";
 
 /**
@@ -136,6 +137,44 @@ export function registryAssetFromLensProfile(profile: LensProfile): RegistryAsse
         description: profile.description || undefined,
         enabled: true,
         origin: "local-fallback",
+    };
+}
+
+/**
+ * 服务端技能场景预设 → 统一资产记录（片 5）。
+ *
+ * 与片 1 同为**服务端源**（`GET /api/skills/presets`），origin 固定 `server`。
+ *
+ * ★ 形状差异（架构方案 §2.4「三组字段高度同构」的对照面）：
+ * 本源的记录形状与 tools.json 三组**不同构** —— 它是「场景组合」（skillIds 数组 +
+ * rationale 依据 + evidence 证据等级 + upgrade 升级路径），不是单条提示词预设。
+ * 因此映射时：
+ *   - `prompt` 留空（本源无模型面提示词；rationale 是**人面**说明，不得冒充 prompt）
+ *   - 语义细节（skillIds / evidence / upgrade）并入 description，不丢信息
+ */
+export function registryAssetFromSkillPreset(preset: SkillPreset): RegistryAsset {
+    // rationale 是人面说明；skillIds/evidence/upgrade 是结构化元数据 ——
+    // 全部保留在 description（本源的语义密度高，不丢信息）
+    const details = [
+        preset.rationale,
+        preset.skillIds.length ? `技能组合：${preset.skillIds.length} 项` : "",
+        preset.evidence ? `证据等级：${preset.evidence}` : "",
+        preset.upgrade ? `升级路径：${preset.upgrade}` : "",
+    ].filter(Boolean);
+
+    return {
+        assetId: preset.presetId,
+        assetKind: "spec/prompt-template",
+        slug: preset.presetId,
+        title: preset.name,
+        // scene 是场景分组（drama/…）—— 对应服务端 tools 的 tag 语义
+        group: preset.scene,
+        // ★ 本源无模型面提示词 —— 留空而非拿 rationale 冒充（架构方案 §3.3：
+        // prompt 字段承载模型面文本；混入人面说明会污染提示词链路）
+        prompt: "",
+        description: details.join(" · ") || undefined,
+        enabled: true,
+        origin: "server",
     };
 }
 

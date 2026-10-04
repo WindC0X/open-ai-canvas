@@ -8,9 +8,10 @@
  * 据 `degraded` 决定是否渲染「离线预设」提示。
  */
 
-import { registryAssetFromLegacyStylePreset, registryAssetsFromToolSummaries } from "./registry-adapters";
+import { registryAssetFromLegacyStylePreset, registryAssetFromSkillPreset, registryAssetsFromToolSummaries } from "./registry-adapters";
 import { isAssetVisibleToUser, type RegistryAsset, type RegistryAssetListResult } from "./registry-asset";
 import type { CanvasStylePreset } from "./canvas-style-system";
+import { listSkillPresets } from "@/services/api/skills";
 import { listTools, type ToolSummary } from "@/services/api/tools";
 
 /** 读取风格类资产的输入。 */
@@ -47,6 +48,47 @@ export async function loadStyleAssets(input: LoadStyleAssetsInput = {}): Promise
         if (isAbortError(error)) throw error;
 
         const assets = localFallback.map(registryAssetFromLegacyStylePreset).filter((asset) => isAssetVisibleToUser(asset, { videoLineEnabled }));
+        return {
+            assets,
+            degraded: true,
+            degradedReason: describeLoadFailure(error),
+        };
+    }
+}
+
+/** 读取技能场景预设的输入（片 5）。 */
+export type LoadSkillPresetAssetsInput = {
+    /**
+     * 本地降级源（可选）。
+     *
+     * ★ 片 5 与片 2 的差异：skills presets **无既有前端常量** ——
+     * 架构方案 §3.2 禁止「把 fallback 当默认路径」，也禁止为降级**新造**第二份真值。
+     * 因此本参数默认缺省：服务端不可达时返回空列表 + degraded 标记（由调用方
+     * 决定是否提供本地源），而不是凭空造数据。
+     */
+    localFallback?: RegistryAsset[];
+    /** 请求取消信号。 */
+    signal?: AbortSignal;
+};
+
+/**
+ * 读取技能场景预设资产（片 5）—— 服务端优先，失败按可用降级源处理。
+ *
+ * 与片 1 同构：`GET /api/skills/presets` 是服务端源。
+ * 降级语义：服务端不可达 → degraded=true；有 localFallback 则用之，无则空列表。
+ */
+export async function loadSkillPresetAssets(input: LoadSkillPresetAssetsInput = {}): Promise<RegistryAssetListResult> {
+    const { localFallback, signal } = input;
+
+    try {
+        const payload = await listSkillPresets();
+        const assets = (payload.presets ?? []).map(registryAssetFromSkillPreset);
+        return { assets, degraded: false };
+    } catch (error) {
+        if (isAbortError(error)) throw error;
+
+        // 无降级源时返回空列表 —— 不造数据（架构方案 §3.2 禁止 fallback 当默认路径）
+        const assets = (localFallback ?? []).filter((asset) => asset.origin === "local-fallback");
         return {
             assets,
             degraded: true,
