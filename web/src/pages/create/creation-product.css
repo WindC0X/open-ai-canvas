@@ -272,3 +272,185 @@ html:not(.dark) .app-product-overlays .creation-control-popover .ant-popover-inn
 html:not(.dark) .app-product-overlays .creation-control-popover-surface {
     box-shadow: 0 16px 40px rgba(25, 25, 30, .12) !important;
 }
+
+/* ── W5 直线入口：可执行卡网格 + 卡流程弹层 ──────────────────────────────
+   样式纪律：复用 creation token（--creation-surface / --creation-border / --creation-text /
+   --creation-muted），不新增字面色值；与 .creation-empty-suggest 同宽同节奏。 */
+.creation-home .linear-flow-card-grid {
+    width: min(820px, calc(100% - 28px));
+    margin: 22px auto 0;
+}
+
+.linear-flow-card-grid-heading h2 {
+    margin: 0 0 4px;
+    color: var(--creation-text);
+    font-size: var(--fs-body);
+    font-weight: 600;
+}
+
+.linear-flow-card-grid-heading p {
+    margin: 0 0 12px;
+    color: var(--creation-muted);
+    font-size: var(--fs-label);
+    line-height: 1.55;
+}
+
+.linear-flow-card-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+    gap: 12px;
+}
+
+.linear-flow-card {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 66px;
+    padding: 13px 14px;
+    border: 1px solid var(--creation-border);
+    border-radius: var(--r-lg);
+    background: var(--creation-surface);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: var(--elevation-card);
+    transition: background var(--motion-state) var(--motion-ease-out), border-color var(--motion-state) var(--motion-ease-out), box-shadow var(--motion-state) var(--motion-ease-out);
+}
+
+.linear-flow-card:hover:not(:disabled) {
+    border-color: var(--creation-border-strong);
+    background: var(--creation-surface-hover);
+    box-shadow: var(--elevation-card-hover);
+}
+
+.linear-flow-card:focus-visible {
+    outline: 2px solid var(--creation-accent);
+    outline-offset: 2px;
+}
+
+.linear-flow-card:disabled { opacity: .55; cursor: not-allowed; }
+
+.linear-flow-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--creation-border);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--creation-surface-muted) 68%, transparent);
+    color: var(--creation-muted);
+}
+
+.linear-flow-card-copy { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.linear-flow-card-copy strong { color: var(--creation-text); font-size: var(--fs-body); font-weight: 600; line-height: 1.45; }
+.linear-flow-card-copy span { color: var(--creation-muted); font-size: var(--fs-label); line-height: 1.55; }
+.linear-flow-card-go { color: var(--creation-muted); opacity: 0; transition: opacity var(--motion-state) var(--motion-ease-out); }
+.linear-flow-card:hover .linear-flow-card-go, .linear-flow-card-go.is-active { opacity: 1; }
+
+/* 卡流程弹层 */
+.linear-flow-modal-title { display: inline-flex; align-items: center; gap: 8px; }
+
+.linear-flow-steps {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.linear-flow-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--user-surface-muted, rgba(238, 241, 245, .68));
+    color: var(--creation-muted);
+    font-size: var(--fs-label);
+}
+
+.linear-flow-step.is-allowed { color: var(--creation-text); }
+.linear-flow-step.is-current { background: var(--user-surface, rgba(255, 255, 255, .68)); color: var(--creation-text); font-weight: 600; }
+.linear-flow-step.is-locked { opacity: .6; }
+
+.linear-flow-body { display: flex; flex-direction: column; gap: 14px; }
+
+.linear-flow-upload-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 42px;
+    border: 1px dashed var(--creation-border-strong);
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--creation-muted);
+    cursor: pointer;
+}
+
+.linear-flow-upload-preview { display: flex; align-items: center; gap: 12px; }
+.linear-flow-upload-preview img { width: 56px; height: 56px; object-fit: cover; border-radius: var(--r-md); border: 1px solid var(--creation-border); }
+
+.linear-flow-questions { display: flex; flex-direction: column; gap: 14px; }
+.linear-flow-question { display: flex; flex-direction: column; gap: 8px; }
+.linear-flow-question label { color: var(--creation-text); font-size: var(--fs-label); font-weight: 600; }
+.linear-flow-options { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.linear-flow-option {
+    padding: 6px 12px;
+    border: 1px solid var(--creation-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--creation-text);
+    font-size: var(--fs-label);
+    cursor: pointer;
+    transition: border-color var(--motion-state) var(--motion-ease-out), background var(--motion-state) var(--motion-ease-out);
+}
+
+.linear-flow-option[aria-pressed="true"] { border-color: var(--creation-accent); background: color-mix(in srgb, var(--creation-accent) 10%, transparent); }
+.linear-flow-option:focus-visible { outline: 2px solid var(--creation-accent); outline-offset: 2px; }
+
+.linear-flow-progress, .linear-flow-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: var(--r-md);
+    font-size: var(--fs-label);
+}
+
+.linear-flow-progress { background: var(--creation-surface-muted); color: var(--creation-text); }
+.linear-flow-error { background: color-mix(in srgb, #d4380d 12%, transparent); color: #d4380d; }
+
+.linear-flow-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.linear-flow-footer-actions { display: flex; gap: 8px; margin-left: auto; }
+.linear-flow-scene-hint { color: var(--creation-muted); font-size: var(--fs-label); }
+
+.linear-flow-deliver { display: flex; flex-direction: column; gap: 12px; }
+.linear-flow-result-image { width: 100%; max-height: 420px; object-fit: contain; border-radius: var(--r-md); border: 1px solid var(--creation-border); }
+.linear-flow-result-text { max-height: 320px; overflow: auto; padding: 12px; border-radius: var(--r-md); background: var(--creation-surface-muted); color: var(--creation-text); font-size: var(--fs-label); white-space: pre-wrap; }
+.linear-flow-deliver-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.linear-flow-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--r-md);
+    background: var(--creation-accent);
+    color: #fff;
+    font-size: var(--fs-label);
+    text-decoration: none;
+}
+
+.linear-flow-deliver-hint { margin: 0; color: var(--creation-muted); font-size: var(--fs-label); }
+.linear-flow-warning { margin: 0; color: #d4380d; font-size: var(--fs-label); }
+.linear-flow-progress .is-spinning { animation: linear-flow-spin 1s linear infinite; }
+
+@keyframes linear-flow-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .linear-flow-progress .is-spinning { animation: none; }
+}

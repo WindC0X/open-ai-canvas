@@ -292,3 +292,112 @@ export type LinearFlowNodeGate = {
 | 四档判据 | ✅ §四映射 |
 | 命名分流红线（upscale vs superResolve） | ✅ 卡命名按任务，不引入能力词 |
 | R25m 收编 5 源 | ✅ 作为卡的数据层（零新造） |
+
+---
+
+## 九、实现记录（B线，2026-10-04 下午批）
+
+> 本节由实现方追加，记录**实际落地范围与三处控制线裁定**，不改动上文封版内容。
+
+### 9.1 控制线三项裁定（2026-10-04，开工前侦察报备后）
+
+| # | 侦察发现的偏差 | 裁定 |
+|---|---|---|
+| ① | 姊妹卡 `UnifiedTaskFace` / `headless_task` **全仓零实现**（A线双卡 b1b6fe37 + 06a24ad0 均为 docs(plan) 提交） | **方案 A**：C3 自建轻量交付面（结果图 + 下载 + 可选「在画布中打开」），不依赖 UnifiedTaskFace。铁律「不新建任务 UI」禁的是任务管理界面再造，不是交付步的下载按钮 |
+| ② | 首批 4 张命名中「换背景」「九宫格」**存量无卡数据** | **本轮只做有存量的 4 张**，不新造数据。「8 是上限不是配额，宁少勿造」；换背景挂 W5-W6 缝隙批补数据设计，九宫格挂 W8 四档入口盘点（它是画布内工具集，做卡是形态迁移问题） |
+| ③ | R25m 5 源与卡列表的关系 | 5 源（光照/机位/镜头/场景/渠道规格）= **卡流程内的参数面**，不是卡列表来源。卡列表只来自 ecom-starters 4 张存量 |
+
+### 9.2 实际交付（C1-C3）
+
+| 切片 | 文件 | 内容 |
+|---|---|---|
+| C1 | `web/src/lib/canvas/linear-flow-cards.ts`（新增） | 卡数据层：4 张卡（白底主图/场景图/3:4 详情图/批量优化提示词）+ 提示词模板 + ≤3 问 + 元数据构建纯函数 |
+| C1 | `web/src/components/create/linear-flow-card-grid.tsx`（新增） | 卡网格组件（/create 空态挂载） |
+| C2 | `web/src/lib/canvas/scene-execution.ts`（改） | 债一兑现：直线卡显式写 `metadata.scenePresetId`；`detectScenePresetFromPrompt` 降为 **Agent 路径兜底**（保留不删）+ 注释同步 |
+| C3 | `web/src/components/create/linear-flow-runner.tsx`（新增） | 卡流程执行器：点卡→传图→≤3 问→出图→**下载**（交付步在流程内） |
+| C3 | `web/src/lib/canvas/linear-flow-gate.ts`（新增） | 门控三态 `allowed/locked/hidden`（只锁直线流程内，纯函数零画布依赖） |
+| C3 | `web/src/pages/create/index.tsx`（改） | 网格接线 + runner 挂载 + 「在画布中打开」交接 |
+| — | `web/src/pages/create/creation-product.css`（改） | 网格与弹层样式（复用 creation token） |
+| — | `web/test/linear-flow-*.test.ts`（4 个新增） | 卡数据/门控/债一端到端/流程结构，共 64 test |
+
+### 9.3 ★ 技术债显式化：交付面回改点（控制线要求记档）
+
+**当前状态**：`linear-flow-runner.tsx` 自建轻量交付面（结果图 + 下载 + 可选画布入口）。
+
+**回改触发**：姊妹卡实现批落地后（首件=守卫测试、第二件=预览/下载补齐，见 `w5-unified-task-face-card.md` §实现批排序）。
+
+**回改动作**：把 `linear-flow-runner.tsx` 的交付 `section` 替换为 `<UnifiedTaskFace taskIds={...} onDownload={...} showOpenInCanvas />`，消除重复实现。runner 的生成步与门控不受影响。
+
+**为什么显式记档**：这是「组件尚未实现」导致的**时序债**，不是设计偏离 —— 写进文档避免后续被当成隐性分叉。
+
+### 9.4 验收对齐（本批 C1-C3 相关项）
+
+| # | 验收 | 状态 | 证据 |
+|---|---|---|---|
+| 4 | `scenePresetId` 显式传递（零反查） | ✅ | `linear-flow-scene-handoff.test.ts` 11 test（含反证：去标记后反查失败） |
+| 5 | 卡命名按任务 | ✅ | `linear-flow-cards.test.ts` 断言卡名 + 禁能力词 |
+| 6 | 首批 ≤8 张 | ✅ | 断言 ≤8 且实际 4 张（控制线裁定②） |
+| 7 | 4 张休眠卡唤醒 | ✅ | 断言卡集合 = `ECOM_STARTER_CARDS` 集合 |
+| 8 | 门控三态可验证 | ✅ | `linear-flow-gate.test.ts` 13 test（三态互斥完备） |
+| 10 | 默认完整画布不受影响 | ✅ | 断言门控模块零画布 store 依赖 + 纯函数 |
+| 硬验收③ | 交付步在卡流程内 | ✅ | `linear-flow-runner.test.ts` 断言下载/复制在弹层内，不跳转外部页 |
+| 硬验收② | 画布任一步可达（给而不要求） | ✅ | 断言 `onOpenInCanvas` 可选 + 卡流程本身不写画布 |
+| 硬验收① | 双条件（不见画布 + 画布可达） | ✅ | Modal 承载 + 网格挂载 + 页面级 runner |
+| 9 | 毕业机制（完成首单解锁 node-hover 20 项） | ⏸ **不在本批** | 依赖姊妹卡与画布引导态，属梯度 1 后续批 |
+
+### 9.5 边界说明
+
+- **真机验证**：本批未跑真机浏览器验收（B线下午批范围）。C1-C3 为结构 + 纯函数 + 源码可达性测试；卡流程的端到端真机验证（点卡→上传→问→出图→下载）留待合并后按需补。
+- **梯度 2 话术层**：按设计卡 §七不做。
+- **九宫格/换背景卡**：按裁定②移出本批。
+
+---
+
+## 十、修复记录（B线，2026-10-04 · 测试线 b12r16 ③ 阻塞）
+
+> 测试线真机抓到：**图片卡提交了文本模型（grok-4.6）→ HTTP 400，UI 显示与实际提交不一致**。
+> 本节记录根因与修复，供后续批次参照（接线面零看守是本缺陷的成因）。
+
+### 10.1 根因（两处叠加）
+
+| # | 位置 | 问题 |
+|---|---|---|
+| ① | `create/index.tsx` runner 挂载点 | 传 `config={generationConfig}` —— 那是**页面当前模式**的配置，`config.model` 可能是对话模型。runner 的 `model` prop 声明「图片卡走 imageModel」但调用方没按 `card.mode` 重写 |
+| ② | `linear-flow-runner.tsx` 提交处 | 用 `config` 而非 `model` prop → `generation-task.ts` 的 `backendGenerationTaskInput` 取 `config.model`，`model` prop 完全未生效 |
+
+**为什么静态门禁拦不住**：前 4 个测试文件全是**纯函数测试**（卡数据/门控/提示词/源码字符串），接线面零看守 —— 与 super-resolve 的 NO-GO 教训同族（「断言必须落在函数的实际返回值上，不能落在源码文本上」）。
+
+### 10.2 修复（4 项，对应修复令清单）
+
+| # | 修复 | 位置 |
+|---|---|---|
+| 1 | `linearFlowConfig` memo：按 `card.mode` 重写 `model` 族（图片卡 → `imageModel`，文本卡 → `textModel`），照 `creationVideoConfig` 范式 | `create/index.tsx` |
+| 2 | `linearFlowCardAspect(card)`：卡片比例 → 尺寸，走 **O-03 层1 `ECOM_CHANNEL_PRESETS`** 口径（白底主图 = `amazon-main` 1:1；详情图 = `detail-3x4` 3:4），**不新造尺寸值**；无绑定的卡返回 `undefined` 走模型默认 | `linear-flow-cards.ts` |
+| 3 | ★ **接线级断言**（测试线建议，采纳）：新增 `linear-flow-wiring.test.ts` 14 test，断言**提交体实际返回值**（`prepareBackendGenerationTask` 的 `input.model` / `input.config.size`）与 `card.mode` 匹配，含**反证**（不重写 config 时提交体带错模型） | `web/test/linear-flow-wiring.test.ts` |
+| 4 | runner 契约注释（`:50`）与实现对齐：明确「调用方须按 card.mode 重写」，并加**防御层**（`config.model !== model` 时以 `model` prop 为准） | `linear-flow-runner.tsx` |
+
+### 10.3 门禁
+
+tsc 0 / eslint 0（改动文件）/ linear-flow 五文件 **78 pass**（原 64 + 新 14）/ 关联回归 49 pass。
+
+### 10.4 教训记档（接线面看守）
+
+**「纯函数测试全绿」不等于「接线可用」** —— 本批 C1-C3 的 64 个测试全绿，但缺陷在
+「调用方怎么传参」这一层，任何纯函数断言都照不到。后续批次若含**跨组件契约**
+（调用方按 prop 语义传参），测试面必须包含**提交体/返回值的结构断言**，不能只测被调方。
+
+### 10.5 二轮修复（b12r16-③R，2026-10-04）
+
+**测试线复跑实证**：模型接线 ✅ 修复成功（UI 显示与提交一致）；交付步 ✅ 可达（44s 出图 + 下载 943KB）。
+**剩余唯一阻塞** = 比例语义：根因是**比例字符串 vs 像素值**。
+
+| 项 | 内容 |
+|---|---|
+| 根因 | 上轮把 `size` 写成比例字符串（`"1:1"`），但 `size` 协议模型要**像素值**（`"1024x1024"`）→ 实测报「画面尺寸超出支持范围」 |
+| 关键事实 | 真实模型有两种 `size.parameter`（f08 debug DB 实测）：<br>· `size` 参数模型（gpt-image-2.5）：values = 像素值<br>· `aspect_ratio` 参数模型（nano-banana2）：values = 比例 |
+| 修复 | 新增 `resolveLinearFlowSize(profile, aspect)`：消费既有 `imageSizePresets` + `imagePresetValue`（**不自写解析**，修复令要求）<br>· 声明值含该比例 → 直用（覆盖 aspect_ratio 模型与 LOOSE 形态）<br>· 严格 size 模型 → 按 ratio 查 presets 得像素值<br>· 匹配不到 → `undefined`，**不传 size 走模型默认** + `console.info` 记录 |
+| 验证 | 1:1 → `1024x1024`；3:4 → `1024x1360` —— **与测试线实证完全一致** |
+| 断言追加 | wiring 测试 +11（共 25）：size 协议 / aspect_ratio 协议两分支 + **反证**（比例字符串不在 size 模型 values 里）+ 结果必为模型合法值 + 兜底路径 + 消费既有函数一致性 |
+| runner 注释核对 | 上轮已对齐（契约声明与实现一致），本轮复核通过 |
+
+**门禁**：tsc 0 / eslint 0 / linear-flow 五文件 **89 pass**（原 78 + 新 11）。

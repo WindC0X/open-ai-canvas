@@ -27,17 +27,21 @@ export type SceneExecutionRuntime = {
 };
 
 /**
- * 从提示词文本识别场景预设（过渡形态的标记传递路径）。
+ * 从提示词文本识别场景预设 —— **Agent 路径兜底**（W5 直线入口设计卡债一兑现后降级）。
  *
- * ★ 为什么需要它（诚实说明）：
- * 场景入口（Agent 面板）与生成执行器（画布页）不在同一组件树，且 Agent 建的草稿
- * 节点由后端 patch 创建 —— 前端入口**无法**直接往节点元数据写 `scenePresetId`。
- * 而入口生成的 brief 文本由本仓控制、形如：
+ * ★ 现状（W5 直线入口设计卡 §2.1 兑现，2026-10-04）：
+ * **直线流程不再依赖本函数** —— 直线卡是链路起点（不经 Agent 对话），创建节点时
+ * 直接写入 `metadata.scenePresetId`（见 `linear-flow-runner` / `linear-flow-cards`），
+ * 执行器读元数据零反查。
+ *
+ * 本函数保留为**兜底**：Agent 路径仍可能走文本（场景入口在 Agent 面板，与生成
+ * 执行器不在同一组件树，且 Agent 建的草稿节点由后端 patch 创建 —— 前端入口无法
+ * 直接写元数据）。入口生成的 brief 文本由本仓控制、形如：
  *   「帮我做一张「晨光厨房」风格的商拍场景图：...」
  * 故按「「<场景名>」风格的商拍场景图」这一稳定句式反查场景库。
  *
- * W5 直线入口设计卡出稿后，标记应由链路显式传递（元数据字段已预留），
- * 本函数届时退化为兜底。
+ * ★ 与显式传递的优先级：`resolveSceneExecution` 中元数据标记**优先**，
+ * 本函数仅在标记缺失时介入（见 `isSceneGenerationNode` 同序）。
  */
 export function detectScenePresetFromPrompt(prompt: string): ScenePreset | undefined {
     const text = String(prompt || "");
@@ -47,7 +51,7 @@ export function detectScenePresetFromPrompt(prompt: string): ScenePreset | undef
     return byLength.find((preset) => text.includes(`「${preset.title}」`));
 }
 
-/** 节点是否标记为场景图任务（元数据标记优先，回退文本识别）。 */
+/** 节点是否标记为场景图任务（元数据标记优先，回退 Agent 路径文本识别）。 */
 export function isSceneGenerationNode(node: CanvasNodeData | undefined): boolean {
     if (node?.metadata?.scenePresetId) return true;
     return Boolean(detectScenePresetFromPrompt(String(node?.metadata?.prompt || node?.metadata?.composerContent || "")));
@@ -67,7 +71,7 @@ export function resolveSceneExecution(
     options: { hasMask?: boolean; degraded?: boolean; hasSceneReference?: boolean } = {},
 ): SceneExecutionRuntime | null {
     const marked = String(sourceNode?.metadata?.scenePresetId || "").trim();
-    // 标记优先（W5 目标形态）；无标记时回退按 brief 句式识别（过渡形态）
+    // 标记优先（W5 直线卡显式传递形态）；无标记时回退按 brief 句式识别（Agent 路径兜底）
     const detected = marked ? undefined : detectScenePresetFromPrompt(prompt);
     const scenePresetId = marked || detected?.id || "";
     if (!scenePresetId) return null;
