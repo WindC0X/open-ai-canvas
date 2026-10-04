@@ -17,6 +17,17 @@ export type AnnotateEditSubmissionInput = {
     source: ReferenceImage;
     /** 标注图 dataUrl（结构化=裁剪合成版；画笔=整图合成版）。 */
     annotatedDataUrl: string;
+    /**
+     * ★ R1 修复（B-2）：标注图的物化 storageKey。
+     *
+     * 为什么必需：`buildImageGenerationMetadata` 的 `referenceUrl` 对纯 dataUrl 返回
+     * undefined（只留 storageKey/url）→ 标注图被过滤出 `metadata.references` →
+     * 重试链 `resolveMetadataReferences` 只能恢复原图单图，而 prompt 仍宣称
+     * 「第二张图是带标注的截图」→ 模型按单图理解，标注语义静默丢失。
+     *
+     * 缺省（上传失败/未传）时退化为旧行为（仅当前提交带 dataUrl 两图）。
+     */
+    annotatedStorageKey?: string;
     /** 编辑意图。 */
     actionHint: AnnotateEditAction;
     /** 结构化标注数（画笔模式为 0）。 */
@@ -29,7 +40,9 @@ export type AnnotateEditSubmissionInput = {
     /**
      * ★ P1 修复（通道 b）：结构化标注（含 note），按序号进提示词。
      *
-     * 画笔模式为空数组（无文字输入）；元数据里仍保留完整标注供审计。
+     * 画笔模式为空数组（无文字输入）。
+     * ★ R1 修复（B-3）：逐条标注明细**同时写入元数据**（兑现本字段早先注释里
+     * 「保留完整标注供审计」的承诺 —— 此前注释承诺但函数体未落）。
      */
     annotations?: AnnotateEditAnnotation[];
 };
@@ -47,6 +60,13 @@ export type AnnotateEditSubmission = {
             strokeCount: number;
             exportWidth: number;
             exportHeight: number;
+            /**
+             * ★ R1 修复（B-3）：逐条标注明细（形状 + 修改要求），供审计/重试定位。
+             *
+             * 兑现注释承诺（此前声称「保留完整标注供审计」但未落字段）。
+             * 画笔模式无此字段（无结构化标注）。
+             */
+            annotations?: Array<{ shape: AnnotateEditAnnotation["shape"]; note: string }>;
         };
     };
 };
@@ -123,11 +143,16 @@ export function buildAnnotateEditSubmission(input: AnnotateEditSubmissionInput):
         name: "annotation.png",
         type: "image/png",
         dataUrl: input.annotatedDataUrl,
+        // ★ R1 修复（B-2）：物化 storageKey 带上 —— 否则 referenceUrl 过滤后重试链
+        // 只能恢复原图单图（详见 AnnotateEditSubmissionInput.annotatedStorageKey 注释）。
+        ...(input.annotatedStorageKey ? { storageKey: input.annotatedStorageKey } : {}),
     };
     // ★ P1 修复（通道 b）：结构化标注的修改要求按序号进提示词（与截图徽标一一对应）。
     const notes: AnnotateEditPromptNote[] = (input.annotations ?? [])
         .map((annotation, index) => ({ label: index + 1, shape: annotation.shape, note: annotation.note }))
         .filter((item) => item.note.trim().length > 0);
+    // ★ R1 修复（B-3）：逐条标注明细进元数据（兑现「保留完整标注供审计」承诺）。
+    const annotationDetails = (input.annotations ?? []).map((annotation) => ({ shape: annotation.shape, note: annotation.note }));
     return {
         prompt: buildAnnotateEditPrompt({
             // 画笔模式的「标注数」= 笔数（提示词元数据行对用户语义一致：截图上标了多少处）。
@@ -147,6 +172,7 @@ export function buildAnnotateEditSubmission(input: AnnotateEditSubmissionInput):
                 strokeCount: input.strokeCount,
                 exportWidth: input.exportWidth,
                 exportHeight: input.exportHeight,
+                ...(annotationDetails.length ? { annotations: annotationDetails } : {}),
             },
         },
     };

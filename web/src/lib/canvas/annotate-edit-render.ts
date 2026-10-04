@@ -77,7 +77,7 @@ export function drawAnnotationShape(context: CanvasRenderingContext2D, annotatio
         context.setLineDash([8, 6]);
         context.strokeRect(left, top, width, height);
         context.setLineDash([]);
-        drawLabelBadge(context, label, left, top, imageWidth);
+        drawLabelBadge(context, label, left, top, imageWidth, imageHeight);
         drawAnnotationNote(context, annotation.note, left + width, top, imageWidth, imageHeight);
         return;
     }
@@ -102,7 +102,7 @@ export function drawAnnotationShape(context: CanvasRenderingContext2D, annotatio
         context.lineTo(toX - headLength * Math.cos(angle + offset), toY - headLength * Math.sin(angle + offset));
         context.stroke();
     }
-    drawLabelBadge(context, label, fromX, fromY, imageWidth);
+    drawLabelBadge(context, label, fromX, fromY, imageWidth, imageHeight);
     drawAnnotationNote(context, annotation.note, toX, toY, imageWidth, imageHeight);
 }
 
@@ -180,11 +180,19 @@ function visibleLength(text: string): number {
     return text.length;
 }
 
-/** 序号徽标（白色数字圆点，钉在标注起点）。 */
-function drawLabelBadge(context: CanvasRenderingContext2D, label: number, x: number, y: number, imageWidth: number) {
+/**
+ * 序号徽标（白色数字圆点，钉在标注起点）。
+ *
+ * ★ R1 修复（B-1）：clamp 必须用**原图像素空间**（imageWidth/imageHeight），
+ * 不能用 `context.canvas` 尺寸 —— 导出路径先 scale+translate 再绘制
+ * （annotate-edit-export.ts），canvas 尺寸是**裁剪后的导出画布**，与原图坐标空间不同。
+ * 原实现按 canvas 尺寸 clamp，会把超出导出画布的锚点拉到 [radius, canvas.width-radius]，
+ * 再经 translate(-bounds.left) 变成负坐标 → 徽标整体跑出画布左侧，且多条重合
+ * （评审线实测：正确落点 [32,1432]，实际 [-354,-654]）。
+ */
+function drawLabelBadge(context: CanvasRenderingContext2D, label: number, x: number, y: number, imageWidth: number, imageHeight: number) {
     const radius = Math.max(10, imageWidth / 80);
-    const centerX = Math.min(Math.max(x, radius), context.canvas.width - radius);
-    const centerY = Math.min(Math.max(y, radius), context.canvas.height - radius);
+    const { x: centerX, y: centerY } = badgeCenter(x, y, imageWidth, imageHeight, radius);
     context.beginPath();
     context.arc(centerX, centerY, radius, 0, Math.PI * 2);
     context.fillStyle = annotateArrowColor;
@@ -194,4 +202,18 @@ function drawLabelBadge(context: CanvasRenderingContext2D, label: number, x: num
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.fillText(String(label), centerX, centerY);
+}
+
+/**
+ * 徽标圆心 clamp（★ R1 修复 B-1 的**真接缝**，导出供接线级测试直接断言）。
+ *
+ * 坐标系 = **原图像素空间**（与 drawAnnotationShape 的绘制坐标一致）。
+ * 用 imageWidth/imageHeight 而非 `context.canvas` 尺寸 —— 后者在导出路径是
+ * 裁剪后的画布尺寸，坐标系错位会让徽标跑到画布外（评审线实测）。
+ */
+export function badgeCenter(x: number, y: number, imageWidth: number, imageHeight: number, radius: number) {
+    return {
+        x: Math.min(Math.max(x, radius), Math.max(radius, imageWidth - radius)),
+        y: Math.min(Math.max(y, radius), Math.max(radius, imageHeight - radius)),
+    };
 }

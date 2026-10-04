@@ -54,3 +54,20 @@ export const GUIDE_VISIBLE_TOOL_IDS: readonly string[] = [
 
 /** 引导态动作数（控制线「6 动作」硬约束）。 */
 export const GUIDE_VISIBLE_TOOL_COUNT = 6;
+
+/**
+ * 引导态工具过滤（★ R1 修复 E-1 的**真接缝**）。
+ *
+ * 图片工具层（`buildImageToolbarTools` 30 项）与注册表层是两条独立定义源，
+ * 此前只有注册表层过白名单 —— 图片层整条旁路，guide 态实测 32 项（评审线 E-1）。
+ *
+ * 本函数是**唯一过滤入口**：`canvas-node-toolbar` 的合并路径调用它，
+ * 接线级测试直接断言它的返回值（不是复刻表达式 —— 防「测试镜像实现」）。
+ *
+ * @param tools 待过滤工具（只需 id 字段）
+ * @param workspaceMode 当前工作区模式（非 guide 原样返回）
+ */
+export function filterToolsForGuide<T extends { id: string }>(tools: T[], workspaceMode: string | undefined): T[] {
+    if (workspaceMode !== "guide") return tools;
+    return tools.filter((tool) => GUIDE_VISIBLE_TOOL_IDS.includes(tool.id));
+}

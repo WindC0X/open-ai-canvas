@@ -329,3 +329,86 @@ export function resolveLinearFlowSize(profile: ImageCapabilityConfig | undefined
     }
     return undefined;
 }
+
+/**
+ * 卡流程生成配置的模型选择（★ R1 修复 D-1 的**单一真值**接缝）。
+ *
+ * 缺陷背景（评审线 D-1）：`index.tsx` 曾把 `model` prop 独立算成 `selectedModel`
+ * （**当前页面模式**的模型），runner 防御层再以它覆写调用方已按 card.mode 选好的模型 ——
+ * 文本/视频页面打开图片卡时重新引入「提交文本模型 → HTTP 400」缺陷。
+ *
+ * 本函数是模型选择的唯一入口：`linearFlowConfig.model` 与 runner 的 `model` prop
+ * **必须同源**（都由本函数产出），从根上消除两处漂移。
+ *
+ * @param card 目标卡（null 时回退 selectedModel）
+ * @param models 当前配置里的三族模型（imageModel / textModel / selectedModel）
+ */
+export function resolveLinearFlowModel(
+    card: Pick<LinearFlowCard, "mode"> | null | undefined,
+    models: { imageModel: string; textModel: string; selectedModel: string },
+): string {
+    if (!card) return models.selectedModel;
+    return card.mode === "text" ? (models.textModel || models.selectedModel) : (models.imageModel || models.selectedModel);
+}
+
+/**
+ * 卡流程生成配置的尺寸解析（★ R1 修复 D-2 的**唯一决定点**）。
+ *
+ * 缺陷背景（评审线 D-2）：`linearFlowConfig` 曾以 `...generationConfig` 打底 ——
+ * 视频模式下 `generationConfig = creationVideoConfig(...)`，其 `size` 是**视频比例**；
+ * 无 aspect 的卡（场景图/文本卡）让视频比例原样透传进图片请求（实测 video/scene-shot
+ * → config.size=16:9），正是两轮修复要消灭的「画面尺寸超出支持范围」那类错误。
+ *
+ * 语义：**size 由本函数唯一决定，不从任何打底配置继承**。
+ *   · image 卡 + 有 aspect → resolveLinearFlowSize 的模型可接受值
+ *   · image 卡 + 无 aspect / 匹配不到 → `"auto"`（发送链不传 size，走模型默认）
+ *   · 非 image 卡（text）→ `"auto"`（不污染）
+ *
+ * @returns 可直接进 `config.size` 的值（永不为 undefined，AiConfig.size 是 required string）。
+ */
+export function resolveLinearFlowConfigSize(
+    card: Pick<LinearFlowCard, "mode"> | null | undefined,
+    profile: ImageCapabilityConfig | undefined,
+    aspect: string | undefined,
+): string {
+    if (!card || card.mode !== "image") return "auto";
+    return resolveLinearFlowSize(profile, aspect) ?? "auto";
+}
+
+/**
+ * 卡流程生成配置的**组装**（★ R1 修复 D-1/D-2 的真接缝）。
+ *
+ * 把 `index.tsx` 的 `linearFlowConfig` useMemo 逻辑提取为纯函数 —— 接线级测试
+ * 直接断言**返回值结构**（模型族 + size），不是复刻表达式也不只是源码文本断言。
+ *
+ * 三条不变量（缺陷根因逐条对应）：
+ *   ① 模型族按 `card.mode` 选（resolveLinearFlowModel 单一真值，D-1）
+ *   ② **size 不从 baseConfig 继承**（显式剥离，D-2）
+ *   ③ 非 image 卡不带图片 size 污染
+ *
+ * @param input.card 目标卡（null 返回 baseConfig 原样）
+ * @param input.config 当前配置（取三族模型名）
+ * @param input.baseConfig 页面当前模式的生成配置（**size 会被剥离**）
+ * @param input.selectedModel 页面当前模式选中的模型（兜底）
+ * @param input.imageProfile 图片能力 profile（resolveLinearFlowSize 用）
+ */
+export function resolveLinearFlowConfig(input: {
+    card: LinearFlowCard | null;
+    config: { imageModel: string; textModel: string };
+    baseConfig: Record<string, unknown>;
+    selectedModel: string;
+    imageProfile: ImageCapabilityConfig | undefined;
+}): Record<string, unknown> {
+    const { card, config, baseConfig, selectedModel, imageProfile } = input;
+    if (!card) return baseConfig;
+    const cardModel = resolveLinearFlowModel(card, { imageModel: config.imageModel, textModel: config.textModel, selectedModel });
+    // ② size 不继承：先剥离 baseConfig.size，再由本函数唯一决定
+    const { size: _inheritedSize, ...configWithoutSize } = baseConfig;
+    const size = resolveLinearFlowConfigSize(card, imageProfile, linearFlowCardAspect(card));
+    return {
+        ...configWithoutSize,
+        model: cardModel,
+        ...(card.mode === "image" ? { imageModel: cardModel } : { textModel: cardModel }),
+        size,
+    };
+}

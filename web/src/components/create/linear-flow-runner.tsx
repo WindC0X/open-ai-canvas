@@ -47,12 +47,19 @@ type RunnerStage = "form" | "generating" | "done" | "error";
 export type LinearFlowRunnerProps = {
     card: LinearFlowCard | null;
     /**
-     * 生成配置基准（**调用方须已按 card.mode 重写 model 族**，见 `create/index.tsx` 的
-     * `linearFlowConfig`）。本组件只做防御性修正：若 `config.model` 与 `model` prop 不一致，
-     * 以 `model` 为准 —— 实测（测试线 b12r16 ③）曾因图片卡提交文本模型而 HTTP 400。
+     * 生成配置基准（**调用方已按 card.mode 重写 model 族**，见 `create/index.tsx` 的
+     * `linearFlowConfig`）。
+     *
+     * ★ R1 修复（D-1）：防御层**不再无条件以 `model` prop 覆写** —— 那会把调用方
+     * 按 card.mode 选好的模型重新改回「当前页面模式的模型」（文本/视频页面开图片卡
+     * 时重新引入已修缺陷）。现行为：仅当 `config.model` 与该卡 mode 对应的模型族字段
+     * （`imageModel` / `textModel`）不一致时，才回退到 `model` prop。
      */
     config: AiConfig;
-    /** 生成用的模型（图片卡 = imageModel；文本卡 = textModel）。★ 本组件据此修正 config.model。 */
+    /**
+     * 本卡模式的模型（与 `linearFlowConfig.model` 同源，调用方用同一变量传递）。
+     * ★ 仅作为防御层回退值：当 `config` 与 mode 族不一致时使用。
+     */
     model: string;
     onClose: () => void;
     /** 可选：把结果转入画布（硬验收②「给而不要求」）。 */
@@ -141,9 +148,16 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
                 ...buildLinearFlowMetadata(card, answers),
                 linearFlowAnswers: answers,
             };
-            // ★ 防御性修正（修复令第 1 面）：契约声明 model 按 card.mode 选择，实现必须真正生效 ——
-            // 调用方已重写 config，此处再以 model prop 为准兜一层，防再出现「UI 显示与实际提交不一致」。
-            const requestConfig = config.model === model ? config : { ...config, model, ...(card.mode === "text" ? { textModel: model } : { imageModel: model }) };
+            // ★ R1 修复（D-1）：防御层只在**配置与 card.mode 模型族不一致**时介入。
+            // 旧实现（`config.model === model ? config : {...覆写}`）在文本/视频页面开图片卡时
+            // 会把调用方选好的 imageModel 改回页面模型（model prop 当时 = selectedModel）——
+            // 重新引入「提交文本模型 → HTTP 400」缺陷。
+            // 现判据：图片卡看 config.imageModel，文本卡看 config.textModel；
+            // 一致则**原样使用**（调用方已重写），不一致才回退到 model prop。
+            const modeModel = card.mode === "text" ? config.textModel : config.imageModel;
+            const requestConfig = config.model === modeModel
+                ? config
+                : { ...config, model, ...(card.mode === "text" ? { textModel: model } : { imageModel: model }) };
             const result = await runBackendGenerationTask({
                 mode: card.mode,
                 prompt,

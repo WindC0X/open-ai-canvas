@@ -17,6 +17,15 @@ import type { AddNodeMenuCommand, AddNodeMenuContext, NodeToolbarGroup, ToolCate
 const registry = new Map<ToolbarId, ToolDefinition[]>();
 const addNodeMenuRegistry: AddNodeMenuCommand[] = [];
 
+/**
+ * 引导态白名单**生效的工具栏**（★ R1 修复 E-2，控制线建议的显式白名单式）。
+ *
+ * 只列 node-hover：引导态的产品语义是「节点可做的 6 个创作动作」。
+ * 主工具栏/多选/添加菜单的注册 id 与白名单无交集，过滤会清空它们。
+ * 用清单包含判断而非相等比较 —— 将来新增 toolbar 默认**不继承**该过滤。
+ */
+const GUIDE_FILTERED_TOOLBARS: readonly ToolbarId[] = ["node-hover"];
+
 /** 批量注册工具到指定工具栏 */
 export function registerToolbarTools(tools: ToolDefinition[]) {
     for (const tool of tools) {
@@ -95,7 +104,13 @@ export function resolveToolbarTools(toolbar: ToolbarId, ctx: ToolContext, prefs:
     const visibleTools = applicableTools.filter((tool) => !hiddenSet.has(tool.id));
     // ★ W5 毕业机制：引导态白名单（★ 与 simpleMode 的黑名单式排除分开写，不混）。
     // 引导态只露 6 动作（单一真值 GUIDE_VISIBLE_TOOL_IDS）；其他模式零影响。
-    const guidedTools = ctx.workspaceMode === "guide" ? visibleTools.filter((tool) => GUIDE_VISIBLE_TOOL_IDS.includes(tool.id)) : visibleTools;
+    //
+    // ★ R1 修复（E-2）：白名单**只作用于 node-hover 工具栏** —— main/selection/add-node-menu
+    // 的注册 id 与 6 项白名单交集为空，无条件过滤会把主工具栏 9 项清空成 0（评审线实测：
+    // main guide=0 professional=9）。生效面见模块顶 GUIDE_FILTERED_TOOLBARS。
+    const guidedTools = ctx.workspaceMode === "guide" && GUIDE_FILTERED_TOOLBARS.includes(toolbar)
+        ? visibleTools.filter((tool) => GUIDE_VISIBLE_TOOL_IDS.includes(tool.id))
+        : visibleTools;
     const orderIndex = new Map(effectivePrefs.order.map((id, index) => [id, index]));
     return [...guidedTools].sort((a, b) => {
         const ai = orderIndex.has(a.id) ? orderIndex.get(a.id)! : Number.MAX_SAFE_INTEGER;
