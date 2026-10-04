@@ -482,6 +482,36 @@ describe("注册表资产层——片 6 灵感卡适配", () => {
         expect(inspirationSource.repository).toContain("awesome-chatgpt-prompts");
         expect(inspirationSource.revision).toMatch(/^[0-9a-f]{40}$/);
     });
+
+    test("★ §3.4 外部来源条目带结构化 source（8 带 / 14 不带）", () => {
+        const withSource = creationFeaturedWorks
+            .map((inspiration, index) => registryAssetFromCreationInspiration(inspiration, index, inspirationSource))
+            .filter((asset) => asset.source);
+        // 判据 = 单条角色名 source 存在（实测恰 8 条，与 CC0 改编清单一致）
+        expect(withSource).toHaveLength(8);
+        expect(creationFeaturedWorks.filter((item) => item.source)).toHaveLength(8);
+        for (const asset of withSource) {
+            expect(asset.source).toEqual({
+                repository: inspirationSource.repository,
+                revision: inspirationSource.revision,
+                license: inspirationSource.license,
+                notice: inspirationSource.notice,
+            });
+        }
+        // 其余 14 条不得带来源（内部原创不得误标）
+        const withoutSource = creationFeaturedWorks
+            .map((inspiration, index) => registryAssetFromCreationInspiration(inspiration, index, inspirationSource))
+            .filter((asset) => !asset.source);
+        expect(withoutSource).toHaveLength(14);
+    });
+
+    test("★ 不注入描述符即不附（宁缺勿错标）—— 反例锚点", () => {
+        // 反例：不传 source 描述符时，即使条目带角色名也不得凭空编造来源
+        for (const [index, inspiration] of creationFeaturedWorks.entries()) {
+            const asset = registryAssetFromCreationInspiration(inspiration, index);
+            expect(asset.source).toBeUndefined();
+        }
+    });
 });
 
 // ────────────────────────────────────────────────────────────────────────────

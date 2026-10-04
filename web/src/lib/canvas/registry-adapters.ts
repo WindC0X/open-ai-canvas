@@ -15,7 +15,7 @@ import type { CameraProfile, LensProfile } from "./camera-prompt-library";
 import type { EcomChannelPreset } from "@/lib/image-size-presets";
 import type { CreationInspiration } from "@/pages/create/creation-inspirations";
 import type { LegacyLightingPreset } from "./legacy-lighting-presets";
-import { assetKindFromToolType, type AssetKind, type RegistryAsset } from "./registry-asset";
+import { assetKindFromToolType, type AssetKind, type AssetSource, type RegistryAsset } from "./registry-asset";
 import type { SkillPreset } from "@/services/api/skills";
 import type { ToolItem, ToolSummary } from "@/services/api/tools";
 
@@ -186,11 +186,17 @@ export function registryAssetFromSkillPreset(preset: SkillPreset): RegistryAsset
  * ★ 来源标注：这 22 条含 8 条 CC0 改编文本模板（awesome-chatgpt-prompts rev
  * f78a1c51）—— 架构方案 §3.4 要求外部来源资产**必须带来源字段**。
  * 单条 `source` 字段（Storyteller/Screenwriter/…）是角色名，不是仓库来源；
- * 仓库级来源在 `inspirationSource` 常量，由消费侧统一展示。
+ * 仓库级来源在 `inspirationSource` 常量，由调用方**显式注入**
+ * （同 `loadStyleAssets` 的 localFallback 注入纪律：便于测试注入与调用方控制）。
+ *
+ * ★ 附来源判据（控制线 2026-10-05 A1 裁定）：单条 `source` 字符串存在 ——
+ * 实测恰 8 条，与 CC0 改编清单一致；附结构化 `AssetSource`（§3.4 四字段），
+ * 其余 14 条不带。不注入描述符即不附（宁缺勿错标）。
  */
 export function registryAssetFromCreationInspiration(
     inspiration: CreationInspiration,
     index: number,
+    source?: AssetSource,
 ): RegistryAsset {
     // 标题含中文与符号，不适宜直接作 slug —— 用索引 + 模式构造稳定标识
     const slug = `creation-${inspiration.mode}-${String(index + 1).padStart(2, "0")}`;
@@ -206,6 +212,8 @@ export function registryAssetFromCreationInspiration(
         prompt: inspiration.prompt,
         description: inspiration.description || undefined,
         coverUrl: inspiration.image || undefined,
+        // ★ §3.4：外部来源条目必带来源声明（判据 = 角色名字段存在，恰 8 条 CC0 改编）
+        ...(inspiration.source && source ? { source } : {}),
         enabled: true,
         origin: "local-fallback",
     };
