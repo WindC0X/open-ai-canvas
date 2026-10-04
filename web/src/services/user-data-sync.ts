@@ -1144,6 +1144,7 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
                     } catch (draftError) {
                         useSyncProgressStore.getState().setProjectProgress(source.id, { message: "本地草稿保存失败，请勿关闭页面；请先下载草稿" });
                         errors.push(draftError);
+                    }
                 }
                 errors.push(error);
             }
