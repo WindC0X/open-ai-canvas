@@ -1160,3 +1160,125 @@ PARSE ERROR（TS1005 'try' expected）—— 控制线与测试线双重独立�
 
 `a9949aeb`（23:36 补括号）控制线已核：diff 恰一行、PARSE OK、推送及时。
 sync 枝 tip `a9949aeb` 已 push fork（`sync/v1.6.1-ritual2`），待测试线 b12r19 GO。
+
+---
+
+## 2026-10-05 凌晨 · upstream sync ritual #2 合入（`e4be6253`）
+
+### 合入
+
+`sync/v1.6.1-ritual2`（tip `a9949aeb`）→ `--no-ff` merge **`e4be6253`**
+（parents `01ec50ce` × `a9949aeb`）。
+
+**树核实**：合并树 = `eb86fd87` 的树 + 1 行括号修复 + F-08 的 7 文件
+（与自验声明一致；控制线已独立复验）。
+
+### 范围勘误：13 → 20
+
+| 区间 | 笔数 | 说明 |
+| --- | --- | --- |
+| `d328a257..24cba765` | 13 | PATCH-MAP 复盘时的口径 |
+| `24cba765..125864f6` | 7 | 复盘后新落 |
+| `d328a257..125864f6` | **20** | 实际全量吸收（不 cherry-pick） |
+
+### 冲突面
+
+**340 文件自动合并 + 23 冲突文件**（与 PATCH-MAP 基线构成完全一致 ——
+中途六个 merge（F-08/R25m/AST-08/直线入口/毕业/超分收口）未改变冲突集）。
+
+**`globals.css` 自动合并成功**（不在冲突清单）—— **flora 外置承诺再次实证**。
+
+### 23 冲突逐块判定（要点）
+
+| # | 文件 | 判定 |
+| --- | --- | --- |
+| 1 | `agent-canvas-patch.ts` | **双契约**：4 参（fork 撤销）basis=活体；5 参（上游三方合并）basis=baseline。不这样分会**丢本地编辑**（首轮实测丢 `local-video`） |
+| 2 | `project.tsx` | fork P0 双挂载根修保留（上游重加的挂载点删除）；上游 character 排除移植入 `isPanelCarrier` |
+| 3 | `user-data-sync.ts` | 上游 3 次自动合并重试 + fork 水位门写入（`watermarkProjects`）并存 |
+| 4 | `audio-settings-panel.tsx` | 上游 Doubao config-aware + fork `SettingsStepper`/`SettingGroup` 增强版 |
+| 5 | `cloud_agent_media.go` | fork 容错判定（`&& *true`）+ 上游错误类型 |
+| 6 | `analytics.go` | 采用上游 `whereTimeRange`（unixepoch 归一化，比 fork OR 双匹配更彻底） |
+| 7 | `cloud_agent_test.go` | fork 集合断言（含 character 9 类）+ 上游 character 发现性断言 |
+| 8 | `canvas-generation-task-sync.ts` | fork `outpaintSizeMismatch` + 上游 `generationOutputCount` 并存 |
+| 9 | `add-node-menu-tools.tsx` | 跟随上游：角色卡从 resource 段迁到 node 段 |
+| 10 | docs 路径 | fork `reference/backend/` 重组保留；上游新文件落 fork 结构 |
+
+### L1 flora 侵蚀块（三方差分）
+
+| 版本 | vertical-align | transform |
+| --- | --- | --- |
+| merge-base `d328a257` | baseline | `translateY(var(--canvas-mention-chip-offset-y))` |
+| **fork `374bdf22`** | baseline | `translateY(var(--canvas-mention-chip-offset-y))` |
+| upstream `125864f6` | middle | `translateY(-0.08em)` |
+
+**fork == merge-base ⇒ fork 从未改动该块 ⇒ 非 fork 承重**。
+令牌上游原生（ddCat `6c1d17db`），上游 `c83525b1` 单方改两属性。
+
+**判定：接受上游值，不设 `flora-overrides` 覆写**（fork 无投入 + 接受后与上游一致 ⇒ 缩小未来冲突面）。
+**孤儿 token 定义保留**（上游 L1283 亦保留 ⇒ 与上游一致）。
+**趋势**：上游**第二次**去令牌化 —— flora 可覆盖面持续被侵蚀，biweekly 同步成本将上升，
+`24ba765` 时代的 13-commit 低冲突窗口不会永续。
+
+### ★ 用户面能力变更（控制线已向用户直报）
+
+**IndexTTS2 音频能力移除**（跟随上游）：provider `autodl-comfyui-audio` + workflow
+`indextts2-v1` 删除、`autodl_indextts2_test.go` 删除、`audio-settings-panel.tsx`
+「情感控制（IndexTTS2）」UI 段删除。**fork 未自建该能力**（从 merge-base 继承）⇒
+不回补，跟随上游移除（保留情感 UI 会变成无后端支撑的死 UI）。
+**Doubao 音频新增**（voice/format/language/dialect config-aware）。
+若用户要求回补再立项。
+
+### 门禁（**绑定合并 commit `e4be6253`**）
+
+| 门 | 结果 |
+| --- | --- |
+| tsc --noEmit | exit 0 ✅ |
+| 全量 bun test | **2983 pass / 4 fail**（2987 = 2972 + 15） |
+| go build | exit 0 ✅ |
+| go test ./internal/app/... | **5 项已知基线** ✅ |
+
+**计数核对**：`2980 + 7 = 2983 + 4 = 2987` ——
+总数精确吻合；**分账差异源于 ext4/drvfs 失败族不同**：
+ext4 → asset-repair mock 泄漏族（7）；drvfs → ui-kit 文件扫描超时族（4）。
+两类均为环境假红，与合入无关。
+
+**另修一个真失败**：`TestCloudAgentToolSchemaStaysCompact` 合并后 25 工具
+**31,246 字节**超临时预算 31000 → 按 fork 一贯 ~4.3% 余量重算 **32,600**
+（`eb86fd87`）。该测试价值在**趋势预警**：后续每次触碰记增幅入 journal。
+
+### 教训 · 报告脱钩追因（根因 (a)）
+
+**现象**：23:34 报告「门禁（tip `eb86fd87`）tsc 0 / build 0」，而 `eb86fd87` 实测
+PARSE ERROR（TS1005 'try' expected）—— 控制线与测试线双重独立复现
+（测试线 4-commit 归因：`374bdf22` OK / `125864f6` OK / `9c3ef6c8` 坏 / 继承链坏）。
+
+**根因 (a)**：括号修复当时在**工作区未提交**，门禁跑在「含未提交修复的树」，
+报告引用的却是提交后 hash。证据链：① 两个修正 commit `--stat` 计数 0；
+② 报告 23:34:06 < mtime 23:35:46 < 提交 23:36:01；③ 门禁 HEAD=`eb86fd87` 且工作树含修复。
+
+**实质有效性**：`eb86fd87 + 修复 ≡ a9949aeb` 的树（恰 1 insertion）
+⇒ 报告数字**成立、非假绿**，但 **hash 绑定错位**。
+
+**操作层根因**（比 (a) 更具体）：`git add <paths>` 与后续 python3 脚本编辑**交错** ——
+编辑落在 `git add` 之后的文件上，该文件从未进暂存区。
+
+**两条纪律（本仓生效）**：
+
+1. **门禁结果与 hash 绑定** —— 门禁只在被报告/被推送的那个 commit 上跑，跑完即报该 hash。
+   这是「跨枝比较必须用当前拓扑」的**镜像条款**：门禁结论必须绑定被门禁的那棵树。
+2. **暂存集复核** —— 多文件脚本化编辑后 `git status` + `git diff --cached --stat`
+   确认暂存集与预期文件集一致，再 commit。
+
+### b12r19 验证结论
+
+测试线窄口径三项（全量 bun / build / VRT）复验 **GO**。
+
+### 环境
+
+控制线原令的 ext4 clone `oac-wt-test` 被测试线 b12r18 真机轮活跃占用
+（vite :3400 + Playwright），未扰动；新建独立 ext4 工作区 `oac-wt-sync2`
+（branch `sync/v1.6.1-ritual2`，基点 `374bdf22`）。
+
+### 依赖清单
+
+`bun.lock` / `web/package.json` / `backend/go.mod` / `go.sum` **无变更** ✅。
