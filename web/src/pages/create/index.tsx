@@ -1132,9 +1132,8 @@ export default function CreatePage() {
                 if (handoff.kind === "carrier") {
                     // 承载画布：任务仍在生成，会话里只留「进行中」记录（taskIds 锚定任务）。
                     // ★ 文案不得承诺自动落结果 —— 结果写入靠交付阶段再点一次（同 sessionKey 合并）。
-                    // ★ 两个已知缺口随 B线 T1-P1 落（控制线裁定 1）：① 任务创建时未带 projectId，
-                    //   画布任务面板暂看不到这条运行中任务；② 容器未写 workspaceType，
-                    //   暂以 standard 出现在画布列表。
+                    // ★ 已知缺口①仍在（控制线裁定 1）：任务创建时未带 projectId，
+                    //   画布任务面板暂看不到这条运行中任务；② workspaceType 已由 T1-P1 写入。
                     const created = await continueCreationConversationOnCanvas({
                         id: sessionKey,
                         title: cardTitle,
@@ -1150,7 +1149,7 @@ export default function CreatePage() {
                                 taskIds: [handoff.taskId],
                             },
                         ],
-                    });
+                    }, { workspaceType: "headless_task" });
                     if (created.syncError) toast.warning("会话已保存在本机，云端同步尚未完成。");
                     navigate(`/canvas/${created.id}?${new URLSearchParams({ conversation: created.sessionId, mode: "guide" }).toString()}`);
                     return;
@@ -1174,7 +1173,7 @@ export default function CreatePage() {
                             attachments: [{ name: `${linearFlowCard?.id || "linear-flow"}.png`, storageKey: uploaded.storageKey }],
                         },
                     ],
-                });
+                }, { workspaceType: "headless_task" });
                 if (created.syncError) toast.warning("会话已保存在本机，云端同步尚未完成。");
                 // ★ W5 毕业机制入口钩子：带 mode=guide 进入画布 → 引导态（只露 6 动作）。
                 // 若用户已毕业（graduated sticky），画布侧会忽略该参数（见 project.tsx 的 workspaceMode 推导）。
