@@ -249,3 +249,195 @@ label「圈选改图」，group `process`，order 45。
 R25m 的守卫（`registry-namespace-guard.test.ts`）对 `CAPABILITY_ENTRIES` **逐条遍历**，
 不硬编码条目数 —— 因此 F-08 补字段后合入时，守卫**自动覆盖**新条目，无需改守卫代码。
 ⇒ R25m 侧对条目数**无硬编码约束**，「条目可查」检查天然适配最终条目数。
+
+---
+
+# 片 3-9 逐片验证记录（2026-10-04）
+
+> **依据**：架构方案 §6 收编清单；控制线解锁令（F-08 合入后）
+> **分支**：`feat/r25m-registry-collection`（worktree `oac-wt-r25m`，起点 `478cbeea`）
+> **纪律**：快照防线先行、逐片验证记录、branch-only、门禁全套
+> **收编源以 main 为准**（annotate-edit-* 系列已进 main）
+
+---
+
+## 一、快照防线（防线先行，控制线抽验通过）
+
+| 步骤 | 结果 |
+|---|---|
+| 收编前快照 | `.local/registry-snapshots/20261004T004149Z-pre-slice3-9` |
+| tools.json | sha256 `5f7bff30d2b07bcbe9766deaeb50871b424a4b71ca5d680ecb6939da0703382c` |
+| presets.json | sha256 `3551744b3bfb940b2aadfb986115329072b734e73a9be492240b49647ee27156` |
+| 基线 | main `478cbeea`（F-08 合入后） |
+| 控制线抽验 | 两枚 sha256 与源文件、快照副本**三方逐字吻合** ✓ |
+
+---
+
+## 二、片 3：光照预设 8 条 → `preset/lighting`
+
+| 环节 | 验证方式 | 结果 |
+|---|---|---|
+| 数据源提取 | 新增 `lib/canvas/legacy-lighting-presets.ts`（46 行） | 8 条逐字搬迁自 dialog 私有 `STYLE_PRESETS` ✓ |
+| 消除双份真值 | dialog 改为 `const STYLE_PRESETS = LEGACY_LIGHTING_PRESETS` | dialog 662 行（原 667）✓ |
+| 适配 | `registryAssetFromLegacyLightingPreset` | `assetKind=preset/lighting`、`origin=local-fallback`、prompt 非空 ✓ |
+| 同源断言 | 源码断言 dialog 引用 lib + 不再内联提示词 | `includes("LEGACY_LIGHTING_PRESETS")===true` / `includes("overexposed film aesthetic")===false` ✓ |
+| 提示词逐字 | 抽查 rembrandt | `"Rembrandt lighting, 45-degree angle key light"` ✓ |
+
+**片 3 结论**：24 条中 8 条落地。**搬迁非重设计**（头注明写），`origin: local-fallback` 降级语义正确。
+
+---
+
+## 三、片 4：机位 8 条 → `preset/camera` + 镜头 8 条 → `preset/lens`
+
+| 环节 | 验证方式 | 结果 |
+|---|---|---|
+| 适配（机位） | `registryAssetFromCameraProfile` | title 取 `zhName` 回落 `label`；group 取 `useCase` ✓ |
+| 适配（镜头） | `registryAssetFromLensProfile` | 同上 ✓ |
+| **★ §3.3 契约** | 提示词取 `profilePrompt`（**模型面**） | 源码 `registry-adapters.ts` 注释明写模型面/人面之分 ✓ |
+| 跨类防撞 | 16 个 slug 去重 | 无重复 ✓ |
+| 三值互异 | AssetKind 断言 | `["preset/lighting","preset/camera","preset/lens"]` ✓ |
+
+**片 4 结论**：16 条落地。**零新文件**（直接引既有常量），控制线抽验认可。
+
+---
+
+## 四、片 5：技能场景预设 8 条 → `spec/prompt-template`
+
+**数据源**：`GET /api/skills/presets`（服务端只读目录，与片 1 同构的服务端源）
+
+| 环节 | 验证方式 | 结果 |
+|---|---|---|
+| 适配 | `registryAssetFromSkillPreset` | `assetKind=spec/prompt-template`、`origin=server` ✓ |
+| **★ 形状差异** | 本源是「场景组合」（skillIds/rationale/evidence/upgrade） | 与 tools.json 三组**不同构** —— 已识别并处理 ✓ |
+| **★ prompt 留空** | 断言 `prompt === ""` 且 `not.toContain("新手第一站")` | rationale 是**人面**说明，不冒充模型面 ✓ |
+| 语义不丢 | skillIds/evidence/upgrade 并入 description | 断言含「技能组合：4 项」「证据等级：E4」✓ |
+
+**★ 降级分支（控制线要求必带）**：
+
+| 测试 | 结果 |
+|---|---|
+| 服务端不可达 + 无降级源 → `degraded=true` 且空列表 | ✓ **不造数据** |
+| 服务端不可达 + 有降级源 → 只收 `origin=local-fallback` 记录 | ✓ |
+| 降级文案可读（沿用 `degradedNoticeText`） | ✓ |
+| **混入 server 记录被过滤**（防 fallback 冒充服务端数据） | ✓ |
+
+**★ 降级源纪律判定**：skills presets **前端无既有常量**（`grep short-drama-starter` 命中 0）→ 按架构方案 §3.2「禁止把 fallback 当默认路径」「禁止为降级新造第二份真值」，`localFallback` 参数**默认缺省**，服务端不可达时返回空列表 + degraded 标记。与片 1（纯服务端源）同类。
+
+**可证伪性验证**：注入 `degraded: false` → **4 fail**；还原 → 41 pass ✓
+
+---
+
+## 五、片 6：灵感卡 22 条 → `spec/generation`
+
+| 环节 | 验证方式 | 结果 |
+|---|---|---|
+| 适配 | `registryAssetFromCreationInspiration(inspiration, index)` | 22 条逐条 ✓ |
+| slug 构造 | 中文标题不宜作 slug → `creation-<mode>-<NN>` | 22 个 slug 无重复 ✓ |
+| 三 mode 覆盖 | video / image / text | 各≥1 ✓ |
+| **★ CC0 来源** | `inspirationSource` 断言 | `license=CC0-1.0`、`repository` 含 awesome-chatgpt-prompts、`revision` 为 40 位 hex ✓ |
+
+**★ 口径**：实测 **22 条**（非规格的 23）—— 第 23 条数据不存在，根因是 `grep -c 'title:'` 误计类型定义行（详见主验证记录 §2.3）。
+
+---
+
+## 六、片 7：运镜 33 条 → `preset/motion`（★ 视频域窗口标注）
+
+**判定**：走**既有服务端适配器**（`assetKindFromToolType` 已支持 `motion`），**零新代码**。
+
+| 测试 | 结果 |
+|---|---|
+| `motion` → `preset/motion`，`origin=server` | ✓ |
+| **视频线未启动 → 对用户不可见**（窗口标注生效） | ✓ `videoLineEnabled: false` → `false` |
+| **视频线启动后 → 可见**（窗口放开） | ✓ `videoLineEnabled: true` → `true` |
+| **★ 收编但不丢弃 —— 数据仍在** | ✓ prompt/title 完整，只是可见性受控 |
+
+**★ 正式口径落地**（架构方案 §6.2）：**数据结构照收编，用户面不下发**。测试明确断言「收编但不丢弃」—— 防「因窗口跳过收编导致视频线启动时返工」。
+
+---
+
+## 七、片 8：九宫格 9 条 → `template/canvas`
+
+**判定**：走**既有服务端适配器**（已支持 `nine_grid`），**零新代码**。
+
+| 测试 | 结果 |
+|---|---|
+| `nine_grid` → `template/canvas`，`origin=server` | ✓ |
+| `aspect` 映射（`ratio` → `aspect`） | ✓ `3:4` |
+| **template/canvas 不受视频域窗口影响**（仅 motion 受控） | ✓ |
+
+---
+
+## 八、片 9：渠道规格 3 条 → `preset/channel-spec`
+
+| 环节 | 验证方式 | 结果 |
+|---|---|---|
+| 适配 | `registryAssetFromEcomChannelPreset` | 3 条逐条 ✓ |
+| **★ minPixels 不丢** | 结构化对象（宽/高/说明）并入 description | 断言含「1600×1600」「目标档：4K」✓ |
+| **★ prompt 留空** | 同片 5 纪律（不拿人面说明冒充模型面） | 3 条全空 ✓ |
+| slug 防撞 | 3 个去重 | ✓ |
+
+---
+
+## 九、片 3-9 汇总
+
+| 片 | AssetKind | 条数 | 源类型 | 交付 |
+|---|---|---|---|---|
+| 3 | `preset/lighting` | 8 | 本地（搬迁自 dialog） | 新 lib 文件 + 适配器 + dialog 接线 |
+| 4 | `preset/camera` | 8 | 本地（既有常量） | 适配器（零新文件） |
+| 4 | `preset/lens` | 8 | 本地（既有常量） | 适配器（零新文件） |
+| 5 | `spec/prompt-template` | 8 | **服务端**（`/api/skills/presets`） | 适配器 + 读取器 + 降级分支 |
+| 6 | `spec/generation` | **22** | 本地（灵感卡） | 适配器（含 CC0 来源断言） |
+| 7 | `preset/motion` | 33 | **服务端**（tools.json） | **零新代码**（窗口标注已验证） |
+| 8 | `template/canvas` | 9 | **服务端**（tools.json） | **零新代码** |
+| 9 | `preset/channel-spec` | 3 | 本地（渠道规格） | 适配器 |
+| **合计** | | **99 条** | | 3 commits |
+
+**累计收编进度对照**（架构方案 §6.1 全量清单）：
+
+| §6.1 条目 | 条数 | 状态 | 落点 |
+|---|---|---|---|
+| tools.json style | 45 | ✅ 片 1 | `registryAssetsFromToolSummaries` |
+| legacyCanvasStylePresets | 18 | ✅ 片 2 | `legacy-style-presets.ts` |
+| **recommendedCanvasStylePresets** | **8** | ⏳ **未收编** | `canvas-style-system.ts` → `recommendedSelections` |
+| 光照 STYLE_PRESETS | 8 | ✅ 片 3 | `legacy-lighting-presets.ts` |
+| 相机 CAMERA_PROFILES | 8 | ✅ 片 4 | 适配器直引 |
+| 镜头 LENS_PROFILES | 8 | ✅ 片 4 | 适配器直引 |
+| skills presets | 8 | ✅ 片 5 | `/api/skills/presets` |
+| creationFeaturedWorks | 22 | ✅ 片 6 | 适配器 |
+| tools.json motion | 33 | ✅ 片 7 | 既有适配器（零新代码） |
+| tools.json nine_grid | 9 | ✅ 片 8 | 既有适配器（零新代码） |
+| ECOM_CHANNEL_PRESETS | 3 | ✅ 片 9 | 适配器 |
+| **小计** | **170** | **162 ✅ / 8 ⏳** | |
+| 评审资产 | 待界定 | ⏳ 边界未定 | `lib/art-critique/` + `components/canvas/art-critique/` |
+
+**★ 唯一未收编项**：`recommendedCanvasStylePresets`（8 条，`canvas-style-system.ts` 的
+`recommendedSelections`）—— 它是**推荐选中集**（引用其他 style 预设的 id），
+与 style 45 同域。是否收编为独立 AssetKind 或并入 `preset/style` 需判定（**本批未动**，
+登记为待办，不静默跳过）。
+
+**评审资产**：边界未界定（架构方案 §2.5 已标注「收编前需先界定」），本批未动。
+
+---
+
+## 十、门禁
+
+| 项 | 结果 |
+|---|---|
+| `tsc --noEmit` | 0 |
+| `eslint src/` | 0 |
+| 全量 `bun test` | **2681 pass / 0 fail**（334 文件，+30 vs 片 3-4 的 2660） |
+| 适配器单文件 | 55 pass / 0 fail（+30） |
+
+**可证伪性**：降级分支注入假 → 4 fail；还原 → 55 pass ✓
+
+---
+
+## 十一、诚实边界
+
+1. **片 3-4 的 UI 降级态未接** —— 光照/机位/镜头弹窗仍直接消费本地常量（无服务端下发路径），
+   因此**无降级态可言**（本地即真值）。降级提示条统一处理归**片 3-9 收口**（控制线认可此分离）。
+2. **片 6/9 的 UI 未接线** —— 灵感卡与渠道规格的适配器已就绪，但页面消费路径未改
+   （本批为**数据层收编**，UI 接线归后续）。
+3. **片 7/8 零新代码** —— 走既有适配器，本批只补测试覆盖（含窗口标注验证）。
+4. **片 5 无降级源** —— skills presets 前端无既有常量，按 §3.2 纪律不新造第二份真值；
+   服务端不可达时返回空列表 + degraded 标记。
