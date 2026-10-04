@@ -534,7 +534,7 @@ if (payload.registryVersion !== EXPECTED_REGISTRY_VERSION) {
 |---|---|---|---|---|---|
 | tools.json style | 45 | `backend/internal/tools/seed/tools.json` | `preset/style` | 片 1（最小切片） | W5 |
 | legacyCanvasStylePresets | 18 | `canvas-style-picker-modal.tsx` | `preset/style` | 片 2（最小切片） | W5 |
-| recommendedCanvasStylePresets | 8 | `canvas-style-system.ts` | `preset/style` | 片 2 | W5 |
+| recommendedCanvasStylePresets | 8 | `canvas-style-system.ts` | ~~`preset/style`~~ | **不收编** | **★ 引用型例外，移交 R25f-0** |
 | 光照 STYLE_PRESETS | 8 | `canvas-node-lighting-dialog.tsx` | `preset/lighting` | 片 3 | W5 |
 | 相机 CAMERA_PROFILES | 8 | `camera-prompt-library.ts` | `preset/camera` | 片 4 | W5 |
 | 镜头 LENS_PROFILES | 8 | `camera-prompt-library.ts` | `preset/lens` | 片 4 | W5 |
@@ -549,6 +549,18 @@ if (payload.registryVersion !== EXPECTED_REGISTRY_VERSION) {
 **★ 注（控制线澄清项定论）**：`creationFeaturedWorks` 的 **22** 是**数组实测**（三种方法交叉），
 非「23 条里有 1 条不可收编」—— 第 23 条数据**不存在**，根因是 `grep -c 'title:'` 误计类型定义行（详见 §2.3）。
 ⇒ **附录 A 无需为该条标注去向**（下线/合并/重复均不适用）。
+
+**★ 引用型例外裁定（控制线 2026-10-04，R25m 片 3-9 收编实战）**：
+
+`recommendedCanvasStylePresets`（8 条，`canvas-style-system.ts` 的 `recommendedSelections`）
+**不收编为资产**。理由：它是**引用型策展数据** —— 选中集**引用**其他预设的 id，
+不是新资产族。收编会造成「**资产引用资产**」的循环模型问题（AssetKind 是形状标签，
+而它没有独立形状，只有指向）。
+
+**归属**：**R25f-0（W7 用户层/推荐机制）** 的实现输入。**不静默、不新增 AssetKind。**
+
+**同类判据（可复用）**：一条数据若是**引用集合**（元素指向其他资产）而非**资产本体**，
+则不属于收编范围 —— 它属于**策展层**，归用户层推荐机制处理。
 
 ### 6.2 ★ motion 33 的视频域窗口标注
 
