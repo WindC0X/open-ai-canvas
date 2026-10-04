@@ -292,3 +292,61 @@ export type LinearFlowNodeGate = {
 | 四档判据 | ✅ §四映射 |
 | 命名分流红线（upscale vs superResolve） | ✅ 卡命名按任务，不引入能力词 |
 | R25m 收编 5 源 | ✅ 作为卡的数据层（零新造） |
+
+---
+
+## 九、实现记录（B线，2026-10-04 下午批）
+
+> 本节由实现方追加，记录**实际落地范围与三处控制线裁定**，不改动上文封版内容。
+
+### 9.1 控制线三项裁定（2026-10-04，开工前侦察报备后）
+
+| # | 侦察发现的偏差 | 裁定 |
+|---|---|---|
+| ① | 姊妹卡 `UnifiedTaskFace` / `headless_task` **全仓零实现**（A线双卡 b1b6fe37 + 06a24ad0 均为 docs(plan) 提交） | **方案 A**：C3 自建轻量交付面（结果图 + 下载 + 可选「在画布中打开」），不依赖 UnifiedTaskFace。铁律「不新建任务 UI」禁的是任务管理界面再造，不是交付步的下载按钮 |
+| ② | 首批 4 张命名中「换背景」「九宫格」**存量无卡数据** | **本轮只做有存量的 4 张**，不新造数据。「8 是上限不是配额，宁少勿造」；换背景挂 W5-W6 缝隙批补数据设计，九宫格挂 W8 四档入口盘点（它是画布内工具集，做卡是形态迁移问题） |
+| ③ | R25m 5 源与卡列表的关系 | 5 源（光照/机位/镜头/场景/渠道规格）= **卡流程内的参数面**，不是卡列表来源。卡列表只来自 ecom-starters 4 张存量 |
+
+### 9.2 实际交付（C1-C3）
+
+| 切片 | 文件 | 内容 |
+|---|---|---|
+| C1 | `web/src/lib/canvas/linear-flow-cards.ts`（新增） | 卡数据层：4 张卡（白底主图/场景图/3:4 详情图/批量优化提示词）+ 提示词模板 + ≤3 问 + 元数据构建纯函数 |
+| C1 | `web/src/components/create/linear-flow-card-grid.tsx`（新增） | 卡网格组件（/create 空态挂载） |
+| C2 | `web/src/lib/canvas/scene-execution.ts`（改） | 债一兑现：直线卡显式写 `metadata.scenePresetId`；`detectScenePresetFromPrompt` 降为 **Agent 路径兜底**（保留不删）+ 注释同步 |
+| C3 | `web/src/components/create/linear-flow-runner.tsx`（新增） | 卡流程执行器：点卡→传图→≤3 问→出图→**下载**（交付步在流程内） |
+| C3 | `web/src/lib/canvas/linear-flow-gate.ts`（新增） | 门控三态 `allowed/locked/hidden`（只锁直线流程内，纯函数零画布依赖） |
+| C3 | `web/src/pages/create/index.tsx`（改） | 网格接线 + runner 挂载 + 「在画布中打开」交接 |
+| — | `web/src/pages/create/creation-product.css`（改） | 网格与弹层样式（复用 creation token） |
+| — | `web/test/linear-flow-*.test.ts`（4 个新增） | 卡数据/门控/债一端到端/流程结构，共 64 test |
+
+### 9.3 ★ 技术债显式化：交付面回改点（控制线要求记档）
+
+**当前状态**：`linear-flow-runner.tsx` 自建轻量交付面（结果图 + 下载 + 可选画布入口）。
+
+**回改触发**：姊妹卡实现批落地后（首件=守卫测试、第二件=预览/下载补齐，见 `w5-unified-task-face-card.md` §实现批排序）。
+
+**回改动作**：把 `linear-flow-runner.tsx` 的交付 `section` 替换为 `<UnifiedTaskFace taskIds={...} onDownload={...} showOpenInCanvas />`，消除重复实现。runner 的生成步与门控不受影响。
+
+**为什么显式记档**：这是「组件尚未实现」导致的**时序债**，不是设计偏离 —— 写进文档避免后续被当成隐性分叉。
+
+### 9.4 验收对齐（本批 C1-C3 相关项）
+
+| # | 验收 | 状态 | 证据 |
+|---|---|---|---|
+| 4 | `scenePresetId` 显式传递（零反查） | ✅ | `linear-flow-scene-handoff.test.ts` 11 test（含反证：去标记后反查失败） |
+| 5 | 卡命名按任务 | ✅ | `linear-flow-cards.test.ts` 断言卡名 + 禁能力词 |
+| 6 | 首批 ≤8 张 | ✅ | 断言 ≤8 且实际 4 张（控制线裁定②） |
+| 7 | 4 张休眠卡唤醒 | ✅ | 断言卡集合 = `ECOM_STARTER_CARDS` 集合 |
+| 8 | 门控三态可验证 | ✅ | `linear-flow-gate.test.ts` 13 test（三态互斥完备） |
+| 10 | 默认完整画布不受影响 | ✅ | 断言门控模块零画布 store 依赖 + 纯函数 |
+| 硬验收③ | 交付步在卡流程内 | ✅ | `linear-flow-runner.test.ts` 断言下载/复制在弹层内，不跳转外部页 |
+| 硬验收② | 画布任一步可达（给而不要求） | ✅ | 断言 `onOpenInCanvas` 可选 + 卡流程本身不写画布 |
+| 硬验收① | 双条件（不见画布 + 画布可达） | ✅ | Modal 承载 + 网格挂载 + 页面级 runner |
+| 9 | 毕业机制（完成首单解锁 node-hover 20 项） | ⏸ **不在本批** | 依赖姊妹卡与画布引导态，属梯度 1 后续批 |
+
+### 9.5 边界说明
+
+- **真机验证**：本批未跑真机浏览器验收（B线下午批范围）。C1-C3 为结构 + 纯函数 + 源码可达性测试；卡流程的端到端真机验证（点卡→上传→问→出图→下载）留待合并后按需补。
+- **梯度 2 话术层**：按设计卡 §七不做。
+- **九宫格/换背景卡**：按裁定②移出本批。

@@ -32,6 +32,9 @@ import { creationAttachmentFromAsset, creationAttachmentFromAudio, creationAttac
 import { defaultCreationMode, modeLabels, type CreationConversation, type CreationMessage, type CreationMode, type CreationRetryContext, type CreationSettings, type CreationShotRailEntry, type CreationStatus } from "./creation-types";
 import { attachCreationTaskContexts, completedCreationGenerationTask, conversationTimestamp, creationShotRail, creationVideoShotOrdinal, isImageAttachment, isVideoAttachment, materializeCreationTaskResults, newConversation, newMessage, reconcileCreationTaskMessages } from "./creation-conversations";
 import { CreationComposer, CreationEmptySuggest, CreationFeaturedWorks, CreationHistoryDrawer, CreationMessageView, CreationModeTabs, CreationWorkspaceToolbar, creationAssetCategoryLabels } from "./creation-workspace";
+import { LinearFlowCardGrid } from "@/components/create/linear-flow-card-grid";
+import { LinearFlowRunner } from "@/components/create/linear-flow-runner";
+import type { LinearFlowCard } from "@/lib/canvas/linear-flow-cards";
 import { CreationAgentEntry } from "./creation-agent-entry";
 import { createCreationSubmitGate } from "./creation-submit-gate";
 import { creationVideoConfig } from "./creation-generation-config";
@@ -72,6 +75,8 @@ function writeComposerPref(key: string, value: boolean) {
 
 export default function CreatePage() {
     const [agentMode, setAgentMode] = useState(false);
+    // W5 直线入口：选中卡即开启卡流程（弹层承载，全程不见画布）
+    const [linearFlowCard, setLinearFlowCard] = useState<LinearFlowCard | null>(null);
     const { message: toast, modal } = App.useApp();
     const navigate = useNavigate();
     const [openingCanvas, setOpeningCanvas] = useState(false);
@@ -1045,6 +1050,7 @@ export default function CreatePage() {
                         onStartPrompt={(nextMode, prompt) => { setAgentMode(false); selectMode(nextMode); setPrompt(prompt); window.requestAnimationFrame(() => composerFocusRef.current?.focus()); }}
                         onOpenLibrary={() => { setAgentMode(false); selectMode("image"); setLibraryOpen(true); }}
                     />
+                    <LinearFlowCardGrid onPick={(card) => setLinearFlowCard(card)} disabled={busy} />
                 </section>
                 <CreationFeaturedWorks
                     onStartPrompt={(nextMode, prompt) => { setAgentMode(false); selectMode(nextMode); setPrompt(prompt); window.requestAnimationFrame(() => composerFocusRef.current?.focus()); }}
@@ -1067,6 +1073,38 @@ export default function CreatePage() {
             </div>}
         </div>
         <CreationHistoryDrawer open={historyOpen} conversations={historyConversations} activeId={activeConversation.id} onNew={startNewConversation} onClose={() => setHistoryOpen(false)} onSelect={selectConversation} onDelete={confirmDeleteConversation} onRename={renameConversationTitle} />
+        <LinearFlowRunner
+            card={linearFlowCard}
+            config={generationConfig}
+            model={linearFlowCard?.mode === "text" ? (config.textModel || selectedModel) : selectedModel}
+            onClose={() => setLinearFlowCard(null)}
+            onOpenInCanvas={async ({ prompt: resultPrompt, resultUrl }) => {
+                // 硬验收②「给而不要求」：可选转入画布。复用既有会话交接链 ——
+                // 卡流程本身不写画布，只在用户主动点击时才建会话并导航。
+                // 结果图先物化为 storageKey，走既有 attachments 通道（handoff 渲染面已支持）。
+                // 同文件其他上传路径一致：走懒加载 runtime，不把 image-storage 拖进首屏包。
+                const runtime = await loadCreationRuntime();
+                const uploaded = await runtime.uploadImage(resultUrl);
+                const created = await continueCreationConversationOnCanvas({
+                    id: `linear-flow-${Date.now()}`,
+                    title: linearFlowCard?.title || "卡流程结果",
+                    updatedAt: new Date().toISOString(),
+                    messages: [
+                        { id: `linear-flow-user-${Date.now()}`, role: "user", content: resultPrompt, createdAt: new Date().toISOString() },
+                        {
+                            id: `linear-flow-assistant-${Date.now()}`,
+                            role: "assistant",
+                            content: "卡流程已生成成品图，可在画布中继续编辑。",
+                            createdAt: new Date().toISOString(),
+                            status: "done",
+                            attachments: [{ name: `${linearFlowCard?.id || "linear-flow"}.png`, storageKey: uploaded.storageKey }],
+                        },
+                    ],
+                });
+                if (created.syncError) toast.warning("会话已保存在本机，云端同步尚未完成。");
+                navigate(`/canvas/${created.id}?${new URLSearchParams({ conversation: created.sessionId }).toString()}`);
+            }}
+        />
         {libraryOpen ? <Suspense fallback={null}><AssetLibraryPickerModal
             remoteLibrary
             open={libraryOpen}
