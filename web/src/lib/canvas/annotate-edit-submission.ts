@@ -7,7 +7,8 @@
  * （教训：不要用源码字符串断言验证行为）。
  */
 import type { ReferenceImage } from "@/types/image";
-import { buildAnnotateEditPrompt, type AnnotateEditAction } from "@/lib/canvas/annotate-edit-prompt";
+import { buildAnnotateEditPrompt, type AnnotateEditAction, type AnnotateEditPromptNote } from "@/lib/canvas/annotate-edit-prompt";
+import type { AnnotateEditAnnotation } from "@/lib/canvas/annotate-edit-geometry";
 
 export type AnnotateEditSubmissionInput = {
     /** 源图节点 id（metadata.sourceNodeId 与标注图 id 前缀）。 */
@@ -25,6 +26,12 @@ export type AnnotateEditSubmissionInput = {
     /** 导出截图尺寸（Cowart 元数据行）。 */
     exportWidth: number;
     exportHeight: number;
+    /**
+     * ★ P1 修复（通道 b）：结构化标注（含 note），按序号进提示词。
+     *
+     * 画笔模式为空数组（无文字输入）；元数据里仍保留完整标注供审计。
+     */
+    annotations?: AnnotateEditAnnotation[];
 };
 
 export type AnnotateEditSubmission = {
@@ -117,6 +124,10 @@ export function buildAnnotateEditSubmission(input: AnnotateEditSubmissionInput):
         type: "image/png",
         dataUrl: input.annotatedDataUrl,
     };
+    // ★ P1 修复（通道 b）：结构化标注的修改要求按序号进提示词（与截图徽标一一对应）。
+    const notes: AnnotateEditPromptNote[] = (input.annotations ?? [])
+        .map((annotation, index) => ({ label: index + 1, shape: annotation.shape, note: annotation.note }))
+        .filter((item) => item.note.trim().length > 0);
     return {
         prompt: buildAnnotateEditPrompt({
             // 画笔模式的「标注数」= 笔数（提示词元数据行对用户语义一致：截图上标了多少处）。
@@ -124,6 +135,7 @@ export function buildAnnotateEditSubmission(input: AnnotateEditSubmissionInput):
             exportWidth: input.exportWidth,
             exportHeight: input.exportHeight,
             actionHint: input.actionHint,
+            notes,
         }),
         referenceImages: [input.source, annotatedReference],
         metadata: {

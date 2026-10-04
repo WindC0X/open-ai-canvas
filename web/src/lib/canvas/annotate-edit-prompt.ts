@@ -13,7 +13,8 @@
  * ② 「标注文字=修改要求」+「生成一张干净新图」
  * ③ 不烙图纪律：标注箭头/文字/选框不得进入结果图
  * ④ 编辑意图行（actionHint：修改/替换/移除）
- * ⑤ Cowart 元数据行：标注数 + 截图尺寸（同 buildAnnotationEditPrompt 的 Included/Screenshot 行）
+ * ⑤ ★ P1 修复（通道 b）：逐条标注修改要求（序号与截图徽标对应）
+ * ⑥ Cowart 元数据行：标注数 + 截图尺寸（同 buildAnnotationEditPrompt 的 Included/Screenshot 行）
  */
 
 /** 编辑意图（参数面 actionHint；进提示词组装前缀）。 */
@@ -46,6 +47,30 @@ export type AnnotateEditPromptInput = {
     exportHeight: number;
     /** 编辑意图（缺省 modify）。 */
     actionHint?: AnnotateEditAction;
+    /**
+     * ★ P1 修复（通道 b）：用户填写的修改要求（结构化模式）。
+     *
+     * 与截图上的序号徽标一一对应（label 即徽标数字），显式写入提示词——
+     * 模型读显式文字比读图内小字可靠，与通道 (a)（文字渲染进截图）互为冗余。
+     * 画笔模式无此字段（画笔无文字输入，设计如此）。
+     */
+    notes?: AnnotateEditPromptNote[];
+};
+
+/** 单条标注文字（进提示词的显式通道）。 */
+export type AnnotateEditPromptNote = {
+    /** 序号（与截图上的序号徽标一致，从 1 开始）。 */
+    label: number;
+    /** 形状：region=矩形选框，arrow=箭头指向。 */
+    shape: "region" | "arrow";
+    /** 用户填写的修改要求。 */
+    note: string;
+};
+
+/** 形状的提示词内中文说明（与截图视觉对应）。 */
+const noteShapeLabel: Record<AnnotateEditPromptNote["shape"], string> = {
+    region: "矩形选框",
+    arrow: "箭头指向",
 };
 
 /**
@@ -62,9 +87,17 @@ export function buildAnnotateEditPrompt(input: AnnotateEditPromptInput): string 
         "- 请把标注文字当作修改要求，生成一张新的干净图片。",
         "- 不要把标注箭头、标注文字、选框或其他标注痕迹带进最终图片。",
         `- ${actionLine}`,
-        "",
-        `Included annotation shapes: ${Math.max(0, input.annotationCount)}`,
     ];
+    // ★ P1 修复（通道 b）：逐条列出修改要求，序号与截图徽标对应。
+    // 通道 a（文字渲染进截图）为主，此为冗余显式通道（模型读文字比读图内小字可靠）。
+    const notes = (input.notes ?? []).filter((item) => item.note.trim().length > 0);
+    if (notes.length > 0) {
+        lines.push("", "各标注的修改要求（序号与截图上的编号一一对应）：");
+        notes.forEach((item) => {
+            lines.push(`- 标注 ${item.label}（${noteShapeLabel[item.shape] ?? noteShapeLabel.region}）：${item.note.trim()}`);
+        });
+    }
+    lines.push("", `Included annotation shapes: ${Math.max(0, input.annotationCount)}`);
     if (input.exportWidth > 0 && input.exportHeight > 0) {
         lines.push(`Screenshot size: ${Math.round(input.exportWidth)}x${Math.round(input.exportHeight)}`);
     }

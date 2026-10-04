@@ -1251,6 +1251,8 @@ export function useCanvasMediaTools({
                   strokeCount: payload.strokeCount,
                   exportWidth: payload.exportWidth,
                   exportHeight: payload.exportHeight,
+                  // ★ P1 修复（通道 b）：结构化标注的 note 随提交物进提示词。
+                  annotations: payload.annotations,
               })
             : buildAnnotateMaskSubmission({
                   nodeId: node.id,

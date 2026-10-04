@@ -219,3 +219,55 @@
 - 画笔模式的标注截图路线未单独真机跑（结构化两样本 + 兜底各一次已覆盖主要路径）。
 - `docs/content/docs/getting-started/features.mdx` 文档同步待 C3 收尾补。
 - 咽喉重估：F-08 实际触碰 `use-canvas-media-tools.ts`（新增方法 + 分流）、`capability-entries.ts`（条目）、`canvas-image-toolbar-tools.tsx`（文案），与任务书 §4 预估一致。
+
+---
+
+## 6. P1 修复批（fix/f08-annotation-note，2026-10-04）
+
+### 6.1 缺陷（真机发现，序① freehand 补跑时暴露）
+
+**标注文字（note）三通道全丢** —— shape 模式用户填写的「修改要求」：
+① 不进 prompt、② 不画进截图、③ 不进 metadata。
+
+| 证据层 | 内容 |
+|---|---|
+| 落库 prompt 实测 | 样本 A 的 prompt 只有 actionHint 通用行，无「深蓝色」「陶瓷材质」 |
+| 代码级 | `buildAnnotateEditPrompt` 入参无 notes；`drawAnnotationShape` 只画形状+数字徽标；metadata 无 note |
+| 浏览器内动态验证 | 页面内 import 真实模块：prompt 含 note → **false**；note 有/无渲染像素差 = **0** |
+
+**影响**：用户的精确要求（材质/颜色/风格）从未传达；样本 A/B「成功」是模型从截图色块**猜**对的，不是按指令执行。
+**蓝本对照**：Cowart 语义明确「截图包含标注箭头**和标注文字**」——本实现缺文字渲染。
+**测试盲区（教训）**：修前 5 个测试文件全部只断言现状行为，无一条断言蓝本符合性。
+
+### 6.2 修复（控制线裁定：并做两通道）
+
+| 通道 | 实现 | 文件 |
+|---|---|---|
+| **(a) 主修** | `drawAnnotationNote` 把 note 画进截图（高对比底标 + 白字 + 字号随图宽缩放 + 自动折行 + 越界回退）；`drawAnnotationShape` 两种形状都调用 | `annotate-edit-render.ts` |
+| **(b) 冗余** | `notes` 按 badge 序号拼入 prompt：「标注 1（矩形选框）：<note>」 | `annotate-edit-prompt.ts` + `annotate-edit-submission.ts` |
+| 贯通 | 执行链把 `payload.annotations` 传入提交构造 | `use-canvas-media-tools.ts` |
+
+**单源纪律**：弹窗预览与导出截图共用 `drawAnnotationShape`（所见即模型所见）。
+**蒙版降级路线不动**（该路线本就用 note）。
+
+### 6.3 验收证据（真机，2026-10-04）
+
+**环境**：main 374bdf22 + fix 分支；后端 :8488（f08-annotate-debug）；vite :3020；Orca 浏览器；CHANNEL_000009 a6api / nano-banana-2。
+
+| 项 | 结果 |
+|---|---|
+| 通道 (a) 弹窗预览 | ✅ 截图确认：note 文字渲染为黑色底标白字，贴选区左上角 |
+| 通道 (b) 落库 prompt | ✅ 新任务 `37f49cced4d3` prompt 含「各标注的修改要求…标注 1（矩形选框）：把杯身改成深蓝色陶瓷材质，保持其他区域不变」 |
+| 编辑生效 | ✅ 结果图杯身变**钴蓝色**（符合 note），杯把/内壁保持白色（「保持其他区域不变」被遵守） |
+| 不烙图 | ✅ 标注框色像素 = **0**（1024×1024 全图扫描） |
+| freehand 回归 | ✅ 画笔模式「1 笔」正常，提交走画笔路线（prompt 无 note 段，符合设计） |
+| 任务终态 | ✅ succeeded，计费 settled |
+
+### 6.4 门禁
+
+tsc 0 / eslint 0（5 文件）/ F-08 六文件 **73 pass**（新增 note 专项 15 test）
+
+### 6.5 教训（控制线令入 journal）
+
+**测试镜像实现盲区**：5 个测试文件全部只断言现状行为，无一条断言蓝本符合性——测试对齐的是**代码**不是**规格**。
+本批新增测试断言的是规格（note 必须到达模型），含缺陷回归锚点（修前必 fail）。
