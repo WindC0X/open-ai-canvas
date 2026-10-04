@@ -34,16 +34,24 @@ describe("★ 硬验收③：交付步必须在卡流程内", () => {
         expect(runnerSource).toContain("linear-flow-result-text");
     });
 
-    test("★ 交付面不依赖 UnifiedTaskFace（该组件尚未实现，控制线裁定①）", () => {
-        // 注释里允许提及（回改点记档），但不得作为组件渲染或导入
+    test("★ 交付面仍卡专属（进度面已回改为 UnifiedTaskFace）", () => {
+        // 前提更新（2026-10-05 统一任务面批）：原断言「该组件尚未实现」已失效 ——
+        // 姊妹卡已落地，且按回改点把**生成阶段进度面**挂到了 UnifiedTaskFace
+        // （同时是设计卡验收 2 的「无画布上下文真实挂载点」）。
+        //
+        // ★ 但控制线裁定①的**真实契约仍有效**：**交付面**（deliver stage）保持卡专属 ——
+        // 「下载成品 / 重新来一次 / 在画布中打开」是卡流程动作，不委托通用组件；
+        // 且结果源是本地 dataUrl（通用面预览源是服务端 previewUrl），语义不同不合并。
         const codeOnly = runnerSource
             .replace(/\/\*[\s\S]*?\*\//g, "")
             .replace(/^\s*\/\/.*$/gm, "");
-        expect(codeOnly).not.toContain("UnifiedTaskFace");
-        expect(codeOnly).not.toContain("unified-task-face");
-        // 且必须留下回改点记档（技术债显式化）
-        expect(runnerSource).toContain("回改点");
-        expect(runnerSource).toContain("UnifiedTaskFace");
+        // 进度面已挂载（本批新增）
+        expect(codeOnly).toContain("UnifiedTaskFace");
+        expect(codeOnly).toContain("taskIds={[taskId]}");
+        // 交付面仍卡专属：deliver 段的四个卡动作仍在 runner 内自建
+        expect(codeOnly).toContain("linear-flow-deliver");
+        expect(codeOnly).toContain("下载成品");
+        expect(codeOnly).toContain("重新来一次");
     });
 });
 

@@ -10,10 +10,12 @@
  * 可选「在画布中打开」），**不依赖**姊妹卡的 `UnifiedTaskFace`（该组件代码尚未实现 ——
  * 全仓 git grep 零命中，A线双卡为纯设计文档）。
  *
- * ★ 回改点（技术债显式化，控制线要求记档）：
- * 姊妹卡实现批（守卫测试 + 预览/下载补齐）落地后，本组件的交付面**应回改为挂
- * `UnifiedTaskFace`**（`taskIds` + `onDownload` + `showOpenInCanvas`），消除重复实现。
- * 记档位置：`docs/artifacts/w5-linear-entry-card.md` 验收节 + 本文件注释。
+ * ★ 回改点已偿（2026-10-05 统一任务面批）：
+ * 姊妹卡 `UnifiedTaskFace` 已落地，本组件在**生成阶段**挂载它承载统一进度面
+ * （`taskIds` 锚定 TaskID，订阅契约由该组件单一持有）—— 这同时是设计卡验收 2
+ * 「无画布上下文页面挂载跑通」的**真实挂载点**（`/create` 不是画布页）。
+ * 交付阶段仍保留本组件自建交付面：它是**卡专属**的（含「重新来一次」等流程动作），
+ * 且结果源是本地 `dataUrl`（任务面预览源是服务端 `previewUrl`），两者语义不同不合并。
  *
  * ★ 门控纪律（设计卡 §3.2，方向钉死）：
  * 门控**只作用于本直线流程内**（`linear-flow-gate.ts` 的三态），常规画布不受任何影响 ——
@@ -40,6 +42,7 @@ import {
 } from "@/lib/canvas/linear-flow-cards";
 import { linearFlowStepGate, nextLinearFlowStep, resolveLinearFlowGate, visibleLinearFlowSteps } from "@/lib/canvas/linear-flow-gate";
 import { generationErrorMessage } from "@/lib/generation-error";
+import { UnifiedTaskFace } from "@/components/task/unified-task-face";
 
 /** 卡流程的运行阶段（生成/交付共用同一状态机）。 */
 type RunnerStage = "form" | "generating" | "done" | "error";
@@ -76,6 +79,8 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
     const [resultText, setResultText] = useState("");
     const [errorText, setErrorText] = useState("");
     const [openingCanvas, setOpeningCanvas] = useState(false);
+    // 统一任务面锚点（验收 2）：生成阶段把 taskId 交给 UnifiedTaskFace 承载进度四要素。
+    const [taskId, setTaskId] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const abortRef = useRef<AbortController | null>(null);
 
@@ -94,6 +99,7 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
         setResultUrl("");
         setResultText("");
         setErrorText("");
+        setTaskId("");
         abortRef.current?.abort();
         abortRef.current = null;
     }, []);
@@ -151,6 +157,8 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
                 referenceImages: reference ? [reference] : [],
                 signal: controller.signal,
                 metadata,
+                // 统一任务面订阅锚点：任务一创建就把 id 交给 UnifiedTaskFace。
+                onTaskUpdate: (task) => setTaskId(task.id),
             });
             if (card.mode === "image") {
                 const url = result.images?.[0]?.dataUrl || "";
@@ -254,10 +262,17 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
                 ) : (
                     <>
                         {stage === "generating" ? (
-                            <div className="linear-flow-progress" role="status">
-                                <LoaderCircle className="is-spinning" size={16} strokeWidth={2} />
-                                正在生成，请稍候…
-                            </div>
+                            // ★ 统一任务面挂载点（设计卡验收 2）：/create 无画布上下文，
+                            // 进度/阶段/状态由 UnifiedTaskFace 统一承载（订阅契约单一持有）。
+                            // taskId 未就绪的首帧回退到本地提示，避免空窗。
+                            taskId ? (
+                                <UnifiedTaskFace taskIds={[taskId]} showOpenInCanvas={false} contextLabel="直线流程" />
+                            ) : (
+                                <div className="linear-flow-progress" role="status">
+                                    <LoaderCircle className="is-spinning" size={16} strokeWidth={2} />
+                                    正在生成，请稍候…
+                                </div>
+                            )
                         ) : null}
 
                         {stage === "error" && errorText ? (

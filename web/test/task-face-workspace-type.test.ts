@@ -151,4 +151,14 @@ describe("接线（纯函数之外）", () => {
     test("画布库列表接入 headless 过滤（验收 7 接线）", () => {
         expect(canvasIndexSource).toContain("filterVisibleCanvasProjects");
     });
+
+    test("★ 验收 2：UnifiedTaskFace 有真实挂载点（无画布上下文页面）", () => {
+        // 设计卡验收 2「统一任务面独立可用（不依赖画布上下文）」——
+        // 组件存在不等于挂载：必须断言真实使用点，否则「有代码≠能用」复发。
+        const runnerSource = readFileSync(new URL("../src/components/create/linear-flow-runner.tsx", import.meta.url), "utf8");
+        expect(runnerSource).toContain("<UnifiedTaskFace");
+        expect(runnerSource).toContain("taskIds={[taskId]}");
+        // /create 直线流程不是画布页 ⇒ 满足「无画布上下文」
+        expect(runnerSource).toContain("onTaskUpdate: (task) => setTaskId(task.id)");
+    });
 });
