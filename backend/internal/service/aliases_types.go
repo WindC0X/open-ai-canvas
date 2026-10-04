@@ -257,6 +257,9 @@ type (
 	ResourceDelivery                       = app.ResourceDelivery
 	ResourceAccessOptions                  = app.ResourceAccessOptions
 	ResourceAccessRequest                  = app.ResourceAccessRequest
+	ResourceReferenceQuery                 = app.ResourceReferenceQuery
+	ResourceReferenceEntry                 = app.ResourceReferenceEntry
+	AssetResourceOccupancyResult           = app.AssetResourceOccupancyResult
 	ResourceAccess                         = app.ResourceAccess
 	ResourceStream                         = app.ResourceStream
 	ResponseInterceptionRule               = app.ResponseInterceptionRule
