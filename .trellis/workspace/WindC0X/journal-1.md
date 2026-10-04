@@ -1186,3 +1186,39 @@ sync 面（`e4be6253` 23 冲突解决 + `3067c40b`/`eb86fd87`/`a9949aeb` 3 修�
 ### 教训
 
 **★ 跨批重复与计数失真**：三批子代理独立评审同一代码面，必然产生同机制多视角条目（本轮 6 组重复）。汇总时必须去重，否则污染台账（本轮差点让控制线按 13 条登记 P2）。**纪律**：汇总阶段先做机制级去重，再报计数。
+
+---
+
+## 评审线 R3 过程教训（2026-10-05）
+
+### ★ 教训一：跨文件系统路径写错 → 子代理在 9p 挂载上跑测试 → 卡死
+
+**现象**：T3 两次卡死（首轮 `w5-review-r3`、二轮 `w5-review-r3-full`），tokens 停止增长。
+
+**根因链**：
+1. 我在 `/tmp/review-r3/shared-context.md` 写了 `cd /mnt/f/CODE/Project/oac-wt-test/web` —— **该路径不存在**（正确：`/home/windc0x/oac-ext4/oac-wt-test`）
+2. 子代理找不到就自行搜索，摸到 `/mnt/f/CODE/Project/oac-wt-f08/web`（有 node_modules）
+3. 在 **9p 挂载**（`/mnt/f` = Windows F: 盘）上跑 `bun test` → 进程卡在 `D (disk sleep)` / `wchan: p9_client_rpc` → agent 挂起
+
+**证据**：`ps -p <pid> -o stat,wchan` → `D` / `p9_client_rpc`；`df -T /mnt/f` → `9p`；tokens 两次采样完全相同。
+
+**纪律（升格）**：
+- 派发前**必须验证共享上下文里的每个路径真实存在**（`ls -d` 一次即可）
+- 动态验证路径一律用 ext4：`/home/windc0x/oac-ext4/*`；**禁止 `/mnt/f` 下跑 bun test / go test**
+- 卡死识别信号：tokens 两次采样相同 + `ps` 见 `D` 状态进程
+
+### ★ 教训二：后台 workflow 不该轮询
+
+**现象**：我用 `sleep 300/420/480` + `ls` 反复查看产出，浪费 wall-clock 与 token，且**轮询掩盖了卡死**（一直在看却没检查进程状态）。
+
+**正解**：`workflow` 后台运行，**完成后自动把结果送回对话**——启动后告知用户、结束回合即可。要看进度用 `workflow_control status`（一次），不要 sleep 轮询。
+
+### ★ 教训三：`agentRetries: 0` 会静默丢批
+
+R3 首轮我写了 `agentRetries: 0`，T2 报错直接丢失（无产出、无重试）。R1 用了 1、R2 用了 0（侥幸没出错）。
+**纪律**：评审类 workflow 默认 `agentRetries >= 2`。
+
+### ★ 教训四：workflow 形态必须完整（评审 + 核验）
+
+R3 首轮我只写了单阶段「评审」，丢了 R1/R2 都有的红队核验阶段——标准流程退步。
+**纪律**：评审线 workflow 固定两阶段 = 评审 + 核验（P0/P1 全量红队对抗）；启动前对照标准形态自检。
