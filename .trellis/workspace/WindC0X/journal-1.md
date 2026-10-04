@@ -1478,7 +1478,7 @@ B-1→2 fail（行为断言抓到）/ B-2→2 fail / D-1→2 fail / D-2→2 fail
 | 读侧现状（姊妹卡 `7db3fa10`） | 读侧**已完整落码**：`workspace-type.ts`（`isHeadlessTaskWorkspace` / `filterVisibleCanvasProjects`）+ `headless-tidy.ts`（`shouldTidyHeadlessCanvas` / `planHeadlessTidyBatches` / `applyHeadlessTidyPositions`）+ 后端 `user_data_page.go:50` 透出 `workspaceType` + `canvas/index.tsx:106` 顶层过滤 + `use-canvas-project-lifecycle.ts:167` 首入整理触发 |
 | **写入者** | **确认零写入者**（grep 赋值式 `workspaceType\s*[:=]` 仅命中读侧比较行）—— 读侧/后端全部就位，唯独没人写 ⇒ T1-P1 描述准确 |
 | 类型面 | `7db3fa10` 已立 `CanvasWorkspaceType = "standard" \| "headless_task"`（types/canvas.ts:71）且 `updateProject` 白名单已含 `workspaceType`（use-canvas-store.ts:68）—— **写入机制已就位，缺的是调用** |
-| 写入点候选 | `create/index.tsx:1120` `onOpenInCanvas` → `continueCreationConversationOnCanvas`（service） |
+| 写入点候选 | ~~`create/index.tsx:1120` `onOpenInCanvas`~~ → ★ **控制线裁定（05:50）：写入点 = service 层**（`creation-canvas-conversation.ts` 新建分支），非 onOpenInCanvas 内联 |
 
 ### 关键结构发现（影响修法）
 
@@ -1488,10 +1488,34 @@ B-1→2 fail（行为断言抓到）/ B-2→2 fail / D-1→2 fail / D-2→2 fail
 - `:58-68` 未命中走 `createCanvasProjectWithRemoteSync` **新建分支**；
 - 修法要求「existingId 分支不覆盖既有画布」⇒ 写入须只在**新建分支**（或对既有画布仅在 `workspaceType` 缺失时补写）。
 
-**调用方全貌**：`continueCreationConversationOnCanvas` 有**两个调用方**——
-`:862`（既有创作交接，画布页转入，`create/index.tsx`）与 `:1127`（卡流程交接）。
-T1-P1 语义只覆盖「直线流程创建容器」⇒ **倾向写入点放 `onOpenInCanvas` 或 service 增可选参数由卡流程传**，
-既有创作交接行为零变化。实现时定，需在交付报告披露。
+### ★ 写入点裁定（控制线 2026-10-05 05:50，更新首版登记）
+
+**裁定：写入点 = service 层（`creation-canvas-conversation.ts` 新建分支），非 `onOpenInCanvas` 内联。**
+
+理由（控制线，三条）：
+1. 新建分支是唯一确定「容器刚创建」的位置，天然满足「existingId 不覆盖」；
+2. **两个调用方都该打 headless 标记**（`:854` 既有创作交接 + `:1130/:1154` 卡流程 carrier/result 两分支）——内联覆盖不到前者；
+3. A线刚重构 `onOpenInCanvas` handler（`191b39b6`，T2-P1b 修复，+51 行改 `create/index.tsx`）——内联会撞同一函数体。
+
+**裁定依据核验（实勘，非仅采信）**：
+- `191b39b6` 实况：父 = `7db3fa10`，改 3 文件（`linear-flow-runner.tsx` / `create/index.tsx` / `linear-flow-runner.test.ts`），
+  `create/index.tsx` 的 `onOpenInCanvas` 重构为判别联合 `LinearFlowCanvasHandoff`（`kind: "result" | "carrier"`），
+  新增 carrier 分支（生成中开承载画布）——裁定理由③ 实证成立；
+- 该枝上 `continueCreationConversationOnCanvas` 有 **3 个调用点**（`:854` / `:1130` / `:1154`），
+  证实「两个调用方」表述（卡流程内 carrier/result 两分支共用同一 service 调用）；
+- `git merge-tree --write-tree main 191b39b6` 干跑 = **零冲突**（exit 0）。
+
+**实现面（控制线指定，细节自定报备）**：
+① `creation-canvas-conversation.ts` 增可选参数 + 新建分支透传；
+② `user-data-sync.ts` `createCanvasProjectWithRemoteSync` 的 `initialContent` Pick 白名单扩 `workspaceType`
+   （现签名 `:710` 只 Pick `nodes | connections | chatSessions | activeChatId`——已核实，确需扩）。
+
+**时序不变**：等统一任务面批（新 tip `191b39b6`）合入后从新 main 开枝（`fix/w5-headless-writer`）。
+
+**调用方全貌**：`continueCreationConversationOnCanvas` 在 `191b39b6` 上有 **3 个调用点**——
+`:854`（既有创作交接，画布页转入）、`:1130`（卡流程 carrier，生成中开承载画布）、`:1154`（卡流程 result，交付结果交接）。
+★ 裁定后语义（覆盖首版「只覆盖卡流程」的推断）：**全部 3 处都走 service 新建分支** ⇒ 都该打 headless 标记，
+`existingId` 命中既有画布时不覆盖（合并分支不动 workspaceType）。
 
 ### 交叉核验（姊妹批在飞）—— ★ 首版误报已自查纠正
 
@@ -1515,9 +1539,10 @@ T1-P1 语义只覆盖「直线流程创建容器」⇒ **倾向写入点放 `onO
 **纪律修正**：判「某枝是否回退他人修复」必须看「枝 vs 其 merge-base」或干跑合并树，
 不得用「枝 vs 已前进的 main」两点 diff。
 
-### 修法要点（收令登记）
+### 修法要点（收令登记，已按 05:50 裁定更新）
 
-- 用户点「在画布中打开」时创建/更新容器 → `updateProject(id, { workspaceType: "headless_task" })`；
+- 写入点 = service 层新建分支：`continueCreationConversationOnCanvas` 新建容器时带
+  `workspaceType: "headless_task"`（增可选参数透传，细节自定报备）；
 - `existingId` 分支**不覆盖**既有画布（既有画布可能是用户正常画布，不能因一次转入就打成 headless）；
 - 验收：真机建 headless 容器 → 画布库不显示 + 首入整理触发；测试：写入点结构断言 + 不覆盖断言。
 
