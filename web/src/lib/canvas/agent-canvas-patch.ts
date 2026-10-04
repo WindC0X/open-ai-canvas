@@ -108,14 +108,20 @@ export function mergeAgentCanvasEditor(previous: CanvasProject, incoming: Canvas
         return [...removals, ...after.filter((item) => !equal(item, byId.get(item.id))).map((item) => ({ before: byId.get(item.id) ?? null, after: item }))];
     };
     const editorState = editorProject || { ...previous, nodes, connections };
+    // 双契约（合并口径 2026-10-04 sync #2）：
+    // ① 4 参数调用（fork 的 Agent 撤销/采纳路径）：basis 取活体编辑器 —— P3 漏删修复，
+    //    撤销会删除节点（云端权威回滚），按活体判定才能识别"baseline 已无、编辑器仍有"。
+    // ② 5 参数调用（上游的同步三方合并路径）：basis 取 baseline —— 本地新增必须存活
+    //    （三方合并语义：baseline + remote + current，只有 baseline 里存在的删除才是真删除）。
+    // 以 editorProject 是否存在作为契约信号（调用方天然可区分）。
+    const removalBasis = editorProject ? previous : { ...previous, nodes, connections };
     const projected = applyAgentCanvasPatch(
         { ...previous, nodes: editorState.nodes, connections: editorState.connections },
         {
             canvasId: previous.id,
             updatedAt: incoming.updatedAt,
-            // basis 取 editorState 的节点集（P3：删除按活体状态判定，漏删修复）
-            nodes: changes(previous.nodes, incoming.nodes, editorState.nodes),
-            connections: changes(previous.connections, incoming.connections, editorState.connections),
+            nodes: changes(previous.nodes, incoming.nodes, removalBasis.nodes),
+            connections: changes(previous.connections, incoming.connections, removalBasis.connections),
         },
     );
     // 合并口径（2026-09-30 序4 rider）：上游 387d3562 新增的 project 顶层字段三方合并

@@ -1,4 +1,5 @@
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
+import { imageGenerationChildPosition } from "@/lib/canvas/canvas-generation-layout";
 import { fitNodeSize, MEDIA_NODE_MAX_SIZE, nodeSizeFromRatio, videoCompletionSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { commitCanvasGenerationResult } from "@/lib/canvas/canvas-generation-result";
 import { compositeEmotionImage } from "@/lib/canvas/canvas-emotion";
