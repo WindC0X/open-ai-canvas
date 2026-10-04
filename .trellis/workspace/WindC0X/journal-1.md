@@ -1372,3 +1372,93 @@ B 线批**零触及**该文件（`git diff` 计数 0）。属既有环境族（�
 ### 门禁
 
 tsc 0 / eslint 0（12 改动文件）/ 关联回归 237 pass / 全量 **3020 pass 0 fail**（360 文件）。
+
+---
+
+## 2026-10-05 · B线 R1 修复批合入（`cdfa12c1`）
+
+### 合入
+
+`fix/w5-review-r1-b`（tip `66512736`）→ `--no-ff` merge **`cdfa12c1`**
+（parents `c94d14e7` × `66512736`），13 文件 +807/-39。
+
+**顺序裁定**（控制线）：R1 批**先合**（P1 修复不等验证轮）；统一任务面批
+（`7db3fa10`）等 b12r20 GO 后合。
+
+### ★ 交叠补报（控制线干跑之外多查出的两点）
+
+控制线双向 merge-tree 干跑报「零冲突，唯一交集 linear-flow-runner.tsx 区域相邻不重叠」。
+我方复测**多查出两点**，如实补报：
+
+| # | 发现 | 处置 |
+| --- | --- | --- |
+| 1 | 交叠文件除 `linear-flow-runner.tsx` 外还有 **`.trellis/workspace/WindC0X/journal-1.md`**（控制线干跑未列） | journal 是**追加式**文件，两批各自在尾部追加不同段落 ⇒ 结构上不冲突；实测 `merge-tree` 零冲突 |
+| 2 | 首次交叠测算**基数错**（用 `c94d14e7` 对比我的批，但我的批 base 是 `f180edf5`）⇒ 我的批文件数虚报 26（实际 18） | 已按正确 merge-base 重算；结论不变（真实交集仍仅 1 文件 + journal） |
+
+**决定性验证**（不只依赖控制线的干跑）：真实干跑三步 ——
+① 临时分支合 R1 → ② 再试合我的批 `7db3fa10` → **自动合并零冲突**
+（含唯一交集文件 `linear-flow-runner.tsx`）→ ③ 清理干跑分支。
+⇒ 确认 R1 合入后我的批仍可干净合入（未来 GO 时无需重做冲突分析，只需按
+纪律对**新 main** 复跑一次 merge-tree）。
+
+### R1 七条 P1 修复（评审线 R1 报告，全部 confirmed）
+
+**E 组（毕业机制 —— 门控核心承诺）**：
+- **E-1** 图片工具层 30 项整条旁路 guide 白名单 → guide 态实测 32 项。
+  修：叶子模块新增 `filterToolsForGuide`（与 registry 侧同一真值），
+  `canvas-node-toolbar` 合并路径走该接缝。
+- **E-2** 白名单无条件应用于所有 toolbar → main 9 项被清空为 0。
+  修：显式白名单 `GUIDE_FILTERED_TOOLBARS = ["node-hover"]`（清单包含判断，
+  防未来新 toolbar 隐式继承）。
+
+**B 组（F-08 圈选改图）**：
+- **B-1** 徽标 clamp 用 `context.canvas` 尺寸（导出路径有 scale+translate，
+  坐标系错位）→ 徽标跑出画布左侧且多条重合。
+  修：clamp 改用原图像素空间 `imageWidth/imageHeight`；提取 `badgeCenter` 真接缝。
+- **B-2** 标注图纯 dataUrl 被 referenceUrl 过滤 → 重试链只剩原图单图，
+  而 prompt 仍宣称「第二张图是带标注的截图」。
+  修：提交前物化 storageKey（照 outpaint maskUpload 先例，失败不阻断+可见提示）。
+- **B-3** 注释称「元数据保留完整标注供审计」但 `annotateEdit` 仅 5 字段。
+  修：补 `annotations` 明细（shape+note）进 metadata，兑现承诺。
+
+**D 组（直线入口卡）**：
+- **D-1** runner 防御层无条件以 `model` prop 覆写 → 文本/视频页面开图片卡时
+  重新引入「提交文本模型 → HTTP 400」。
+  修：单一真值 `resolveLinearFlowModel`（`index.tsx` 的 config 与 prop 同源）；
+  防御层判据改为「`config.model` 与 `card.mode` 对应模型族字段」比较。
+- **D-2** `...generationConfig` 打底让视频比例透传进图片请求
+  （scene-shot → `size=16:9`）。
+  修：`resolveLinearFlowConfig` 真接缝显式剥离继承 `size`，由卡流程唯一决定。
+
+### 真接缝测试设计（本批最值钱的工程决策）
+
+新增 `web/test/review-r1-wiring.test.ts`（33 tests / 90 expects）：
+**每条附真接缝行为断言 + 反例**。
+
+**关键教训**：初版测试**复刻实现表达式**（断言旧表达式文本）—— 这正是评审线
+D-4 批评的**同形缺陷**（测试镜像实现，实现改了测试跟着改，证明力为零）。
+改为**提取真接缝**（`filterToolsForGuide` / `badgeCenter` / `resolveLinearFlowConfig`）
+后，测试直接断言**生产函数返回值**。
+
+**可证伪性验证（逐条注入缺陷）**：E-2→3 fail / E-1→2 fail /
+B-1→2 fail（行为断言抓到）/ B-2→2 fail / D-1→2 fail / D-2→2 fail。
+
+**既有断言更新**：`linear-flow-wiring.test.ts` 4 条**镜像实现断言**（断言旧表达式文本）
+随重构改为契约级断言。
+
+### 门禁（**绑定合并 commit `cdfa12c1`**）
+
+| 门 | 结果 |
+| --- | --- |
+| tsc --noEmit | exit 0 ✅ |
+| eslint（本批 12 文件） | exit 0 ✅ |
+| 全量 bun test | **3030 pass / 0 fail**（361 文件）✅ |
+| go build | exit 0 ✅ |
+| go test ./internal/canvas/... | ok ✅ |
+
+（R1 批零 backend 文件，go 侧为基线回归确认。）
+
+### 环境
+
+会话中途电脑重启；重启后先核实合并态（`cdfa12c1` 双亲正确、工作树干净）再续跑
+门禁，未重复已完成的合并动作。
