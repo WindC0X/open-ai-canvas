@@ -1134,7 +1134,9 @@ export default function CreatePage() {
                     ],
                 });
                 if (created.syncError) toast.warning("会话已保存在本机，云端同步尚未完成。");
-                navigate(`/canvas/${created.id}?${new URLSearchParams({ conversation: created.sessionId }).toString()}`);
+                // ★ W5 毕业机制入口钩子：带 mode=guide 进入画布 → 引导态（只露 6 动作）。
+                // 若用户已毕业（graduated sticky），画布侧会忽略该参数（见 project.tsx 的 workspaceMode 推导）。
+                navigate(`/canvas/${created.id}?${new URLSearchParams({ conversation: created.sessionId, mode: "guide" }).toString()}`);
             }}
         />
         {libraryOpen ? <Suspense fallback={null}><AssetLibraryPickerModal

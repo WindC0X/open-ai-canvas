@@ -51,7 +51,17 @@ export function isBuiltinCanvasNodeType(type: CanvasNodeTypeId): type is CanvasN
 
 export type CanvasNodeStatus = "idle" | "success" | "loading" | "error";
 export type CanvasMediaPerformanceMode = "auto" | "quality" | "performance";
-export type CanvasWorkspaceMode = "simple" | "professional";
+/**
+ * 画布工作模式（能力可见性，与 `CanvasStarterMode` 的空态呈现正交）。
+ *
+ * - `professional`：完整画布（默认）—— 直接打开画布的用户零门控。
+ * - `simple`：上游既有值（**语义不动**）—— 简化态，排除视频/字号等部分动作。
+ * - `guide`：W5 毕业机制的**引导态** —— 从卡流程「在画布中打开」进入时写入，
+ *   node-hover 只露 6 动作（`graduation-state.ts` 的 `GUIDE_VISIBLE_TOOL_IDS`），
+ *   顶部常驻「完整画布」出口。毕业（完成首单 / 点出口）后迁回 `professional`
+ *   并置 sticky `graduated` 标记，此后不再回退。
+ */
+export type CanvasWorkspaceMode = "simple" | "professional" | "guide";
 export type CanvasToolMode = "move" | "box-select";
 export type CanvasFolderStyle = "glass" | "stacked" | "midnight" | "paper" | "cinema" | "compact";
 export type CanvasFolderTheme = "aurora" | "obsidian" | "ember" | "pearl";

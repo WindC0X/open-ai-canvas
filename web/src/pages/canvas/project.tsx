@@ -263,7 +263,24 @@ function InfiniteCanvasPage() {
     const [mediaPerformanceMode, setMediaPerformanceMode] = useState<CanvasMediaPerformanceMode>(readCanvasMediaPerformanceMode);
     const [hideNodeConnections, setHideNodeConnections] = useState(readCanvasHideNodeConnections);
     const [projectLoaded, setProjectLoaded] = useState(false);
-    const workspaceMode: CanvasWorkspaceMode = "professional";
+    /**
+     * 画布工作模式（★ W5 毕业机制接线）。
+     *
+     * ★ 默认分支红线（控制线裁定）：**默认 professional** —— 直接打开画布的用户零变化，
+     * 门控只锁引导态内。引导态由入口钩子写入（卡流程「在画布中打开」带 mode=guide，见下方
+     * effect）；毕业（完成首单 / 点「完整画布」）后迁回 professional 并置 sticky graduated 标记。
+     *
+     * ★ 为何用 `graduatedRef` 而非 `currentProject.graduated`：`currentProject` 在本行之后
+     * 才声明（lifecycle hook 返回值），用 ref 镜像避免 TDZ；ref 在下方 effect 同步。
+     */
+    const [graduated, setGraduated] = useState(false);
+    const workspaceMode: CanvasWorkspaceMode = useMemo(() => {
+        // 已毕业 → 永远是完整画布（sticky，不再回退）
+        if (graduated) return "professional";
+        // 入口钩子：卡流程「在画布中打开」带 mode=guide → 引导态
+        if (searchParams.get("mode") === "guide") return "guide";
+        return "professional";
+    }, [graduated, searchParams]);
     const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
     // 扩图拖图会话活跃态（overlay 首帧有效位移置真/松手置假）：组合进喂给 world-layers 的 isNodeDragging，
     // 让 SVG 强调连线层（光晕/流光）拖动中隐藏——扩图自实现拖拽不经过节点拖拽管线，不组合会滞留旧锚点。
@@ -821,6 +838,37 @@ function InfiniteCanvasPage() {
         if (!projectLoaded || searchParams.get("mode") !== "handoff") return;
         void loadAssetsForUse(canvasAssetHandoffIds(searchParams)).catch((error) => message.error(error instanceof Error ? error.message : "转入素材读取失败"));
     }, [projectLoaded, searchParams, message]);
+
+    /**
+     * ★ W5 毕业机制：项目加载后同步 graduated 状态（存量项目 + 云端同步都走这里）。
+     */
+    useEffect(() => {
+        if (!projectLoaded) return;
+        if (currentProject?.graduated) setGraduated(true);
+    }, [currentProject?.graduated, projectLoaded]);
+
+    /**
+     * ★ W5 毕业机制：完成首单 → 毕业（sticky）。
+     *
+     * ★ 判据：画布上已有**成功产出的媒体节点**即视为「完成首单」——
+     * 比订阅任务队列更直接（任务完成后会物化为 success 节点，且刷新后仍成立）。
+     * ★ 单向粘性：一旦置 `graduated` 永不复位（即使再次从卡流程进入也不再降回引导态）。
+     * ★ 只在引导态下检查：非引导态用户不写这个标记（零额外写入）。
+     */
+    useEffect(() => {
+        if (!projectLoaded || workspaceMode !== "guide" || graduated) return;
+        const hasProducedNode = nodesRef.current.some((node) => node.metadata?.status === "success" && Boolean(node.metadata?.content || node.metadata?.storageKey));
+        if (hasProducedNode) {
+            setGraduated(true);
+            updateProject(projectId, { graduated: true });
+        }
+    }, [graduated, nodes, projectId, projectLoaded, updateProject, workspaceMode]);
+
+    /** 「完整画布」出口：毕业并迁回 professional（单向粘性）。 */
+    const graduateToFullCanvas = useCallback(() => {
+        setGraduated(true);
+        updateProject(projectId, { graduated: true });
+    }, [projectId, updateProject]);
 
     useEffect(() => {
         if (!projectLoaded || !assetsHydrated || searchParams.get("mode") !== "handoff") return;
@@ -2763,6 +2811,7 @@ function InfiniteCanvasPage() {
                             onEnterFocusMode={enterFocusMode}
                             feedbackContext={{ projectId, nodeCount: canvasContext.nodeCount }}
                             shortDramaGuide={shortDramaGuide}
+                            guideExit={workspaceMode === "guide" ? { onExit: graduateToFullCanvas } : undefined}
                         />
                     ) : null}
                     {!focusMode && shortDramaGuide ? (
