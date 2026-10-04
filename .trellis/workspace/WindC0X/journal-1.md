@@ -1282,3 +1282,37 @@ PARSE ERROR（TS1005 'try' expected）—— 控制线与测试线双重独立�
 ### 依赖清单
 
 `bun.lock` / `web/package.json` / `backend/go.mod` / `go.sum` **无变更** ✅。
+
+---
+
+## 2026-10-05 · B线缝隙池批合入（`65c51953`）
+
+### 合入
+
+`feat/w5-gap-repair`（tip `d6b6a952`）→ `--no-ff` merge **`65c51953`**
+（parents `f180edf5` × `d6b6a952`）。
+
+**交叠预检**：B 线 7 文件 × 统一任务面批 15 文件，`comm -12` **零交集** ⇒ 直接合，无需报备。
+
+### 内容（7 文件 +448/-23）
+
+R25m **片 6 页面接线** —— 灵感卡走适配器：
+- `registry-adapters.ts` / `registry-asset.ts`（适配器层）
+- `creation-workspace-empty.tsx`（页面接线，62 行改动）
+- `gap-repair-wiring.test.tsx`（117 行接线测试）+ `registry-adapters.test.ts`（+30）
+- §3.4 补门禁 + B1 显式关闭
+
+### 门禁（**绑定合并 commit `65c51953`**）
+
+| 门 | 结果 |
+| --- | --- |
+| tsc --noEmit | exit 0 ✅ |
+| 全量 bun test | **2996 pass / 1 fail**（2997 tests，与控制线预期精确一致） |
+| eslint（本批 5 文件） | exit 0 ✅ |
+| go build | exit 0 ✅ |
+| go test ./internal/canvas/... ./internal/app/ | ok ✅ |
+
+**1 项失败定性**：`admin-channel-workspace.test.tsx` 的
+「real model manager renders inline」在**全量跑 17782ms 超 5000ms 阈值**，
+**隔离跑 6 pass / 0 fail（3.81s）** —— drvfs 慢 IO 负载敏感假红，
+B 线批**零触及**该文件（`git diff` 计数 0）。属既有环境族（与 ui-kit 扫描族同源）。
