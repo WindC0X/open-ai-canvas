@@ -25,7 +25,9 @@ func cloudAgentWrite(name string) bool {
 	// image_layer_split 是上游 adf3a5be/PoloX 链的画布写工具(未合并前不可达, 合并后进 step_hash 接力与审批门,
 	// 否则成为不可撤销写路径)。撤销账本本身内容驱动, 不依赖本枚举。
 	// fork 登记（F 系列）：上游 d328a257 拆分本函数时未带注释，此处按落位恢复。
-	return name == "canvas_apply_ops" || name == "canvas_arrange_nodes" || name == "generate_media" || name == "image_layer_split" || name == "canvas_create_storyboard" || name == "canvas_edit_storyboard" || name == "canvas_edit_batch_table"
+	// 合并口径（2026-10-04 sync #2）：上游新增 canvas_create_character（角色卡打包创建）为写工具，
+	// 追加到枚举末尾；fork 注释保留。
+	return name == "canvas_apply_ops" || name == "canvas_arrange_nodes" || name == "generate_media" || name == "image_layer_split" || name == "canvas_create_storyboard" || name == "canvas_edit_storyboard" || name == "canvas_edit_batch_table" || name == "canvas_create_character"
 }
 
 // 同参缓存只能拦住“原样重复”的读取。模型也可能不断修改 offset、nodeIds 或

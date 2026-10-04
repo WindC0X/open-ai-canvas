@@ -43,6 +43,7 @@ import { CanvasActiveTaskPanel } from "@/components/canvas/canvas-active-task-pa
 import { CanvasAssetTray } from "@/components/canvas/canvas-asset-tray";
 import { CanvasProjectSidebar } from "@/components/canvas/canvas-project-sidebar";
 import { CanvasProjectAssetModal } from "@/components/canvas/canvas-project-asset-modal";
+import { CanvasCharacterLibraryModal } from "@/components/canvas/canvas-character-library-modal";
 import { CanvasCharacterReferenceNodeContent } from "@/components/canvas/canvas-character-reference-node";
 import { CanvasCharacterReferenceModal } from "@/components/canvas/canvas-character-reference-modal";
 import { WorkspaceState } from "@/components/layout/workspace-state";
@@ -69,7 +70,7 @@ import { handleListGenerate } from "./list-mode-generator";
 import { CanvasToolbar } from "@/components/canvas/canvas-toolbar";
 import { useCanvasCreateCommands } from "@/components/canvas/use-canvas-create-commands";
 import { AssetPickerModal } from "@/components/canvas/asset-picker-modal";
-import { getProject } from "@/services/api/projects";
+import { getProject, listCharacters, type ProjectAsset } from "@/services/api/projects";
 import { CanvasZoomControls } from "@/components/canvas/canvas-zoom-controls";
 import { CanvasShareModal } from "@/components/canvas/canvas-share-modal";
 import { CanvasScriptEditor, CanvasScriptNodeContent } from "@/components/canvas/canvas-script-node";
@@ -255,6 +256,9 @@ function InfiniteCanvasPage() {
     // 命令被静默吞掉；自增 id 保证每次点击都是一条新命令。
     const [agentPrefill, setAgentPrefill] = useState<{ id: number; prompt: string }>({ id: 0, prompt: "" });
     const agentPrefillIdRef = useRef(0);
+    // 上游增量（合并口径 2026-10-04 sync #2）：prefillRequest 追加语义通道，与 fork 的
+    // prefillPrompt（替换语义）并存；面板侧按优先级处理（prefillRequest 优先）。
+    const [agentPrefillRequest, setAgentPrefillRequest] = useState<{ id: number; text: string } | null>(null);
     const [isMiniMapOpen, setIsMiniMapOpen] = useState(false);
     const [canvasAppearance, setCanvasAppearance] = useState<CanvasAppearance>(() => canvasAppearanceForTheme(colorTheme));
     const [backgroundMode, setBackgroundMode] = useState<CanvasBackgroundMode>(DEFAULT_CANVAS_BACKGROUND_MODE);
@@ -342,6 +346,8 @@ function InfiniteCanvasPage() {
     const [dialogNodeId, setDialogNodeId] = useState<string | null>(null);
     const [textEditorNodeId, setTextEditorNodeId] = useState<string | null>(null);
     const [characterReferenceNodeId, setCharacterReferenceNodeId] = useState<string | null>(null);
+    const [characterLibraryOpen, setCharacterLibraryOpen] = useState(false);
+    const [characterLibraryPosition, setCharacterLibraryPosition] = useState<Position | undefined>();
     const [drawingNodeId, setDrawingNodeId] = useState<string | null>(null);
     const [stylePickerOpen, setStylePickerOpen] = useState(false);
     // 新建导演台镜头必须先选模板：null 表示未在选择中，undefined position 表示用画布中心。
@@ -504,7 +510,9 @@ function InfiniteCanvasPage() {
             setSelectedNodeIds(selection);
         }
         agentPrefillIdRef.current += 1;
-        setAgentPrefill({ id: agentPrefillIdRef.current, prompt: `${references.map(canvasResourceMentionToken).join(" ")} ` });
+        const prefillText = `${references.map(canvasResourceMentionToken).join(" ")} `;
+        setAgentPrefill({ id: agentPrefillIdRef.current, prompt: prefillText });
+        setAgentPrefillRequest((current) => ({ id: (current?.id ?? 0) + 1, text: prefillText }));
         openAgent();
         setContextMenu(null);
     }, [agentMentionReferences, openAgent]);
@@ -590,6 +598,20 @@ function InfiniteCanvasPage() {
         if (!projectLoaded || !linkedProjectQuery.data) return;
         setNodes((current) => refreshCanvasCharacterReferenceNodes(current, linkedProjectQuery.data.assets));
     }, [linkedProjectQuery.data, projectLoaded, setNodes]);
+    const canvasCharacterIds = useMemo(() => {
+        const ids = new Set<string>();
+        for (const node of nodes) {
+            const assetId = node.metadata?.workflowKind === "character" ? node.metadata.characterAssetId?.trim() : "";
+            if (assetId) ids.add(assetId);
+        }
+        return [...ids].sort();
+    }, [nodes]);
+    const characterCardsQuery = useQuery({ queryKey: ["characters", "canvas-refresh", canvasCharacterIds], queryFn: () => listCharacters({ ids: canvasCharacterIds }), enabled: projectLoaded && canvasCharacterIds.length > 0 });
+    useEffect(() => {
+        if (!projectLoaded || !characterCardsQuery.data) return;
+        const assets = characterCardsQuery.data.characters.map((item) => ({ ...item.asset, character: item.character })) as ProjectAsset[];
+        setNodes((current) => refreshCanvasCharacterReferenceNodes(current, assets));
+    }, [characterCardsQuery.data, projectLoaded, setNodes]);
     const canvasContext = useMemo(() => summarizeCanvasContext(nodes, selectedNodeIds, linkedProjectQuery.data?.units), [linkedProjectQuery.data?.units, nodes, selectedNodeIds]);
     // 扩展节点（对比/图表/调色）要读自己的上游才能渲染，经 Context 下发；
     // 取上游复用 canvas-resource-references 的实现，别在这里另写一份。必须 memo——
@@ -833,6 +855,13 @@ function InfiniteCanvasPage() {
         handleProjectAssetsInsert,
         openAssetsAtPosition,
     });
+    const openCharacterLibrary = useCallback((position?: Position) => {
+        setCharacterLibraryPosition(position);
+        setCharacterLibraryOpen(true);
+        setContextMenu(null);
+    }, []);
+    const selectedCharacterImage = nodes.find((node) => selectedNodeIds.has(node.id) && node.type === CanvasNodeType.Image && resourceIdFromStorageKey(node.metadata?.storageKey));
+    const selectedCharacterAudio = nodes.find((node) => selectedNodeIds.has(node.id) && node.type === CanvasNodeType.Audio && resourceIdFromStorageKey(node.metadata?.storageKey));
 
     useEffect(() => {
         if (!projectLoaded || searchParams.get("mode") !== "handoff") return;
@@ -1216,6 +1245,10 @@ function InfiniteCanvasPage() {
             setDrawingNodeId(node.id);
         } else if (node.type === CanvasNodeType.Script) {
             setDialogNodeId(null);
+        } else if (node.type === CanvasNodeType.Text && node.metadata?.workflowKind === "character" && node.metadata.characterAssetId) {
+            // 上游增量：角色卡走独立面板（不弹提示词面板）
+            setDialogNodeId(null);
+            setCharacterReferenceNodeId(node.id);
         } else if (node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Frame) {
             // 与节点工具栏「文本生成」按钮(onToggleDialog)同语义的真 toggle：
             // 单击节点唤出提示词面板，再次单击收起。旧写法 (current === id ? current : null)
@@ -1230,7 +1263,7 @@ function InfiniteCanvasPage() {
             // 全景节点是纯查看器，没有可编辑提示词，不弹提示词面板。
             setDialogNodeId(null);
         } else {
-            // 选择参考媒体时保留当前工作流配置面板，避免点击图片后配置“返回/消失”。
+            // 选择参考媒体时保留当前工作流配置面板，避免点击图片后配置"返回/消失"。
             // 没有工作流配置面板时，媒体节点仍按原逻辑打开自己的面板。
             setDialogNodeId((current) => {
                 const currentNode = current ? nodesRef.current.find((item) => item.id === current) : undefined;
@@ -1246,7 +1279,7 @@ function InfiniteCanvasPage() {
 
     const handleNodeDragEnd = useCallback((nodeId: string) => {
         const node = nodesRef.current.find((item) => item.id === nodeId);
-        if (!node || node.type === CanvasNodeType.Script || node.type === CanvasNodeType.Drawing || node.type === CanvasNodeType.MediaConversion || node.type === CanvasNodeType.Panorama || node.type === ART_CRITIQUE_NODE_TYPE) {
+        if (!node || node.type === CanvasNodeType.Script || node.type === CanvasNodeType.Drawing || node.type === CanvasNodeType.MediaConversion || node.type === CanvasNodeType.Panorama || node.type === ART_CRITIQUE_NODE_TYPE || (node.metadata?.workflowKind === "character" && node.metadata.characterAssetId)) {
             setDialogNodeId(null);
             return;
         }
@@ -2576,7 +2609,9 @@ function InfiniteCanvasPage() {
     // hover 其它节点时第二实例微浮现 —— 两者并存互不抢占(单例会抢走选中节点的常驻供给)。
     const hoveredNode = useMemo(() => (hoveredNodeId ? nodes.find((item) => item.id === hoveredNodeId) ?? null : null), [nodes, hoveredNodeId]);
     const exitingNode = useMemo(() => (exitingNodeId ? nodes.find((item) => item.id === exitingNodeId) ?? null : null), [nodes, exitingNodeId]);
-    const isPanelCarrier = useCallback((node: CanvasNodeData) => !isCanvasImageSourceNode(node) && !node.metadata?.fileUpload && node.type !== CanvasNodeType.Script && node.type !== CanvasNodeType.Drawing && node.type !== CanvasNodeType.Panorama && node.type !== CanvasNodeType.BatchTable && !isFrameNode(node), []);
+    // 合并口径（2026-10-04 sync #2）：上游在 dialogNode 挂载点的 character 排除
+    // （角色卡走 setCharacterReferenceNodeId 独立面板）移植到此处——fork 的唯一挂载判据。
+    const isPanelCarrier = useCallback((node: CanvasNodeData) => !isCanvasImageSourceNode(node) && !node.metadata?.fileUpload && node.type !== CanvasNodeType.Script && node.type !== CanvasNodeType.Drawing && node.type !== CanvasNodeType.Panorama && node.type !== CanvasNodeType.BatchTable && !isFrameNode(node) && !(node.metadata?.workflowKind === "character" && node.metadata.characterAssetId), []);
     // selected 实例(dialog 驱动, 常驻)。isPanelCarrier 排除 BatchTable(与上游语义一致):
     // BatchTable 编辑全内联在节点 body(CanvasBatchTableNodeContent 的 onPatchTable 直改), 无独立面板;
     // P0 双挂载根修删除的旧裸挂载点同样排除它 —— 注释曾误写为"并入", 2026-09-17 review 更正。
@@ -2703,7 +2738,7 @@ function InfiniteCanvasPage() {
             onOpenDirector: () => setDirectorTemplateRequest({}),
             onUpload: () => handleUploadRequest(),
             onOpenMyAssets: () => openCanvasAssetLibrary(),
-            onOpenProjectCharacters: () => openProjectAssets("character"),
+            onOpenProjectCharacters: () => openCharacterLibrary(),
         },
     });
     const emptyStateKind = resolveCanvasEmptyStateKind({
@@ -3014,7 +3049,7 @@ function InfiniteCanvasPage() {
                                         onOpenMyAssets={() => {
                                             openCanvasAssetLibrary();
                                         }}
-                                        onOpenProjectCharacters={() => openProjectAssets("character")}
+                                        onOpenProjectCharacters={() => openCharacterLibrary()}
                                     />
                                 ) : null}
                             </div>
@@ -3030,6 +3065,7 @@ function InfiniteCanvasPage() {
                                 references={agentMentionReferences}
                                 prefillPrompt={agentPrefill.prompt}
                                 prefillPromptId={agentPrefill.id}
+                                prefillRequest={agentPrefillRequest}
                                 panelLayout={agentPanelLayout}
                                 open={assistantOpen}
                                 onOpen={openAgent}
@@ -3291,7 +3327,10 @@ function InfiniteCanvasPage() {
                             面板统一走 selectedPanelNode 的 AffordanceSurface 槽位(上方), 此处残留的
                             b67487c4 时代挂载点与之对同一 dialogNode 双渲染(两面板完全同位叠加,
                             三拍动画双驱)。BatchTable 编辑全内联于节点 body, 本就不开面板(排除与上游一致,
-                            旧注释误写为"并入", 2026-09-17 review 更正)。 */}
+                            旧注释误写为"并入", 2026-09-17 review 更正)。
+                            合并口径（2026-10-04 sync #2）：上游在此处新增 character 排除，已移植到
+                            isPanelCarrier（fork 的唯一挂载判据），本处保持删除——恢复上游挂载点会
+                            重新引入 P0 双挂载缺陷。 */}
 
                         {/* F9（2026-09-24 三模型复核）：本区遗留双实例（连线菜单/替换提示/选择工具条/三 toast/Minimap）
                             已清理，唯一实例保留于上方主区；再添浮层请勿在此区重复挂载。 */}
@@ -3345,7 +3384,7 @@ function InfiniteCanvasPage() {
                             onOpenDirector={(position) => setDirectorTemplateRequest({ position })}
                             onUpload={(nodeId, position) => handleUploadRequest(nodeId, position)}
                             onOpenAssets={openCanvasAssetLibrary}
-                            onOpenProjectCharacters={(position) => openProjectAssets("character", position)}
+                            onOpenProjectCharacters={(position) => openCharacterLibrary(position)}
                             onUndo={undoCanvas}
                             onRedo={redoCanvas}
                             onPaste={pasteAtPosition}
@@ -3444,7 +3483,7 @@ function InfiniteCanvasPage() {
                             />
                         ) : null}
 
-                        <CanvasCharacterReferenceModal node={characterReferenceNode} open={Boolean(characterReferenceNode)} onClose={() => setCharacterReferenceNodeId(null)} />
+                        <CanvasCharacterReferenceModal node={characterReferenceNode} canvasNodes={nodes} open={Boolean(characterReferenceNode)} onClose={() => setCharacterReferenceNodeId(null)} onUpdated={(detail) => setNodes((current) => refreshCanvasCharacterReferenceNodes(current, [{ ...detail.asset, character: detail.character }]))} />
 
                         <CanvasTextEditorModal
                             node={textEditorNode}
@@ -3650,6 +3689,17 @@ function InfiniteCanvasPage() {
                         />
 
                         <AssetPickerModal open={assetPickerOpen} multiple={assetInsertScope === "canvas"} onInsert={handleLibraryAssetsInsert} onClose={closeAssetPicker} />
+                        <CanvasCharacterLibraryModal
+                            open={characterLibraryOpen}
+                            imageResourceId={resourceIdFromStorageKey(selectedCharacterImage?.metadata?.storageKey) || undefined}
+                            audioResourceId={resourceIdFromStorageKey(selectedCharacterAudio?.metadata?.storageKey) || undefined}
+                            imageTitle={selectedCharacterImage?.title}
+                            audioTitle={selectedCharacterAudio?.title}
+                            onClose={() => setCharacterLibraryOpen(false)}
+                            onInsert={async (payloads) => {
+                                await handleProjectAssetsInsert(payloads, characterLibraryPosition);
+                            }}
+                        />
                         <CanvasProjectAssetModal
                             open={projectAssetOpen}
                             detail={linkedProjectQuery.data}

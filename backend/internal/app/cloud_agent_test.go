@@ -625,21 +625,36 @@ func TestCloudAgentNodeTypesExposeExecutableAllowList(t *testing.T) {
 	}
 	// 按类型集合断言而非硬编码计数: 节点能力注册表会随功能演进(如批量创作表)增删类型,
 	// 计数断言在上游加类型时必然失配(历史教训: batch-table 注册后本测试停在 7 挂红)。
+	// 合并口径（2026-10-04 sync #2）：上游把计数改为 9 并加 character 断言，fork 改为集合断言
+	// —— 两者正交，合并 = fork 的集合断言 + 上游的 character 发现性断言（集合含 character）。
 	wantTypes := map[string]bool{
-		"audio": true, "batch-table": true, "frame": true, "image": true,
+		"audio": true, "batch-table": true, "character": true, "frame": true, "image": true,
 		"markdown": true, "script": true, "text": true, "video": true,
 	}
 	gotTypes := map[string]bool{}
+	var character map[string]any
 	for _, node := range nodes {
 		gotTypes[node["type"].(string)] = true
 		if node["type"] == "panorama" {
 			t.Fatal("UI-only node must not be exposed")
 		}
+		if node["type"] == "character" {
+			character = node
+		}
+	}
+	// 角色卡必须被 Agent 发现，但只是 text 节点的变体：不能出现在 add_node 的 nodeType 枚举里。
+	if character == nil || character["creatable"] != false || character["canvasNodeType"] != "text" || character["workflowKind"] != "character" || character["canReference"] != true {
+		t.Fatalf("character capability is not discoverable as a non-creatable variant: %#v", character)
+	}
+	for _, nodeType := range cloudAgentNodeTypeNames() {
+		if nodeType == "character" {
+			t.Fatal("character variant must not be creatable through add_node")
+		}
 	}
 	if len(gotTypes) != len(wantTypes) {
 		t.Fatalf("node registry type set mismatch: got %v want %v", gotTypes, wantTypes)
 	}
-	for _, want := range []string{"audio", "batch-table", "frame", "image", "markdown", "script", "text", "video"} {
+	for _, want := range []string{"audio", "batch-table", "character", "frame", "image", "markdown", "script", "text", "video"} {
 		if !gotTypes[want] {
 			t.Fatalf("node registry missing type %q: got %v", want, gotTypes)
 		}

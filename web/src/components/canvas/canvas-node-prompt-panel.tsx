@@ -6,7 +6,7 @@ import { ArrowUp, AtSign, Boxes, Camera, ChevronDown, FileText, GripVertical, Im
 
 import { ModelPicker } from "@/components/model-picker";
 import { modelOptionName, resolveModelChannel, useEffectiveConfig } from "@/stores/use-config-store";
-import { canonicalGenerationMetadata } from "@/lib/canvas/generation-contract";
+import { canonicalGenerationMetadata, nodeGenerationPrompt } from "@/lib/canvas/generation-contract";
 import { PROMPT_EDITOR_VIEWPORT_MARGIN } from "@/lib/canvas/canvas-prompt-editor-size";
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -95,7 +95,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     node = { ...node, metadata: canonicalGenerationMetadata(node, mode) };
     const hasTextContent = node.type === CanvasNodeType.Text && Boolean(node.metadata?.content?.trim());
     const hasImageContent = node.type === CanvasNodeType.Image && Boolean(node.metadata?.content);
-    const savedPrompt = node.metadata?.composerContent ?? node.metadata?.prompt ?? "";
+    const savedPrompt = nodeGenerationPrompt(node);
     const [prompt, setPrompt] = useState(savedPrompt);
     const promptRef = useRef(savedPrompt);
     const [presetOpen, setPresetOpen] = useState(false);

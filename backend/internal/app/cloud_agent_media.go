@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -202,7 +203,7 @@ func (s *Service) cloudAgentMediaModelName(a cloudAgentMediaArgs) (string, error
 }
 
 func cloudAgentReferenceDescriptor(node map[string]any) (cloudAgentNodeCapability, cloudAgentReferenceAdapter, error) {
-	descriptor, known := cloudAgentNodeCapabilityForType(stringValue(node["type"]))
+	descriptor, known := cloudAgentNodeCapabilityForNode(node)
 	if !known || !descriptor.Connection.CanReference || descriptor.InputKind == "" {
 		return cloudAgentNodeCapability{}, cloudAgentReferenceAdapter{}, BadAuthRequest("该节点不能作为媒体参考资产")
 	}
@@ -252,6 +253,25 @@ func cloudAgentMediaTargetIssue(node map[string]any, nodeType string) (string, s
 	return "", ""
 }
 
+func cloudAgentMediaAdmissionRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	var appErr *AppError
+	if errors.As(err, &appErr) && appErr.Retryable {
+		return true
+	}
+	var httpErr providerHTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.StatusCode >= 500 || httpErr.StatusCode == 429 || httpErr.StatusCode == 408
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var circuitErr providerCircuitOpenError
+	return errors.As(err, &circuitErr)
+}
+
 type cloudAgentMediaAdmissionError struct {
 	error
 	Reason         string
@@ -264,9 +284,9 @@ type cloudAgentMediaAdmissionError struct {
 func (e *cloudAgentMediaAdmissionError) Unwrap() error { return e.error }
 
 // cloudAgentWrapMediaAdmissionError turns an untyped failure from the media
-// admission boundary into an explicit, non-repairable failure. A billed write
-// must not ask the model to guess alternative sizes, routes, or provider
-// parameters after the server has rejected the admitted contract.
+// admission boundary into an explicit failure classification. Only errors that
+// are independently known to be transient may continue automatically; model,
+// parameter, permission and budget errors remain terminal before submission.
 func cloudAgentWrapMediaAdmissionError(err error) error {
 	if err == nil {
 		return nil
@@ -279,12 +299,17 @@ func cloudAgentWrapMediaAdmissionError(err error) error {
 	if errors.As(err, &admissionErr) {
 		return err
 	}
+	retryable := cloudAgentMediaAdmissionRetryable(err)
+	action := "report_to_user"
+	if retryable {
+		action = "retry"
+	}
 	return &cloudAgentMediaAdmissionError{
 		error:          err,
 		Reason:         "media_admission_failed",
 		ErrorClass:     cloudAgentToolErrorAdmission,
-		Retryable:      false,
-		RequiredAction: "report_to_user",
+		Retryable:      retryable,
+		RequiredAction: action,
 	}
 }
 
@@ -320,10 +345,10 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 	existingMeta, _ := existing["metadata"].(map[string]any)
 	targetDescriptor, supported := cloudAgentNodeCapabilityForGenerationMode(args.Mode)
 	if !supported {
-		return nil, nil, nil, BadAuthRequest("生成模式当前不受 Agent 支持")
+		return nil, nil, nil, cloudAgentFieldError("mode", "invalid_value", "生成模式当前不受 Agent 支持；请使用工具 schema 中列出的模式")
 	}
 	if err := validateCloudAgentID(args.NodeID, "生成节点 ID", 80); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, cloudAgentFieldError("nodeId", "invalid_value", cloudAgentSafeToolError(err))
 	}
 	if existing != nil {
 		if reason, issue := cloudAgentMediaTargetIssue(existing, targetDescriptor.Type); reason != "" {
@@ -348,12 +373,13 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 		}
 	}
 	if args.SourceNodeID != "" && nodes[args.SourceNodeID] == nil {
-		return nil, nil, nil, BadAuthRequest("来源镜头节点不在当前画布")
+		return nil, nil, nil, cloudAgentFieldError("sourceNodeId", "not_found", "来源节点不在当前画布；请重新读取画布并使用真实文本节点 ID，或留空")
 	}
 	if source := nodes[args.SourceNodeID]; source != nil {
-		descriptor, known := cloudAgentNodeCapabilityForType(stringValue(source["type"]))
-		if !known || !descriptor.Connection.CanSource || descriptor.InputKind != "text" {
-			return nil, nil, nil, BadAuthRequest("sourceNodeId 仅接受可作为文本输入的节点；媒体资产请放入 referenceNodeIds，并将 sourceNodeId 留空，不要重复传入")
+		descriptor, known := cloudAgentNodeCapabilityForNode(source)
+		// 角色卡作为文本来源时只取其角色设定（由 cloudAgentMediaCharacters 校验非空）。
+		if !known || !descriptor.Connection.CanSource || (descriptor.InputKind != "text" && descriptor.InputKind != "character") {
+			return nil, nil, nil, cloudAgentFieldError("sourceNodeId", "invalid_value", "sourceNodeId 仅接受可作为文本输入的节点；媒体资产请放入 referenceNodeIds，并将 sourceNodeId 留空")
 		}
 	}
 	// Keep the media entry point subject to the same graph admission policy as
@@ -372,9 +398,20 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 	if existing == nil {
 		prospectiveNodes = append(prospectiveNodes, target)
 	}
-	prospectiveSources := append(append([]string{}, args.ReferenceNodeIDs...), args.SourceNodeID)
+	type prospectiveSource struct {
+		id    string
+		field string
+	}
+	prospectiveSources := make([]prospectiveSource, 0, len(args.ReferenceNodeIDs)+1)
+	for i, id := range args.ReferenceNodeIDs {
+		prospectiveSources = append(prospectiveSources, prospectiveSource{id: id, field: fmt.Sprintf("referenceNodeIds[%d]", i)})
+	}
+	if args.SourceNodeID != "" {
+		prospectiveSources = append(prospectiveSources, prospectiveSource{id: args.SourceNodeID, field: "sourceNodeId"})
+	}
 	prospectiveSeen := map[string]bool{}
-	for _, sourceID := range prospectiveSources {
+	for _, source := range prospectiveSources {
+		sourceID := source.id
 		if sourceID == "" || prospectiveSeen[sourceID] {
 			continue
 		}
@@ -390,7 +427,7 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 			continue
 		}
 		if err := validateCloudAgentConnection(prospectiveNodes, sourceID, args.NodeID, prospectiveConnections); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, cloudAgentFieldError(source.field, "invalid_connection", cloudAgentSafeToolError(err))
 		}
 		prospectiveConnections = append(prospectiveConnections, map[string]any{"fromNodeId": sourceID, "toNodeId": args.NodeID})
 	}
@@ -400,11 +437,16 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 	}
 	refs := map[string]any{}
 	seen := map[string]bool{}
-	for _, id := range args.ReferenceNodeIDs {
+	for i, id := range args.ReferenceNodeIDs {
 		if id == "" || seen[id] || nodes[id] == nil {
-			return nil, nil, nil, BadAuthRequest("参考节点不存在或重复")
+			return nil, nil, nil, cloudAgentFieldError(fmt.Sprintf("referenceNodeIds[%d]", i), "invalid_value", "参考节点不存在或重复；请重新读取画布并只使用真实、唯一的媒体节点 ID")
 		}
 		seen[id] = true
+		if !cloudAgentCharacterNode(nodes[id]) {
+			if _, _, err := cloudAgentReferenceDescriptor(nodes[id]); err != nil {
+				return nil, nil, nil, cloudAgentFieldError(fmt.Sprintf("referenceNodeIds[%d]", i), "invalid_value", "referenceNodeIds 仅接受受支持的媒体参考节点；文本来源请改用 sourceNodeId")
+			}
+		}
 		ref, payloadField, e := cloudAgentMediaReference(repo, userID, canvas.ProjectID, nodes[id])
 		if e != nil {
 			return nil, nil, nil, e
@@ -417,10 +459,16 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 		if len(transient) > 0 && transient[0] != nil {
 			available = transient[0]
 		}
-		for _, id := range args.ReferenceTransientIDs {
+		for i, id := range args.ReferenceTransientIDs {
 			ref, ok := available[id]
-			if !ok || !strings.HasPrefix(ref.MIMEType, "image/") || ref.ResourceID == "" || time.Now().After(ref.ExpiresAt) {
-				return nil, nil, nil, BadAuthRequest("临时参考图不存在、类型不匹配或已过期，请重新渲染标注")
+			if !ok {
+				return nil, nil, nil, BadAuthRequest("临时参考图不存在或已不可用，请重新渲染标注")
+			}
+			if !strings.HasPrefix(ref.MIMEType, "image/") {
+				return nil, nil, nil, cloudAgentFieldError(fmt.Sprintf("referenceTransientIDs[%d]", i), "invalid_value", "临时参考图必须是图片；请使用图片参考或移除该 ID")
+			}
+			if ref.ResourceID == "" || time.Now().After(ref.ExpiresAt) {
+				return nil, nil, nil, BadAuthRequest("临时参考图资源未就绪或已过期，请重新渲染标注")
 			}
 			resolved, _, err := cloudAgentReference(repo, userID, map[string]any{"id": ref.ID, "type": "image", "title": ref.Name, "metadata": map[string]any{"storageKey": "resource:" + ref.ResourceID}})
 			if err != nil {
@@ -436,55 +484,55 @@ func cloudAgentMediaDocument(repo *repository.Repository, userID, canvasID strin
 func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime) error {
 	mode := strings.ToLower(strings.TrimSpace(a.Mode))
 	if !cloudAgentGenerationModeSupported(mode) {
-		return BadAuthRequest("生成模式当前不受 Agent 支持")
+		return cloudAgentFieldError("mode", "invalid_value", "生成模式当前不受 Agent 支持；请使用工具 schema 中列出的模式")
 	}
 	a.Mode = mode
 	if a.SnapshotHash == "" {
-		return BadAuthRequest("缺少画布快照，请先读取当前画布")
+		return cloudAgentFieldError("snapshotHash", "required", "缺少画布快照，请先读取当前画布后重试")
 	}
 	if len(a.SnapshotHash) != 64 {
-		return BadAuthRequest("画布快照无效，请重新读取当前画布")
+		return cloudAgentFieldError("snapshotHash", "invalid_value", "画布快照无效，请重新读取当前画布")
 	}
 	for _, r := range a.SnapshotHash {
 		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
-			return BadAuthRequest("画布快照无效，请重新读取当前画布")
+			return cloudAgentFieldError("snapshotHash", "invalid_value", "画布快照无效，请重新读取当前画布")
 		}
 	}
 	if err := validateCloudAgentID(a.NodeID, "生成节点 ID", 80); err != nil {
-		return err
+		return cloudAgentFieldError("nodeId", "invalid_value", cloudAgentSafeToolError(err))
 	}
 	if a.SourceNodeID != "" {
 		if err := validateCloudAgentID(a.SourceNodeID, "来源节点 ID", 80); err != nil {
-			return err
+			return cloudAgentFieldError("sourceNodeId", "invalid_value", cloudAgentSafeToolError(err))
 		}
 	}
-	for _, id := range a.ReferenceNodeIDs {
+	for i, id := range a.ReferenceNodeIDs {
 		if err := validateCloudAgentID(id, "参考节点 ID", 80); err != nil {
-			return err
+			return cloudAgentFieldError(fmt.Sprintf("referenceNodeIds[%d]", i), "invalid_value", cloudAgentSafeToolError(err))
 		}
 	}
 	if len(a.ReferenceTransientIDs) > 4 {
-		return BadAuthRequest("临时参考图最多 4 个")
+		return cloudAgentFieldError("referenceTransientIds", "item_count", "临时参考图最多 4 个，请减少引用数量")
 	}
-	for _, id := range a.ReferenceTransientIDs {
+	for i, id := range a.ReferenceTransientIDs {
 		if err := validateCloudAgentID(id, "临时参考图 ID", 120); err != nil {
-			return err
+			return cloudAgentFieldError(fmt.Sprintf("referenceTransientIds[%d]", i), "invalid_value", cloudAgentSafeToolError(err))
 		}
 	}
 	if strings.TrimSpace(a.Prompt) == "" {
-		return BadAuthRequest("生成提示词不能为空")
+		return cloudAgentFieldError("prompt", "required", "生成提示词不能为空，请补充完整提示词")
 	}
 	if strings.TrimSpace(a.Title) == "" || utf8.RuneCountInString(a.Title) > 240 {
-		return BadAuthRequest("生成节点标题不能为空且不能超过 240 个字符")
+		return cloudAgentFieldError("title", "invalid_value", "生成节点标题不能为空且不能超过 240 个字符")
 	}
 	if utf8.RuneCountInString(a.Prompt) > 16000 {
-		return BadAuthRequest(fmt.Sprintf("提示词共%d字符，超过16000字符上限；请先告知用户，不要擅自删改关键内容", utf8.RuneCountInString(a.Prompt)))
+		return cloudAgentFieldError("prompt", "length_exceeded", fmt.Sprintf("提示词共%d字符，超过16000字符上限；请先告知用户，不要擅自删改关键内容", utf8.RuneCountInString(a.Prompt)))
 	}
 	// 合并口径（2026-09-30）：fork 侧原「size/outpaintRatio 必须显式给出」校验由上游准入自动解析取代
 	// （applyCloudAgentResolvedMediaDefaults 从准入结果回填 size/quality/duration），语义仍满足 fork 原始意图
 	// （不向用户重复询问画幅），故随上游删除。
 	if a.Duration < 0 {
-		return BadAuthRequest("生成时长不能为负数")
+		return cloudAgentFieldError("durationSeconds", "invalid_value", "生成时长不能为负数，请传入非负整数")
 	}
 	switch mode {
 	case "video":
@@ -494,14 +542,17 @@ func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime
 		// 防御层: prepareCloudAgentMedia 已在非视频模式清零这两个错位参数(2026-09-20), 此处正常不可达;
 		// 保留以防未来调用方绕过 prepare 直达本函数。
 		if a.Duration != 0 {
-			return BadAuthRequest("只有视频生成允许设置 durationSeconds")
+			return cloudAgentFieldError("durationSeconds", "invalid_value", "只有视频生成允许设置 durationSeconds；图片或音频生成请省略该字段")
 		}
+		// 合并口径（2026-10-04 sync #2）：fork 的容错判定（仅 *true 才拦，容忍 LLM 携带
+		// videoGenerateAudio:false 的训练惯性，e30f8472）与上游的错误类型升级（cloudAgentFieldError，
+		// f170649e）正交，两者合并保留 —— 行为按 fork，错误呈现按上游。
 		if a.VideoGenerateAudio != nil && *a.VideoGenerateAudio {
-			return BadAuthRequest("只有视频生成支持同步音频")
+			return cloudAgentFieldError("videoGenerateAudio", "invalid_value", "只有视频生成支持同步音频；图片或音频生成请省略该字段")
 		}
 	}
 	if len(a.ReferenceNodeIDs) > 16 {
-		return BadAuthRequest("参考节点最多 16 个")
+		return cloudAgentFieldError("referenceNodeIds", "item_count", "参考节点最多 16 个，请减少引用数量")
 	}
 	if strings.TrimSpace(a.OutpaintRatio) != "" {
 		if mode != "image" {
@@ -512,9 +563,9 @@ func validateCloudAgentMediaArgs(a cloudAgentMediaArgs, state *cloudAgentRuntime
 		}
 	}
 	if a.SourceNodeID != "" {
-		for _, id := range a.ReferenceNodeIDs {
+		for i, id := range a.ReferenceNodeIDs {
 			if id == a.SourceNodeID {
-				return BadAuthRequest("sourceNodeId 与 referenceNodeIds 不能重复；参考图片、视频、音频请仅保留在 referenceNodeIds 并清空 sourceNodeId，文本镜头节点则仅放 sourceNodeId")
+				return cloudAgentFieldError(fmt.Sprintf("referenceNodeIds[%d]", i), "duplicate", "sourceNodeId 与 referenceNodeIds 不能重复；媒体资产仅放入 referenceNodeIds，文本来源仅放入 sourceNodeId")
 			}
 		}
 	}
@@ -537,17 +588,26 @@ func validateCloudAgentMediaReferences(mode string, refs map[string]any) error {
 	switch mode {
 	case "image":
 		if videoCount > 0 || audioCount > 0 {
-			return BadAuthRequest("图片生成仅支持图片参考资产")
+			return cloudAgentFieldError("referenceNodeIds", "invalid_combination", "图片生成仅支持图片参考资产；请移除视频或音频引用")
 		}
 	case "audio":
-		if imageCount > 0 || videoCount > 0 || audioCount > 0 {
-			return BadAuthRequest("当前音频生成只支持文本输入，暂不支持媒体参考资产")
+		if videoCount > 0 {
+			return cloudAgentFieldError("referenceNodeIds", "invalid_combination", "音频生成不能使用参考视频；请移除视频引用")
+		}
+		if imageCount > 0 && audioCount > 0 {
+			return cloudAgentFieldError("referenceNodeIds", "invalid_combination", "参考图片和参考音频不能同时使用；请只保留一种媒体类型")
+		}
+		if imageCount > 1 {
+			return cloudAgentFieldError("referenceNodeIds", "item_count", "音频生成最多使用 1 张参考图片，请减少图片引用")
+		}
+		if audioCount > 3 {
+			return cloudAgentFieldError("referenceNodeIds", "item_count", "音频生成最多使用 3 段参考音频，请减少音频引用")
 		}
 	case "video":
 		// Video reference admission is completed against the selected model's
 		// capability contract by CreateTask. Do not guess a provider operation here.
 	default:
-		return BadAuthRequest("生成模式尚未实现媒体任务适配器")
+		return cloudAgentFieldError("mode", "invalid_value", "生成模式尚未实现媒体任务适配器；请使用工具 schema 中列出的模式")
 	}
 	return nil
 }

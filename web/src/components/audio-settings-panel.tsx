@@ -2,7 +2,7 @@ import { type ReactNode, useState } from "react";
 
 import { ImageSettingsTheme, OptionPill } from "@/components/image-settings-panel";
 import { SettingsStepper } from "@/components/canvas/settings-stepper";
-import { audioFormatOptions, audioSpeedLabel, audioVoiceOptions, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
+import { audioFormatOptionsForConfig, audioSpeedLabel, audioVoiceOptionsForConfig, isDoubaoAudioConfig, normalizeAudioFormatForConfig, normalizeAudioSpeedValue, normalizeAudioVoiceForConfig } from "@/lib/audio-generation";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AiConfig } from "@/stores/use-config-store";
 
@@ -12,6 +12,8 @@ type AudioSettingKey =
     | "audioVoice"
     | "audioFormat"
     | "audioSpeed"
+    | "audioLanguage"
+    | "audioDialect"
     | "audioInstructions"
     | "audioEmotionControlMethod"
     | "audioEmotionRandom"
@@ -33,8 +35,12 @@ type AudioSettingsPanelProps = {
 };
 
 export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[var(--panel-width-compact)] space-y-4 rounded-2xl px-1 py-0.5" }: AudioSettingsPanelProps) {
-    const voice = normalizeAudioVoiceValue(config.audioVoice);
-    const format = normalizeAudioFormatValue(config.audioFormat);
+    const isDoubao = isDoubaoAudioConfig(config);
+    const voice = normalizeAudioVoiceForConfig(config, config.audioVoice);
+    const voiceOptions = audioVoiceOptionsForConfig(config);
+    const visibleVoiceOptions = voiceOptions.some((item) => item.value === voice) ? voiceOptions : [{ value: voice, label: `当前音色（${voice}）` }, ...voiceOptions];
+    const format = normalizeAudioFormatForConfig(config, config.audioFormat);
+    const formatOptions = audioFormatOptionsForConfig(config);
     const speed = normalizeAudioSpeedValue(config.audioSpeed);
     // 排布纪律(设计 v2): 音色(首要创作参数) > 语速(呈现节奏) > 格式(输出属性) > 声音指令。
     // 语速自定义(Progressive Disclosure): 仅当当前值不在预设档内时展开输入, 否则提供自定义入口。
@@ -46,13 +52,31 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-sm font-semibold">音频设置</div> : null}
                 <SettingGroup title="音色" color={theme.node.groupTitle}>
-                    <div className="grid grid-cols-4 gap-1">
-                        {audioVoiceOptions.map((item) => (
-                            <OptionPill key={item.value} selected={voice === item.value} theme={theme} onClick={() => onConfigChange("audioVoice", item.value)}>
-                                {item.label}
-                            </OptionPill>
-                        ))}
-                    </div>
+                    {isDoubao ? (
+                        <div className="space-y-3">
+                            <div className="rounded-xl border px-3 py-2 text-xs leading-5" style={{ borderColor: theme.node.stroke, color: theme.node.muted }}>
+                                不连接素材时，按提示词直接生成。连接音频时按参考音频生成，最多 3 段。连接图片时按参考图片生成，最多 1 张。图片和音频不能同时连接。
+                            </div>
+                            <select
+                                value={voice}
+                                className="h-9 w-full rounded-xl border bg-transparent px-3 text-sm outline-none"
+                                style={{ borderColor: theme.node.stroke, color: theme.node.text, background: theme.spatial.elevated }}
+                                onChange={(event) => onConfigChange("audioVoice", event.target.value)}
+                                onMouseDown={(event) => event.stopPropagation()}
+                            >
+                                <option value="">不指定音色</option>
+                                {voice ? <option value={voice}>当前音色</option> : null}
+                            </select>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-4 gap-1">
+                            {visibleVoiceOptions.map((item) => (
+                                <OptionPill key={item.value} selected={voice === item.value} theme={theme} onClick={() => onConfigChange("audioVoice", item.value)}>
+                                    {item.label}
+                                </OptionPill>
+                            ))}
+                        </div>
+                    )}
                 </SettingGroup>
                 <SettingGroup title="语速" color={theme.node.groupTitle} extra={<span className="shrink-0 text-[11px] font-medium leading-none tabular-nums" style={{ color: theme.node.text }}>{audioSpeedLabel(speed)}</span>}>
                     {/* 步进刻度滑块(用户拍板, 与视频时长同语法): 4 档刻度+里程碑标签; 自定义入口保留。 */}
@@ -97,81 +121,34 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 </SettingGroup>
                 <SettingGroup title="格式" color={theme.node.groupTitle}>
                     <div className="grid grid-cols-3 gap-1">
-                        {audioFormatOptions.map((item) => (
+                        {formatOptions.map((item) => (
                             <OptionPill key={item.value} selected={format === item.value} theme={theme} onClick={() => onConfigChange("audioFormat", item.value)}>
                                 {item.label}
                             </OptionPill>
                         ))}
                     </div>
                 </SettingGroup>
-                <SettingGroup title="声音指令" color={theme.node.groupTitle}>
-                    <textarea
-                        value={config.audioInstructions || ""}
-                        placeholder="例如：自然、温暖、适合旁白。"
-                        className="thin-scrollbar h-20 w-full resize-none rounded-xl border bg-transparent px-3 py-2 text-xs leading-5 outline-none"
-                        style={{ borderColor: theme.node.stroke, color: theme.node.text, fontSize: "12px" }}
-                        onChange={(event) => onConfigChange("audioInstructions", event.target.value)}
-                        onMouseDown={(event) => event.stopPropagation()}
-                    />
-                </SettingGroup>
-                <SettingGroup title="情感控制（IndexTTS2）" color={theme.node.muted}>
-                    <select
-                        className="h-9 w-full rounded-xl border bg-transparent px-3 text-sm outline-none"
-                        style={{ borderColor: theme.node.stroke, color: theme.node.text, background: theme.spatial.elevated }}
-                        value={config.audioEmotionControlMethod || "与音色参考音频相同"}
-                        onChange={(event) => onConfigChange("audioEmotionControlMethod", event.target.value)}
-                        onMouseDown={(event) => event.stopPropagation()}
-                    >
-                        <option value="与音色参考音频相同">与音色参考音频相同</option>
-                        <option value="使用情感参考音频">使用情感参考音频</option>
-                    </select>
-                    <label className="flex items-center justify-between gap-3 text-sm">
-                        <span>随机情感</span>
-                        <input type="checkbox" checked={config.audioEmotionRandom === "true"} onChange={(event) => onConfigChange("audioEmotionRandom", String(event.target.checked))} />
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                        {emotionFields.map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-2 text-xs">
-                                <span className="min-w-0 flex-1">{label}</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    className="h-8 w-20 rounded-lg border bg-transparent px-2 text-right outline-none"
-                                    style={{ borderColor: theme.node.stroke, color: theme.node.text }}
-                                    value={config[key] || "0"}
-                                    onChange={(event) => onConfigChange(key, event.target.value)}
-                                    onBlur={(event) => onConfigChange(key, normalizeEmotionWeight(event.target.value))}
-                                    onMouseDown={(event) => event.stopPropagation()}
-                                />
-                            </label>
-                        ))}
-                    </div>
-                </SettingGroup>
+                {!isDoubao ? (
+                    <SettingGroup title="声音指令" color={theme.node.groupTitle}>
+                        <textarea
+                            value={config.audioInstructions || ""}
+                            placeholder="例如：自然、温暖、适合旁白。"
+                            className="thin-scrollbar h-20 w-full resize-none rounded-xl border bg-transparent px-3 py-2 text-xs leading-5 outline-none"
+                            style={{ borderColor: theme.node.stroke, color: theme.node.text, fontSize: "12px" }}
+                            onChange={(event) => onConfigChange("audioInstructions", event.target.value)}
+                            onMouseDown={(event) => event.stopPropagation()}
+                        />
+                    </SettingGroup>
+                ) : null}
             </div>
         </ImageSettingsTheme>
     );
 }
 
 // 分段 pill 已收敛到 image-settings-panel 共享导出(40px 命中区)。
-const emotionFields: Array<[Extract<AudioSettingKey, `audioEmotion${string}`>, string]> = [
-    ["audioEmotionHappy", "快乐"],
-    ["audioEmotionAngry", "愤怒"],
-    ["audioEmotionSad", "悲伤"],
-    ["audioEmotionAfraid", "害怕"],
-    ["audioEmotionDisgusted", "厌恶"],
-    ["audioEmotionMelancholic", "忧郁"],
-    ["audioEmotionSurprised", "惊讶"],
-    ["audioEmotionCalm", "平静"],
-];
-
-function normalizeEmotionWeight(value: string) {
-    const number = Number(value);
-    if (!Number.isFinite(number)) return "0";
-    return String(Math.max(0, Math.min(1, number)));
-}
-
+// 合并口径（2026-10-04 sync #2）：emotionFields/normalizeEmotionWeight 随上游移除
+// IndexTTS2（插件 autodl-comfyui-audio + indextts2-v1 workflow 已删）一并移除；
+// SettingGroup 保留 fork 增强版（extra 可选 + theme.node.groupTitle）。
 function SettingGroup({ title, color, extra, children }: { title: string; color: string; extra?: ReactNode; children: ReactNode }) {
     // 组间距与 image/video 面板同一收敛(space-y-2); 字重对齐语料 P51-030(12px/400)。
     // 组卡背景只包控件区, 分组名留在外面(用户 2026-09-11)。
