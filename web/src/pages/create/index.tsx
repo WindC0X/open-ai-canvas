@@ -1109,24 +1109,59 @@ export default function CreatePage() {
             config={linearFlowConfig}
             model={linearFlowCard?.mode === "text" ? (config.textModel || selectedModel) : selectedModel}
             onClose={() => setLinearFlowCard(null)}
-            onOpenInCanvas={async ({ prompt: resultPrompt, resultUrl }) => {
+            onOpenInCanvas={async (handoff) => {
                 // 硬验收②「给而不要求」：可选转入画布。复用既有会话交接链 ——
                 // 卡流程本身不写画布，只在用户主动点击时才建会话并导航。
+                //
+                // ★ 两种语义分流（硬验收②「画布在任一步可达」，T2-P1b）：
+                // · result（交付阶段）：结果图已就绪 → 物化为 storageKey 走 attachments 通道。
+                // · carrier（生成阶段）：任务尚未完成 → 只建/开承载容器，无结果可交。
+                // 两分支共用**同一会话 id**（锚定 taskId）⇒ 生成中先开画布、完成后再交接，
+                // 合并进同一个画布，不因两次点击产生两个容器。
+                const sessionKey = handoff.taskId ? `linear-flow-${handoff.taskId}` : `linear-flow-${Date.now()}`;
+                const cardTitle = linearFlowCard?.title || "卡流程结果";
+                const stamp = new Date().toISOString();
+                if (handoff.kind === "carrier") {
+                    // 承载画布：任务仍在生成，会话里只留「进行中」记录（taskIds 锚定任务）。
+                    // ★ 文案不得承诺自动落结果 —— 结果写入靠交付阶段再点一次（同 sessionKey 合并）。
+                    // ★ 两个已知缺口随 B线 T1-P1 落（控制线裁定 1）：① 任务创建时未带 projectId，
+                    //   画布任务面板暂看不到这条运行中任务；② 容器未写 workspaceType，
+                    //   暂以 standard 出现在画布列表。
+                    const created = await continueCreationConversationOnCanvas({
+                        id: sessionKey,
+                        title: cardTitle,
+                        updatedAt: stamp,
+                        messages: [
+                            { id: `linear-flow-user-${sessionKey}`, role: "user", content: handoff.prompt, createdAt: stamp },
+                            {
+                                id: `linear-flow-carrier-${sessionKey}`,
+                                role: "assistant",
+                                content: "卡流程正在生成中，画布已先行就绪；成品完成后在卡流程里点「在画布中打开」即可带入这里。",
+                                createdAt: stamp,
+                                status: "done",
+                                taskIds: [handoff.taskId],
+                            },
+                        ],
+                    });
+                    if (created.syncError) toast.warning("会话已保存在本机，云端同步尚未完成。");
+                    navigate(`/canvas/${created.id}?${new URLSearchParams({ conversation: created.sessionId, mode: "guide" }).toString()}`);
+                    return;
+                }
                 // 结果图先物化为 storageKey，走既有 attachments 通道（handoff 渲染面已支持）。
                 // 同文件其他上传路径一致：走懒加载 runtime，不把 image-storage 拖进首屏包。
                 const runtime = await loadCreationRuntime();
-                const uploaded = await runtime.uploadImage(resultUrl);
+                const uploaded = await runtime.uploadImage(handoff.resultUrl);
                 const created = await continueCreationConversationOnCanvas({
-                    id: `linear-flow-${Date.now()}`,
-                    title: linearFlowCard?.title || "卡流程结果",
-                    updatedAt: new Date().toISOString(),
+                    id: sessionKey,
+                    title: cardTitle,
+                    updatedAt: stamp,
                     messages: [
-                        { id: `linear-flow-user-${Date.now()}`, role: "user", content: resultPrompt, createdAt: new Date().toISOString() },
+                        { id: `linear-flow-user-${sessionKey}`, role: "user", content: handoff.prompt, createdAt: stamp },
                         {
-                            id: `linear-flow-assistant-${Date.now()}`,
+                            id: `linear-flow-assistant-${sessionKey}`,
                             role: "assistant",
                             content: "卡流程已生成成品图，可在画布中继续编辑。",
-                            createdAt: new Date().toISOString(),
+                            createdAt: stamp,
                             status: "done",
                             attachments: [{ name: `${linearFlowCard?.id || "linear-flow"}.png`, storageKey: uploaded.storageKey }],
                         },

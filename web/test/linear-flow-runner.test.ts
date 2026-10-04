@@ -65,6 +65,37 @@ describe("★ 硬验收②：画布在任一步可达（给而不要求）", () 
         expect(runnerSource).toContain("{onOpenInCanvas && card.mode === \"image\" ?");
     });
 
+    test("★ 生成阶段不隐藏画布入口（T2-P1b：钉死 false 与「任一步可达」冲突）", () => {
+        // 硬验收②「画布在任一步可达」是产品红线（PRODUCT.md 反参考：不把画布藏起来的一站式向导）。
+        // 生成中钉死 showOpenInCanvas={false} 使生成阶段画布不可达 ⇒ 与「任一步」直接冲突。
+        // 修法：走默认 true + 补承载画布回调（carrier 语义）。
+        const generatingMount = runnerSource.slice(runnerSource.indexOf("stage === \"generating\""), runnerSource.indexOf("stage === \"error\""));
+        expect(generatingMount).toContain("UnifiedTaskFace");
+        // ★ 生成阶段挂载点不得再出现 false（改为走默认 true）
+        expect(generatingMount).not.toContain("showOpenInCanvas={false}");
+        // 必须把承载画布回调接上去（否则按钮渲染不出来：canOpenInCanvas = showOpenInCanvas && onOpenInCanvas）
+        expect(generatingMount).toContain("onOpenInCanvas");
+        expect(generatingMount).toContain("handleOpenCarrierCanvas");
+    });
+
+    test("★ 两种语义分流（result / carrier），不混用", () => {
+        // 生成中无结果可交 ⇒ 不能伪装成结果交接；判别式类型强制调用方分流。
+        expect(runnerSource).toContain('kind: "result"');
+        expect(runnerSource).toContain('kind: "carrier"');
+        expect(runnerSource).toContain("LinearFlowCanvasHandoff");
+        // 承载画布分支要求 taskId（生成中锚点），结果分支才带 resultUrl
+        const carrierBranch = runnerSource.slice(runnerSource.indexOf('kind: "carrier"'));
+        expect(carrierBranch).toContain("taskId");
+    });
+
+    test("★ 两种语义共用同一会话 id（锚定 taskId，不产生双容器）", () => {
+        // 生成中先开画布、完成后再交接 ⇒ 必须合并进同一个画布。
+        expect(pageSource).toContain("handoff.taskId ? `linear-flow-${handoff.taskId}`");
+        // 承载画布分支不得自己造会话 id（否则与结果分支的容器分裂）
+        const carrierBranch = pageSource.slice(pageSource.indexOf('handoff.kind === "carrier"'));
+        expect(carrierBranch).not.toContain("`linear-flow-${Date.now()}`");
+    });
+
     test("卡流程本身不写画布（只在用户主动点击时才建会话）", () => {
         // 画布导航只出现在 onOpenInCanvas 回调里
         const openCanvasIndex = pageSource.indexOf("onOpenInCanvas=");

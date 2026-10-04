@@ -47,6 +47,19 @@ import { UnifiedTaskFace } from "@/components/task/unified-task-face";
 /** 卡流程的运行阶段（生成/交付共用同一状态机）。 */
 type RunnerStage = "form" | "generating" | "done" | "error";
 
+/**
+ * 转入画布的两种语义（★ 硬验收②「画布在任一步可达」—— 两种语义必须分流，不得混用）：
+ *
+ * - `result`：**交付阶段**的结果交接 —— 结果图已就绪，物化为素材附件写入承载容器会话。
+ * - `carrier`：**生成阶段**的承载画布打开 —— 任务尚未完成，无结果可交，只建/开承载容器
+ *   （headless 语义：画布是产物的承载方式，提前可见是特性，不是「无意义的空画布」）。
+ *
+ * 判别式（`kind`）让调用方无法把两种语义写混 —— 生成阶段不可能拿到 `resultUrl`。
+ */
+export type LinearFlowCanvasHandoff =
+    | { kind: "result"; prompt: string; resultUrl: string; taskId?: string; metadata: Record<string, unknown> }
+    | { kind: "carrier"; prompt: string; taskId: string; metadata: Record<string, unknown> };
+
 export type LinearFlowRunnerProps = {
     card: LinearFlowCard | null;
     /**
@@ -58,8 +71,11 @@ export type LinearFlowRunnerProps = {
     /** 生成用的模型（图片卡 = imageModel；文本卡 = textModel）。★ 本组件据此修正 config.model。 */
     model: string;
     onClose: () => void;
-    /** 可选：把结果转入画布（硬验收②「给而不要求」）。 */
-    onOpenInCanvas?: (input: { prompt: string; resultUrl: string; metadata: Record<string, unknown> }) => void | Promise<void>;
+    /**
+     * 可选：转入画布（硬验收②「给而不要求」）。
+     * 交付阶段发 `result`（结果交接），生成阶段发 `carrier`（打开承载画布）。
+     */
+    onOpenInCanvas?: (input: LinearFlowCanvasHandoff) => void | Promise<void>;
 };
 
 /**
@@ -185,18 +201,36 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
         }
     }, [answers, card, config, prompt, reference, toast]);
 
-    /** 交付步的「在画布中打开」（可选，硬验收②「给而不要求」）。 */
+    /** 交付步的「在画布中打开」（可选，硬验收②「给而不要求」）—— 结果交接语义。 */
     const handleOpenInCanvas = useCallback(async () => {
         if (!onOpenInCanvas || !resultUrl) return;
         setOpeningCanvas(true);
         try {
-            await onOpenInCanvas({ prompt, resultUrl, metadata: card ? buildLinearFlowMetadata(card, answers) : {} });
+            await onOpenInCanvas({ kind: "result", prompt, resultUrl, taskId: taskId || undefined, metadata: card ? buildLinearFlowMetadata(card, answers) : {} });
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "转入画布失败");
         } finally {
             setOpeningCanvas(false);
         }
-    }, [answers, card, onOpenInCanvas, prompt, resultUrl, toast]);
+    }, [answers, card, onOpenInCanvas, prompt, resultUrl, taskId, toast]);
+
+    /**
+     * 生成中的「在画布中打开」—— 承载画布语义（硬验收②「画布在任一步可达」）。
+     *
+     * 任务尚未完成，没有结果可交接：只把承载容器建/开出来，让用户提前进入画布。
+     * 与交付阶段的 `result` 语义分流（判别式类型强制），不做「无结果也走结果交接」的伪装。
+     */
+    const handleOpenCarrierCanvas = useCallback(async () => {
+        if (!onOpenInCanvas || !taskId) return;
+        setOpeningCanvas(true);
+        try {
+            await onOpenInCanvas({ kind: "carrier", prompt, taskId, metadata: card ? buildLinearFlowMetadata(card, answers) : {} });
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "打开画布失败");
+        } finally {
+            setOpeningCanvas(false);
+        }
+    }, [answers, card, onOpenInCanvas, prompt, taskId, toast]);
 
     if (!card) return null;
     const Icon = linearFlowCardIcon(card);
@@ -266,7 +300,13 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
                             // 进度/阶段/状态由 UnifiedTaskFace 统一承载（订阅契约单一持有）。
                             // taskId 未就绪的首帧回退到本地提示，避免空窗。
                             taskId ? (
-                                <UnifiedTaskFace taskIds={[taskId]} showOpenInCanvas={false} contextLabel="直线流程" />
+                                // ★ 硬验收②「画布在任一步可达」：生成中**不**隐藏画布入口 ——
+                                // 走默认 showOpenInCanvas（true）+ 承载画布回调（carrier 语义）。
+                                <UnifiedTaskFace
+                                    taskIds={[taskId]}
+                                    onOpenInCanvas={onOpenInCanvas ? () => void handleOpenCarrierCanvas() : undefined}
+                                    contextLabel="直线流程"
+                                />
                             ) : (
                                 <div className="linear-flow-progress" role="status">
                                     <LoaderCircle className="is-spinning" size={16} strokeWidth={2} />
