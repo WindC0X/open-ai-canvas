@@ -23,6 +23,7 @@ import { saveCanvasDrawing, type CanvasDrawingRenderDraft } from "@/lib/canvas/c
 import { createCanvasProjectWithRemoteSync, hasRemoteUserDataSyncSession, loadCanvasProjectForEditing, saveRemoteUserDataNow, scheduleRemoteUserDataSync } from "@/services/user-data-sync";
 import { listRemoteCanvasProjectsPage, type CanvasLibrarySummary } from "@/services/api/user-data";
 import { useUserStore } from "@/stores/use-user-store";
+import { filterVisibleCanvasProjects } from "@/lib/canvas/workspace-type";
 import { listProjects } from "@/services/api/projects";
 import { loadCanvasProjectPage } from "@/lib/workspace-route-modules";
 import { resourceFileUrl, resourceStorageKey, uploadResourceFile } from "@/services/api/resources";
@@ -102,9 +103,12 @@ export default function CanvasPage() {
         });
     };
     const filteredProjects = useMemo(() => {
-        if (userId) return projects;
+        // W5 统一任务面（验收 7 / 反模式 A3）：headless_task 容器不进主列表顶层 ——
+        // 用户通过任务面的「在画布中打开」到达，不靠翻列表发现。
+        const visible = filterVisibleCanvasProjects(projects);
+        if (userId) return visible;
         const query = keyword.trim().toLowerCase();
-        const scoped = projects.filter((project) => projectFilter === "all" || (projectFilter === "independent" ? !project.projectId : project.projectId === projectFilter));
+        const scoped = visible.filter((project) => projectFilter === "all" || (projectFilter === "independent" ? !project.projectId : project.projectId === projectFilter));
         const values = query ? scoped.filter((project) => project.title.toLowerCase().includes(query)) : [...scoped];
         values.sort((a, b) => (sort === "name" ? a.title.localeCompare(b.title, "zh-CN") : sort === "nodes" ? b.nodeCount - a.nodeCount : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
         return values;

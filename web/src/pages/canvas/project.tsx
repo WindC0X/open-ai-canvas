@@ -2,6 +2,7 @@ import { CanvasWorkspacePanel } from "@/components/canvas/canvas-workspace-panel
 import { isCanvasNodeGenerating } from "@/lib/canvas/canvas-node-task-state";
 import { createCanvasStateWriter } from "@/lib/canvas/canvas-editor-state";
 import { canCancelGenerationTask } from "@/lib/generation-task-display";
+import { downloadGenerationTaskResult } from "@/lib/task-face-download";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -659,6 +660,19 @@ function InfiniteCanvasPage() {
             });
         },
         [bindGenerationTask, message, modal, nodesRef, projectId, queryClient, setTaskDetail, taskDetail],
+    );
+
+    // 统一任务面交付步（硬验收③）：下载合规成品（素材原始文件优先，见 lib/task-face-download.ts）。
+    const downloadCanvasTaskResult = useCallback(
+        async (task: import("@/services/api/task-center").GenerationTask) => {
+            try {
+                const fileName = await downloadGenerationTaskResult(task);
+                message.success(`已开始下载 ${fileName}`);
+            } catch (error) {
+                message.error(error instanceof Error ? error.message : "下载失败");
+            }
+        },
+        [message],
     );
 
     useEffect(() => {
@@ -2720,6 +2734,21 @@ function InfiniteCanvasPage() {
         }
         focusCanvasNode(styleNode.id);
     }, [focusCanvasNode, message, nodesRef]);
+
+    // 「在画布中打开」（硬验收②「给而不要求」）：定位到产出该任务的节点。
+    // 放在 focusCanvasNode 声明之后 —— 它来自 viewport controller，声明位置在下游。
+    const openTaskInCanvas = useCallback(
+        (task: import("@/services/api/task-center").GenerationTask) => {
+            const node = nodesRef.current.find((item) => item.metadata?.taskId === task.id);
+            if (!node) {
+                message.info("该任务的产物节点不在当前画布中");
+                return;
+            }
+            focusCanvasNode(node.id);
+        },
+        [focusCanvasNode, message, nodesRef],
+    );
+
     const freeformCreateCommands = useCanvasCreateCommands({
         workspaceMode,
         isProjectLinked: Boolean(shortDramaEnabled && currentProject?.projectId),
@@ -2990,7 +3019,7 @@ function InfiniteCanvasPage() {
                                 {/* onHeightChange 必须接：不接时 HUD 的 topInset 让位公式永远吃到 0，
                                     任务面板出现/展开时右侧对象 HUD 会与它重叠（用户真机截图实证 2026-10-01）。
                                     上游同病（origin/main 连消费端都没有），属 fork 补全。 */}
-                                <CanvasActiveTaskPanel tasks={activeTasks} onCancelTask={cancelCanvasTask} topInset={focusMode ? "var(--space-3)" : "var(--canvas-topbar-offset)"} onHeightChange={setActiveTaskPanelHeight} />
+                                <CanvasActiveTaskPanel tasks={activeTasks} onCancelTask={cancelCanvasTask} onDownload={downloadCanvasTaskResult} onOpenInCanvas={openTaskInCanvas} topInset={focusMode ? "var(--space-3)" : "var(--canvas-topbar-offset)"} onHeightChange={setActiveTaskPanelHeight} />
 
                                 {focusMode ? (
                                     <CanvasFocusModeBar

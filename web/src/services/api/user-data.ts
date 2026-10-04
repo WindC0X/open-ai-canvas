@@ -1,5 +1,6 @@
 import type { Asset } from "@/stores/use-asset-store";
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
+import type { CanvasWorkspaceType } from "@/types/canvas";
 import { compactApiParams, http } from "@/services/api/request";
 
 export type RemoteUserDataSummary = {
@@ -39,6 +40,8 @@ export type RemoteUserDataSnapshot = {
 export type CanvasLibrarySummary = Pick<CanvasProject, "id" | "projectId" | "title" | "revision" | "createdAt" | "updatedAt"> & {
     nodeCount: number;
     previewNodes: CanvasProject["nodes"];
+    /** W5 统一任务面：headless_task 容器不主动出现在画布列表顶层（空 = standard）。 */
+    workspaceType?: CanvasWorkspaceType;
 };
 
 export function listRemoteCanvasProjectsPage(options: { page: number; pageSize: number; projectId?: string; query?: string; sort?: string; signal?: AbortSignal }) {

@@ -9,7 +9,7 @@ import { localForageStorageForScope } from "@/lib/localforage-storage";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { DEFAULT_CANVAS_COLOR_THEME, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import type { CanvasStarterMode } from "@/lib/canvas/canvas-starter";
-import type { CanvasAssistantSession, CanvasConnection, CanvasNodeData, ViewportTransform } from "@/types/canvas";
+import type { CanvasAssistantSession, CanvasConnection, CanvasNodeData, CanvasWorkspaceType, ViewportTransform } from "@/types/canvas";
 import type { DirectorScene } from "@/types/director";
 import type { TimelineProject } from "@/types/timeline";
 
@@ -35,6 +35,19 @@ export type CanvasProject = {
      * 未设置 = 未毕业（与 `false` 同义，但保持 undefined 兼容存量项目）。
      */
     graduated?: boolean;
+    /**
+     * 画布容器类型标记（W5 统一任务面设计卡 §4.2）。
+     *
+     * - `standard`：用户在画布页显式创建/打开的常规画布（**默认**）
+     * - `headless_task`：小白直线流程**隐式创建**的容器 —— 用户未主动进入画布，
+     *   画布只是产物的承载方式（方案 §5 工程约束）。
+     *
+     * 行为差异：headless_task 不主动出现在画布列表顶层；任务状态流转不受该画布的
+     * 编辑/撤销/同步事件影响（锚定 TaskID，见 `components/task/unified-task-face.tsx`）。
+     *
+     * ★ 默认值纪律：`undefined` 视为 `standard`（不破坏既有画布，零迁移）。
+     */
+    workspaceType?: CanvasWorkspaceType;
     appearance?: CanvasAppearance;
     backgroundMode: CanvasBackgroundMode;
     showImageInfo: boolean;
@@ -52,7 +65,7 @@ type CanvasStore = {
     renameProject: (id: string, title: string) => void;
     deleteProjects: (ids: string[]) => void;
     replaceProjects: (projects: CanvasProject[]) => void;
-    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "projectId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "starterMode" | "graduated" | "appearance" | "backgroundMode" | "showImageInfo" | "viewport" | "directorScenes" | "timeline">>) => void;
+    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "projectId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "starterMode" | "graduated" | "workspaceType" | "appearance" | "backgroundMode" | "showImageInfo" | "viewport" | "directorScenes" | "timeline">>) => void;
 };
 
 const initialViewport: ViewportTransform = { x: 0, y: 0, k: 1 };
