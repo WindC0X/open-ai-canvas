@@ -13,7 +13,7 @@ import { buildAnnotateEditSubmission, buildAnnotateMaskSubmission, resolveAnnota
 import { buildAnnotateMaskFallbackPrompt, composeAnnotationMaskDataUrl, composeBrushMaskDataUrl } from "@/lib/canvas/annotate-edit-mask";
 import type { CanvasImageSplitParams } from "@/components/canvas/canvas-node-split-dialog";
 import type { CanvasImageUpscaleParams } from "@/components/canvas/canvas-node-upscale-dialog";
-import { SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, type SuperResolveParams } from "@/lib/canvas/super-resolve-params";
+import { SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, superResolvePromptFragment, superResolveSize, type SuperResolveParams } from "@/lib/canvas/super-resolve-params";
 import type { CanvasImageAngleParams } from "@/components/canvas/canvas-node-angle-dialog";
 import type { CanvasVideoSegmentParams } from "@/components/canvas/canvas-video-segment-dialog";
 import { buildLightingLabel, type CanvasImageLightingOptions } from "@/components/canvas/canvas-node-lighting-dialog";
@@ -1560,21 +1560,34 @@ export function useCanvasMediaTools({
      */
     const superResolveImageNode = useCallback(async (node: CanvasNodeData, params: SuperResolveParams) => {
         if (!node.metadata?.content) return;
+        const source = nodeReferenceImage(node);
+        if (!source) return;
+        const target = SUPER_RESOLVE_TARGETS.find((item) => item.value === params.targetResolution) ?? SUPER_RESOLVE_TARGETS[0];
+        // ★ size 不继承源节点 metadata（控制线 2026-10-04 追加修复）：
+        // buildGenerationConfig 会取 node.metadata.size ?? config.size；源节点若携带历史生成尺寸
+        // （如 960×960 源节点残留 "1360x1024"），超分会提交那个尺寸，使弹窗承诺的
+        // 「长边对齐 2K/4K」落空（测试线实测 1445×1088，长边 < 2048）。
+        // ⇒ 用源图实际像素（naturalWidth/naturalHeight）+ 目标档重新构造。
         const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
+        const sourceWidth = node.metadata?.naturalWidth || node.width || 0;
+        const sourceHeight = node.metadata?.naturalHeight || node.height || 0;
+        if (sourceWidth > 0 && sourceHeight > 0) {
+            generationConfig.size = superResolveSize(sourceWidth, sourceHeight, params.targetResolution);
+        }
         if (!isAiConfigReady(generationConfig, generationConfig.model)) {
             navigateToSettings({ continueCreation: true });
             return;
         }
-        const source = nodeReferenceImage(node);
-        if (!source) return;
         const childId = nanoid();
         const imageSpec = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
-        const target = SUPER_RESOLVE_TARGETS.find((item) => item.value === params.targetResolution) ?? SUPER_RESOLVE_TARGETS[0];
         const modeLabel = SUPER_RESOLVE_MODES.find((item) => item.value === params.mode)?.title || "保真放大";
         const title = `AI 超分 · ${target.label} · ${modeLabel}`;
+        // ★ mode → 提示词语义（控制线 2026-10-04 追加）：原先 prompt 只是标题字符串，
+        // 对模型零语义约束；faithful 的不变量必须进提示词，不能只靠弹窗文案。
+        const prompt = `${title}\n${superResolvePromptFragment(params.mode)}`;
         const generationMetadata = buildImageGenerationMetadata("edit", generationConfig, 1, [source]);
         setRunningNodeId(childId);
-        setNodes((current) => [...current, { id: childId, type: CanvasNodeType.Image, title, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: imageSpec.width, height: imageSpec.height, metadata: { prompt: title, status: NODE_STATUS_LOADING, superResolve: { targetResolution: params.targetResolution, mode: params.mode }, ...generationMetadata } }]);
+        setNodes((current) => [...current, { id: childId, type: CanvasNodeType.Image, title, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: imageSpec.width, height: imageSpec.height, metadata: { prompt, status: NODE_STATUS_LOADING, superResolve: { targetResolution: params.targetResolution, mode: params.mode }, ...generationMetadata } }]);
         setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
         setSelectedNodeIds(new Set([childId]));
         setDialogNodeId(childId);
@@ -1584,7 +1597,7 @@ export function useCanvasMediaTools({
                 projectId,
                 nodeId: childId,
                 mode: "image",
-                prompt: title,
+                prompt,
                 config: generationConfig,
                 referenceImages: [source],
                 signal: controller.signal,
@@ -1599,7 +1612,7 @@ export function useCanvasMediaTools({
             const size = fitNodeSize(uploaded.width, uploaded.height, imageSpec.width, imageSpec.height);
             const currentNode = nodesRef.current.find((item) => item.id === childId);
             if (!currentNode) throw new Error("超分节点已被删除");
-            const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: commitProducedModel({ ...currentNode.metadata, ...imageMetadata(uploaded), prompt: title, ...generationMetadata }) };
+            const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: commitProducedModel({ ...currentNode.metadata, ...imageMetadata(uploaded), prompt, ...generationMetadata }) };
             setNodes((current) => current.map((item) => (item.id === childId ? finalizedNode : item)));
             await persistMediaNodes([finalizedNode]);
         } catch (error) {

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { CAPABILITY_ENTRIES, capabilityContextSatisfied, capabilityEntriesByTier, findCapabilityEntry } from "@/lib/canvas/capability-entries";
-import { DEFAULT_SUPER_RESOLVE_PARAMS, SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, isFaithfulDefault } from "@/lib/canvas/super-resolve-params";
+import { DEFAULT_SUPER_RESOLVE_PARAMS, SUPER_RESOLVE_MODES, SUPER_RESOLVE_PROMPT_FRAGMENTS, SUPER_RESOLVE_TARGETS, isFaithfulDefault, superResolvePromptFragment, superResolveSize } from "@/lib/canvas/super-resolve-params";
 import { prepareBackendGenerationTask } from "@/services/api/generation-task";
 import { createModelChannel, defaultConfig, encodeChannelModel } from "@/stores/use-config-store";
 
@@ -209,5 +209,78 @@ describe("参数面", () => {
 
     test("默认目标档 2K", () => {
         expect(DEFAULT_SUPER_RESOLVE_PARAMS.targetResolution).toBe("2k");
+    });
+});
+
+describe("★ size 构造（控制线 2026-10-04 追加：不继承源节点 metadata）", () => {
+    // 根因：超分原走 buildGenerationConfig(config, node, "image")，该函数取
+    // node.metadata.size ?? config.size —— 源节点携带历史生成尺寸时，超分提交历史尺寸，
+    // 使弹窗承诺的「长边对齐 2K/4K」落空（测试线实测 960×960 源图 → 1445×1088，长边 < 2048）。
+    test("1:1 源图对齐 2K 得到 2048×2048", () => {
+        expect(superResolveSize(960, 960, "2k")).toBe("2048x2048");
+    });
+
+    test("4:3 源图对齐 2K：长边 2048，短边按比例", () => {
+        expect(superResolveSize(1360, 1024, "2k")).toBe("2048x1542");
+    });
+
+    test("16:9 源图对齐 4K：长边 4096，短边按比例", () => {
+        expect(superResolveSize(1920, 1080, "4k")).toBe("4096x2304");
+    });
+
+    test("竖图（3:4）长边仍对齐 target", () => {
+        expect(superResolveSize(768, 1024, "2k")).toBe("1536x2048");
+    });
+
+    test("长边恒等于目标档（这是「兑现弹窗承诺」的机器可检契约）", () => {
+        for (const [w, h] of [[960, 960], [1360, 1024], [1920, 1080], [768, 1024], [500, 3000]]) {
+            for (const tier of ["2k", "4k"] as const) {
+                const [outW, outH] = superResolveSize(w, h, tier).split("x").map(Number);
+                const expected = tier === "2k" ? 2048 : 4096;
+                expect(Math.max(outW, outH)).toBe(expected);
+            }
+        }
+    });
+
+    test("退化输入不产生 0 或负尺寸", () => {
+        // 0×0 的源图不可能出现（超分前置校验 node.metadata.content），
+        // 但即使传入也必须给出合法正整数尺寸，不能崩或产出 "0x0"。
+        const [w0, h0] = superResolveSize(0, 0, "2k").split("x").map(Number);
+        expect(w0).toBeGreaterThan(0);
+        expect(h0).toBeGreaterThan(0);
+        const [w1, h1] = superResolveSize(-5, 10, "2k").split("x").map(Number);
+        expect(w1).toBeGreaterThan(0);
+        expect(h1).toBe(2048);
+    });
+});
+
+describe("★ mode → 提示词语义（控制线 2026-10-04 追加）", () => {
+    // 现状问题：prompt 只是标题字符串「AI 超分 · 4K · 保真放大」，对模型零语义约束。
+    test("faithful 逐项枚举不变量（构图/取景/色调/元素位置/数量）", () => {
+        const fragment = superResolvePromptFragment("faithful");
+        for (const invariant of ["构图", "取景", "色调", "位置", "数量"]) {
+            expect(fragment).toContain(invariant);
+        }
+        expect(fragment).toContain("不得新增或删除");
+    });
+
+    test("enhance 明确允许重绘细节，但仍守住构图与数量", () => {
+        const fragment = superResolvePromptFragment("enhance");
+        expect(fragment).toContain("允许重绘");
+        expect(fragment).toContain("构图");
+        expect(fragment).toContain("数量");
+    });
+
+    test("两档提示词必须不同（否则 mode 无意义）", () => {
+        expect(SUPER_RESOLVE_PROMPT_FRAGMENTS.faithful).not.toBe(SUPER_RESOLVE_PROMPT_FRAGMENTS.enhance);
+    });
+
+    test("faithful 比 enhance 更严格（含「严格保持」级措辞）", () => {
+        expect(SUPER_RESOLVE_PROMPT_FRAGMENTS.faithful).toContain("严格保持");
+        expect(SUPER_RESOLVE_PROMPT_FRAGMENTS.enhance).not.toContain("严格保持以下全部不变");
+    });
+
+    test("未知 mode 回退到 faithful（保守优先）", () => {
+        expect(superResolvePromptFragment("bogus" as never)).toBe(SUPER_RESOLVE_PROMPT_FRAGMENTS.faithful);
     });
 });

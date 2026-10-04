@@ -214,7 +214,9 @@ export function PriceTierFields({
 
 function operationOptions(capability: EditableCapability | undefined) {
     const options = [{ label: "任意生成方式", value: "*" }];
-    if (capability === "image") return [...options, { label: "文生图", value: "text_to_image" }, { label: "图生图", value: "image_to_image" }];
+    // AI 超分是图片域内的独立计价操作（O-03 层2）：后端 skuSelectorForIntent 会按
+    // operation=image_upscale 匹配专属价格档，不配则静默落「任意生成方式」通配档。
+    if (capability === "image") return [...options, { label: "文生图", value: "text_to_image" }, { label: "图生图", value: "image_to_image" }, { label: "AI 超分", value: "image_upscale" }];
     if (capability === "video") return [...options, { label: "文生视频", value: "text_to_video" }, { label: "图生视频", value: "image_to_video" }, { label: "视频生视频", value: "video_to_video" }];
     if (capability === "text") return [...options, { label: "文本生成", value: "text_generation" }];
     return options;
