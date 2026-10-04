@@ -15,6 +15,9 @@ import { degradedNoticeText, loadSkillPresetAssets, loadStyleAssets } from "../s
 import { registryAssetFromSkillPreset } from "../src/lib/canvas/registry-adapters";
 import type { RegistryAsset } from "../src/lib/canvas/registry-asset";
 import type { SkillPreset } from "../src/services/api/skills";
+import { registryAssetFromCreationInspiration, registryAssetFromEcomChannelPreset } from "../src/lib/canvas/registry-adapters";
+import { creationFeaturedWorks, inspirationSource } from "../src/pages/create/creation-inspirations";
+import { ECOM_CHANNEL_PRESETS } from "../src/lib/image-size-presets";
 import { isAssetVisibleToUser, PRESET_ASSET_KINDS } from "../src/lib/canvas/registry-asset";
 import type { CanvasStylePreset } from "../src/lib/canvas/canvas-style-system";
 
@@ -37,6 +40,25 @@ const SERVER_STYLE_TOOL = {
     favorited: false,
     createdAt: "2026-01-01 00:00:00",
     updatedAt: "2026-01-01 00:00:00",
+};
+
+/** 服务端 motion 工具样例（照 tools.json motion #1 的真实字段）。 */
+const SERVER_MOTION_TOOL = {
+    id: 46, type: "motion", labelEn: "static_shot", label: "固定镜头", desc: "建立冷静秩序",
+    prompt: "static camera, locked-off shot, no movement, stable composition",
+    tag: "basic", cover: "https://example.com/cover", ratio: "", mediaUrl: "",
+    ownerId: "", source: "builtin", enabled: true, visibility: "public",
+    sortWeight: 1, favorited: false, createdAt: "2026-01-01 00:00:00", updatedAt: "2026-01-01 00:00:00",
+};
+
+/** 服务端 nine_grid 工具样例（照 tools.json nine_grid #1 的真实字段）。 */
+const SERVER_NINE_GRID_TOOL = {
+    id: 79, type: "nine_grid", labelEn: "multi_camera_nine_grid", label: "多机位九宫格",
+    desc: "生成一个 3x3 九宫格的多机位联系表",
+    prompt: "Generate a 3x3 director multi-camera contact sheet",
+    tag: "", cover: "", ratio: "3:4",
+    mediaUrl: "", ownerId: "", source: "builtin", enabled: true, visibility: "public",
+    sortWeight: 1, favorited: false, createdAt: "2026-01-01 00:00:00", updatedAt: "2026-01-01 00:00:00",
 };
 
 /** 服务端技能场景预设样例（照 presets.json 首条的真实字段）。 */
@@ -415,5 +437,134 @@ describe("注册表资产层——片 5 降级分支（控制线要求必带）"
         expect(result.degraded).toBe(true);
         expect(result.assets).toHaveLength(1);
         expect(result.assets[0].slug).toBe("a");
+    });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// 片 6：灵感卡（creationFeaturedWorks 22 条）
+// ────────────────────────────────────────────────────────────────────────────
+
+describe("注册表资产层——片 6 灵感卡适配", () => {
+    test("22 条逐条适配为 spec/generation", () => {
+        expect(creationFeaturedWorks).toHaveLength(22);
+        creationFeaturedWorks.forEach((inspiration, index) => {
+            const asset = registryAssetFromCreationInspiration(inspiration, index);
+            expect(asset.assetKind).toBe("spec/generation");
+            expect(asset.origin).toBe("local-fallback");
+            expect(asset.title).toBe(inspiration.title);
+            expect(asset.prompt).toBe(inspiration.prompt);
+            expect(asset.prompt.length).toBeGreaterThan(0);
+            expect(asset.group).toBe(inspiration.mode);
+        });
+    });
+
+    test("slug 稳定且无重复（索引 + 模式构造）", () => {
+        const slugs = creationFeaturedWorks.map((inspiration, index) =>
+            registryAssetFromCreationInspiration(inspiration, index).slug,
+        );
+        expect(new Set(slugs).size).toBe(slugs.length);
+        expect(slugs[0]).toMatch(/^creation-/);
+    });
+
+    test("三种 mode 都被覆盖（video/image/text）", () => {
+        const groups = new Set(
+            creationFeaturedWorks.map((inspiration, index) =>
+                registryAssetFromCreationInspiration(inspiration, index).group,
+            ),
+        );
+        expect(groups.has("video")).toBe(true);
+        expect(groups.has("image")).toBe(true);
+        expect(groups.has("text")).toBe(true);
+    });
+
+    test("★ CC0 来源声明在位（架构方案 §3.4 许可证字段）", () => {
+        expect(inspirationSource.license).toBe("CC0-1.0");
+        expect(inspirationSource.repository).toContain("awesome-chatgpt-prompts");
+        expect(inspirationSource.revision).toMatch(/^[0-9a-f]{40}$/);
+    });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// 片 7：运镜预设（tools.json motion 33 条，视频域窗口标注）
+// ────────────────────────────────────────────────────────────────────────────
+
+describe("注册表资产层——片 7 运镜预设（视频域窗口标注）", () => {
+    test("motion 类型映射为 preset/motion", () => {
+        const asset = registryAssetFromToolSummary({ ...SERVER_MOTION_TOOL } as never);
+        expect(asset?.assetKind).toBe("preset/motion");
+        expect(asset?.origin).toBe("server");
+        expect(asset?.slug).toBe("static_shot");
+        expect(asset?.description).toBe("建立冷静秩序");
+    });
+
+    test("★ 视频线未启动 → 对用户不可见（窗口标注生效）", () => {
+        const asset = registryAssetFromToolSummary({ ...SERVER_MOTION_TOOL } as never)!;
+        expect(isAssetVisibleToUser(asset, { videoLineEnabled: false })).toBe(false);
+    });
+
+    test("★ 视频线启动后 → 可见（窗口放开）", () => {
+        const asset = registryAssetFromToolSummary({ ...SERVER_MOTION_TOOL } as never)!;
+        expect(isAssetVisibleToUser(asset, { videoLineEnabled: true })).toBe(true);
+    });
+
+    test("★ 收编但不丢弃 —— 数据仍在（窗口标注只控用户面）", () => {
+        const asset = registryAssetFromToolSummary({ ...SERVER_MOTION_TOOL } as never)!;
+        // 记录完整，只是可见性受控 —— 防「因窗口跳过收编导致视频线启动时返工」
+        expect(asset.prompt.length).toBeGreaterThan(0);
+        expect(asset.title).toBe("固定镜头");
+    });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// 片 8：九宫格模板（tools.json nine_grid 9 条）
+// ────────────────────────────────────────────────────────────────────────────
+
+describe("注册表资产层——片 8 九宫格模板适配", () => {
+    test("nine_grid 类型映射为 template/canvas", () => {
+        const asset = registryAssetFromToolSummary({ ...SERVER_NINE_GRID_TOOL } as never);
+        expect(asset?.assetKind).toBe("template/canvas");
+        expect(asset?.origin).toBe("server");
+        expect(asset?.slug).toBe("multi_camera_nine_grid");
+        expect(asset?.aspect).toBe("3:4");
+    });
+
+    test("template/canvas 不受视频域窗口影响（仅 motion 受控）", () => {
+        const asset = registryAssetFromToolSummary({ ...SERVER_NINE_GRID_TOOL } as never)!;
+        expect(isAssetVisibleToUser(asset, { videoLineEnabled: false })).toBe(true);
+    });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// 片 9：渠道规格（ECOM_CHANNEL_PRESETS 3 条）
+// ────────────────────────────────────────────────────────────────────────────
+
+describe("注册表资产层——片 9 渠道规格适配", () => {
+    test("3 条逐条适配为 preset/channel-spec", () => {
+        expect(ECOM_CHANNEL_PRESETS).toHaveLength(3);
+        for (const preset of ECOM_CHANNEL_PRESETS) {
+            const asset = registryAssetFromEcomChannelPreset(preset);
+            expect(asset.assetKind).toBe("preset/channel-spec");
+            expect(asset.origin).toBe("local-fallback");
+            expect(asset.slug).toBe(preset.id);
+            expect(asset.title).toBe(preset.label);
+            expect(asset.aspect).toBe(preset.aspect);
+        }
+    });
+
+    test("★ minPixels 结构化数据不丢（并入 description）", () => {
+        const asset = registryAssetFromEcomChannelPreset(ECOM_CHANNEL_PRESETS[0]);
+        expect(asset.description).toContain("1600×1600");
+        expect(asset.description).toContain("目标档：4K");
+    });
+
+    test("★ prompt 留空（同片 5 纪律：不拿人面说明冒充模型面）", () => {
+        for (const preset of ECOM_CHANNEL_PRESETS) {
+            expect(registryAssetFromEcomChannelPreset(preset).prompt).toBe("");
+        }
+    });
+
+    test("三条 slug 无重复", () => {
+        const slugs = ECOM_CHANNEL_PRESETS.map((p) => registryAssetFromEcomChannelPreset(p).slug);
+        expect(new Set(slugs).size).toBe(3);
     });
 });

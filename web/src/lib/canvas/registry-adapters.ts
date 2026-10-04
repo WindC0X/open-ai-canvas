@@ -12,6 +12,8 @@
 
 import type { CanvasStylePreset } from "./canvas-style-system";
 import type { CameraProfile, LensProfile } from "./camera-prompt-library";
+import type { EcomChannelPreset } from "@/lib/image-size-presets";
+import type { CreationInspiration } from "@/pages/create/creation-inspirations";
 import type { LegacyLightingPreset } from "./legacy-lighting-presets";
 import { assetKindFromToolType, type AssetKind, type RegistryAsset } from "./registry-asset";
 import type { SkillPreset } from "@/services/api/skills";
@@ -175,6 +177,66 @@ export function registryAssetFromSkillPreset(preset: SkillPreset): RegistryAsset
         description: details.join(" · ") || undefined,
         enabled: true,
         origin: "server",
+    };
+}
+
+/**
+ * 本地灵感卡 → 统一资产记录（片 6）。
+ *
+ * ★ 来源标注：这 22 条含 8 条 CC0 改编文本模板（awesome-chatgpt-prompts rev
+ * f78a1c51）—— 架构方案 §3.4 要求外部来源资产**必须带来源字段**。
+ * 单条 `source` 字段（Storyteller/Screenwriter/…）是角色名，不是仓库来源；
+ * 仓库级来源在 `inspirationSource` 常量，由消费侧统一展示。
+ */
+export function registryAssetFromCreationInspiration(
+    inspiration: CreationInspiration,
+    index: number,
+): RegistryAsset {
+    // 标题含中文与符号，不适宜直接作 slug —— 用索引 + 模式构造稳定标识
+    const slug = `creation-${inspiration.mode}-${String(index + 1).padStart(2, "0")}`;
+
+    return {
+        assetId: slug,
+        assetKind: "spec/generation",
+        slug,
+        title: inspiration.title,
+        // mode（video/image/text）是创作模式 —— 作分组
+        group: inspiration.mode,
+        // prompt 是模型面提示词（灵感卡的正文）
+        prompt: inspiration.prompt,
+        description: inspiration.description || undefined,
+        coverUrl: inspiration.image || undefined,
+        enabled: true,
+        origin: "local-fallback",
+    };
+}
+
+/**
+ * 本地渠道规格 → 统一资产记录（片 9）。
+ *
+ * ★ 形状差异：本源的 `minPixels` 是结构化对象（宽/高/说明），统一 schema 无对应字段 ——
+ * 并入 description（不丢信息），`aspect` 走 aspect 字段。
+ */
+export function registryAssetFromEcomChannelPreset(preset: EcomChannelPreset): RegistryAsset {
+    const details = [
+        preset.hint,
+        `最小像素：${preset.minPixels.width}×${preset.minPixels.height}（${preset.minPixels.note}）`,
+        `目标档：${preset.desiredResolution.toUpperCase()}`,
+    ].filter(Boolean);
+
+    return {
+        assetId: preset.id,
+        assetKind: "preset/channel-spec",
+        slug: preset.id,
+        title: preset.label,
+        // 渠道规格无分类维度（3 条平铺）—— group 留空串，不塞假分类
+        group: "",
+        // 本源无模型面提示词 —— 留空（同片 5 纪律：不拿人面说明冒充）
+        prompt: "",
+        description: details.join(" · "),
+        aspect: preset.aspect,
+        enabled: true,
+        origin: "local-fallback",
     };
 }
 
