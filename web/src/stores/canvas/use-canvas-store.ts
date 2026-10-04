@@ -26,6 +26,15 @@ export type CanvasProject = {
     chatSessions: CanvasAssistantSession[];
     activeChatId: string | null;
     starterMode?: CanvasStarterMode;
+    /**
+     * W5 毕业机制的**毕业标记**（sticky，单向）。
+     *
+     * ★ 与 `starterMode` 并列不复用（控制线裁定）：`starterMode` 是空态呈现，本字段是
+     * 能力可见性的毕业记录，两个正交维度。
+     * ★ 语义：一旦置 true 永不复位（即使再次从卡流程进入也不再降回引导态）；
+     * 未设置 = 未毕业（与 `false` 同义，但保持 undefined 兼容存量项目）。
+     */
+    graduated?: boolean;
     appearance?: CanvasAppearance;
     backgroundMode: CanvasBackgroundMode;
     showImageInfo: boolean;
@@ -43,7 +52,7 @@ type CanvasStore = {
     renameProject: (id: string, title: string) => void;
     deleteProjects: (ids: string[]) => void;
     replaceProjects: (projects: CanvasProject[]) => void;
-    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "projectId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "starterMode" | "appearance" | "backgroundMode" | "showImageInfo" | "viewport" | "directorScenes" | "timeline">>) => void;
+    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "projectId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "starterMode" | "graduated" | "appearance" | "backgroundMode" | "showImageInfo" | "viewport" | "directorScenes" | "timeline">>) => void;
 };
 
 const initialViewport: ViewportTransform = { x: 0, y: 0, k: 1 };
@@ -493,6 +502,7 @@ export const useCanvasStore = create<CanvasStore>()(
                     chatSessions: source.chatSessions || [],
                     activeChatId: source.activeChatId || null,
                     starterMode: source.starterMode,
+                    graduated: source.graduated,
                     appearance: source.appearance ? normalizeCanvasAppearance(source.appearance, "dark") : undefined,
                     backgroundMode: source.backgroundMode || DEFAULT_CANVAS_BACKGROUND_MODE,
                     showImageInfo: source.showImageInfo || false,

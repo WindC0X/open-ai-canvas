@@ -3,6 +3,10 @@ import { createElement } from "react";
 
 import type { FloatingDockEntry } from "@/components/ui/aceternity/floating-dock";
 import { ART_CRITIQUE_NODE_TYPE } from "@/lib/art-critique/contracts";
+// ★ 从**叶子模块**导入白名单（零依赖）—— 不能从 `graduation-state.ts` 导入，
+// 那会形成 tool-registry → graduation-state → node-hover-tools → tool-registry 循环依赖
+// （实测：canvas-node-toolbar.test.ts 报 `Cannot access 'registry' before initialization`）。
+import { GUIDE_VISIBLE_TOOL_IDS } from "@/lib/canvas/graduation-tools";
 import { listCreatableNodeDefinitions } from "@/lib/canvas/node-registry";
 
 import { resolveToolHoverCardData } from "../tool-hover-card-data";
@@ -89,8 +93,11 @@ export function resolveToolbarTools(toolbar: ToolbarId, ctx: ToolContext, prefs:
     const effectivePrefs = prefs ?? defaultToolbarPrefs(toolbar);
     const hiddenSet = new Set(effectivePrefs.hidden);
     const visibleTools = applicableTools.filter((tool) => !hiddenSet.has(tool.id));
+    // ★ W5 毕业机制：引导态白名单（★ 与 simpleMode 的黑名单式排除分开写，不混）。
+    // 引导态只露 6 动作（单一真值 GUIDE_VISIBLE_TOOL_IDS）；其他模式零影响。
+    const guidedTools = ctx.workspaceMode === "guide" ? visibleTools.filter((tool) => GUIDE_VISIBLE_TOOL_IDS.includes(tool.id)) : visibleTools;
     const orderIndex = new Map(effectivePrefs.order.map((id, index) => [id, index]));
-    return [...visibleTools].sort((a, b) => {
+    return [...guidedTools].sort((a, b) => {
         const ai = orderIndex.has(a.id) ? orderIndex.get(a.id)! : Number.MAX_SAFE_INTEGER;
         const bi = orderIndex.has(b.id) ? orderIndex.get(b.id)! : Number.MAX_SAFE_INTEGER;
         if (ai !== bi) return ai - bi;

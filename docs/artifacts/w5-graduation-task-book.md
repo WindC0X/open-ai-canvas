@@ -209,3 +209,46 @@ node-hover **20 项按 B1 分组**全量呈现。分组来源 = 注册表 `nodeT
 | 与 `linear-entry` 批 | **真依赖**：入口钩子长在 `linear-flow-runner/index`，需等其合入后在新 main 起枝续做 |
 
 **开工姿势**：纯函数层先行（零咽喉可动）→ 载体接线与入口钩子等 linear-entry 合入后补。
+
+---
+
+## 十、接线批实现记录（B线，2026-10-04 · 直线入口合入后）
+
+> 前置：直线入口批合入 main（`7da08b2a` / main `29892dfa`），本批在新 main 起枝续做。
+> 咽喉预检：`project.tsx` 最近触碰 `a17cc62c`（O-03 超分）**已合入 main**，零在飞冲突。
+
+### 10.1 接线四件（对应开工令清单）
+
+| # | 文件 | 内容 |
+|---|---|---|
+| 1 | `web/src/types/canvas.ts` | `CanvasWorkspaceMode` 加 `"guide"` 值（`simple` 上游语义**未动**）+ 文档注释说明三态 |
+| 2 | `web/src/pages/canvas/project.tsx` | `workspaceMode` 从硬编码改为 memo 推导：**默认分支保持 `professional`**（红线）；`graduated` sticky → 恒 professional；入口 `?mode=guide` → 引导态 |
+| 3 | `web/src/lib/canvas/tool-registry/tool-registry.ts` | `resolveToolbarTools` 集中白名单过滤（guide 态只留 `GUIDE_VISIBLE_TOOL_IDS`）；**与 `simpleMode` 黑名单分开写** |
+| 4 | `web/src/pages/create/index.tsx` + `canvas-project-top-bar.tsx` | 入口钩子：卡流程交接带 `mode=guide`；顶栏「完整画布」出口（仅引导态传入） |
+
+**毕业迁移**：`project.tsx` 两个 effect —— ① 项目加载同步 `graduated`；② 引导态下检测「已有成功产出节点」→ 置 `graduated`（sticky 持久化）。出口点击同置。
+
+### 10.2 ★ 实测发现并修复：循环依赖（接线引入）
+
+| 项 | 内容 |
+|---|---|
+| 现象 | `canvas-node-toolbar.test.ts` 报 `ReferenceError: Cannot access 'registry' before initialization` |
+| 根因 | 白名单原在 `graduation-state.ts`，而 `tool-registry.ts` 需消费它 → `tool-registry → graduation-state → node-hover-tools → tool-registry` **循环** |
+| 修法 | 把白名单抽到**零依赖叶子模块** `graduation-tools.ts`；`tool-registry` 只 import 叶子；`graduation-state` re-export 保持既有导入面 |
+| 防线 | 新增 4 条测试（源码断言 + **运行时验证注册表可用且无重复**） |
+
+**教训**：接线时新增的 import 可能引入循环依赖 —— 单跑目标测试不够，必须跑**关联测试**（本轮靠 `canvas-node-toolbar.test.ts` 抓到）。
+
+### 10.3 ★ 接线级断言（控制线要求的两个锚点）
+
+| 锚点 | 断言 | 实测结果 |
+|---|---|---|
+| ① | guide 态实际渲染按钮集合 ≤ 6 项（白名单是**上限**，实际过 `applicable` 过滤） | 图片节点 2 项 / 文本节点 4 项 / 视频节点 3 项，合并（+空图节点）覆盖全部 6 项 |
+| ② | direct 进入用户按钮集合不变（零门控） | professional 态 = 未加 guide 过滤的集合（回归锚点，逐项比对通过） |
+
+**语义澄清（实测修正）**：`GUIDE_VISIBLE_TOOL_IDS` 是**上限不是固定值** —— `generateImage`/`editText` 仅文本节点适用，`uploadImage` 仅无图时适用。各节点类型下是它的子集，**绝不超出**。
+
+### 10.4 门禁
+
+tsc 0 / eslint 0（10 改动文件）/ graduation 专项 **42 pass**（状态机 21 + 接线 21）
+关联回归 72 pass / **全量 2880 pass 0 fail**（347 文件）

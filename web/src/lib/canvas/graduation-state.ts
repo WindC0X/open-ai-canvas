@@ -15,6 +15,12 @@
  * （载体选择见任务书；本模块不预设是扩展 `CanvasWorkspaceMode` 还是独立字段）。
  */
 import { nodeHoverToolbarTools } from "@/lib/canvas/tool-registry/definitions/node-hover-tools";
+import { GUIDE_VISIBLE_TOOL_COUNT, GUIDE_VISIBLE_TOOL_IDS } from "@/lib/canvas/graduation-tools";
+
+// 白名单真值在叶子模块（零依赖）；此处 re-export 保持既有导入面不变。
+// ★ 为何不直接定义在本文件：本文件 import 注册表，若白名单也在此，会让
+// `tool-registry.ts`（需要白名单）→ 本文件 → 注册表 → `tool-registry.ts` 形成循环（实测教训）。
+export { GUIDE_VISIBLE_TOOL_COUNT, GUIDE_VISIBLE_TOOL_IDS };
 
 /**
  * 引导态三态（控制线裁定②）。
@@ -62,39 +68,6 @@ export function resolveGuideState(input: GuideStateInput): GuideState {
 export function isGuideStateActive(state: GuideState): boolean {
     return state === "guide";
 }
-
-/**
- * 引导态露出的 6 个动作（控制线裁定③授权按四判据选取）。
- *
- * ★ 判据命中（逐项，控制线要求任务书列明）：
- *   ① 新手任务对齐（卡流程教过的动作优先）
- *   ② 排除系统动作（delete/retry/info/node-lock 等「管理」类不进）
- *   ③ 覆盖「结果永远可编辑」核心语义（编辑类优先）
- *   ④ registry 条目对齐（映射注册表 tool id，保持注册表原生纪律）
- *
- * | # | tool id | 判据命中 |
- * |---|---|---|
- * | 1 | `edit` | ③ 核心编辑语义（文本生成/生成设置）；① 卡流程「确认」步的延续 |
- * | 2 | `generateImage` | ③ 结果可再生成；① 卡流程「出图」步的画布侧对应 |
- * | 3 | `uploadImage` | ① 卡流程「传图」步逐字对应 |
- * | 4 | `download` | ③ 硬验收③「交付步」在画布侧的对应 |
- * | 5 | `editText` | ③ 内容编辑（放大编辑） |
- * | 6 | `saveAsset` | ③ 成果沉淀（结果可保存复用） |
- *
- * 排除示例（判据②）：`info`（只读信息）、`delete`（危险）、`retry`（异常恢复）、
- * `node-lock`（状态管理）—— 它们是「管理」不是「创作」。
- */
-export const GUIDE_VISIBLE_TOOL_IDS: readonly string[] = [
-    "edit",
-    "generateImage",
-    "uploadImage",
-    "download",
-    "editText",
-    "saveAsset",
-];
-
-/** 引导态动作数（控制线「6 动作」硬约束）。 */
-export const GUIDE_VISIBLE_TOOL_COUNT = 6;
 
 /**
  * 节点工具栏在给定状态下的可见工具 id。

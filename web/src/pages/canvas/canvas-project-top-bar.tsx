@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
-import { BookOpen, CircleHelp, Clapperboard, CloudDownload, CloudUpload, CopyPlus, Focus, FolderKanban, Gauge, History, Home, Keyboard, LayoutGrid, LoaderCircle, Menu, MessageSquareHeart, Pencil, Plus, Redo2, Save, Search, Share2, Trash2, Undo2, Upload } from "lucide-react";
+import { BookOpen, CircleHelp, Clapperboard, CloudDownload, CloudUpload, CopyPlus, Focus, FolderKanban, Gauge, History, Home, Keyboard, LayoutGrid, LoaderCircle, Menu, MessageSquareHeart, Pencil, Plus, Redo2, Save, Search, Share2, Sparkles, Trash2, Undo2, Upload } from "lucide-react";
 import { Button, Dropdown, Tooltip, type GetRef } from "antd";
 
 import { AppChangelogButton } from "@/components/layout/app-changelog-modal";
@@ -49,6 +49,13 @@ type CanvasTopBarProps = {
     onEnterFocusMode: () => void;
     feedbackContext?: { projectId: string; nodeCount: number };
     shortDramaGuide?: { progress: CanvasShortDramaProgress; collapsed: boolean; onToggle: () => void };
+    /**
+     * ★ W5 毕业机制：「完整画布」出口（仅引导态传入）。
+     *
+     * 引导态下常驻顶部（控制线裁定②）；点击即毕业（sticky graduated）并迁回完整画布。
+     * 非引导态不传 → 按钮不渲染（直接打开画布的用户零变化）。
+     */
+    guideExit?: { onExit: () => void };
 };
 
 export function CanvasTopBar({
@@ -82,6 +89,7 @@ export function CanvasTopBar({
     onEnterFocusMode,
     feedbackContext,
     shortDramaGuide,
+    guideExit,
 }: CanvasTopBarProps) {
     const theme = canvasThemes[useCanvasThemeStore((state) => state.theme)];
     const dockStyle = canvasDockStyle(theme, theme.node.text);
@@ -265,6 +273,20 @@ export function CanvasTopBar({
                     <CanvasTopBarTooltip label="进入专注模式（Shift + Ctrl/Cmd + F）">
                         <Button type="text" className="canvas-topbar-action !h-10 !w-10 !min-w-10 !rounded-xl !p-0" style={{ color: theme.node.text }} icon={<Focus className="size-4" />} onClick={onEnterFocusMode} aria-label="进入专注模式" />
                     </CanvasTopBarTooltip>
+                    {guideExit ? (
+                        <CanvasTopBarTooltip label="解锁全部工具与画布功能">
+                            <Button
+                                type="text"
+                                className="canvas-topbar-action canvas-topbar-guide-exit !h-10 !rounded-xl !px-3 !font-medium"
+                                style={{ color: theme.node.text }}
+                                icon={<Sparkles className="size-4" />}
+                                onClick={guideExit.onExit}
+                                aria-label="完整画布"
+                            >
+                                完整画布
+                            </Button>
+                        </CanvasTopBarTooltip>
+                    ) : null}
                     {shortDramaGuide ? (
                         <CanvasTopBarTooltip label={shortDramaGuide.collapsed ? "展开短剧流程" : "收起短剧流程"}>
                             <Button
