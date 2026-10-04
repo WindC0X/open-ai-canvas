@@ -529,3 +529,57 @@ F-08 原枝从 `b858bd1d` 起枝（早于 R25m 门①）。R25m 合入 main 后�
 **push**：`bca10aaa..d924884e` → fork WindC0X（fork/main == local main）；origin（ddcat-ai）未推
 
 **下一步**：等片 3-9 解锁令；明天双卡规格（统一任务面 / 直线入口，统一任务面需带 `workspace_type: headless_task` + TaskID 锚定工程约束，教训来源 `docs/plans/pending-test.mdx:3763` 撤销反噬实测）。
+
+---
+
+## 2026-10-04 R25m 片 3-9 合入（收编枝闭环 162/170 + 两项待办裁定）
+
+**合入**：`feat/r25m-registry-collection` @ `97e4c2ac` → main `57714bb1`（--no-ff，4 commits）
+
+**批次统计**：merge-base `707231ae`；6 文件 **+780 / −13**（1 新增 lib）；合并后 main tip `57714bb1`
+
+**★ 起点口径勘误（控制线指出，一行记录）**：
+交付报告曾称「起点 478cbeea」——**错误**。git 实测 `merge-base(main, HEAD) = 707231ae`，本枝不含 F-08（`021dc90c` 不在祖先链）。证据自洽：本批门禁 **2681 = 2651（R25m 片1-2 合入基线）+ 30（本批）**，F-08 的 +58 从未进过这条枝的测试跑。误因：把**快照基线**（`478cbeea`，那是主仓 HEAD）误记成了**枝基**。不返工。
+
+**片 3-9 全量统计（99 条）**：
+| 片 | AssetKind | 条数 | 源类型 | 交付形态 |
+|---|---|---|---|---|
+| 3 | `preset/lighting` | 8 | 本地 | lib 搬迁 `legacy-lighting-presets.ts` + dialog 接线（消除双份真值） |
+| 4 | `preset/camera` | 8 | 本地 | 适配器直引既有常量（**零新文件**） |
+| 4 | `preset/lens` | 8 | 本地 | 同上 |
+| 5 | `spec/prompt-template` | 8 | **服务端** | 适配器 + 读取器 + 降级分支 |
+| 6 | `spec/generation` | 22 | 本地 | 适配器（含 CC0 来源断言） |
+| 7 | `preset/motion` | 33 | **服务端** | **零新代码**（窗口标注验证） |
+| 8 | `template/canvas` | 9 | **服务端** | **零新代码** |
+| 9 | `preset/channel-spec` | 3 | 本地 | 适配器 |
+
+**★ 片 5 降级缺省裁定记录**：
+skills presets **前端无既有常量**（`grep short-drama-starter` 命中 0）→ 按架构方案 §3.2
+「禁止把 fallback 当默认路径」「禁止为降级**新造**第二份真值」，`loadSkillPresetAssets` 的
+`localFallback` 参数**默认缺省**：服务端不可达时返回**空列表 + degraded 标记**，不凭空造数据。
+降级分支 4 项测试（无源→空列表 / 有源→只收 local-fallback / 文案可读 / 混入 server 记录被过滤）
++ 可证伪性验证（注入 `degraded:false` → 4 fail；还原 → 55 pass）。
+
+**★ recommendedCanvasStylePresets 待办移交（控制线裁定）**：
+8 条（`canvas-style-system.ts` 的 `recommendedSelections`）**不收编为资产** —— 它是**引用型策展数据**
+（选中集引用其他预设 id），不是新资产族；收编会造成「**资产引用资产**」的循环模型问题。
+**归属裁定**：R25f-0（W7 用户层/推荐机制）的实现输入；架构方案 §2.2 收编清单备注一行
+「引用型例外，移交 R25f-0」。**不静默、不新增 AssetKind。**
+
+**评审资产**：边界未界定，维持 §2.5 标注不动，**W8 完成度盘点时一并处理**。
+
+**★ 收编收官口径**：本批合入后 R25m 收编枝整体闭环 ——
+**162/170 + 8 引用型例外移交 + 评审资产留观 = 收编清单全账清**。
+两笔 UI 债（片 3-4 UI 降级条、片 6/9 页面接线）记入 **W5-W6 修缮缝隙候选**。
+
+**门禁（跑在合并后的树上 —— 两线工作共存无干扰的最终证明）**：
+`build` 5m16s ✓ / 全量 `bun test` **2739 pass 0 fail**（339 文件）—— 与控制线预期**逐字吻合**
+（**2709 含 F-08 + 30 本批 = 2739**，比任何分支侧数字都有分量）/ `go build 0` / `go test ./internal/tools/...` ok
+
+**合入前重叠核验（我方口径修正）**：首次用 `b858bd1d...021dc90c` 比较，误报 4 文件交集 ——
+因 F-08 已 rebase 到 `bca10aaa`，其 diff vs **原始 base** 会把 R25m 片1-2 的文件算进来。
+改用**正确口径** `bca10aaa..021dc90c`（F-08 自有 25 文件）vs 本枝 6 文件 → **零交集**，控制线核验正确。
+
+**push**：`478cbeea..57714bb1` → fork WindC0X（fork/main == local main）；origin（ddcat-ai）未推
+
+**下一步**：明天双卡规格（统一任务面 / 直线入口）。
