@@ -1671,3 +1671,59 @@ B线首版误报「7db3fa10 把 R1 的 D-1/D-2 修复还原」——根因：用
 **价值**：控制线评「本轮最有价值的自查 —— 拦下了一次回退级事故」。
 **注**：这是「跨枝比较必须用当前拓扑」的**写侧镜像** ——
 跨枝写入必须绑定目标分支的**当前**基线，不能用开枝时的旧基线。
+
+---
+
+## 2026-10-05 · T1-P1 交付（fix/w5-headless-writer @ 382de2cc）
+
+**任务**：workspaceType 写入者（评审线 R3 T1-P1，控制线裁定归 B线）。
+
+### 实现（4 文件，+211/-9）
+
+| 文件 | 动作 |
+|---|---|
+| `creation-canvas-conversation.ts` | 增 `options?: { workspaceType?: CanvasWorkspaceType }`，**只在新建分支**透传（existingId 一律不覆盖） |
+| `user-data-sync.ts` | `createCanvasProjectWithRemoteSync` 的 initialContent Pick 白名单扩 `workspaceType` |
+| `create/index.tsx` | 卡流程 carrier(:1152)/result(:1176) 传 `headless_task`；既有创作交接(:862) 保持无参 |
+| `web/test/headless-workspace-writer.test.ts` | 新建 7 tests |
+
+### 打标范围（控制线裁定 + 依据）
+只卡流程两分支打标，`:862` 保持 standard。依据：设计卡 §4.2 定义 headless =
+「用户未主动进入画布，画布只是产物承载方式」；`:862` 是用户显式「转入画布」且
+画布即目的地 ⇒ 不符合。**反向验收③（防过度打标）是可证伪性落点，不能省。**
+
+### 测试策略（避开 mock 泄漏）
+真实 service + 真实 store + **mock 网络适配器**（`apiClient.defaults.adapter`），
+不用 `mock.module` —— 后者是进程级跨文件泄漏（实测 bun 1.4：先加载的文件 mock 后
+加载文件可见）。断言落在 **store 实际字段 + 远端 payload**，非源码文本。
+
+**可证伪性（逐条注入）**：
+- 注入「新建分支不传 workspaceType」→ 2 fail
+- 注入「existingId 也覆盖」→ 2 fail（含反向断言：既有 headless 不因传 standard 变回 standard）
+- 还原后 7 pass
+
+### 真机验收（三条全过 + 一条补验）
+
+**① 画布库不显示** ✅ 真实任务 6e90f72a（gpt-image-2.5，succeeded）→ carrier 点
+「在画布中打开」→ 容器 i1VKWWDcIPqffPeI_jtlb 建成；列表 API 返回
+`workspaceType=headless_task`；DB payload 落库实测同值；画布库只显示 1 个普通画布。
+
+**② 首入整理** ✅ 首轮（容器无节点）：标记 null → 1（路径走通）。
+**补验（带节点，我主动补做）**：注入 3 节点全 (0,0) → 清标记 → 重载 →
+坐标变为 (0,0)/(272,0)/(0,152)（真实排布），标记置 1。⇒ 升级为「坐标真实变化」。
+
+**③ 反向（防过度打标）** ✅ 无参调用 → 新画布 `workspaceType` 空（standard）
++ 正常出现在画布库；`shouldTidyHeadlessCanvas(standard)` = false。验证后清理临时画布。
+
+### ★ 环境陷阱（值记，跨线通用）
+**旧后端进程不含新批的后端改动**：:8488 上跑的是 04:39 启动的进程（早于
+`4d535b57` 合入），导致列表 API 一度返回空 `workspaceType`；我一度怀疑前端写入
+未生效（store 内实际已有值）。重启后端（07:17 新代码）后正常。
+⇒ **纪律：凡在旧进程上验证跨批功能，先确认后端进程启动时间晚于相关 commit。**
+（诊断路径：store 有值 + 单项目 API 有值 + 列表 API 无值 → 锁定后端进程陈旧。）
+
+### 门禁（绑定 382de2cc）
+tsc 0 / eslint 0（4 文件）/ 关联回归 53 pass / 全量 **3057 pass·0 fail**（364 文件）。
+
+### 待控制线裁定
+① 合入安排 ②（已自行补做，撤回）验收②带节点补验。
