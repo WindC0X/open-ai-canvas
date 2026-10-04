@@ -40,3 +40,85 @@
 - B-2 表在 `docs/artifacts/_synthesis/`（**被 gitignore 忽略**，整目录 40 文件均为未追踪工作稿）
 - 按既有惯例：保持工作稿，不用 `git add -f`
 - ★ 诚实边界：这两处更正在本地生效，但**不在版本控制内** → 若目录丢失，更正随之丢失
+
+---
+
+## 任务 1：AST-08 双向引用只读 API（完成）
+
+**commit**：`85ff494d`（branch `fix/w5-repair-gaps`）
+
+### 交付内容
+
+**后端**（`backend/internal/app/resource_reference_query.go`，新文件）
+- `ResourceReferences(userID, resourceID)` —— 方向一「资源被谁引用」
+- `AssetResourceOccupancy(userID, assetID)` —— 方向二「素材占用哪些资源」
+- 路由：`GET /api/resources/:id/references`、`GET /api/assets/:id/resource-occupancy`
+- service aliases 三类型导出（稳定导入面纪律）
+
+**前端**
+- `resources.ts`：`getResourceReferences` / `getAssetResourceOccupancy` + 类型
+- `assets/index.tsx`：删除确认框加 `ResourceReferencePreview` 引用预检
+
+### 设计要点
+
+| 要点 | 处理 |
+|---|---|
+| **与删除路径同源** | 复用 `ResourceReferenceSnapshotExcludingAssets` + `assets.CollectDocumentResourceReferences`，预检数字与删除被拒提示不会漂移 |
+| **只读保证** | 不进入删除事务、不产生 deletion job（测试断言） |
+| **归属校验** | 非本人资源按 `NotFound` 处理（不泄露存在性） |
+| **超限保护** | 200 条上限 + `Truncated` 标记 |
+| **解析容错** | 单文档解析失败 skip 而非 abort（不因一条脏数据拖垮整体查询） |
+| **「给而不要求」** | 预检加载中/失败都不阻塞删除 —— 是信息不是门禁 |
+
+### 测试
+
+- **Go 6 例**：引用返回（含 nodeId）/ 只读性 / 归属隔离 / 空引用不报错 / 素材占用 / 素材不存在
+- **前端 6 例**：GET 路径 / ID 转义 / 空列表 / 截断透传 / code!==0 抛错 / 占用端点
+
+### 门禁
+
+| 项 | 结果 |
+|---|---|
+| `go build -buildvcs=false ./...` | exit 0 |
+| `go test ./internal/app/ -run Resource` | ok (97s) |
+| `tsc --noEmit` | exit 0 |
+| `eslint`（改动文件） | exit 0 |
+| `bun test`（全量） | **2744 pass / 1 fail** |
+
+**1 fail 定性**：`web/test/agent-canvas-sync.test.ts:61` 的
+「fallback snapshots obey the configured minimum refresh interval」——
+**已知 flaky**（该文件内 rider 注释自述「本批全量 3 跑 1 现」，flora 验收期首现的观察名单二次复现），
+单独复跑 **1 pass / 0 fail**。与本次改动零关联（画布同步 vs 资源引用）。
+
+---
+
+## 任务 3：片 3-4 UI 降级提示条（★ 遇设计矛盾，已上报裁定）
+
+### 控制线令
+> 3. 片 3-4 UI 降级提示条（光照/机位/镜头弹窗消费 registry-reader 的降级标注，R25m 收尾债）。
+
+### 实测四项事实（与令的前提冲突）
+
+| # | 事实 | 证据 |
+|---|---|---|
+| ① | **服务端无片 3-4 数据源** | `tools.json` 的 type 仅 `[style, motion, nine_grid]` |
+| ② | **三个弹窗直连本地常量** | `canvas-node-lighting-dialog.tsx` / `canvas-node-camera-dialog.tsx` 的 registry 引用 **0 处** |
+| ③ | **registry-reader 无片 3-4 读取函数** | `loadLighting/Camera/Lens` 函数数 = 0 |
+| ④ | **片 3-4 适配器存在但无消费者** | `registryAssetFromLegacyLightingPreset` / `FromCameraProfile` / `FromLensProfile` 消费点仅 `registry-adapters.test.ts` |
+
+### 矛盾实质
+
+「降级提示条」的语义前提是**「服务端是主、本地是兜底」**。
+但片 3-4 是**纯前端常量** —— 本地**就是**真值，**没有「降级」这回事**。
+加提示条等于告诉用户一个不存在的降级状态。
+
+R25m 验证记录 L437 早已写明此点（「无降级态可言（本地即真值）」），
+且控制线 2026-10-04 09:07 的裁定也认可了这一分离。
+
+### 待裁定（已上报）
+
+- **A**（助手推荐）：改判为「不接」，验证记录补说明，本项关闭（符合 §3.2 纪律 + 09:07 裁定）
+- **B**：补服务端源再降级（新功能开发，超出「收尾债」量级）
+- **C**：仅统一数据通路不加提示条（重构而非收尾债）
+
+**状态**：任务 3 暂停，等待控制线裁定。
