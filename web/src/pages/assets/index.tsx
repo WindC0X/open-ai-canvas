@@ -14,6 +14,7 @@ import { WorkspaceState } from "@/components/layout/workspace-state";
 import { AssetCard } from "./asset-library-cards";
 import { Switch } from "@/components/ui/base/switch";
 import { resourceStorageTitle, resourceStorageLabel } from "@/lib/canvas/resource-storage-status";
+import { getResourceReferences, resourceIdFromStorageKey } from "@/services/api/resources";
 import { AssetBatchUploadModal } from "./asset-batch-upload-modal";
 import { assetGridCardMinWidth, type AssetGridDensity, assetGridDensityOptions, parseAssetGridDensity } from "./asset-grid-density";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -91,6 +92,15 @@ export default function AssetsPage() {
     const [isAssetOpen, setIsAssetOpen] = useState(false);
     const [previewAsset, setPreviewAsset] = useState<LibraryAsset | null>(null);
     const [deletingAsset, setDeletingAsset] = useState<LibraryAsset | null>(null);
+    // AST-08：删除前主动预检引用（只读），让用户在点「彻底删除」前就看到会被影响的对象。
+    // 仅带资源标识的素材（图片/视频/音频/模型）有引用可查，文本/实体素材没有。
+    const deletingResourceId = deletingAsset && "storageKey" in deletingAsset.data ? resourceIdFromStorageKey(deletingAsset.data.storageKey) : "";
+    const deletingReferencesQuery = useQuery({
+        queryKey: ["asset-references", deletingResourceId],
+        queryFn: () => getResourceReferences(deletingResourceId),
+        enabled: Boolean(userId && deletingResourceId),
+        staleTime: 30_000,
+    });
     const [archivingAsset, setArchivingAsset] = useState<LibraryAsset | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
@@ -995,6 +1005,7 @@ export default function AssetsPage() {
                 cancelText="取消"
             >
                 确定彻底删除「{deletingAsset?.title}」吗？未被其他素材复用的服务器文件会直接释放，原画布或任务中的旧引用可能失效，操作不可恢复。
+                {deletingResourceId ? <ResourceReferencePreview query={deletingReferencesQuery} /> : null}
             </Modal>
             <Modal
                 className="library-modal library-confirm-modal"
@@ -1009,5 +1020,35 @@ export default function AssetsPage() {
                 确定彻底删除已选择的 {selectedAssets.length} 个素材吗？未被其他素材复用的服务器文件会直接释放，原画布或任务中的旧引用可能失效，操作不可恢复。
             </Modal>
         </>
+    );
+}
+
+/**
+ * AST-08 引用预检：删除确认框里显示「这个资源被哪些对象引用」。
+ *
+ * 与后端删除判定同源（同一套引用扫描），所以这里的数字与删除被拒时的提示一致。
+ * 加载中/失败都不阻塞删除（预检是「给而不要求」的信息，不是门禁）。
+ */
+function ResourceReferencePreview({ query }: { query: ReturnType<typeof useQuery<Awaited<ReturnType<typeof getResourceReferences>>>> }) {
+    if (query.isPending) {
+        return <div className="mt-3 text-xs text-stone-500">正在检查引用…</div>;
+    }
+    if (query.isError) {
+        return <div className="mt-3 text-xs text-stone-500">引用检查暂不可用，删除结果以服务器校验为准。</div>;
+    }
+    const references = query.data?.references ?? [];
+    if (!references.length) {
+        return <div className="mt-3 text-xs text-stone-500">未发现其他业务对象引用此素材的资源。</div>;
+    }
+    const labels = references.slice(0, 4).map((reference) => `${reference.kind}「${reference.title || reference.id}」`);
+    const more = references.length > labels.length || query.data?.truncated;
+    return (
+        <div className="mt-3 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-500">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            <span>
+                仍被 {references.length} 处引用：{labels.join("、")}
+                {more ? ` 等 ${references.length} 处` : ""}
+            </span>
+        </div>
     );
 }

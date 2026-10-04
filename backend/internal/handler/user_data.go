@@ -206,6 +206,34 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, gin.H{"usage": usage})
 	})
+	// AST-08 双向引用只读查询：删除前预检 / 素材库引用可见性。
+	// 只读、不做删除判定，与删除路径共用同一套引用扫描（结果不会漂移）。
+	r.GET("/resources/:id/references", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		result, err := svc.ResourceReferences(user.ID, c.Param("id"))
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, result)
+	})
+	r.GET("/assets/:id/resource-occupancy", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		result, err := svc.AssetResourceOccupancy(user.ID, c.Param("id"))
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, result)
+	})
 	r.POST("/resources/:id/ark-private-asset", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {

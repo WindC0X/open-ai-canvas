@@ -212,6 +212,45 @@ export async function syncResourceToArkPrivateAsset(id: string) {
     return data.sync;
 }
 
+/** 一条业务引用（AST-08 双向引用查询）。 */
+export type ResourceReferenceEntry = {
+    kind: string;
+    id: string;
+    title?: string;
+    /** 引用在文档中的 JSON 路径（仅文档类引用有值）。 */
+    path?: string;
+    /** 画布节点 ID（仅画布类引用有值）。 */
+    nodeId?: string;
+    referenceType?: string;
+};
+
+export type ResourceReferenceQuery = {
+    resourceId: string;
+    references: ResourceReferenceEntry[];
+    /** 扫描结果被截断（超过后端上限），UI 应提示「还有更多」。 */
+    truncated?: boolean;
+};
+
+/**
+ * 查询资源被哪些业务对象引用（只读，AST-08）。
+ *
+ * 与删除判定同源：后端复用同一套引用扫描，所以查询结果与删除时的占用提示不会漂移。
+ * 非本人资源返回「资源不存在或无权访问」。
+ */
+export function getResourceReferences(id: string) {
+    return http.get<ResourceReferenceQuery>(`/resources/${encodeURIComponent(id)}/references`);
+}
+
+/** 素材占用的资源 ID 列表（只读，AST-08 方向二）。 */
+export type AssetResourceOccupancy = {
+    assetId: string;
+    resourceIds: string[];
+};
+
+export function getAssetResourceOccupancy(id: string) {
+    return http.get<AssetResourceOccupancy>(`/assets/${encodeURIComponent(id)}/resource-occupancy`);
+}
+
 export function resourceIdFromStorageKey(storageKey?: string) {
     return storageKey?.startsWith("resource:") ? storageKey.slice("resource:".length) : "";
 }
