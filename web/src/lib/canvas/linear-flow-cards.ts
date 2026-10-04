@@ -23,7 +23,8 @@
  */
 import { ECOM_STARTER_CARDS, ECOM_STARTER_ICONS, type EcomStarterCard, type EcomStarterIcon } from "@/lib/canvas/canvas-ecom-starters";
 import { findScenePreset } from "@/lib/canvas/scene-presets";
-import { ECOM_CHANNEL_PRESETS } from "@/lib/image-size-presets";
+import { ECOM_CHANNEL_PRESETS, imagePresetValue, imageSizePresets } from "@/lib/image-size-presets";
+import type { ImageCapabilityConfig } from "@/lib/model-capabilities";
 
 /**
  * 直线流程步骤（设计卡 §3.1 梯度 0 的固定序列）。
@@ -298,4 +299,33 @@ export function linearFlowCardAspect(card: LinearFlowCard): string | undefined {
     const presetId = card.id === "white-background-main" ? "amazon-main" : card.id === "detail-3x4" ? "detail-3x4" : undefined;
     if (!presetId) return undefined;
     return ECOM_CHANNEL_PRESETS.find((preset) => preset.id === presetId)?.aspect;
+}
+
+/**
+ * 卡片比例 → **模型实际可接受的 size 值**（★ 修复令二轮 b12r16-③R：比例字符串 vs 像素值）。
+ *
+ * ★ 为什么需要这一层（实测根因）：
+ * 上轮修复把 `size` 写成比例字符串（"1:1"），但**模型要的是像素值**（"1024x1024"）——
+ * 实测报「画面尺寸超出支持范围」。两个模型的 size 协议不同（f08 debug DB 实测）：
+ *   · `size` 参数模型（gpt-image-2.5）：values = 像素值（1024x1024 / 1024x1360…）
+ *   · `aspect_ratio` 参数模型（nano-banana2）：values = 比例（1:1 / 3:4…）
+ *
+ * ★ 匹配实现消费既有函数（不自己写解析）：
+ *   · `imageSizePresets(profile)` 给出 profile 的 ratio→size 预设表
+ *   · `imagePresetValue(profile, preset)` 给出**该模型该发什么值**（像素或比例，由函数内部分支）
+ *
+ * @returns 可直接进 config.size 的值；**匹配不到返回 undefined**（调用方不传 size，走模型默认）。
+ */
+export function resolveLinearFlowSize(profile: ImageCapabilityConfig | undefined, aspect: string | undefined): string | undefined {
+    if (!profile || !aspect) return undefined;
+    if (profile.size.parameter === "none") return undefined;
+    // ① 模型的声明值直接含该比例 —— aspect_ratio 模型，以及 LOOSE 形态的 size 模型
+    //    （values 写比例而非像素，实测 gpt-image-2.5-4k 属此形）。声明值必为模型所接受，直用。
+    if (profile.size.values.includes(aspect)) return aspect;
+    // ② 严格 size 模型：从 presets 按 ratio 查像素值，再问 imagePresetValue「该发什么」
+    if (profile.size.parameter === "size") {
+        const preset = imageSizePresets(profile).find((item) => item.ratio === aspect);
+        return preset ? imagePresetValue(profile, preset) : undefined;
+    }
+    return undefined;
 }

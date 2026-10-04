@@ -35,7 +35,7 @@ import { CreationComposer, CreationEmptySuggest, CreationFeaturedWorks, Creation
 import { LinearFlowCardGrid } from "@/components/create/linear-flow-card-grid";
 import { LinearFlowRunner } from "@/components/create/linear-flow-runner";
 import type { LinearFlowCard } from "@/lib/canvas/linear-flow-cards";
-import { linearFlowCardAspect } from "@/lib/canvas/linear-flow-cards";
+import { linearFlowCardAspect, resolveLinearFlowSize } from "@/lib/canvas/linear-flow-cards";
 import { CreationAgentEntry } from "./creation-agent-entry";
 import { createCreationSubmitGate } from "./creation-submit-gate";
 import { creationVideoConfig } from "./creation-generation-config";
@@ -178,19 +178,27 @@ export default function CreatePage() {
      *
      * ★ 重写内容（照 `creationVideoConfig` 范式）：
      *   · model 族：按 card.mode 指向对应模型字段
-     *   · size：按卡片比例映射（走 O-03 层1 `ECOM_CHANNEL_PRESETS`，不新造尺寸值）
+     *   · size：按卡片比例**查模型的 presets 得实际可接受值**（★ 二轮修复：不是比例字符串）
      */
     const linearFlowConfig = useMemo(() => {
         if (!linearFlowCard) return generationConfig;
         const cardModel = linearFlowCard.mode === "text" ? (config.textModel || selectedModel) : (config.imageModel || selectedModel);
         const aspect = linearFlowCardAspect(linearFlowCard);
+        // ★ 二轮修复（b12r16-③R）：比例字符串不能直接当 size 传 ——
+        // size 协议模型要像素值（1:1 → 1024x1024），aspect_ratio 模型才要比例。
+        // 走 resolveLinearFlowSize 查模型 presets（消费既有 imageSizePresets/imagePresetValue）。
+        const size = resolveLinearFlowSize(linearFlowCard.mode === "image" ? modelCapabilityConfigFor(config, cardModel).image : undefined, aspect);
+        if (aspect && !size) {
+            // 兑底：模型 presets 匹配不到该比例 → 不传 size（走模型默认），不硬造值
+            console.info(`[linear-flow] 卡片比例 ${aspect} 未在模型 ${cardModel} 的尺寸预设中匹配，改用模型默认尺寸`);
+        }
         return {
             ...generationConfig,
             model: cardModel,
             ...(linearFlowCard.mode === "image" ? { imageModel: cardModel } : { textModel: cardModel }),
-            ...(aspect ? { size: aspect } : {}),
+            ...(size ? { size } : {}),
         };
-    }, [config.imageModel, config.textModel, generationConfig, linearFlowCard, selectedModel]);
+    }, [config, generationConfig, linearFlowCard, selectedModel]);
     const imageProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).image!, [config, selectedModel]);
     const videoProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).video!, [config, selectedModel]);
     // 同名逻辑模型可能把文生视频、图生视频和全模态参考拆到不同路由。

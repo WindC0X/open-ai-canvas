@@ -4,9 +4,9 @@ import { join } from "node:path";
 
 import { prepareBackendGenerationTask } from "@/services/api/generation-task";
 import { createModelChannel, defaultConfig, encodeChannelModel } from "@/stores/use-config-store";
-import { LINEAR_FLOW_CARDS, findLinearFlowCard, linearFlowCardAspect } from "@/lib/canvas/linear-flow-cards";
-import { ECOM_CHANNEL_PRESETS } from "@/lib/image-size-presets";
-import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
+import { LINEAR_FLOW_CARDS, findLinearFlowCard, linearFlowCardAspect, resolveLinearFlowSize } from "@/lib/canvas/linear-flow-cards";
+import { ECOM_CHANNEL_PRESETS, imagePresetValue, imageSizePresets } from "@/lib/image-size-presets";
+import { modelCapabilityConfigFor, type ImageCapabilityConfig } from "@/lib/model-capabilities";
 
 /**
  * W5 直线入口卡 —— ★ 接线级断言（修复令第 3 面，测试线 b12r16 ③ 缺陷的看守）。
@@ -128,22 +128,25 @@ describe("★ 修复令第 2 面：卡片比例语义进生成链", () => {
         }
     });
 
-    test("比例进提交体（size 字段贯通）", async () => {
+    test("★ 比例进提交体（size 字段贯通）", async () => {
         const config = linearFlowTestConfig();
+        const profile = modelCapabilityConfigFor(config, config.imageModel).image!;
         const aspect = linearFlowCardAspect(findLinearFlowCard("white-background-main")!);
+        const size = resolveLinearFlowSize(profile, aspect);
         const input = await prepareBackendGenerationTask({
             mode: "image",
             prompt: "电商白底产品主图",
-            config: { ...config, model: config.imageModel, imageModel: config.imageModel, size: aspect! },
+            config: { ...config, model: config.imageModel, imageModel: config.imageModel, ...(size ? { size } : {}) },
         });
         const inputConfig = input.input as { config?: { size?: string } };
-        expect(inputConfig.config?.size).toBe("1:1");
+        expect(inputConfig.config?.size).toBe(size);
     });
 
-    test("★ 接线源码：index.tsx 把 aspect 写进 config.size", () => {
+    test("★ 接线源码：index.tsx 把 resolveLinearFlowSize 结果写进 config.size", () => {
         const source = read("src/pages/create/index.tsx");
         expect(source).toContain("linearFlowCardAspect");
-        expect(source).toContain("...(aspect ? { size: aspect } : {})");
+        expect(source).toContain("resolveLinearFlowSize");
+        expect(source).toContain("...(size ? { size } : {})");
     });
 });
 
@@ -173,5 +176,97 @@ describe("卡面比例与卡名一致（任务语义对齐）", () => {
                 expect(card.acceptsReference).toBe(false);
             }
         }
+    });
+});
+
+/**
+ * ★ 二轮修复（b12r16-③R）：比例字符串 vs 像素值。
+ *
+ * 根因：上轮把 size 写成比例字符串（"1:1"），但 size 协议模型要像素值（"1024x1024"）
+ * → 实测报「画面尺寸超出支持范围」。测试线实证正确路径：1:1→1024x1024；3:4→1024x1360。
+ */
+describe("★ 二轮修复：resolveLinearFlowSize（比例 → 模型可接受值）", () => {
+    /** size 协议 profile（像素值 values），照 gpt-image-2.5 实测值。 */
+    const sizeProfile = (): ImageCapabilityConfig => ({
+        references: { promptMaxChars: 4000, maxImages: 3, maxImageBytes: 1e7, maskSupported: false },
+        size: { parameter: "size", values: ["auto", "1024x1024", "1824x1024", "1024x1824", "1360x1024", "1024x1360", "1536x1024", "1024x1536"], default: "auto", allowCustom: false },
+        quality: { supported: false, values: [], default: "auto" },
+        transparentBackground: { supported: false, default: false },
+        responseFormat: { supported: true },
+        outputFormat: { supported: true },
+        maxOutputs: 1,
+    }) as ImageCapabilityConfig;
+
+    /** aspect_ratio 协议 profile（比例 values），照 nano-banana2 实测值。 */
+    const aspectProfile = (): ImageCapabilityConfig => ({
+        references: { promptMaxChars: 4000, maxImages: 3, maxImageBytes: 1e7, maskSupported: false },
+        size: { parameter: "aspect_ratio", values: ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"], default: "auto", allowCustom: false },
+        quality: { supported: false, values: [], default: "auto" },
+        transparentBackground: { supported: false, default: false },
+        responseFormat: { supported: true },
+        outputFormat: { supported: true },
+        maxOutputs: 1,
+    }) as ImageCapabilityConfig;
+
+    test("★ size 协议模型：1:1 → 1024x1024（测试线实证值）", () => {
+        expect(resolveLinearFlowSize(sizeProfile(), "1:1")).toBe("1024x1024");
+    });
+
+    test("★ size 协议模型：3:4 → 1024x1360（测试线实证值）", () => {
+        expect(resolveLinearFlowSize(sizeProfile(), "3:4")).toBe("1024x1360");
+    });
+
+    test("★ 结果必须是模型 values 里的合法值（防再次「超出支持范围」）", () => {
+        const profile = sizeProfile();
+        for (const aspect of ["1:1", "3:4"]) {
+            const size = resolveLinearFlowSize(profile, aspect);
+            expect(size).toBeDefined();
+            expect(profile.size.values).toContain(size!);
+        }
+    });
+
+    test("aspect_ratio 协议模型：1:1 → 1:1（该模型 values 就是比例）", () => {
+        expect(resolveLinearFlowSize(aspectProfile(), "1:1")).toBe("1:1");
+        expect(resolveLinearFlowSize(aspectProfile(), "3:4")).toBe("3:4");
+    });
+
+    test("★ 反证：直接传比例字符串给 size 模型 → 不在 values 里（证明缺陷存在）", () => {
+        const profile = sizeProfile();
+        expect(profile.size.values).not.toContain("1:1");
+        expect(profile.size.values).not.toContain("3:4");
+    });
+
+    test("匹配不到 → undefined（兜底：不传 size，走模型默认）", () => {
+        // 模型只支持 16:9，卡要 3:4
+        const narrow = { ...sizeProfile(), size: { ...sizeProfile().size, values: ["auto", "1824x1024"] } } as ImageCapabilityConfig;
+        expect(resolveLinearFlowSize(narrow, "3:4")).toBeUndefined();
+    });
+
+    test("parameter = none 的模型 → undefined（不传 size）", () => {
+        const none = { ...sizeProfile(), size: { parameter: "none", values: [], default: "auto", allowCustom: false } } as ImageCapabilityConfig;
+        expect(resolveLinearFlowSize(none, "1:1")).toBeUndefined();
+    });
+
+    test("profile 或 aspect 缺失 → undefined（不崩）", () => {
+        expect(resolveLinearFlowSize(undefined, "1:1")).toBeUndefined();
+        expect(resolveLinearFlowSize(sizeProfile(), undefined)).toBeUndefined();
+    });
+
+    test("★ 消费既有函数：映射结果与 imageSizePresets + imagePresetValue 一致", () => {
+        const profile = sizeProfile();
+        const preset = imageSizePresets(profile).find((item) => item.ratio === "1:1")!;
+        expect(resolveLinearFlowSize(profile, "1:1")).toBe(imagePresetValue(profile, preset));
+    });
+
+    test("★ 接线源码：index.tsx 不再把 aspect 直接当 size", () => {
+        const source = read("src/pages/create/index.tsx");
+        expect(source).not.toContain("...(aspect ? { size: aspect } : {})");
+        expect(source).toContain("...(size ? { size } : {})");
+    });
+
+    test("★ 兜底记录：匹配不到时 console.info（不硬造值）", () => {
+        const source = read("src/pages/create/index.tsx");
+        expect(source).toContain("console.info");
+        expect(source).toContain("未在模型");
     });
 });
