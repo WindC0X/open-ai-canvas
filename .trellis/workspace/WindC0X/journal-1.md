@@ -1095,3 +1095,68 @@ B 线毕业机制接线（`0e1f111f`）、A 线超分收口批（`d60519e3`）�
 
 统一任务面实现批（首件 = 守卫测试 `web/test/task-face-independence.test.ts`）
 + size 修复真机验证轮（验证点：1:1 源图 → 长边 2048 精确达成 + 比例保持）。
+
+---
+
+## 2026-10-04 夜 · F-08 P1 修复批合入（`5de5e9c0`）
+
+### 合入
+
+`fix/f08-annotation-note`（tip `a4208a66`，自 `374bdf22`，6 文件 +436/-4）
+→ `--no-ff` merge `5de5e9c0`（parents `374bdf22` × `a4208a66`）。
+
+**交叠实测**：F-08 6 文件 × sync 枝 341 文件，`comm -12` 零交集 —— 先于 sync 合入无顺序风险。
+
+**内容**：圈选改图 P1 标注文字（note）双通道贯通 ——
+`annotate-edit-prompt.ts`（提示词通道）、`annotate-edit-render.ts`（截图渲染通道，
+`drawAnnotationShape` 两种形状都调 note 渲染）、`annotate-edit-submission.ts`、
+`use-canvas-media-tools.ts` 接线、`annotate-edit-note.test.ts`（15 测试）。
+
+### 门禁（**绑定 commit `5de5e9c0`**）
+
+| 门 | 结果 |
+| --- | --- |
+| tsc --noEmit | exit 0 ✅ |
+| eslint（本批 5 文件，全仓 drvfs 超时） | exit 0 ✅ |
+| 全量 bun test | **2918 pass / 5 fail**（2923 = 2908 + 15，与控制线预期精确一致）✅ |
+| go build | exit 0 ✅ |
+| go test ./internal/app/... | 5 项已知基线 + 1 项 flaky（见下） |
+
+**5 项 bun 失败定性**：全为 `ui-kit-retirement.test.ts` 文件扫描族
+（copied flush Modal padding / App.useApp().modal / generic empties /
+flush modal drawer spacing / axios.create）。
+**决定性 A/B**：同文件 ext4 `185ms / 3 pass` vs drvfs `76.25s / 3 fail`（~400x 纯 IO），
+F-08 零触及该文件 ⇒ 环境假红，非回归。
+
+**go test 第 6 项** `TestCloudAgentMediaFailedTaskUpdatesNode`：隔离 3 次全 pass
+（含 `-count=1`），F-08 **零 backend 文件** ⇒ 定义上不可能由其引起，负载敏感 flaky。
+
+### 教训 · 报告脱钩追因（控制线令查，根因 (a)）
+
+**现象**：23:34 报告「门禁（tip `eb86fd87`）tsc 0 / build 0」，而 `eb86fd87` 实测
+PARSE ERROR（TS1005 'try' expected）—— 控制线与测试线双重独立复现
+（测试线 4-commit 归因：`374bdf22` OK / `125864f6` OK / `9c3ef6c8` 坏 / 继承链坏）。
+
+**根因判定 (a)**：括号修复当时在**工作区未提交**，门禁跑在「含未提交修复的树」，
+报告引用的却是提交后 hash。证据链：
+
+1. `3067c40b` 与 `eb86fd87` 两个修正 commit **都不含** `user-data-sync.ts`（`--stat` 计数 0）
+2. 报告时刻 23:34:06 < 文件 mtime 23:35:46 < `a9949aeb` 提交 23:36:01
+3. 门禁命令序列在 `eb86fd87` 提交后、`a9949aeb` 前执行，HEAD=`eb86fd87`、工作树含修复
+
+**实质有效性**：`eb86fd87 + 括号修复 ≡ a9949aeb` 的树（`git diff --stat` 恰 1 insertion），
+故报告数字对 `a9949aeb` **成立（非假绿）**，但 **hash 绑定错位** —— 报告的树与引用的 commit 不是同一棵。
+
+**纪律（控制线裁定，本仓生效）**：**门禁结果与 hash 绑定** ——
+门禁只在被报告/被推送的那个 commit 上跑，跑完即报该 hash。
+这是「跨枝比较必须用当前拓扑」的**镜像条款**：门禁结论必须绑定被门禁的那棵树。
+
+**操作层根因**：`git add <paths>` 与后续 `python3` 脚本编辑**交错**执行 ——
+编辑发生在 `git add` 之后的文件上，该文件从未进入暂存区。
+**纪律**：多文件脚本化编辑后，`git status` 复核 + `git diff --cached --stat` 确认暂存集
+与预期文件集一致，再 commit。
+
+### 附带确认
+
+`a9949aeb`（23:36 补括号）控制线已核：diff 恰一行、PARSE OK、推送及时。
+sync 枝 tip `a9949aeb` 已 push fork（`sync/v1.6.1-ritual2`），待测试线 b12r19 GO。
