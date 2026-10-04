@@ -90,3 +90,22 @@ describe("channel model price tier defaults", () => {
         expect(priceTierPayloadFromForm("video", { ...tier, outputTokenPrice: 0 }, "seedance").outputTokenPriceMicrocredits).toBe(0);
     });
 });
+
+describe("AI 超分（image_upscale）价格档支持", () => {
+    // O-03 层2：超分是图片域内的独立计价操作。管理端若不提供该生成方式，
+    // 运营无法配置精确档，超分任务会静默落「任意生成方式」通配档（step 0 探针实测）。
+    test("image 能力接受 image_upscale 生成方式", () => {
+        const tier = { ...defaultPriceTier(), matchMode: "advanced" as const, operation: "image_upscale", unitPrice: 0.1 };
+        expect(() => validateChannelModelPrices({ capability: "image", protocol: "openai-image", priceTiers: [tier] })).not.toThrow();
+    });
+
+    test("image_upscale 经 skuSelectorFromForm 落到 selector.operation", () => {
+        const tier = { ...defaultPriceTier(), matchMode: "advanced" as const, operation: "image_upscale" };
+        expect(skuSelectorFromForm("image", tier)).toEqual({ operation: "image_upscale" });
+    });
+
+    test("video 能力仍拒绝 image_upscale（跨能力不匹配）", () => {
+        const tier = { ...defaultPriceTier(), matchMode: "advanced" as const, operation: "image_upscale" };
+        expect(() => validateChannelModelPrices({ capability: "video", protocol: "minimax-video", priceTiers: [tier] })).toThrow("生成方式与模型能力不匹配");
+    });
+});

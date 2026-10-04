@@ -79,7 +79,8 @@ export function validateChannelModelPrices(values: Pick<ChannelModelFormValues, 
     if (priceTiers.filter((tier) => tier.matchMode === "default").length > 1) throw new Error("只能配置一个所有规格统一价格");
     const operations: Record<string, string[]> = {
         text: ["text_generation"],
-        image: ["text_to_image", "image_to_image"],
+        // image_upscale 是图片域内的独立计价操作（O-03 层2），必须与 operationOptions 下拉保持同步。
+        image: ["text_to_image", "image_to_image", "image_upscale"],
         video: ["text_to_video", "image_to_video", "video_to_video"],
         audio: [],
     };

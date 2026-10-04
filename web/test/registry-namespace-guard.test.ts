@@ -92,6 +92,26 @@ describe("注册表命名空间——入口登记校验（§1.4 待建字段）"
             expect(entry.registryVersion).toBeGreaterThan(0);
         }
     });
+
+    // 2026-10-04 控制线追加：requiredOperations 声明计价操作。
+    // 为什么必须声明：计价按 operation 匹配价格档，渠道无精确档时**静默落通配档**
+    // （step 0 探针实测：无 image_upscale 档时落 T_DEFAULT，价 100 而非 777，不报错）。
+    // 声明后门控层可据此过滤渠道（本批只做声明侧）。
+    test("每个能力条目声明 requiredOperations（可为空数组，不得缺字段）", () => {
+        for (const entry of CAPABILITY_ENTRIES) {
+            expect(Array.isArray(entry.executionChain.requiredOperations)).toBe(true);
+            for (const operation of entry.executionChain.requiredOperations) {
+                expect(typeof operation).toBe("string");
+                expect(operation.trim()).not.toBe("");
+            }
+        }
+    });
+
+    test("超分条目声明 image_upscale（与其计费链一致）", () => {
+        const superResolve = CAPABILITY_ENTRIES.find((entry) => entry.id === "image.superResolve");
+        expect(superResolve).toBeDefined();
+        expect(superResolve?.executionChain.requiredOperations).toEqual(["image_upscale"]);
+    });
 });
 
 describe("注册表资产层——AssetKind 与落枚举纪律", () => {

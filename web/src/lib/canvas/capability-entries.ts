@@ -94,6 +94,19 @@ export type CapabilityEntry = {
         location: "cloud" | "local";
         /** 实测主力渠道（无则显式写「暂无」）。 */
         primaryChannel: string;
+        /**
+         * 本能力要求的计价操作（operation）。
+         *
+         * ★ 为什么需要（2026-10-04 控制线追加）：计价是**按 operation 匹配价格档**的
+         * （后端 `model_router.go` 的 `skuSelectorForIntent` → `channelModelPriceTierForIntent`）。
+         * 若渠道没有该 operation 的精确档，请求会**静默落通配档**（step 0 探针实测：
+         * 无 `image_upscale` 档时落 `T_DEFAULT`，价 100 而非 777，且不报错）。
+         * 声明后，模型选择器/门控层可以据此过滤掉不支持的渠道。
+         *
+         * ★ 本批只做**声明侧**：过滤消费留给门控批。
+         * 无计价要求的能力写空数组（不得省略字段）。
+         */
+        requiredOperations: string[];
     };
     /**
      * 零参数预设引用：进卡片时的默认值。
@@ -146,6 +159,8 @@ export const CAPABILITY_ENTRIES: CapabilityEntry[] = [
             location: "cloud",
             // F-02 渠道实测门同源结论（见 docs/artifacts/f02-scene-task-book.md §10.3）。
             primaryChannel: "a6api · nano-banana-2",
+            // 超分走独立计价操作（O-03 层2）：渠道未配该档时会静默落通配档（step 0 探针实测）。
+            requiredOperations: ["image_upscale"],
         },
         zeroParameterPreset: "暂无",
         // O-03 实际入口：图片工具栏（手工接线层 canvas-image-toolbar-tools.tsx 的 id）。
@@ -173,6 +188,8 @@ export const CAPABILITY_ENTRIES: CapabilityEntry[] = [
             location: "cloud",
             // F-08 渠道实测门同源结论（a6api · nano-banana-2 实测两样本，见任务书验收节）。
             primaryChannel: "a6api · nano-banana-2",
+            // 圈选改图是普通图片编辑，按图生图计价（无独立 operation）。
+            requiredOperations: [],
         },
         zeroParameterPreset: "暂无",
         // F-08 实际入口：图片工具栏「圈选改图」（手工接线层 canvas-image-toolbar-tools.tsx 的 id）。
