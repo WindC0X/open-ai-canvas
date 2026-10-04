@@ -7,7 +7,10 @@
 
 import { describe, expect, mock, test } from "bun:test";
 
-import { ASSET_KIND_LABELS, isStyleAsset, registryAssetFromLegacyStylePreset, registryAssetFromToolSummary, registryAssetsFromToolSummaries } from "../src/lib/canvas/registry-adapters";
+import { ASSET_KIND_LABELS, isStyleAsset, registryAssetFromCameraProfile, registryAssetFromLegacyLightingPreset, registryAssetFromLegacyStylePreset, registryAssetFromLensProfile, registryAssetFromToolSummary, registryAssetsFromToolSummaries } from "../src/lib/canvas/registry-adapters";
+import { findLegacyLightingPreset, LEGACY_LIGHTING_PRESETS } from "../src/lib/canvas/legacy-lighting-presets";
+import { CAMERA_PROFILES, LENS_PROFILES } from "../src/lib/canvas/camera-prompt-library";
+import { readFileSync } from "node:fs";
 import { degradedNoticeText, loadStyleAssets } from "../src/lib/canvas/registry-reader";
 import { isAssetVisibleToUser, PRESET_ASSET_KINDS } from "../src/lib/canvas/registry-asset";
 import type { CanvasStylePreset } from "../src/lib/canvas/canvas-style-system";
@@ -237,5 +240,92 @@ describe("片 2 全链：legacy 预设提取为可索引数据源", () => {
         const { LEGACY_CANVAS_STYLE_PRESETS } = await import("../src/lib/canvas/legacy-style-presets");
         const assets = LEGACY_CANVAS_STYLE_PRESETS.map(registryAssetFromLegacyStylePreset);
         expect(assets.every((asset) => isAssetVisibleToUser(asset))).toBe(true);
+    });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// 片 3-4：光照 / 机位 / 镜头预设适配（架构方案 §6.1 收编清单）
+// ────────────────────────────────────────────────────────────────────────────
+
+describe("注册表资产层——片 3 光照预设适配", () => {
+    test("8 条光照预设逐条适配为 preset/lighting", () => {
+        expect(LEGACY_LIGHTING_PRESETS).toHaveLength(8);
+        for (const preset of LEGACY_LIGHTING_PRESETS) {
+            const asset = registryAssetFromLegacyLightingPreset(preset);
+            expect(asset.assetKind).toBe("preset/lighting");
+            expect(asset.origin).toBe("local-fallback");
+            expect(asset.slug).toBe(preset.id);
+            expect(asset.title).toBe(preset.name);
+            expect(asset.prompt).toBe(preset.prompt);
+            expect(asset.prompt.length).toBeGreaterThan(0);
+        }
+    });
+
+    test("slug 无重复（防撞）", () => {
+        const slugs = LEGACY_LIGHTING_PRESETS.map((preset) => preset.id);
+        expect(new Set(slugs).size).toBe(slugs.length);
+    });
+
+    test("数据源与 dialog 同源（防双份真值）", () => {
+        // dialog 必须从 lib 引用，不得内联第二份数组
+        const dialogSource = readFileSync(
+            new URL("../src/components/canvas/canvas-node-lighting-dialog.tsx", import.meta.url).pathname,
+            "utf8",
+        );
+        expect(dialogSource.includes("LEGACY_LIGHTING_PRESETS")).toBe(true);
+        expect(dialogSource.includes("overexposed film aesthetic")).toBe(false);
+    });
+
+    test("提示词逐字一致（搬迁不是重写）", () => {
+        const rembrandt = findLegacyLightingPreset("rembrandt");
+        expect(rembrandt?.prompt).toContain("Rembrandt lighting, 45-degree angle key light");
+        expect(rembrandt?.name).toBe("伦勃朗光");
+    });
+});
+
+describe("注册表资产层——片 4 机位/镜头预设适配", () => {
+    test("8 条机位预设逐条适配为 preset/camera", () => {
+        expect(CAMERA_PROFILES).toHaveLength(8);
+        for (const profile of CAMERA_PROFILES) {
+            const asset = registryAssetFromCameraProfile(profile);
+            expect(asset.assetKind).toBe("preset/camera");
+            expect(asset.origin).toBe("local-fallback");
+            expect(asset.slug).toBe(profile.id);
+            expect(asset.title).toBe(profile.zhName || profile.label);
+            // ★ 提示词必须取 profilePrompt（模型面），不是 description（人面）
+            expect(asset.prompt).toBe(profile.profilePrompt);
+            expect(asset.description).toBe(profile.description);
+        }
+    });
+
+    test("8 条镜头预设逐条适配为 preset/lens", () => {
+        expect(LENS_PROFILES).toHaveLength(8);
+        for (const profile of LENS_PROFILES) {
+            const asset = registryAssetFromLensProfile(profile);
+            expect(asset.assetKind).toBe("preset/lens");
+            expect(asset.origin).toBe("local-fallback");
+            expect(asset.prompt).toBe(profile.profilePrompt);
+        }
+    });
+
+    test("机位与镜头 slug 无重复（跨类防撞）", () => {
+        const slugs = [...CAMERA_PROFILES.map((p) => p.id), ...LENS_PROFILES.map((p) => p.id)];
+        expect(new Set(slugs).size).toBe(slugs.length);
+    });
+
+    test("三类预设 AssetKind 互不相同（归类正确）", () => {
+        const lighting = registryAssetFromLegacyLightingPreset(LEGACY_LIGHTING_PRESETS[0]);
+        const camera = registryAssetFromCameraProfile(CAMERA_PROFILES[0]);
+        const lens = registryAssetFromLensProfile(LENS_PROFILES[0]);
+        const kinds = [lighting.assetKind, camera.assetKind, lens.assetKind];
+        expect(new Set(kinds).size).toBe(3);
+        expect(kinds).toEqual(["preset/lighting", "preset/camera", "preset/lens"]);
+    });
+
+    test("PRESET_ASSET_KINDS 覆盖新增三类", () => {
+        // PRESET_ASSET_KINDS 是 ReadonlyArray<AssetKind>，不是 Set —— 用 includes
+        expect(PRESET_ASSET_KINDS.includes("preset/lighting")).toBe(true);
+        expect(PRESET_ASSET_KINDS.includes("preset/camera")).toBe(true);
+        expect(PRESET_ASSET_KINDS.includes("preset/lens")).toBe(true);
     });
 });

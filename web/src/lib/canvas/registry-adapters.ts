@@ -11,6 +11,8 @@
  */
 
 import type { CanvasStylePreset } from "./canvas-style-system";
+import type { CameraProfile, LensProfile } from "./camera-prompt-library";
+import type { LegacyLightingPreset } from "./legacy-lighting-presets";
 import { assetKindFromToolType, type AssetKind, type RegistryAsset } from "./registry-asset";
 import type { ToolItem, ToolSummary } from "@/services/api/tools";
 
@@ -72,6 +74,66 @@ export function registryAssetFromLegacyStylePreset(preset: CanvasStylePreset): R
         coverUrl: preset.imageUrl || undefined,
         // legacy 的 tags 是题材标签，无对应服务端字段 —— 并入 description 之外的
         // 语义留给检索层；此处不塞进 group（group 语义 = 分类）
+        enabled: true,
+        origin: "local-fallback",
+    };
+}
+
+/**
+ * 本地光照预设 → 统一资产记录（片 3 的离线降级源）。
+ *
+ * 与片 2 同构：这些记录不是服务端下发，origin 固定 `local-fallback`。
+ */
+export function registryAssetFromLegacyLightingPreset(preset: LegacyLightingPreset): RegistryAsset {
+    return {
+        assetId: preset.id,
+        assetKind: "preset/lighting",
+        slug: preset.id,
+        title: preset.name,
+        // 光照预设无分类维度（dialog 是单层网格）—— group 留空串，
+        // 不塞入假分类（架构方案 §2.2 原则 1：AssetKind 是形状标签不是用户概念）
+        group: "",
+        prompt: preset.prompt,
+        coverUrl: preset.image || undefined,
+        enabled: true,
+        origin: "local-fallback",
+    };
+}
+
+/**
+ * 本地机位预设 → 统一资产记录（片 4 的离线降级源）。
+ *
+ * ★ 提示词取 `profilePrompt`（模型面），不是 `description`（人面）——
+ * 架构方案 §3.3 契约：prompt 字段承载模型面文本。
+ */
+export function registryAssetFromCameraProfile(profile: CameraProfile): RegistryAsset {
+    return {
+        assetId: profile.id,
+        assetKind: "preset/camera",
+        slug: profile.id,
+        // 用户面标题优先中文名（zhName），回落 label
+        title: profile.zhName || profile.label,
+        // useCase 是机位的使用场景（剧情长片/奢华广告…）—— 作分组
+        group: profile.useCase,
+        prompt: profile.profilePrompt,
+        description: profile.description || undefined,
+        enabled: true,
+        origin: "local-fallback",
+    };
+}
+
+/**
+ * 本地镜头预设 → 统一资产记录（片 4 的离线降级源）。
+ */
+export function registryAssetFromLensProfile(profile: LensProfile): RegistryAsset {
+    return {
+        assetId: profile.id,
+        assetKind: "preset/lens",
+        slug: profile.id,
+        title: profile.zhName || profile.label,
+        group: profile.useCase,
+        prompt: profile.profilePrompt,
+        description: profile.description || undefined,
         enabled: true,
         origin: "local-fallback",
     };
