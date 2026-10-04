@@ -908,3 +908,138 @@ branch-only 分支上未合入**，测试线 ③R 跑的是**不含该修复**�
 
 **imageOperation 预研不做**：渠道接线批开工时随批侦察
 （核心是 `ModelRequirements` 加字段，半小时的事，不值得单独预研）。
+
+---
+
+## 2026-10-04 · W5 两批按序合入（b12r17 GO）· B线毕业机制 + A线超分收口
+
+**合入**：`--no-ff` 两枚 merge commit，最终 **`d60519e3`**
+**顺序**：先 B 后 A（测试线 twin 实测顺序已验证，5b000de0）
+**push**：fork WindC0X（`29892dfa..d60519e3`），origin 未触碰
+
+| 步 | 批次 | merge commit | 父 | 规模 |
+|---|---|---|---|---|
+| 1 | B 线 `feat/w5-graduation` @ `53f032cf` | `0e1f111f` | `29892dfa` × `53f032cf` | 11 文件 +964/−6 |
+| 2 | A 线 `feat/w5-superresolve-closeout` @ `30a97b5a` | `d60519e3` | `0e1f111f` × `30a97b5a` | 18 文件 +1029/−33 |
+
+**零冲突**：两批文件面交集为空（合入前 comm 核验）；A 线基点虽旧（`fa54be95`），
+journal 自动合并成功，无冲突标记，两段完整保留。
+
+### 门禁（一轮覆盖两批）
+
+| 门 | 结果 |
+|---|---|
+| `bun run build` | exit 0（4m39s） |
+| 全量 `bun test` | **2908 pass / 0 fail**（348 文件 / 14957 expects） |
+| `go build -buildvcs=false ./...` | exit 0 |
+| `go test ./internal/app/...` | 5 项已知基线（逐条同名） |
+
+**基线口径**：控制线预期 ≈2908，实测 **2908** —— **精确命中**。
+
+---
+
+### B 线毕业机制全周期（设计卡 → 接线 → 两轮真机修复 → GO）
+
+| 阶段 | 内容 |
+|---|---|
+| 设计卡 | 直线入口卡的同族（四层梯度 tier-1 `LinearFlowGate` allowed/locked/hidden） |
+| 纯函数层 | `graduation-state.ts` 状态机 + 6 动作白名单 + B1 分组 |
+| 接线四件 | `types/canvas.ts` 加 `"guide"` + `graduated?`；`project.tsx` 入口推导；`tool-registry` 判据扩展；顶部「完整画布」出口 |
+| 真机修复 | 两轮（b12r16 NO-GO → b12r17 GO） |
+| 验收 | 测试线 twin 顺序实测 `5b000de0` |
+
+#### ★ 接线双纪律（本批教训，控制线指定登记）
+
+**纪律一：纯函数测试全绿 ≠ 接线可用**（A 线同批独立发现，两线同族）
+
+C1-C3 纯函数层测试全绿，真机一跑 NO-GO —— 问题不在纯函数逻辑，在接线
+（模型配置传递 + size 格式）。归入「有代码≠能用」（反模式 #12）真机变体，
+且是 O-03 `source.includes` 弱断言的**上游变体**
+（字符串断言证存在 → 纯函数断言证正确 → **都不证接线/调用**）。
+
+**纪律二：接线新增 import 可能引入循环依赖 → 必须跑关联测试**
+
+| 项 | 内容 |
+|---|---|
+| 现象 | `canvas-node-toolbar.test.ts` 报 `ReferenceError: Cannot access 'registry' before initialization` |
+| 根因 | 白名单原在 `graduation-state.ts`，`tool-registry.ts` 需消费它 → `tool-registry → graduation-state → node-hover-tools → tool-registry` **循环** |
+| 修法 | 白名单抽到**零依赖叶子模块** `graduation-tools.ts`；`tool-registry` 只 import 叶子；`graduation-state` re-export 保持既有导入面 |
+| 防线 | 新增 4 条测试（源码断言 + **运行时验证注册表可用且无重复**） |
+
+**教训**：单跑目标测试**不够**，必须跑**关联测试** —— 本轮靠
+`canvas-node-toolbar.test.ts` 抓到，若只跑 `graduation-*.test.ts` 会漏网。
+
+**附语义澄清（B 线实测修正）**：`GUIDE_VISIBLE_TOOL_IDS` 是**上限不是固定值** ——
+`generateImage`/`editText` 仅文本节点适用，`uploadImage` 仅无图时适用；
+各节点类型下是它的子集，**绝不超出**（guide 态实测：图片 2 项 / 文本 4 项 / 视频 3 项）。
+
+---
+
+### A 线超分收口批全周期（八件全绿）
+
+**step 0 探针**（控制线评「质量极高」）：静默落通配价**机制确认**
+（`matchSKUSelector` 对空键与 `"*"` 直接 `continue`），具体 `0.005` 金额未复现。
+
+**任务 1-5 + 两项追加**：
+- 任务 1 管理端 `image_upscale` 四同步点
+- 任务 2 `mode`→提示词翻译 + 追加 A（size 继承污染）+ 追加 B（faithful 强化）
+- 任务 3 链路验证三段式（任务创建 / 计费精确档 777 / 上游请求构造发出）
+- 任务 4 UI 样板件 token 化（W6 弹窗家族先行样板）
+- 任务 5 `executionChain.requiredOperations`
+
+#### ★ 双 size 协议（本批独立发现）
+
+比例语义修复暴露**双 size 协议**：
+- **前端画布尺寸**（节点 `width/height`，渲染布局用）
+- **模型输入尺寸**（`size` 参数，模型接受的枚举值）
+
+二者**不是同一概念**，此前被混用（卡流程把画布尺寸直接当模型尺寸传，模型不认）。
+
+**⇒ 纪律：跨层传递尺寸时必须明确是「画布尺寸」还是「模型尺寸」，命名与字段都要区分。**
+适用于未来所有涉及生成的卡/预设。
+
+#### ★ 占位价单路径裁定（控制线两轮修正）
+
+| 轮次 | 裁定 |
+|---|---|
+| 初令 | 占位状态记两处：journal + 管理端价格档描述性字段（若有） |
+| **前提核查（推翻）** | 价格档级 `ChannelModelPriceTier` **无** remark/note/description（全字段枚举）；价格档表单**无**描述位（Form.Item name 全枚举）；模型级 `ChannelModel.Description` 存在但表单自述「**在创作端二级渠道选项中常驻显示**」（`channel-model-editor.tsx:281`），`model-picker.tsx:827` 实际消费 → **用户可见** |
+| **终裁** | **单路径**：占位状态只记 journal。模型级 description 因**用户可见**不可用（内部状态泄露给终端用户，违反「形状标签不是用户概念」原则）；管理端硬编码文案**否决**（为一行占位改组件不值当，占位期短）；加列挂渠道接线批低优先 |
+
+**image_upscale 占位价 = 0.1 积分/次 = 100,000 microcredits，正式定价待用户。**
+
+#### 边界 #3 拆两命题（控制线复核采纳）
+
+| 命题 | 状态 |
+|---|---|
+| 渠道可用性（`nano-banana-2` 能出图） | ✅ **已闭环**（③R 真机出图成功） |
+| size 修复真机效力 | ⚠️ **未验证** |
+
+**关键时序发现**：③R 出的 `1445×1088` **恰是修复前的症状值**
+（960×960 源按 4:3 继承 `1360x1024` → 长边 2048 对齐 = 1445×1088）——
+控制线原话「**反而是 bug 的复现实证**」。本批 size 修复当时仍在 branch-only
+分支未合入，③R 跑的是不含该修复的代码。
+
+**size 修复真机验证排入下轮**，验证点：**1:1 源图 → 长边 2048 精确达成 + 比例保持**。
+
+#### 边界 #5 升级为正式项
+
+前端预估价差（`imagePriceOperation` 只返回 `image_to_image`/`text_to_image`，
+`ModelRequirements` 无 `imageOperation`）→ 预估按图生图算、后端按 `image_upscale` 收。
+控制线裁定**登记为渠道接线批正式项**，修法 `ModelRequirements` 加 `imageOperation`
++ `imagePriceOperation` 按 operation 返回。原话：「**不许它变成隐性账单偏差**」。
+
+---
+
+### 本批教训汇总（三族）
+
+1. **接线双纪律**（B 线 + A 线同批独立发现）
+   - 纯函数测试全绿 ≠ 接线可用
+   - 接线新增 import 可能引入循环依赖 → 必须跑关联测试
+2. **双 size 协议**：画布尺寸 vs 模型尺寸，跨层传递必须区分命名与字段
+3. **占位价单路径**：内部状态不得写入用户可见字段（前提核查推翻初令，
+   枚举式核查 > 抽样判断）
+
+**方法论共同点**：三条都源于**「验证形态必须匹配被验证对象」** ——
+纯函数测试匹配不了接线，单文件测试匹配不了循环依赖，
+抽样判断匹配不了字段有无。**枚举式核查与关联测试是必要动作。**
