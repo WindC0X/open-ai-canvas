@@ -1316,3 +1316,59 @@ R25m **片 6 页面接线** —— 灵感卡走适配器：
 「real model manager renders inline」在**全量跑 17782ms 超 5000ms 阈值**，
 **隔离跑 6 pass / 0 fail（3.81s）** —— drvfs 慢 IO 负载敏感假红，
 B 线批**零触及**该文件（`git diff` 计数 0）。属既有环境族（与 ui-kit 扫描族同源）。
+## 2026-10-05 · B线：缝隙池批（片 6）+ 评审 R1 修复批
+
+### 缝隙池批（`d6b6a952` @ `f180edf5`）
+
+片 6 接线（灵感卡走适配器）+ A1（§3.4 来源字段补门禁缺口）+ 片 9 B1（显式关闭）。
+7 文件 +448/-23。tsc 0 / eslint 0 / 关联 111 pass / 全量 **2997 pass 0 fail**（360 文件）。
+
+**开工前字段映射核对抓到两处结构性问题**（控制线裁定 A1+B1）：
+
+- 片 9 **结构性不可接线**：4 处消费点中 3 处是计算面（`planEcomPresetApplication`
+  入参是结构化 `EcomChannelPreset`），而适配器把 `minPixels`/`desiredResolution`
+  压进 `description` 字符串、`shortLabel` 完全未映射 —— 按现 schema 无损接线三选一
+  皆不可接受（丢信息 / 扩 schema / 反解析字符串）。裁定显式关闭（同片 3-4 先例），
+  重开条件入 scope doc。
+- 片 6 缺 1 字段：UI 的「开源改编 · CC0」vs「原创提示词」许可证标注依赖 `item.source`，
+  适配器未映射 → 8 条 CC0 会被误标为「原创提示词」（**事实性误标，非显示细节**）。
+  修复：`RegistryAsset` 增 §3.4 形态 `AssetSource`（repository/revision/license/notice）。
+
+**方法固化**：「逐消费点 × 逐字段」核对表（scope doc §五）作为后续接线批模板 ——
+开工前先列消费面字段需求，逐项对照适配器产出，任一项无承载即 STOP 报裁定。
+
+### 评审 R1 修复批（7 条 P1）
+
+| 条目 | 缺陷 | 修复 |
+|---|---|---|
+| E-1 | 图片工具层（30 项）整条旁路 guide 白名单 → guide 态 32 项 | 走叶子模块 `filterToolsForGuide`（与 registry 同源真值） |
+| E-2 | 白名单无条件应用于所有 toolbar → main 9→0 | 显式白名单 `GUIDE_FILTERED_TOOLBARS = ["node-hover"]` |
+| B-1 | 徽标 clamp 用 `context.canvas` 尺寸（导出坐标系错位）→ 跑出画布左侧 | clamp 用原图像素空间；提取 `badgeCenter` 真接缝 |
+| B-2 | 标注图纯 dataUrl 被 `referenceUrl` 过滤 → 重试链只剩原图单图 | 物化 storageKey（照 outpaint maskUpload 先例） |
+| B-3 | 注释称「保留完整标注供审计」但 metadata 仅 5 字段 | 补 `annotations` 明细进 metadata（兑现承诺） |
+| D-1 | runner 防御层无条件以 `model` prop 覆写（= selectedModel）→ 文本/视频页面开图片卡重新引入 HTTP 400 | 单一真值 `resolveLinearFlowModel`（config 与 prop 同源）+ 防御层按 mode 族判定 |
+| D-2 | `...generationConfig` 打底让**视频比例**透传进图片请求（scene-shot → size=16:9） | `resolveLinearFlowConfig` 真接缝：显式剥离继承 size，由卡流程唯一决定 |
+
+**接线级测试**（`web/test/review-r1-wiring.test.ts`，33 tests / 90 expects）：
+每条附**真接缝行为断言**（非镜像实现）+ **反例**。E-1/E-2 断言 guide 态实际项数 ≤6。
+
+**可证伪性验证（逐条注入缺陷）**：
+- E-2 注入 → 3 fail（main 被清空 / selection 受影响 / 源码断言）
+- E-1 注入 → 2 fail（实际项数 32 / 接缝三态）
+- B-1 注入 → 2 fail（**行为断言抓到**：图内锚点被错误 clamp）
+- B-2 注入 → 2 fail（storageKey 断链 / 反例）
+- D-1 注入 → 2 fail（图片卡取错模型）
+- D-2 注入（原缺陷精确形态）→ 3 fail（真接缝行为断言）
+
+**测试质量教训应用**（评审线 R1 §4「测试镜像实现」）：
+初版测试复刻了实现表达式（评审线 D-4 批评的同形缺陷），改为提取**真接缝**
+（`filterToolsForGuide` / `badgeCenter` / `resolveLinearFlowConfig`），
+测试直接断言生产函数的返回值。B-1 与 D-2 的行为断言经注入验证确实能抓到缺陷。
+
+**既有断言更新**：`linear-flow-wiring.test.ts` 4 条「镜像实现」断言
+（断言旧实现的表达式文本）随重构更新为契约级断言 —— 这正是评审线指出的
+「改实现即红，改契约不红」形态。
+
+### 门禁
+
+tsc 0 / eslint 0（12 改动文件）/ 关联回归 237 pass / 全量 **3020 pass 0 fail**（360 文件）。

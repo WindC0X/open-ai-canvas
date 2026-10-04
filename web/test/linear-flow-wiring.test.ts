@@ -86,15 +86,19 @@ describe("★ 修复令第 1 面：提交体 model 与 card.mode 匹配", () => 
     test("★ 接线源码：index.tsx 按 card.mode 重写 config（不是直接传 generationConfig）", () => {
         const source = read("src/pages/create/index.tsx");
         expect(source).toContain("linearFlowConfig");
-        expect(source).toContain('linearFlowCard.mode === "text" ? (config.textModel || selectedModel) : (config.imageModel || selectedModel)');
+        // ★ R1 修复（D-1/D-2）：配置组装走纯函数真接缝（resolveLinearFlowConfig）
+        expect(source).toContain("resolveLinearFlowConfig({");
+        expect(source).toContain("resolveLinearFlowModel(linearFlowCard");
         // runner 挂载点必须用重写后的 config
         expect(source).toContain("config={linearFlowConfig}");
         expect(source).not.toContain("config={generationConfig}\n            model={linearFlowCard?.mode");
     });
 
-    test("★ 接线源码：runner 用 model prop 修正 config.model（防御层）", () => {
+    test("★ 接线源码：runner 防御层按 card.mode 模型族判定（不再无条件覆写）", () => {
         const source = read("src/components/create/linear-flow-runner.tsx");
-        expect(source).toContain("const requestConfig = config.model === model ? config :");
+        // ★ R1 修复（D-1）：防御层判据改为「config.model 与 card.mode 对应的模型族字段」比较
+        expect(source).toContain("const modeModel = card.mode === \"text\" ? config.textModel : config.imageModel");
+        expect(source).toContain("config.model === modeModel");
         expect(source).toContain("config: requestConfig");
     });
 });
@@ -142,11 +146,12 @@ describe("★ 修复令第 2 面：卡片比例语义进生成链", () => {
         expect(inputConfig.config?.size).toBe(size);
     });
 
-    test("★ 接线源码：index.tsx 把 resolveLinearFlowSize 结果写进 config.size", () => {
+    test("★ 接线源码：index.tsx 把卡比例进 config.size（走真接缝，非内联）", () => {
         const source = read("src/pages/create/index.tsx");
         expect(source).toContain("linearFlowCardAspect");
-        expect(source).toContain("resolveLinearFlowSize");
-        expect(source).toContain("...(size ? { size } : {})");
+        // ★ R1 修复（D-1/D-2）：size 由纯函数接缝决定（内含 resolveLinearFlowSize）
+        expect(source).toContain("resolveLinearFlowConfigSize(linearFlowCard");
+        expect(source).toContain("resolveLinearFlowConfig({");
     });
 });
 
@@ -258,10 +263,11 @@ describe("★ 二轮修复：resolveLinearFlowSize（比例 → 模型可接受�
         expect(resolveLinearFlowSize(profile, "1:1")).toBe(imagePresetValue(profile, preset));
     });
 
-    test("★ 接线源码：index.tsx 不再把 aspect 直接当 size", () => {
+    test("★ 接线源码：index.tsx 不再把 aspect 直接当 size（size 由接缝决定）", () => {
         const source = read("src/pages/create/index.tsx");
         expect(source).not.toContain("...(aspect ? { size: aspect } : {})");
-        expect(source).toContain("...(size ? { size } : {})");
+        // ★ R1 修复（D-2）：size 不继承 baseConfig，由 resolveLinearFlowConfig 唯一决定
+        expect(source).toContain("resolveLinearFlowConfig({");
     });
 
     test("★ 兜底记录：匹配不到时 console.info（不硬造值）", () => {

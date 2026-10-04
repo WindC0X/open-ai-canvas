@@ -16,6 +16,9 @@ import { generationErrorMessage } from "@/lib/generation-error";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { producedModelLabel } from "@/lib/canvas/produced-model";
 import { nodeGenerationPrompt } from "@/lib/canvas/generation-contract";
+// ★ R1 修复（E-1）：图片工具层与注册表层共用同一份引导态白名单（单一真值）。
+// 叶子模块零依赖，不会引入循环。filterToolsForGuide 是唯一过滤入口（接线级测试的真接缝）。
+import { filterToolsForGuide } from "@/lib/canvas/graduation-tools";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useEffectiveConfig } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasNodeData, type CanvasNodeMetadata, type CanvasWorkspaceMode, type ViewportTransform } from "@/types/canvas";
@@ -304,7 +307,13 @@ export function CanvasNodeToolbar({
         };
     });
     const allTools: ToolbarTool[] = hasImage && !simpleMode
-        ? [...registryToolbarTools, ...imageTools]
+        ? [
+              ...registryToolbarTools,
+              // ★ R1 修复（E-1）：图片工具层（手工接线 30 项）此前整条旁路白名单 ——
+              // guide 态实测 32 项（registry 2 + imageTools 30），白名单形同虚设。
+              // 走叶子模块的 filterToolsForGuide（与 registry 侧同一真值）。
+              ...filterToolsForGuide(imageTools, workspaceMode),
+          ]
         : registryToolbarTools;
     const compact = containerWidth < 640;
     const narrow = containerWidth < 420;

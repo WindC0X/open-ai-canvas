@@ -35,7 +35,7 @@ import { CreationComposer, CreationEmptySuggest, CreationFeaturedWorks, Creation
 import { LinearFlowCardGrid } from "@/components/create/linear-flow-card-grid";
 import { LinearFlowRunner } from "@/components/create/linear-flow-runner";
 import type { LinearFlowCard } from "@/lib/canvas/linear-flow-cards";
-import { linearFlowCardAspect, resolveLinearFlowSize } from "@/lib/canvas/linear-flow-cards";
+import { linearFlowCardAspect, resolveLinearFlowConfig, resolveLinearFlowConfigSize, resolveLinearFlowModel } from "@/lib/canvas/linear-flow-cards";
 import { CreationAgentEntry } from "./creation-agent-entry";
 import { createCreationSubmitGate } from "./creation-submit-gate";
 import { creationVideoConfig } from "./creation-generation-config";
@@ -182,23 +182,31 @@ export default function CreatePage() {
      */
     const linearFlowConfig = useMemo(() => {
         if (!linearFlowCard) return generationConfig;
-        const cardModel = linearFlowCard.mode === "text" ? (config.textModel || selectedModel) : (config.imageModel || selectedModel);
+        // ★ R1 修复（D-1/D-2）：配置组装走纯函数（真接缝）—— 模型族单一真值 +
+        // size 不从 generationConfig 继承（视频比例不得透传进图片请求）。
+        const cardModel = resolveLinearFlowModel(linearFlowCard, { imageModel: config.imageModel, textModel: config.textModel, selectedModel });
         const aspect = linearFlowCardAspect(linearFlowCard);
-        // ★ 二轮修复（b12r16-③R）：比例字符串不能直接当 size 传 ——
-        // size 协议模型要像素值（1:1 → 1024x1024），aspect_ratio 模型才要比例。
-        // 走 resolveLinearFlowSize 查模型 presets（消费既有 imageSizePresets/imagePresetValue）。
-        const size = resolveLinearFlowSize(linearFlowCard.mode === "image" ? modelCapabilityConfigFor(config, cardModel).image : undefined, aspect);
-        if (aspect && !size) {
+        const size = resolveLinearFlowConfigSize(linearFlowCard, modelCapabilityConfigFor(config, cardModel).image, aspect);
+        if (linearFlowCard.mode === "image" && aspect && size === "auto") {
             // 兑底：模型 presets 匹配不到该比例 → 不传 size（走模型默认），不硬造值
             console.info(`[linear-flow] 卡片比例 ${aspect} 未在模型 ${cardModel} 的尺寸预设中匹配，改用模型默认尺寸`);
         }
-        return {
-            ...generationConfig,
-            model: cardModel,
-            ...(linearFlowCard.mode === "image" ? { imageModel: cardModel } : { textModel: cardModel }),
-            ...(size ? { size } : {}),
-        };
+        return resolveLinearFlowConfig({
+            card: linearFlowCard,
+            config: { imageModel: config.imageModel, textModel: config.textModel },
+            baseConfig: generationConfig as unknown as Record<string, unknown>,
+            selectedModel,
+            imageProfile: modelCapabilityConfigFor(config, cardModel).image,
+        }) as typeof generationConfig;
     }, [config, generationConfig, linearFlowCard, selectedModel]);
+    /**
+     * 卡流程实际使用的模型（★ R1 修复 D-1）：**与 linearFlowConfig.model 同源**。
+     *
+     * runner 的 `model` prop 曾独立计算为 `selectedModel`（当前**页面模式**的模型），
+     * 在文本/视频页面打开图片卡时会覆写回错误模型，重新引入已修缺陷（评审线 D-1）。
+     * 两处现共用 resolveLinearFlowModel —— 漂移面从根上消除。
+     */
+    const linearFlowModel = resolveLinearFlowModel(linearFlowCard, { imageModel: config.imageModel, textModel: config.textModel, selectedModel });
     const imageProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).image!, [config, selectedModel]);
     const videoProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).video!, [config, selectedModel]);
     // 同名逻辑模型可能把文生视频、图生视频和全模态参考拆到不同路由。
@@ -1107,7 +1115,7 @@ export default function CreatePage() {
         <LinearFlowRunner
             card={linearFlowCard}
             config={linearFlowConfig}
-            model={linearFlowCard?.mode === "text" ? (config.textModel || selectedModel) : selectedModel}
+            model={linearFlowModel}
             onClose={() => setLinearFlowCard(null)}
             onOpenInCanvas={async ({ prompt: resultPrompt, resultUrl }) => {
                 // 硬验收②「给而不要求」：可选转入画布。复用既有会话交接链 ——

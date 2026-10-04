@@ -180,10 +180,11 @@ describe("★ 通道 b：提交 payload 结构贯通（结构断言）", () => {
         });
         expect(submission.referenceImages).toHaveLength(2);
         expect(submission.referenceImages[1].dataUrl).toBe("data:image/png;base64,annotated");
+        // ★ R1 修复（B-3）：annotateEdit 新增 annotations 明细（兑现「保留完整标注供审计」）。
         expect(submission.metadata).toEqual({
             sourceNodeId: "node-1",
             edit: "annotation",
-            annotateEdit: { actionHint: "replace", annotationCount: 1, strokeCount: 0, exportWidth: 100, exportHeight: 100 },
+            annotateEdit: { actionHint: "replace", annotationCount: 1, strokeCount: 0, exportWidth: 100, exportHeight: 100, annotations: [{ shape: "region", note: "改成金色" }] },
         });
     });
 

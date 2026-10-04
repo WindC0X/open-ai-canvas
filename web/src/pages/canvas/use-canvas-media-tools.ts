@@ -1240,12 +1240,31 @@ export function useCanvasMediaTools({
         }
         // F-08 合并路线（控制线 2026-10-05 裁定 A）：提示词/参考图/元数据由纯函数单点构造，
         // 取代此前的内联硬编码提示词；结构化与画笔两模式的提交面在此统一。
+        //
+        // ★ R1 修复（B-2）：标注截图必须物化为 storageKey 再进 metadata ——
+        // `buildImageGenerationMetadata` 的 `referenceUrl` 对纯 dataUrl 返回 undefined
+        // （只留 storageKey/url），旧实现让标注图被过滤掉 → 重试链只剩原图单图，
+        // 而 prompt 仍宣称「第二张图是带标注的截图」→ 模型按单图理解，标注语义静默丢失。
+        // 照 outpaint 的 maskUpload 物化先例（use-canvas-media-tools.ts:911-1001）：
+        // 上传失败不阻断本次提交（当前提交仍带 dataUrl 两图），但给出可见提示 ——
+        // 重试会降级为单图，与用户预期不符。
         const annotationCount = payload.annotations.length;
+        const isAnnotationRoute = route === "annotation";
+        let annotatedReferenceUpload: Awaited<ReturnType<typeof uploadImage>> | null = null;
+        if (isAnnotationRoute) {
+            try {
+                annotatedReferenceUpload = await uploadImage(payload.annotatedDataUrl);
+            } catch (cause) {
+                console.warn("[annotate-edit] annotated screenshot upload failed; retry will degrade", cause);
+                message.warning("标注截图上传失败：本次仍按两图提交，但重试时无法恢复标注截图");
+            }
+        }
         const submission = route === "annotation"
             ? buildAnnotateEditSubmission({
                   nodeId: node.id,
                   source,
                   annotatedDataUrl: payload.annotatedDataUrl,
+                  annotatedStorageKey: annotatedReferenceUpload?.storageKey,
                   actionHint: payload.actionHint,
                   annotationCount,
                   strokeCount: payload.strokeCount,
