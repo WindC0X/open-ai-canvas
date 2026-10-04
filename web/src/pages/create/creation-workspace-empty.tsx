@@ -6,9 +6,24 @@ import { ArrowUp, ChevronDown, Clapperboard, FileText, Image as ImageIcon, Spark
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { aceternityMotion } from "@/lib/aceternity-motion";
+import { registryAssetFromCreationInspiration } from "@/lib/canvas/registry-adapters";
 import { creationFeaturedWorks, inspirationSource } from "./creation-inspirations";
 import { modeLabels } from "./creation-types";
 import { Button } from "antd";
+
+/**
+ * 精选灵感资产（R25m 片 6 接线）—— 页面消费统一 schema 而非原始数组。
+ *
+ * 数据源仍是 `creationFeaturedWorks`；适配器产出 `RegistryAsset`。
+ * 8 条 CC0 改编条目附结构化来源声明（架构方案 §3.4 硬条款）——
+ * 判据是单条 `source`（角色名）存在，仓库级来源由 `inspirationSource` 显式注入
+ * （同 `loadStyleAssets` 的 localFallback 注入纪律，便于测试注入）。
+ *
+ * ★ 导出（非模块私有）：供接线断言使用 —— 断言页面消费的确实是适配器产出。
+ */
+export const featuredWorkAssets = creationFeaturedWorks.map((inspiration, index) =>
+    registryAssetFromCreationInspiration(inspiration, index, inspiration.source ? inspirationSource : undefined),
+);
 
 export const creationEmptyBannerFrames = [
     { src: "/short-drama-styles/cyberpunk-neon.jpg", caption: "镜头01 · 雨夜霓虹" },
@@ -82,14 +97,14 @@ export function CreationEmptySuggest({ onStartPrompt, onOpenLibrary }: { onStart
 export function CreationFeaturedWorks({ onStartPrompt }: { onStartPrompt: (mode: CreationMode, prompt: string) => void }) {
     const [filter, setFilter] = useState<"all" | CreationMode>("all");
     const [limit, setLimit] = useState(12);
-    const filtered = creationFeaturedWorks.filter((item) => filter === "all" || item.mode === filter);
+    const filtered = featuredWorkAssets.filter((asset) => filter === "all" || asset.group === filter);
     return (
         <section className="creation-featured-works" aria-labelledby="creation-featured-title">
             <div className="creation-featured-heading">
                 <div>
                     <h2 id="creation-featured-title">精选灵感</h2>
                 </div>
-                <p>{creationFeaturedWorks.length} 个创意起点 · 点击填入提示词，不自动生成</p>
+                <p>{featuredWorkAssets.length} 个创意起点 · 点击填入提示词，不自动生成</p>
             </div>
             <div className="creation-inspiration-filters" role="group" aria-label="灵感类型">
                 {(["all", "video", "image", "text"] as const).map((value) => (
@@ -103,30 +118,35 @@ export function CreationFeaturedWorks({ onStartPrompt }: { onStartPrompt: (mode:
                         }}
                     >
                         {value === "all" ? "全部灵感" : modeLabels[value]}
-                        <span>{creationFeaturedWorks.filter((item) => value === "all" || item.mode === value).length}</span>
+                        <span>{featuredWorkAssets.filter((asset) => value === "all" || asset.group === value).length}</span>
                     </button>
                 ))}
             </div>
             <div className="creation-featured-layout">
-                {filtered.slice(0, limit).map((item, index) => (
-                    <button key={item.title} type="button" className={`product-collection-card creation-featured-card ${index === 0 ? "is-featured-hero" : ""}`} onClick={() => onStartPrompt(item.mode, item.prompt)}>
-                        <span className="creation-featured-media">
-                            <img src={item.image} alt="" loading="lazy" />
-                            <span className="creation-inspiration-overlay">
-                                <ArrowUp />
-                                使用这个创意
+                {filtered.slice(0, limit).map((asset, index) => {
+                    // 适配器把创作模式写进 group（video/image/text，见 registryAssetFromCreationInspiration）；
+                    // 此处收窄回联合类型以复用 modeLabels 与 onStartPrompt 签名。
+                    const mode = asset.group as CreationMode;
+                    return (
+                        <button key={asset.title} type="button" className={`product-collection-card creation-featured-card ${index === 0 ? "is-featured-hero" : ""}`} onClick={() => onStartPrompt(mode, asset.prompt)}>
+                            <span className="creation-featured-media">
+                                <img src={asset.coverUrl} alt="" loading="lazy" />
+                                <span className="creation-inspiration-overlay">
+                                    <ArrowUp />
+                                    使用这个创意
+                                </span>
                             </span>
-                        </span>
-                        <span className="creation-featured-copy">
-                            <strong>{item.title}</strong>
-                            <span>{item.description}</span>
-                            <em>
-                                <Sparkles />
-                                {item.source ? "开源改编 · CC0" : "原创提示词"} · {modeLabels[item.mode]}
-                            </em>
-                        </span>
-                    </button>
-                ))}
+                            <span className="creation-featured-copy">
+                                <strong>{asset.title}</strong>
+                                <span>{asset.description}</span>
+                                <em>
+                                    <Sparkles />
+                                    {asset.source ? "开源改编 · CC0" : "原创提示词"} · {modeLabels[mode]}
+                                </em>
+                            </span>
+                        </button>
+                    );
+                })}
             </div>
             <footer className="creation-inspiration-footer">
                 {limit < filtered.length ? (

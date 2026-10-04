@@ -58,6 +58,21 @@ export type AssetKind =
 export type AssetScope = "public" | "favorites" | "custom";
 
 /**
+ * 来源声明 —— 架构方案 §3.4 硬条款：收编清单**每条记录必须带来源字段**，
+ * 至少对**外部来源**的资产强制。理由：许可证合规是收编的法律边界，混编后无法回溯。
+ */
+export type AssetSource = {
+    /** 来源仓库地址 */
+    repository: string;
+    /** 来源版本（commit revision，40 位 hex） */
+    revision: string;
+    /** 许可证标识（SPDX，如 CC0-1.0） */
+    license: string;
+    /** 来源说明（面向用户/审计的补充声明） */
+    notice?: string;
+};
+
+/**
  * 统一资产记录 —— 前端消费面。
  *
  * 字段来源见架构方案 §3.3 映射契约：服务端 `ToolSummary`（已 snake→camel）
@@ -86,6 +101,11 @@ export type RegistryAsset = {
     aspect?: string;
     /** 作用域 */
     scope?: AssetScope;
+    /**
+     * 来源声明（可选：**外部来源**资产必带，架构方案 §3.4）。
+     * 本项目自有内容不强制 —— 缺省即「原创/内部来源」。
+     */
+    source?: AssetSource;
     /** 是否启用 */
     enabled?: boolean;
     /**
