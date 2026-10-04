@@ -1462,3 +1462,66 @@ B-1→2 fail（行为断言抓到）/ B-2→2 fail / D-1→2 fail / D-2→2 fail
 
 会话中途电脑重启；重启后先核实合并态（`cdfa12c1` 双亲正确、工作树干净）再续跑
 门禁，未重复已完成的合并动作。
+
+---
+
+## 2026-10-05 · T1-P1 归 B线登记（待命期，未动工）
+
+**来源**：控制线 R3 评审归口令（05:10 通道）—— 「全仓无 workspaceType 写入者」裁定归 B线。
+理由：写入动作在直线流程创建容器路径 = 直线入口卡领地；B线是「在画布中打开」交接链既有作者。
+
+### 登记时实勘（非仅采信，逐项核）
+
+| 项 | 实测（main `f286156e`） |
+|---|---|
+| `workspaceType` 全仓命中 | `web/src` / `web/test` **零命中**（0 文件）；仅设计卡文档命中 |
+| 读侧现状（姊妹卡 `7db3fa10`） | 读侧**已完整落码**：`workspace-type.ts`（`isHeadlessTaskWorkspace` / `filterVisibleCanvasProjects`）+ `headless-tidy.ts`（`shouldTidyHeadlessCanvas` / `planHeadlessTidyBatches` / `applyHeadlessTidyPositions`）+ 后端 `user_data_page.go:50` 透出 `workspaceType` + `canvas/index.tsx:106` 顶层过滤 + `use-canvas-project-lifecycle.ts:167` 首入整理触发 |
+| **写入者** | **确认零写入者**（grep 赋值式 `workspaceType\s*[:=]` 仅命中读侧比较行）—— 读侧/后端全部就位，唯独没人写 ⇒ T1-P1 描述准确 |
+| 类型面 | `7db3fa10` 已立 `CanvasWorkspaceType = "standard" \| "headless_task"`（types/canvas.ts:71）且 `updateProject` 白名单已含 `workspaceType`（use-canvas-store.ts:68）—— **写入机制已就位，缺的是调用** |
+| 写入点候选 | `create/index.tsx:1120` `onOpenInCanvas` → `continueCreationConversationOnCanvas`（service） |
+
+### 关键结构发现（影响修法）
+
+`creation-canvas-conversation.ts` 的既有分支语义与修法要求天然对齐：
+
+- `:34` `existingId = source.canvasId || local?.id` → `:37-56` 命中既有画布走**合并分支**；
+- `:58-68` 未命中走 `createCanvasProjectWithRemoteSync` **新建分支**；
+- 修法要求「existingId 分支不覆盖既有画布」⇒ 写入须只在**新建分支**（或对既有画布仅在 `workspaceType` 缺失时补写）。
+
+**调用方全貌**：`continueCreationConversationOnCanvas` 有**两个调用方**——
+`:862`（既有创作交接，画布页转入，`create/index.tsx`）与 `:1127`（卡流程交接）。
+T1-P1 语义只覆盖「直线流程创建容器」⇒ **倾向写入点放 `onOpenInCanvas` 或 service 增可选参数由卡流程传**，
+既有创作交接行为零变化。实现时定，需在交付报告披露。
+
+### 交叉核验（姊妹批在飞）—— ★ 首版误报已自查纠正
+
+**误报内容（已作废）**：登记首版曾写「`7db3fa10` 把 R1 的 D-1/D-2 修复还原成旧内联表达式，
+合入后会被静默回退」——**该判断为假**，已纠正，未上送控制线。
+
+**误报根因**（同族教训，值记）：用**两点快照 diff** `git diff main 7db3fa10` 读差异——
+`7db3fa10` 的 merge-base 是 `f180edf5`（不含 R1 合入 `cdfa12c1`），所以快照 diff 把
+**main 相对枝多出的 R1 增量**渲染成了「枝的删除」（`-resolveLinearFlowConfig({...})`）。
+这与已登记的「merge commit 文件面必须用 first-parent diff」是**同一族 diff 语义错误**：
+**两点 diff 只描述两棵树之差，不描述任一方做了什么**。
+
+**真实核验（干跑合并树，已执行）**：`git merge-tree --write-tree main 7db3fa10` → 合并树 `2964ad51`，
+零冲突；`git diff main 2964ad51` 显示：
+- R1 独占文件（`create/index.tsx` / `linear-flow-cards.ts` / `linear-flow-wiring.test.ts`）**零差异**
+  ⇒ D-1/D-2 修复完整存活（`resolveLinearFlowModel` / `resolveLinearFlowConfig` 均在）；
+- 枝真实触碰面 = 其 base 起的 18 文件（**不含**上述三个 R1 文件），`linear-flow-runner.tsx`
+  合并后同时保留 R1 的 `config.model === modeModel` 防御与枝的 `onTaskUpdate` 行。
+
+⇒ 结论：**合入零冲突且 R1 修复安全**，无存活风险，无需上报。
+**纪律修正**：判「某枝是否回退他人修复」必须看「枝 vs 其 merge-base」或干跑合并树，
+不得用「枝 vs 已前进的 main」两点 diff。
+
+### 修法要点（收令登记）
+
+- 用户点「在画布中打开」时创建/更新容器 → `updateProject(id, { workspaceType: "headless_task" })`；
+- `existingId` 分支**不覆盖**既有画布（既有画布可能是用户正常画布，不能因一次转入就打成 headless）；
+- 验收：真机建 headless 容器 → 画布库不显示 + 首入整理触发；测试：写入点结构断言 + 不覆盖断言。
+
+### 时机与批名
+
+等统一任务面批合入后从新 main 开枝（避免与 A线枝交叠）。候选批名 `fix/w5-headless-writer`。
+**现在不动**，转待命。
