@@ -1671,3 +1671,90 @@ B线首版误报「7db3fa10 把 R1 的 D-1/D-2 修复还原」——根因：用
 **价值**：控制线评「本轮最有价值的自查 —— 拦下了一次回退级事故」。
 **注**：这是「跨枝比较必须用当前拓扑」的**写侧镜像** ——
 跨枝写入必须绑定目标分支的**当前**基线，不能用开枝时的旧基线。
+
+---
+
+## 2026-10-05 · W5 统一任务面批合入（merge `6fab9f48`）
+
+**合入令**：控制线 b12r20 GO 放行（测试线 ✅ GO：3007 精确命中 / VRT 31 面全绿 + 6 新基线 /
+真机四项通过含**双容器 sameId 防护** / 四 rider 落地）。
+**配额阻塞说明**：PUT 403 `quota_exceeded` 为**环境级**（DB 1002 行测试残留），非本批缺陷，
+测试线清理中，不阻塞合入。
+
+### 合入拓扑
+
+| 项 | 值 |
+|---|---|
+| merge commit | **`6fab9f48`** |
+| 双亲 | `5da4a6f4`（main）× `191b39b6`（批 tip） |
+| merge-base | `f180edf5` |
+| merge-tree 干跑 | **零冲突**（exit 0，合并树 `344b247dbe9b`） |
+| 文件面 | 19 files, **+1128 / -52** |
+
+### 门禁（绑定 `6fab9f48`，工作树 0 个已跟踪改动）
+
+| 门 | 结果 |
+|---|---|
+| tsc --noEmit | **0** |
+| eslint | **0**（★ 重跑后，见下「口径事故」） |
+| 全量 bun test | **3050 pass / 0 fail** / 15575 expect calls / 363 files |
+| go build | **0** |
+| go test ./internal/canvas/... | **ok** |
+
+**数字对账**：控制线预期 3007（= 我批 tip 实测），实测 **3050** —— 差额 = 合入后
+**两批测试并存**（main 侧 B线 R1 批的 `review-r1-wiring.test.ts` 等 + 我批三个新测试文件），
+非回归。⇒ 3050 是合并树真实数，非异常。
+
+### ★ 口径事故：merge commit 文件面用错口径（控制线现场纠正）
+
+**事故**：门禁② 我用
+```bash
+FILES=$(git show --name-only --format="" HEAD | grep -E "^web/.*\.(ts|tsx)$")
+```
+⇒ 输出 **2 个文件**（漏 14 个，含 `unified-task-face.tsx` / `headless-tidy.ts` /
+`task-face-download.ts` / `project.tsx` / `create/index.tsx` 等**本批核心文件**）。
+
+**根因**：`git show --name-only <merge>` 只读**合并自身的冲突解决面**，
+读不到被合入分支的改动面 —— 这正是已写入模板的「merge commit 文件面」陷阱。
+
+**纠正**：改用
+```bash
+FILES=$(git diff --name-only <merge>^1 <merge> | grep -E "^web/.*\.(ts|tsx)$")
+```
+⇒ **16 个文件**，重跑 eslint **exit 0**（全过）。
+
+**自查范围**（不遗漏地查了同类风险）：
+- `191b39b6` 是**普通提交**（非 merge）⇒ 当时 `git show` 口径**正确**，无需重跑 ✓
+- 门禁③ 全量 bun test **无文件面派生**（全量跑）⇒ 不受影响 ✓
+- 门禁④ go 面本批 2 文件（`user_data_page.go` + `user_data_page_workspace_test.go`），
+  实测 ok ✓
+- 更早的 R1 合入 `cdfa12c1`（merge commit）：`git show` 口径得 0、正确口径得 12 ——
+  当时我用的口径需另行回溯（本次未追）。
+
+**纪律（固化）**：**合并 commit 的文件面一律用 `git diff <merge>^1 <merge>` 或 `git show -m`**，
+写进门禁脚本模板，不每次手写。控制线指出「这条纪律上次是 B线 预检踩过，今天是第二次
+出现在门禁脚本里」—— 属高频陷阱，模板化是唯一解。
+
+### 本批交付内容（19 文件）
+
+- **UnifiedTaskFace**（`web/src/components/task/unified-task-face.tsx`）：零画布依赖 +
+  订阅契约锚定 TaskID（`subscribeGenerationTasks`）+ 预览/下载/取消/在画布中打开
+- **验收 4**：`CanvasWorkspaceType`（`types/canvas.ts`）+ store 白名单（undefined = standard 零迁移）
+- **验收 5/6**：零依赖护栏 + TaskID 锚定护栏（`web/test/task-face-independence.test.ts`）
+- **验收 7**：headless 不进主列表（后端 `CanvasLibrarySummary.WorkspaceType` 透出 +
+  `user_data_page_workspace_test.go` 真接线级测试 + 前端 `workspace-type.ts` 过滤）
+- **验收 8**：headless 首入流式整理（`headless-tidy.ts` 只投影 position + lifecycle 接线）
+- **验收 3**：交付步（`task-face-download.ts` 原始字节优先 + previewUrl 回退）
+- **验收 2**：`/create` 真实挂载（`linear-flow-runner.tsx` 进度面）+ §9.3 债务部分兑现
+- **T2-P1b**：生成中画布可达（判别式 `LinearFlowCanvasHandoff` result/carrier + 双容器防护）
+- 画布面板交付步（`canvas-active-task-panel.tsx` 保持外壳 + 加交付能力）+ 画布页接线（`project.tsx`）
+
+### 已知边界（入下批或他线）
+
+| 项 | 归属 |
+|---|---|
+| R3 三条 P1（护栏四盲区 / 下载判据口径 / 注释免疫） | **R1+R2 修复批** |
+| T2-P1a 分页过滤计数/内容不一致 | **R1+R2 修复批** |
+| M8 交付面双实现分叉（判据同源收口） | **R1+R2 修复批**（与 P1-2 同源） |
+| workspaceType 无生产者（T1-P1） | **B线** `fix/w5-headless-writer`（从新 main 开枝） |
+| M12 文本结果通道（W6+ 候选卡） | 已记档，待 §9.3 全量回改时评估 |
