@@ -6,12 +6,12 @@ import { usePopoverExit } from "./use-popover-exit";
 import { useExclusiveSettings } from "./use-exclusive-settings";
 
 import { AudioSettingsPanel } from "@/components/audio-settings-panel";
-import { audioFormatLabel, audioSpeedLabel, audioVoiceLabel } from "@/lib/audio-generation";
+import { audioFormatLabelForConfig, audioSpeedLabel, audioVoiceLabelForConfig } from "@/lib/audio-generation";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import type { AiConfig } from "@/stores/use-config-store";
 
-export type CanvasAudioSettingKey = "audioVoice" | "audioFormat" | "audioSpeed" | "audioInstructions" | "audioEmotionControlMethod" | "audioEmotionRandom" | "audioEmotionHappy" | "audioEmotionAngry" | "audioEmotionSad" | "audioEmotionAfraid" | "audioEmotionDisgusted" | "audioEmotionMelancholic" | "audioEmotionSurprised" | "audioEmotionCalm";
+export type CanvasAudioSettingKey = "audioVoice" | "audioFormat" | "audioSpeed" | "audioLanguage" | "audioDialect" | "audioInstructions" | "audioEmotionControlMethod" | "audioEmotionRandom" | "audioEmotionHappy" | "audioEmotionAngry" | "audioEmotionSad" | "audioEmotionAfraid" | "audioEmotionDisgusted" | "audioEmotionMelancholic" | "audioEmotionSurprised" | "audioEmotionCalm";
 
 type CanvasAudioSettingsPopoverProps = {
     /** 归属供给标注: 打开的气泡面板纳入 hover 归属域(面板/触发器双标), 指针在面板上时
@@ -25,9 +25,11 @@ type CanvasAudioSettingsPopoverProps = {
     iconOnly?: boolean;
 };
 
-/** 音频参数摘要(纯函数,composer 左组被动文本与触发器共用)。 */
+/** 音频参数摘要(纯函数,composer 左组被动文本与触发器共用)。
+ *  合并口径（2026-10-04 sync #2）：内部改用上游的 config-aware 标签函数（Doubao 渠道
+ *  音色/格式集合不同），保留 fork 的纯函数抽取（原为内联表达式）。 */
 export function audioSettingsSummary(config: AiConfig): string {
-    return `${audioVoiceLabel(config.audioVoice)} · ${audioFormatLabel(config.audioFormat)} · ${audioSpeedLabel(config.audioSpeed)}`;
+    return `${audioVoiceLabelForConfig(config, config.audioVoice) || "不指定音色"} · ${audioFormatLabelForConfig(config, config.audioFormat)} · ${audioSpeedLabel(config.audioSpeed)}`;
 }
 
 export function CanvasAudioSettingsPopover({ supplyNodeId, config, onConfigChange, buttonClassName, placement = "topLeft", iconOnly = false }: CanvasAudioSettingsPopoverProps) {

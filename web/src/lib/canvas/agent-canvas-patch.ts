@@ -88,7 +88,11 @@ export function applyAgentCanvasPatch(project: CanvasProject, patch: AgentCanvas
     return { ...project, nodes, connections, updatedAt: patch.updatedAt || project.updatedAt };
 }
 
-export function mergeAgentCanvasEditor(previous: CanvasProject, incoming: CanvasProject, nodes: CanvasNodeData[], connections: CanvasConnection[]) {
+// 合并口径（2026-10-04 sync #2）：fork 的 basis 删除判定（P3 漏删修复）与上游的
+// editorProject 可选参数（调用方传入真实编辑器状态）正交——前者管删除集合来源，
+// 后者管 patch 应用的基底。合并 = 两者并存：basis 优先取 editorProject 的节点集
+// （若提供），否则回退到显式传入的 nodes/connections（fork 原语义）。
+export function mergeAgentCanvasEditor(previous: CanvasProject, incoming: CanvasProject, nodes: CanvasNodeData[], connections: CanvasConnection[], editorProject?: CanvasProject) {
     // basis = patch 实际应用的活体状态（编辑器），before = store 基线。删除必须按 basis 判定
     // （review 2026-09-21 P3）：二者短暂不一致时按 store 基线算会漏删（baseline 已无、编辑器仍有）。
     const changes = <T extends { id: string }>(before: T[], after: T[], basis: T[]): Change<T>[] => {
@@ -103,13 +107,21 @@ export function mergeAgentCanvasEditor(previous: CanvasProject, incoming: Canvas
         const removals = basis.filter((item) => !afterIds.has(item.id)).map((item) => ({ before: byId.get(item.id) ?? item, after: null }));
         return [...removals, ...after.filter((item) => !equal(item, byId.get(item.id))).map((item) => ({ before: byId.get(item.id) ?? null, after: item }))];
     };
+    const editorState = editorProject || { ...previous, nodes, connections };
+    // 双契约（合并口径 2026-10-04 sync #2）：
+    // ① 4 参数调用（fork 的 Agent 撤销/采纳路径）：basis 取活体编辑器 —— P3 漏删修复，
+    //    撤销会删除节点（云端权威回滚），按活体判定才能识别"baseline 已无、编辑器仍有"。
+    // ② 5 参数调用（上游的同步三方合并路径）：basis 取 baseline —— 本地新增必须存活
+    //    （三方合并语义：baseline + remote + current，只有 baseline 里存在的删除才是真删除）。
+    // 以 editorProject 是否存在作为契约信号（调用方天然可区分）。
+    const removalBasis = editorProject ? previous : { ...previous, nodes, connections };
     const projected = applyAgentCanvasPatch(
-        { ...previous, nodes, connections },
+        { ...previous, nodes: editorState.nodes, connections: editorState.connections },
         {
             canvasId: previous.id,
             updatedAt: incoming.updatedAt,
-            nodes: changes(previous.nodes, incoming.nodes, nodes),
-            connections: changes(previous.connections, incoming.connections, connections),
+            nodes: changes(previous.nodes, incoming.nodes, removalBasis.nodes),
+            connections: changes(previous.connections, incoming.connections, removalBasis.connections),
         },
     );
     // 合并口径（2026-09-30 序4 rider）：上游 387d3562 新增的 project 顶层字段三方合并
@@ -118,11 +130,12 @@ export function mergeAgentCanvasEditor(previous: CanvasProject, incoming: Canvas
     const merged = { ...projected } as CanvasProject & Record<string, unknown>;
     const before = previous as CanvasProject & Record<string, unknown>;
     const after = incoming as CanvasProject & Record<string, unknown>;
-    const editor = { ...previous, nodes, connections } as CanvasProject & Record<string, unknown>;
+    const editor = editorState as CanvasProject & Record<string, unknown>;
     for (const key of new Set([...Object.keys(before), ...Object.keys(after), ...Object.keys(editor)])) {
         if (["id", "revision", "updatedAt", "remoteContentHash", "viewport", "nodes", "connections"].includes(key)) continue;
         const value = mergeValue(editor[key], before[key], after[key]);
         if (value === undefined) delete merged[key];
         else merged[key] = value;
     }
-    return { ...merged, revision: incoming.revision, updatedAt: incoming.updatedAt, viewport: editor.viewport } as CanvasProject;}
+    return { ...merged, revision: incoming.revision, updatedAt: incoming.updatedAt, viewport: editorState.viewport } as CanvasProject;
+}

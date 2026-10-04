@@ -69,7 +69,9 @@ describe("S2.1 hover 说明卡 · 三段式数据覆盖", () => {
         }
         expect(addNodeMenuCommands.find((command) => command.id === "style")?.hover?.tagline).toBe("统一画面风格");
         expect(addNodeMenuCommands.find((command) => command.id === "folder")?.hover?.tagline).toBe("用文件夹收纳");
-        expect(addNodeMenuCommands.find((command) => command.id === "project-character")?.hover?.tagline).toBe("复用角色设定");
+        // 合并口径（2026-10-04 sync #2）：上游把 project-character 从 resource 段移入 node 段
+        // （label 添加角色卡→角色卡，tagline 随之调整）——断言跟随上游位置。
+        expect(addNodeMenuCommands.find((command) => command.id === "project-character")?.hover?.tagline).toBe("添加角色卡");
         expect(addNodeMenuCommands.find((command) => command.id === "assets")?.hover?.tagline).toBe("选取素材插入画布");
     });
 
