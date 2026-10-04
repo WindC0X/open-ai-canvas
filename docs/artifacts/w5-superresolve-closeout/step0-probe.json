@@ -1,0 +1,30 @@
+{
+  "probe": "step 0 超分计费行为探针",
+  "date": "2026-10-04",
+  "cases": [
+    {
+      "taskId": "df1048ecfe541b26af5d853d8926411a",
+      "operation": "image_upscale",
+      "taskStatus": "failed",
+      "billingOrderId": "597a5c8a3a3e67a2d45e272bef8aaa62",
+      "priceTierId": "T_DEFAULT",
+      "priceSelectorJson": "{}",
+      "unitPriceMicrocredits": 100,
+      "amountMicrocredits": 100,
+      "billingStatus": "refunded",
+      "error": "外部服务域名解析失败，请检查渠道域名和后端 DNS 配置"
+    },
+    {
+      "taskId": "c4a702954ea32ef55be4b38db7b787ab",
+      "operation": "image_upscale",
+      "taskStatus": "failed",
+      "billingOrderId": "0a2ec12aac87603d90100ab1cd15fde0",
+      "priceTierId": "T_UPSCALE",
+      "priceSelectorJson": "{\"operation\": \"image_upscale\"}",
+      "unitPriceMicrocredits": 777,
+      "amountMicrocredits": 777,
+      "billingStatus": "refunded",
+      "error": "外部服务域名解析失败，请检查渠道域名和后端 DNS 配置"
+    }
+  ]
+}
