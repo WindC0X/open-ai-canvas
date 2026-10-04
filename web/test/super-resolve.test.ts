@@ -200,6 +200,52 @@ describe("★ 入口可达性（反模式 #12：有代码≠能用）", () => {
         });
         expect(input.operation).toBe("image_to_video");
     });
+
+    // ★ 任务 3 链路验证（控制线 2026-10-04 裁定降级为「任务创建→计费→上游请求构造发出」三段）：
+    // step 0 探针已证前两段（DB 计费单 price_tier_id=T_UPSCALE）+ 第三段「发出」
+    // （error=外部服务域名解析失败，说明请求已构造并发出）。本组补「修复后的 payload 正确性」。
+    test("★ size 修复贯通：payload 携带按目标档构造的 size（非源节点历史尺寸）", async () => {
+        // 模拟修复后的调用：media-tools 用源图实际像素 + 目标档算出 size 后写入 config
+        const input = await prepareBackendGenerationTask({
+            mode: "image",
+            prompt: "AI 超分 · 2K · 保真放大",
+            config: { ...superResolveTestConfig(), size: superResolveSize(960, 960, "2k") },
+            metadata: { canvasEditOperation: "image_upscale" },
+        });
+        // 960×960 源图对齐 2K ⇒ 2048×2048（而不是源节点残留的 1360x1024）
+        expect(input.input?.config?.size).toBe("2048x2048");
+        expect(input.input?.config?.size).not.toBe("1360x1024");
+    });
+
+    test("★ prompt 修复贯通：payload 携带 faithful 不变量片段（不再只是标题）", async () => {
+        const title = "AI 超分 · 2K · 保真放大";
+        const input = await prepareBackendGenerationTask({
+            mode: "image",
+            prompt: `${title}\n${superResolvePromptFragment("faithful")}`,
+            config: superResolveTestConfig(),
+            metadata: { canvasEditOperation: "image_upscale" },
+        });
+        expect(input.prompt).toContain("AI 超分 · 2K · 保真放大");
+        expect(input.prompt).toContain("严格保持");
+        expect(input.prompt).toContain("构图");
+        // 回归保护：prompt 不再等于纯标题
+        expect(input.prompt).not.toBe(title);
+    });
+
+    test("★ 两档 payload 的 prompt 必须不同（mode 有语义落点）", async () => {
+        const build = (mode: "faithful" | "enhance") =>
+            prepareBackendGenerationTask({
+                mode: "image",
+                prompt: `AI 超分 · 2K\n${superResolvePromptFragment(mode)}`,
+                config: superResolveTestConfig(),
+                metadata: { canvasEditOperation: "image_upscale" },
+            });
+        const faithful = await build("faithful");
+        const enhance = await build("enhance");
+        expect(faithful.prompt).not.toBe(enhance.prompt);
+        expect(faithful.prompt).toContain("严格保持");
+        expect(enhance.prompt).toContain("允许重绘");
+    });
 });
 
 describe("参数面", () => {

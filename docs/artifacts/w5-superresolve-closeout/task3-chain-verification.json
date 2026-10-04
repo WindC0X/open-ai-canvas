@@ -1,0 +1,31 @@
+{
+  "probe": "任务 3 链路验证（修复后，三段式）",
+  "date": "2026-10-04",
+  "environment": ".local/sr-verify（复用 o03-chain 渠道配置 + 本分支代码）",
+  "verdict": "三段全通：任务创建 operation=image_upscale / 计费落精确档 T_UPSCALE 777 / 上游请求已构造发出",
+  "honestBoundary": "上游为假域名（relay.example.com），出图段无法在本环境验证，按控制线裁定移交测试线 twin 环境覆盖",
+  "cases": [
+    {
+      "taskId": "eeb52af992275d67dc4d8b77c96a278f",
+      "operation": "image_upscale",
+      "taskStatus": "failed",
+      "upstreamError": "外部服务域名解析失败，请检查渠道域名和后端 DNS 配置",
+      "promptContainsFaithfulInvariants": true,
+      "priceTierId": "T_DEFAULT",
+      "priceSelectorJson": "{}",
+      "unitPriceMicrocredits": 100,
+      "billingStatus": "refunded"
+    },
+    {
+      "taskId": "7a9052ebaa8bca3b58f039702c2c5f90",
+      "operation": "image_upscale",
+      "taskStatus": "failed",
+      "upstreamError": "外部服务域名解析失败，请检查渠道域名和后端 DNS 配置",
+      "promptContainsFaithfulInvariants": true,
+      "priceTierId": "T_UPSCALE",
+      "priceSelectorJson": "{\"operation\": \"image_upscale\"}",
+      "unitPriceMicrocredits": 777,
+      "billingStatus": "refunded"
+    }
+  ]
+}
