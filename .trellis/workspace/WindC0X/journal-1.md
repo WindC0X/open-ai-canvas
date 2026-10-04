@@ -491,3 +491,41 @@ the following properties from type 'CapabilityEntry': entryPoints, registryVersi
 **push**：`980fdef2..7e18af3c` → fork WindC0X（fork/main == local main）；origin（ddcat-ai）未推
 
 **下一步**：片 3-9 待 F-08 合入、条目稳定后按序推进；明天双卡规格（统一任务面 / 直线入口）。
+
+---
+
+## 2026-10-04 F-08 合入（圈选改图 + 注册表第二原生条目 + 条目数 2 正式落地）
+
+**合入**：`feat/ecom-f08-annotate` @ `021dc90c` → main `d924884e`（--no-ff，6 commits）
+
+**批次统计**：merge-base `bca10aaa`（= main tip，纯 rebase 0 merge commit）；25 文件 **+2395 / −22**；19 新增 + 6 修改；合并后 main tip `d924884e`
+
+**★ 能力条目数正式落地为 2**（控制线口径修正后的最终值）：
+| 条目 | 来源 | entryPoints | registryVersion |
+|---|---|---|---|
+| `image.superResolve` | O-03 | `[{node-toolbar, superResolve}]` | 1 |
+| `image.annotateEdit` | F-08 | `[{node-toolbar, annotationEdit}]` | 1 |
+
+**F-08 全链（C1-C4）**：
+- **C1 标注交互与几何**：矩形/箭头标注弹窗 + 纯函数几何（bounds+32px padding / 动态像素比 / 4096+16M 钳制）
+- **C2 执行链换引擎**：提交构造/提示词/导出合成三模块 + `editAnnotatedImageNode` 模块化（替代内联硬编码）+ 弹窗双模式（形状+画笔）
+- **C3 注册表与入口**：`image.annotateEdit` 条目（single_image）+ 工具条文案统一「圈选改图」+ 条目/谓词/入口可达性测试
+- **C4 兜底路径与实测修复**：标注转蒙版降级（**真机验证一次**，非纸面备胎）+ 两处实测缺陷修复
+
+**三裁定遵守**：① `contextRequirement = single_image`（圈选是弹窗内交互，入口前提只需单图）② 临时态 + 关闭确认 ③ 4096 + 16M 钳制
+
+**★ B 线 rebase 解冲突记录（跨枝协调闭环）**：
+F-08 原枝从 `b858bd1d` 起枝（早于 R25m 门①）。R25m 合入 main 后，`capability-entries.ts` **单文件真冲突**：main 侧 `assetKind` 已类型化为统一 schema 的 `AssetKind` 引用，F-08 侧是旧内联联合类型。
+**B 线 rebase 解法**：保留 main 的 AssetKind 类型版（`import type { AssetKind }` + `assetKind: AssetKind;`）+ 追加 `annotateEdit` 条目 → 本次合入零冲突（由 rebase 保证）。
+**独立核验三项**（合入前）：① 拓扑正确（6 commits 全落 `bca10aaa` 之上，0 merge commit）② 解冲突正确（AssetKind 类型版保留 + annotateEdit 追加 + 两字段齐全）③ 三处一致（fork remote = 本地 = worktree = `021dc90c`）
+
+**跨枝条款实战闭环**：R25m 门① 把 `entryPoints`/`registryVersion` 升必填 → 架构方案 §1.4 补跨枝条款 → F-08 按条款补齐两字段（含 `superResolve` 旧版条目，非仅新增那条）→ 类型层兼容核验通过后合入。**这是「文本零冲突 ≠ 语义兼容」教训的完整正向闭环**。
+
+**门禁（合入后）**：`build` 6m11s ✓ / 全量 `bun test` **2709 pass 0 fail**（339 文件，+58 vs R25m 的 2651）/ `go build 0` / `go test ./internal/tools/...` ok
+
+**★ 本次重启事故一行（控制线主仓试合并超时）**：
+控制线在主仓做 B线↔新 main 语义兼容试合并，命令撞 300s 超时被杀，遗留 `index.lock` + 半中断合并态；已 `reset --hard bca10aaa` 完全恢复。A 线独立核验：HEAD 正确 / 无 `index.lock` / 无 `MERGE_HEAD` / 工作区干净 / 9 个关键提交全部可达（零丢失）；悬空 `5e149e02`（`On main: review-fixes-temp`，2026-09-21）为历史残留非本次产物。**根因**：drvfs 上试合并成本被低估（上次测得快是因基线旧、对象少）→ **后续试合并只在 ext4 克隆做**（与既有「drvfs 慢 IO」教训同族）。
+
+**push**：`bca10aaa..d924884e` → fork WindC0X（fork/main == local main）；origin（ddcat-ai）未推
+
+**下一步**：等片 3-9 解锁令；明天双卡规格（统一任务面 / 直线入口，统一任务面需带 `workspace_type: headless_task` + TaskID 锚定工程约束，教训来源 `docs/plans/pending-test.mdx:3763` 撤销反噬实测）。
