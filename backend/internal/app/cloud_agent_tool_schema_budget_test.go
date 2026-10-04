@@ -52,13 +52,13 @@ func TestCloudAgentToolSchemaStaysCompact(t *testing.T) {
 		t.Fatal("canvas_apply_ops 未暴露")
 	}
 
-	// 体积预算（sync #2 合并口径，2026-10-04）：两侧上调理由正交，合并后需重测。
-	//   fork：24 工具 / 29,660 字节（含扩图 outpaintRatio + generate_media 扩图文案 +660）
-	//   upstream：25 工具 / 29,938 字节（含 canvas_create_character 角色卡打包创建）
-	// 合并 = 25 工具（上游 character）+ fork 扩图文案 ⇒ 实测值见下方 budget 常量注释。
+	// 体积预算（sync #2 合并口径，2026-10-04 实测）：
+	//   合并后 = 25 工具 / 31,246 字节（上游 canvas_create_character + fork 扩图文案并集）
+	//   分解：fork 24 工具 29,660 + 上游 character 工具与角色卡输入描述
+	//   按 fork 一贯的 ~4.3% 余量口径：31,246 × 1.043 ≈ 32,590 → 取整 32,600
 	// 新增工具或字段时请重新测量并有意识地调整这个数字，而不是让 schema 悄悄膨胀
 	// （它每一步都要发、还在前缀最前面）。
-	if len(raw) > 31000 {
-		t.Fatalf("平台工具 schema 体积 %d 字节超出预算 31000：请压缩描述或显式调整预算", len(raw))
+	if len(raw) > 32600 {
+		t.Fatalf("平台工具 schema 体积 %d 字节超出预算 32600：请压缩描述或显式调整预算", len(raw))
 	}
 }
