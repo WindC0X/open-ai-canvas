@@ -152,6 +152,33 @@ export const CAPABILITY_ENTRIES: CapabilityEntry[] = [
         entryPoints: [{ kind: "node-toolbar", target: "superResolve" }],
         registryVersion: 1,
     },
+    {
+        id: "image.annotateEdit",
+        name: "圈选改图",
+        // 档 1：能力组织层方案 §4 表明确列「圈选改图W5」为画布内弹窗档。
+        tier: 1,
+        // F-08 控制线裁定（2026-10-05）：圈选是弹窗内交互，入口前提只需单图。
+        contextRequirement: "single_image",
+        assetKind: "capability/tool",
+        parameterSurface: [
+            {
+                field: "actionHint",
+                label: "编辑意图",
+                options: ["modify", "replace", "remove"],
+                default: "modify",
+            },
+        ],
+        executionChain: {
+            handler: "editAnnotatedImageNode",
+            location: "cloud",
+            // F-08 渠道实测门同源结论（a6api · nano-banana-2 实测两样本，见任务书验收节）。
+            primaryChannel: "a6api · nano-banana-2",
+        },
+        zeroParameterPreset: "暂无",
+        // F-08 实际入口：图片工具栏「圈选改图」（手工接线层 canvas-image-toolbar-tools.tsx 的 id）。
+        entryPoints: [{ kind: "node-toolbar", target: "annotationEdit" }],
+        registryVersion: 1,
+    },
 ];
 
 /** 按 id 查能力条目。 */
