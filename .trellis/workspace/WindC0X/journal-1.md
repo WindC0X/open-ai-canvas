@@ -769,3 +769,53 @@ repository 扫描 + `assets` 引用解释器，保证「预检数字」与「删
 #13 关闭（含判据三类化）+ 双设计卡 + R25n + R25d + PATCH-MAP 复盘
 + AST-08 + 文档更正 + 任务 3 收口。
 **明日**：统一任务面实现批（守卫测试首件）。
+
+---
+
+## 2026-10-04 · 超分收口批验收 + 两项裁定登记
+
+**验收**：八件验收通过（控制线 2026-10-04）。表扬三处：探针→修复→验证完整闭环、
+可证伪纪律成为标准动作、任务 4 动效不自建 prefers-reduced-motion 的判断正确。
+
+### 裁定①：「0.1/次」= 0.1 积分
+
+**image_upscale 占位价 = 0.1 积分/次 = 100,000 microcredits，正式定价待用户。**
+
+理由（控制线）：用户面计价全线用积分（钱包/账单/展示），元只是渠道成本侧概念。
+占位价继续有效，正式定价用户随时拍板一键改。
+
+### 裁定②：占位标注不加列、不加默认档工厂
+
+**理由**：`PriceVersion` 字段已存在但语义是版本号，复用会污染。
+
+**前提核查结果（与裁定表述有出入，已上报）**：
+
+| 层 | 是否有描述位 | 实测 |
+|---|---|---|
+| 价格档级 `ChannelModelPriceTier` | ❌ **无** | 字段仅 CostPricing/ID/ChannelModelID/SelectorKey/SelectorJSON/Selector/Resolution/VideoSeconds/ProviderModelKey/BillingMode/UnitPrice*/PriceConfigured/Enabled/PriceVersion/时间戳 |
+| 价格档表单 | ❌ **无** | Form.Item name 仅 billingMode/cachedTokenPrice/enabled/inputTokenPrice/matchMode/operation/outputTokenPrice/priceConfigured/providerModelKey/quality/resolution/size/unitPrice |
+| 模型级 `ChannelModel.Description` | ✅ 有（size:500） | 但表单自述「**在创作端二级渠道选项中常驻显示**」→ **面向终端用户可见** |
+
+**⇒ 裁定②的两条路径实际只有路径①可执行**：
+- 路径① journal 登记 ✅ **已执行**（本条）
+- 路径② 「管理端该价格档的描述性字段」——**价格档无描述位**，条件不成立；
+  模型级 Description 虽存在但**用户可见**，写入「占位价，待定价」会把内部
+  占位状态**泄露给终端用户**，不宜使用
+
+**加列是 schema 决策**，挂渠道接线批评估（低优先）—— 控制线原令。
+
+### 边界 #3 更新（渠道可用性已闭环）
+
+报告已更新为「已由 b12r16-③R 覆盖」：测试线真机出图成功（1445×1088 succeeded），
+`nano-banana-2` 作为超分改图模型**真机验证通过**。
+
+**附精确说明（已上报）**：`1445×1088` 恰是**修复前**的尺寸继承污染症状
+（960×960 源 → 继承 4:3 的 1360x1024）。我的 size 修复（`4e7d36ec`）**仍在
+branch-only 分支上未合入**，测试线 ③R 跑的是**不含该修复**的代码。
+故：**渠道可用性闭环成立**；**size 修复的真机效力**待分支合入后另跑验证。
+
+### 边界 #5 升级为正式项
+
+控制线裁定：前端预估价差**登记为渠道接线批正式项**，修法
+`ModelRequirements` 加 `imageOperation` + `imagePriceOperation` 按 operation 返回。
+原话：「**不许它变成隐性账单偏差**」。
