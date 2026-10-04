@@ -46,8 +46,13 @@ type RunnerStage = "form" | "generating" | "done" | "error";
 
 export type LinearFlowRunnerProps = {
     card: LinearFlowCard | null;
+    /**
+     * 生成配置基准（**调用方须已按 card.mode 重写 model 族**，见 `create/index.tsx` 的
+     * `linearFlowConfig`）。本组件只做防御性修正：若 `config.model` 与 `model` prop 不一致，
+     * 以 `model` 为准 —— 实测（测试线 b12r16 ③）曾因图片卡提交文本模型而 HTTP 400。
+     */
     config: AiConfig;
-    /** 生成用的模型（图片卡走 imageModel；文本卡走 textModel）。 */
+    /** 生成用的模型（图片卡 = imageModel；文本卡 = textModel）。★ 本组件据此修正 config.model。 */
     model: string;
     onClose: () => void;
     /** 可选：把结果转入画布（硬验收②「给而不要求」）。 */
@@ -136,10 +141,13 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
                 ...buildLinearFlowMetadata(card, answers),
                 linearFlowAnswers: answers,
             };
+            // ★ 防御性修正（修复令第 1 面）：契约声明 model 按 card.mode 选择，实现必须真正生效 ——
+            // 调用方已重写 config，此处再以 model prop 为准兜一层，防再出现「UI 显示与实际提交不一致」。
+            const requestConfig = config.model === model ? config : { ...config, model, ...(card.mode === "text" ? { textModel: model } : { imageModel: model }) };
             const result = await runBackendGenerationTask({
                 mode: card.mode,
                 prompt,
-                config,
+                config: requestConfig,
                 referenceImages: reference ? [reference] : [],
                 signal: controller.signal,
                 metadata,

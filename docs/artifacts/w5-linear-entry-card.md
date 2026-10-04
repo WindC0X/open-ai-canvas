@@ -350,3 +350,38 @@ export type LinearFlowNodeGate = {
 - **真机验证**：本批未跑真机浏览器验收（B线下午批范围）。C1-C3 为结构 + 纯函数 + 源码可达性测试；卡流程的端到端真机验证（点卡→上传→问→出图→下载）留待合并后按需补。
 - **梯度 2 话术层**：按设计卡 §七不做。
 - **九宫格/换背景卡**：按裁定②移出本批。
+
+---
+
+## 十、修复记录（B线，2026-10-04 · 测试线 b12r16 ③ 阻塞）
+
+> 测试线真机抓到：**图片卡提交了文本模型（grok-4.6）→ HTTP 400，UI 显示与实际提交不一致**。
+> 本节记录根因与修复，供后续批次参照（接线面零看守是本缺陷的成因）。
+
+### 10.1 根因（两处叠加）
+
+| # | 位置 | 问题 |
+|---|---|---|
+| ① | `create/index.tsx` runner 挂载点 | 传 `config={generationConfig}` —— 那是**页面当前模式**的配置，`config.model` 可能是对话模型。runner 的 `model` prop 声明「图片卡走 imageModel」但调用方没按 `card.mode` 重写 |
+| ② | `linear-flow-runner.tsx` 提交处 | 用 `config` 而非 `model` prop → `generation-task.ts` 的 `backendGenerationTaskInput` 取 `config.model`，`model` prop 完全未生效 |
+
+**为什么静态门禁拦不住**：前 4 个测试文件全是**纯函数测试**（卡数据/门控/提示词/源码字符串），接线面零看守 —— 与 super-resolve 的 NO-GO 教训同族（「断言必须落在函数的实际返回值上，不能落在源码文本上」）。
+
+### 10.2 修复（4 项，对应修复令清单）
+
+| # | 修复 | 位置 |
+|---|---|---|
+| 1 | `linearFlowConfig` memo：按 `card.mode` 重写 `model` 族（图片卡 → `imageModel`，文本卡 → `textModel`），照 `creationVideoConfig` 范式 | `create/index.tsx` |
+| 2 | `linearFlowCardAspect(card)`：卡片比例 → 尺寸，走 **O-03 层1 `ECOM_CHANNEL_PRESETS`** 口径（白底主图 = `amazon-main` 1:1；详情图 = `detail-3x4` 3:4），**不新造尺寸值**；无绑定的卡返回 `undefined` 走模型默认 | `linear-flow-cards.ts` |
+| 3 | ★ **接线级断言**（测试线建议，采纳）：新增 `linear-flow-wiring.test.ts` 14 test，断言**提交体实际返回值**（`prepareBackendGenerationTask` 的 `input.model` / `input.config.size`）与 `card.mode` 匹配，含**反证**（不重写 config 时提交体带错模型） | `web/test/linear-flow-wiring.test.ts` |
+| 4 | runner 契约注释（`:50`）与实现对齐：明确「调用方须按 card.mode 重写」，并加**防御层**（`config.model !== model` 时以 `model` prop 为准） | `linear-flow-runner.tsx` |
+
+### 10.3 门禁
+
+tsc 0 / eslint 0（改动文件）/ linear-flow 五文件 **78 pass**（原 64 + 新 14）/ 关联回归 49 pass。
+
+### 10.4 教训记档（接线面看守）
+
+**「纯函数测试全绿」不等于「接线可用」** —— 本批 C1-C3 的 64 个测试全绿，但缺陷在
+「调用方怎么传参」这一层，任何纯函数断言都照不到。后续批次若含**跨组件契约**
+（调用方按 prop 语义传参），测试面必须包含**提交体/返回值的结构断言**，不能只测被调方。

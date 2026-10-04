@@ -23,6 +23,7 @@
  */
 import { ECOM_STARTER_CARDS, ECOM_STARTER_ICONS, type EcomStarterCard, type EcomStarterIcon } from "@/lib/canvas/canvas-ecom-starters";
 import { findScenePreset } from "@/lib/canvas/scene-presets";
+import { ECOM_CHANNEL_PRESETS } from "@/lib/image-size-presets";
 
 /**
  * 直线流程步骤（设计卡 §3.1 梯度 0 的固定序列）。
@@ -279,4 +280,22 @@ export function buildLinearFlowMetadata(card: LinearFlowCard, answers: Record<st
         linearFlowCardId: card.id,
         ...(scenePresetId ? { scenePresetId } : {}),
     };
+}
+
+/**
+ * 卡片比例 → 生成尺寸（★ 修复令第 2 面：比例语义未传生成链）。
+ *
+ * ★ 为什么需要显式映射：卡面按任务命名（白底主图 1:1 / 详情图 3:4），但比例若不带进
+ * 生成链，模型会落到自己的默认比例 —— 用户看到「1:1」却拿到 16:9，且可能触发
+ * 「画面尺寸超出支持范围」。
+ *
+ * ★ 尺寸值不新造（修复令纪律）：走既有 `ECOM_CHANNEL_PRESETS`（O-03 层1 电商直出预设）
+ * 的 aspect 口径 —— 白底主图 = amazon-main(1:1)、详情图 = detail-3x4(3:4)。
+ * 其余卡（场景图/批量提示词）无渠道比例绑定，返回 undefined 由调用方走模型默认。
+ */
+export function linearFlowCardAspect(card: LinearFlowCard): string | undefined {
+    // 卡 id → 渠道预设 id（O-03 层1 已有口径，不新造尺寸值）
+    const presetId = card.id === "white-background-main" ? "amazon-main" : card.id === "detail-3x4" ? "detail-3x4" : undefined;
+    if (!presetId) return undefined;
+    return ECOM_CHANNEL_PRESETS.find((preset) => preset.id === presetId)?.aspect;
 }

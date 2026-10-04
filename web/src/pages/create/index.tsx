@@ -35,6 +35,7 @@ import { CreationComposer, CreationEmptySuggest, CreationFeaturedWorks, Creation
 import { LinearFlowCardGrid } from "@/components/create/linear-flow-card-grid";
 import { LinearFlowRunner } from "@/components/create/linear-flow-runner";
 import type { LinearFlowCard } from "@/lib/canvas/linear-flow-cards";
+import { linearFlowCardAspect } from "@/lib/canvas/linear-flow-cards";
 import { CreationAgentEntry } from "./creation-agent-entry";
 import { createCreationSubmitGate } from "./creation-submit-gate";
 import { creationVideoConfig } from "./creation-generation-config";
@@ -167,6 +168,29 @@ export default function CreatePage() {
     const generationConfig = useMemo(() => mode === "video"
         ? creationVideoConfig(config, selectedModel, { ratio, seconds, videoQuality })
         : config, [config, mode, ratio, seconds, selectedModel, videoQuality]);
+    /**
+     * 直线卡流程的生成配置（★ 修复令第 1 面：模型接线缺陷）。
+     *
+     * ★ 为什么必须重写：卡流程的 `card.mode` 决定模型族（图片卡走 imageModel，文本卡走
+     * textModel），而 `generationConfig` 是**页面当前模式**的配置（`config.model` 可能是
+     * 对话模型）。实测（测试线 b12r16 ③）图片卡直接传 generationConfig 会提交 grok-4.6
+     * （文本模型）→ HTTP 400，且 UI 显示与实际提交不一致。
+     *
+     * ★ 重写内容（照 `creationVideoConfig` 范式）：
+     *   · model 族：按 card.mode 指向对应模型字段
+     *   · size：按卡片比例映射（走 O-03 层1 `ECOM_CHANNEL_PRESETS`，不新造尺寸值）
+     */
+    const linearFlowConfig = useMemo(() => {
+        if (!linearFlowCard) return generationConfig;
+        const cardModel = linearFlowCard.mode === "text" ? (config.textModel || selectedModel) : (config.imageModel || selectedModel);
+        const aspect = linearFlowCardAspect(linearFlowCard);
+        return {
+            ...generationConfig,
+            model: cardModel,
+            ...(linearFlowCard.mode === "image" ? { imageModel: cardModel } : { textModel: cardModel }),
+            ...(aspect ? { size: aspect } : {}),
+        };
+    }, [config.imageModel, config.textModel, generationConfig, linearFlowCard, selectedModel]);
     const imageProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).image!, [config, selectedModel]);
     const videoProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).video!, [config, selectedModel]);
     // 同名逻辑模型可能把文生视频、图生视频和全模态参考拆到不同路由。
@@ -1075,7 +1099,7 @@ export default function CreatePage() {
         <CreationHistoryDrawer open={historyOpen} conversations={historyConversations} activeId={activeConversation.id} onNew={startNewConversation} onClose={() => setHistoryOpen(false)} onSelect={selectConversation} onDelete={confirmDeleteConversation} onRename={renameConversationTitle} />
         <LinearFlowRunner
             card={linearFlowCard}
-            config={generationConfig}
+            config={linearFlowConfig}
             model={linearFlowCard?.mode === "text" ? (config.textModel || selectedModel) : selectedModel}
             onClose={() => setLinearFlowCard(null)}
             onOpenInCanvas={async ({ prompt: resultPrompt, resultUrl }) => {
