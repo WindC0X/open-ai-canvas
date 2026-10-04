@@ -45,6 +45,9 @@ type CanvasLibrarySummary struct {
 	UpdatedAt    time.Time        `json:"updatedAt"`
 	NodeCount    int              `json:"nodeCount"`
 	PreviewNodes []map[string]any `json:"previewNodes"`
+	// W5 统一任务面（设计卡 §4.2/验收 7）：headless_task 容器不主动出现在画布列表顶层。
+	// 空字符串 = standard（存量数据零迁移）。
+	WorkspaceType string `json:"workspaceType,omitempty"`
 }
 
 type CanvasLibraryPage struct {
@@ -75,7 +78,8 @@ func (s *Service) UserCanvasProjectsPage(userID string, page int, pageSize int, 
 	result := CanvasLibraryPage{Projects: make([]CanvasLibrarySummary, 0, len(projects)), Page: page, PageSize: pageSize, Total: total, HasMore: int64(page)*int64(pageSize) < total}
 	for _, project := range projects {
 		var document struct {
-			Nodes []map[string]any `json:"nodes"`
+			Nodes         []map[string]any `json:"nodes"`
+			WorkspaceType string           `json:"workspaceType"`
 		}
 		if err := json.Unmarshal([]byte(project.PayloadJSON), &document); err != nil {
 			return CanvasLibraryPage{}, err
@@ -108,7 +112,7 @@ func (s *Service) UserCanvasProjectsPage(userID string, page int, pageSize int, 
 			item["metadata"] = metadata
 			preview = append(preview, item)
 		}
-		result.Projects = append(result.Projects, CanvasLibrarySummary{ID: project.ID, ProjectID: project.ProjectID, Title: project.Title, Revision: project.Revision, CreatedAt: project.CreatedAt, UpdatedAt: project.UpdatedAt, NodeCount: len(document.Nodes), PreviewNodes: preview})
+		result.Projects = append(result.Projects, CanvasLibrarySummary{ID: project.ID, ProjectID: project.ProjectID, Title: project.Title, Revision: project.Revision, CreatedAt: project.CreatedAt, UpdatedAt: project.UpdatedAt, NodeCount: len(document.Nodes), PreviewNodes: preview, WorkspaceType: document.WorkspaceType})
 	}
 	return result, nil
 }

@@ -9,6 +9,8 @@ import { removeCanvasDrawing } from "@/lib/canvas/canvas-drawing-storage";
 import { normalizeCanvasNodeTimestamps } from "@/lib/canvas/canvas-node-timestamps";
 import { hydrateAssistantImages, resetInterruptedGeneration } from "@/lib/canvas/canvas-project-generation";
 import { listAddedSkills, type Skill } from "@/services/api/skills";
+import { layoutCanvasAuto } from "@/lib/canvas/canvas-layout";
+import { applyHeadlessTidyPositions, markHeadlessCanvasTidied, planHeadlessTidyBatches, shouldTidyHeadlessCanvas } from "@/lib/canvas/headless-tidy";
 import { CanvasSyncConflictError, createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, discardLocalCanvasProject, forceOverwriteRemoteCanvasSync, loadCanvasProjectForEditing, localSavedRemotePendingMessage, saveRemoteUserDataNow, subscribeAgentCanvasRefresh } from "@/services/user-data-sync";
 import { flushCanvasStorePersistence, useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useCanvasThemeStore } from "@/stores/canvas/use-canvas-theme-store";
@@ -159,6 +161,21 @@ export function useCanvasProjectLifecycle({
             setProjectLoaded(true);
         };
 
+        // headless 画布首入整理：逐帧分批提交（流式），完成后写首入标记。
+        const tidyHeadlessCanvasIfNeeded = async () => {
+            const current = useCanvasStore.getState().projects.find((item) => item.id === projectId);
+            if (!current || !shouldTidyHeadlessCanvas(projectId, current.workspaceType)) return;
+            const batches = planHeadlessTidyBatches(current.nodes, current.connections, 6);
+            markHeadlessCanvasTidied(projectId);
+            if (!batches.length) return;
+            const positions = layoutCanvasAuto(current.nodes.filter((node) => !node.metadata?.locked && !node.parentId), current.connections);
+            for (const batch of batches) {
+                if (isStale()) return;
+                setNodes((nodes) => applyHeadlessTidyPositions(nodes, positions, batch));
+                await new Promise((resolve) => window.setTimeout(resolve, 16));
+            }
+        };
+
         const load = async () => {
             const cachedProject = useCanvasStore.getState().projects.find((p) => p.id === projectId);
             if (!latest && !historyRestore && cachedProject && cachedProject.nodes?.length) {
@@ -196,6 +213,10 @@ export function useCanvasProjectLifecycle({
         void load()
             .then(() => {
                 if (isStale()) return;
+                // W5 统一任务面 §4.5 / 验收 8：headless 容器首入流式自动整理。
+                // 只投影 position（见 lib/canvas/headless-tidy.ts），不触碰 metadata/任务态
+                // ⇒ 结构上不可能触发任务重跑（反模式 A5 的代码级防线）。
+                void tidyHeadlessCanvasIfNeeded();
                 loadLatestRef.current = false;
                 if (pendingReloadRef.current === pendingReload) {
                     pendingReloadRef.current = null;

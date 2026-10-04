@@ -1,9 +1,10 @@
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { ChevronDown, ChevronUp, Clock3, Coins, ListTodo, LoaderCircle, XCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock3, Coins, Download, ExternalLink, ListTodo, LoaderCircle, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { formatCredits } from "@/constant/credits";
 import { aceternityMotion } from "@/lib/aceternity-motion";
+import { MediaPreview } from "@/components/media-preview";
 import { canCancelGenerationTask, formatTaskKind, generationTaskExecutionLabel, generationTaskShowsProgress, generationTaskStageLabel, generationTaskStatusLabel } from "@/lib/generation-task-display";
 import { canvasThemes } from "@/lib/canvas-theme";
 import type { GenerationTask } from "@/services/api/task-center";
@@ -12,7 +13,10 @@ import { useUserStore } from "@/stores/use-user-store";
 
 // 顶栏是绝对定位浮层，面板必须按调用方传入的 topInset 避让；专注模式隐藏顶栏时传小间距。
 // onHeightChange：向宿主上报自身实测高度（含展开态），右侧同锚浮层（对象 HUD）用它动态让位，避免重叠。
-export function CanvasActiveTaskPanel({ tasks, align = "right", topInset = "var(--canvas-topbar-offset)", onCancelTask, onHeightChange }: { tasks: GenerationTask[]; align?: "left" | "right"; topInset?: string; onCancelTask?: (task: GenerationTask) => void; onHeightChange?: (height: number) => void }) {
+// W5 统一任务面：画布浮层是本组件的既有外壳（定位/折叠/高度上报），
+// 交付步（预览/下载/在画布中打开）在此补齐 —— 与独立挂载点共用同一套语义，
+// 见 `components/task/unified-task-face.tsx`（订阅契约与反模式清单的单一来源）。
+export function CanvasActiveTaskPanel({ tasks, align = "right", topInset = "var(--canvas-topbar-offset)", onCancelTask, onDownload, onOpenInCanvas, onHeightChange }: { tasks: GenerationTask[]; align?: "left" | "right"; topInset?: string; onCancelTask?: (task: GenerationTask) => void; onDownload?: (task: GenerationTask) => void; onOpenInCanvas?: (task: GenerationTask) => void; onHeightChange?: (height: number) => void }) {
     const theme = canvasThemes[useActiveTheme()];
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const reducedMotion = useReducedMotion();
@@ -124,6 +128,8 @@ export function CanvasActiveTaskPanel({ tasks, align = "right", topInset = "var(
                                             expanded={expandedTaskId === task.id}
                                             onToggle={() => setExpandedTaskId((current) => (current === task.id ? null : task.id))}
                                             onCancelTask={onCancelTask}
+                                            onDownload={onDownload}
+                                            onOpenInCanvas={onOpenInCanvas}
                                             reducedMotion={Boolean(reducedMotion)}
                                             creditsEnabled={creditsEnabled}
                                         />
@@ -145,6 +151,8 @@ function ActiveTaskCard({
     expanded,
     onToggle,
     onCancelTask,
+    onDownload,
+    onOpenInCanvas,
     reducedMotion,
     creditsEnabled,
 }: {
@@ -154,6 +162,8 @@ function ActiveTaskCard({
     expanded: boolean;
     onToggle: () => void;
     onCancelTask?: (task: GenerationTask) => void;
+    onDownload?: (task: GenerationTask) => void;
+    onOpenInCanvas?: (task: GenerationTask) => void;
     reducedMotion: boolean;
     creditsEnabled: boolean;
 }) {
@@ -240,6 +250,15 @@ function ActiveTaskCard({
                 )}
             </button>
 
+            {/* 结果预览（统一任务面四要素之一）：成功态直接可见，不必展开 */}
+            {task.status === "succeeded" && task.previewUrl ? (
+                <div className="px-3 pb-2">
+                    <span className="block overflow-hidden rounded-lg border" style={{ borderColor: theme.toolbar.border }}>
+                        <MediaPreview src={task.previewUrl} kind={task.previewKind === "video" ? "video" : "image"} alt={task.prompt || formatTaskKind(task)} className="max-h-40 w-full object-cover" />
+                    </span>
+                </div>
+            ) : null}
+
             <AnimatePresence initial={false}>
                 {expanded ? (
                     <motion.div
@@ -264,21 +283,54 @@ function ActiveTaskCard({
                                 {executionLabel}
                             </span>
                         </div>
-                        {onCancelTask && canCancelGenerationTask(task) ? (
-                            <button
-                                type="button"
-                                className="mt-3 inline-flex h-7 items-center gap-1 rounded-[var(--r-sm)] px-2 text-[var(--fs-tiny)] font-medium transition-colors"
-                                style={{ background: `${theme.accent.danger}16`, color: theme.accent.danger }}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onCancelTask(task);
-                                }}
-                                onMouseDown={(event) => event.stopPropagation()}
-                            >
-                                <XCircle className="size-3" />
-                                取消任务
-                            </button>
-                        ) : null}
+                        {/* 交付步（硬验收③）：「下载」给成品，「在画布中打开」给而不要求 */}
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                            {task.status === "succeeded" && onDownload ? (
+                                <button
+                                    type="button"
+                                    className="inline-flex h-7 items-center gap-1 rounded-[var(--r-sm)] px-2 text-[var(--fs-tiny)] font-medium transition-colors"
+                                    style={{ background: theme.accent.primarySoft, color: theme.accent.primary }}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onDownload(task);
+                                    }}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                >
+                                    <Download className="size-3" />
+                                    下载
+                                </button>
+                            ) : null}
+                            {onOpenInCanvas ? (
+                                <button
+                                    type="button"
+                                    className="inline-flex h-7 items-center gap-1 rounded-[var(--r-sm)] px-2 text-[var(--fs-tiny)] font-medium transition-colors"
+                                    style={{ color: theme.node.muted }}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onOpenInCanvas(task);
+                                    }}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                >
+                                    <ExternalLink className="size-3" />
+                                    在画布中打开
+                                </button>
+                            ) : null}
+                            {onCancelTask && canCancelGenerationTask(task) ? (
+                                <button
+                                    type="button"
+                                    className="ml-auto inline-flex h-7 items-center gap-1 rounded-[var(--r-sm)] px-2 text-[var(--fs-tiny)] font-medium transition-colors"
+                                    style={{ background: `${theme.accent.danger}16`, color: theme.accent.danger }}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onCancelTask(task);
+                                    }}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                >
+                                    <XCircle className="size-3" />
+                                    取消任务
+                                </button>
+                            ) : null}
+                        </div>
                     </motion.div>
                 ) : null}
             </AnimatePresence>

@@ -61,6 +61,15 @@ export type CanvasMediaPerformanceMode = "auto" | "quality" | "performance";
  *   顶部常驻「完整画布」出口。毕业（完成首单 / 点出口）后迁回 `professional`
  *   并置 sticky `graduated` 标记，此后不再回退。
  */
+/**
+ * 画布容器类型（W5 统一任务面设计卡 §4.2）。
+ *
+ * `headless_task`：小白直线流程隐式创建的容器 —— 用户未主动进入画布，
+ * 画布只是产物承载方式（方案 §5 工程约束：防状态反噬与画布污染）。
+ * `undefined` 一律视为 `standard`（零迁移）。
+ */
+export type CanvasWorkspaceType = "standard" | "headless_task";
+
 export type CanvasWorkspaceMode = "simple" | "professional" | "guide";
 export type CanvasToolMode = "move" | "box-select";
 export type CanvasFolderStyle = "glass" | "stacked" | "midnight" | "paper" | "cinema" | "compact";
