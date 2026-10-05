@@ -1115,6 +1115,12 @@ export default function CreatePage() {
         </div>
         <CreationHistoryDrawer open={historyOpen} conversations={historyConversations} activeId={activeConversation.id} onNew={startNewConversation} onClose={() => setHistoryOpen(false)} onSelect={selectConversation} onDelete={confirmDeleteConversation} onRename={renameConversationTitle} />
         <LinearFlowRunner
+            // ★ P1 修复：卡片切换必须重置组件实例。
+            // 组件内无 useEffect，`if (!card) return null` 只是提前返回（实例保留）——
+            // 卡片A完成 → 关闭 → 点卡片B 时 stage/canvasIdRef 残留：
+            // 会直接显示卡片A的结果图，且预建被跳过导致卡片B的任务带卡片A的容器 id（静默错配）。
+            // key 让 :102 注释「card 变化即重置」成真；?? "none" 保证 card 为 null 时 key 稳定。
+            key={linearFlowCard?.id ?? "none"}
             card={linearFlowCard}
             config={linearFlowConfig}
             model={linearFlowModel}
