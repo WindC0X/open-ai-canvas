@@ -14,6 +14,20 @@ import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
  * 这匹配「验证形态必须匹配被验证对象」—— 被验对象是「整理不触碰任务态」这个结构约束。
  */
 
+/**
+ * 剥离注释（块注释与行注释），保留行数便于定位。
+ *
+ * ★ T1-P2 修复（评审线 R3）：接线断言原先直接对源码 `toContain` / `indexOf` ——
+ * 三个字符串在 **import 行**里就已存在，与是否真的调用无关；`indexOf` 命中注释同样通过。
+ * 实证：把 `void tidyHeadlessCanvasIfNeeded();` 整行**注释掉** → 测试仍全绿（11 pass）。
+ * 修法：先剥注释再断言（本仓已有范式，见 task-face-independence.test.ts）。
+ */
+function stripComments(source: string): string {
+    return source
+        .replace(/\/\*[\s\S]*?\*\//g, (match) => "\n".repeat(match.split("\n").length - 1))
+        .replace(/^\s*\/\/.*$/gm, "");
+}
+
 // bun 测试环境无 DOM：按 canvas-appearance.test.ts 的既有范式注入最小 window stub。
 const storageValues = new Map<string, string>();
 let originalWindow: PropertyDescriptor | undefined;
@@ -135,8 +149,9 @@ describe("headless 首入自动整理（验收 8 / 反模式 A5）", () => {
  * 否则护栏和实现在，首入整理却永不触发（本仓已复发的失效模式）。
  */
 describe("接线（纯函数之外）", () => {
-    const lifecycleSource = readFileSync(new URL("../src/pages/canvas/use-canvas-project-lifecycle.ts", import.meta.url), "utf8");
-    const canvasIndexSource = readFileSync(new URL("../src/pages/canvas/index.tsx", import.meta.url), "utf8");
+    // ★ T1-P2：剥注释后再断言 —— 否则注释掉调用仍能通过（见 stripComments 注释）
+    const lifecycleSource = stripComments(readFileSync(new URL("../src/pages/canvas/use-canvas-project-lifecycle.ts", import.meta.url), "utf8"));
+    const canvasIndexSource = stripComments(readFileSync(new URL("../src/pages/canvas/index.tsx", import.meta.url), "utf8"));
 
     test("headless 首入整理接在画布 load 完成路径上", () => {
         expect(lifecycleSource).toContain("tidyHeadlessCanvasIfNeeded");
@@ -155,7 +170,7 @@ describe("接线（纯函数之外）", () => {
     test("★ 验收 2：UnifiedTaskFace 有真实挂载点（无画布上下文页面）", () => {
         // 设计卡验收 2「统一任务面独立可用（不依赖画布上下文）」——
         // 组件存在不等于挂载：必须断言真实使用点，否则「有代码≠能用」复发。
-        const runnerSource = readFileSync(new URL("../src/components/create/linear-flow-runner.tsx", import.meta.url), "utf8");
+        const runnerSource = stripComments(readFileSync(new URL("../src/components/create/linear-flow-runner.tsx", import.meta.url), "utf8"));
         expect(runnerSource).toContain("<UnifiedTaskFace");
         expect(runnerSource).toContain("taskIds={[taskId]}");
         // /create 直线流程不是画布页 ⇒ 满足「无画布上下文」
