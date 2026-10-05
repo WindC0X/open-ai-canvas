@@ -364,3 +364,36 @@ describe("★ mode → 提示词语义（控制线 2026-10-04 追加）", () => 
         expect(superResolvePromptFragment("bogus" as never)).toBe(SUPER_RESOLVE_PROMPT_FRAGMENTS.faithful);
     });
 });
+
+// ★ superres rider（测试线 b12r18 发现，控制线裁定折入本批）：
+// `superResolveImageNode` 的 catch 原先只写节点态（status=error + errorDetails）、
+// **不弹用户提示** —— 与同族工具（editImageNode / maskEditImageNode / upscaleImageNode
+// 等）的 `message.error` 约定不一致。
+// 用户可见症状：弹窗关闭 + 无请求 + 节点留 loading（实际已置 error，但无可见反馈）。
+describe("★ superres rider：失败必须可见（与同族工具约定一致）", () => {
+    test("superResolveImageNode 的 catch 调用 message.error", async () => {
+        const source = await Bun.file(new URL("../src/pages/canvas/use-canvas-media-tools.ts", import.meta.url)).text();
+        // 定位 superResolveImageNode 函数体
+        const start = source.indexOf("const superResolveImageNode = useCallback");
+        expect(start).toBeGreaterThan(-1);
+        const end = source.indexOf("const generateAngleNode = useCallback");
+        expect(end).toBeGreaterThan(start);
+        const body = source.slice(start, end);
+        // ★ 断言 catch 块内有 message.error（不是仅 import 或别处）
+        const catchIndex = body.indexOf("if (isGenerationCanceled(error)) return;");
+        expect(catchIndex).toBeGreaterThan(-1);
+        const catchBlock = body.slice(catchIndex, catchIndex + 600);
+        expect(catchBlock).toContain("message.error(details)");
+    });
+
+    test("★ 反向：不得只写节点态而无提示（原缺陷形态）", async () => {
+        const source = await Bun.file(new URL("../src/pages/canvas/use-canvas-media-tools.ts", import.meta.url)).text();
+        const start = source.indexOf("const superResolveImageNode = useCallback");
+        const end = source.indexOf("const generateAngleNode = useCallback");
+        const body = source.slice(start, end);
+        const catchIndex = body.indexOf("if (isGenerationCanceled(error)) return;");
+        const catchBlock = body.slice(catchIndex, catchIndex + 600);
+        // 必须有提示；仅有 NODE_STATUS_ERROR 写入不算
+        expect(catchBlock).toContain("message.error");
+    });
+});

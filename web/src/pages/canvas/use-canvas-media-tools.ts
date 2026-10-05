@@ -1640,6 +1640,10 @@ export function useCanvasMediaTools({
         } catch (error) {
             if (isGenerationCanceled(error)) return;
             const details = generationErrorMessage(error);
+            // ★ superres rider（测试线 b12r18）：catch 原先只写节点态、**不弹提示** ——
+            // 用户可见症状「弹窗关闭 + 无请求 + 节点留 loading」，与同族工具（editImageNode
+            // / maskEditImageNode 等）的 message.error 约定不一致。
+            message.error(details);
             setNodes((current) => current.map((item) => (item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: details } } : item)));
         } finally {
             finishGenerationRequest(childId, controller);
@@ -1685,6 +1689,10 @@ export function useCanvasMediaTools({
         } catch (error) {
             if (isGenerationCanceled(error)) return;
             const details = generationErrorMessage(error);
+            // ★ superres rider（测试线 b12r18）：catch 原先只写节点态、**不弹提示** ——
+            // 用户可见症状「弹窗关闭 + 无请求 + 节点留 loading」，与同族工具（editImageNode
+            // / maskEditImageNode 等）的 message.error 约定不一致。
+            message.error(details);
             setNodes((current) => current.map((item) => item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: details } } : item));
         } finally {
             finishGenerationRequest(childId, controller);
