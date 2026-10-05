@@ -1,0 +1,406 @@
+{
+ "_meta": {
+  "note": "nano-banana-2 × S1 同格全量运行记录（控制线阻塞级发现后补报，不重跑不挑选）",
+  "source": ".local/f08-annotate-debug/open_ai_canvas.db 中 input_json LIKE '%f09Gate%' 的 23 个任务",
+  "criteria_versions": {
+   "original_delivery": "d7eb286",
+   "second_review": "5364cdf"
+  },
+  "h3_layer_configs": {
+   "testline": "layers.example.json x258-1028",
+   "bline": "/tmp/f09-work/layers-S1.json x560-1027",
+   "auto": "measure_text_x_span v3 x701-1049"
+  },
+  "h3_note": "H3 数值依赖层配置 x0/x1；三口径并列，读图真值为结论基准（RESULTS.md §11.3/§12）",
+  "h1_note": "H1① 基于原始尺寸图；LANCZOS4 归一化后有 0.1% 级差异"
+ },
+ "runs": [
+  {
+   "template": "A",
+   "time": "17:57:15",
+   "taskId_short": "8fe9a15b",
+   "role": "管道调试①(size未设=1:1)",
+   "title_truth": "Peter Pan Collar Dress",
+   "h1": {
+    "ref": 81.7,
+    "out": 67.1,
+    "delta": 14.6,
+    "orient": "右"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.277,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.388,
+     "v": "PASS"
+    },
+    "auto_x701_1049": {
+     "m": 0.371,
+     "v": "PASS"
+    }
+   }
+  },
+  {
+   "template": "A",
+   "time": "18:00:09",
+   "taskId_short": "e6e14175",
+   "role": "管道调试②(size修正)",
+   "title_truth": "School Dress",
+   "h1": {
+    "ref": 81.7,
+    "out": 64.2,
+    "delta": 17.5,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.372,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.52,
+     "v": "REVIEW"
+    },
+    "auto_x701_1049": {
+     "m": 0.611,
+     "v": "FAIL"
+    }
+   }
+  },
+  {
+   "template": "A",
+   "time": "18:19:02",
+   "taskId_short": "8a6b0e8f",
+   "role": "批跑调试",
+   "title_truth": "Sophisticated Navy Dress",
+   "h1": {
+    "ref": 81.7,
+    "out": 62.4,
+    "delta": 19.3,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.351,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.479,
+     "v": "REVIEW"
+    },
+    "auto_x701_1049": {
+     "m": 0.475,
+     "v": "REVIEW"
+    }
+   }
+  },
+  {
+   "template": "B",
+   "time": "18:20:21",
+   "taskId_short": "fe37071b",
+   "role": "批跑调试",
+   "title_truth": "Floral Dress(照抄)",
+   "h1": {
+    "ref": 81.7,
+    "out": 81.8,
+    "delta": 0.1,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.62,
+     "v": "FAIL"
+    },
+    "bline_x560_1027": {
+     "m": 0.83,
+     "v": "FAIL"
+    },
+    "auto_x701_1049": {
+     "m": 0.917,
+     "v": "FAIL"
+    }
+   }
+  },
+  {
+   "template": "A",
+   "time": "18:22:28",
+   "taskId_short": "2d888fb4",
+   "role": "批跑调试",
+   "title_truth": "Classic Dress",
+   "h1": {
+    "ref": 81.7,
+    "out": 83.9,
+    "delta": 2.3,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.319,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.439,
+     "v": "PASS"
+    },
+    "auto_x701_1049": {
+     "m": 0.49,
+     "v": "REVIEW"
+    }
+   }
+  },
+  {
+   "template": "B",
+   "time": "18:23:32",
+   "taskId_short": "088a283a",
+   "role": "批跑调试",
+   "title_truth": "(模型未画标题)",
+   "h1": null,
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.139,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.208,
+     "v": "PASS"
+    },
+    "auto_x701_1049": {
+     "m": 0.206,
+     "v": "PASS"
+    }
+   }
+  },
+  {
+   "template": "A",
+   "time": "18:25:08",
+   "taskId_short": "5c237bde",
+   "role": "★正式矩阵A格",
+   "title_truth": "Navy Pleated / Dress",
+   "h1": {
+    "ref": 81.7,
+    "out": 79.1,
+    "delta": 2.5,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.401,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.538,
+     "v": "REVIEW"
+    },
+    "auto_x701_1049": {
+     "m": 0.551,
+     "v": "FAIL"
+    }
+   }
+  },
+  {
+   "template": "B",
+   "time": "18:26:54",
+   "taskId_short": "0853a297",
+   "role": "★正式矩阵B格",
+   "title_truth": "Floral Dress(照抄)",
+   "h1": {
+    "ref": 81.7,
+    "out": 81.8,
+    "delta": 0.1,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.607,
+     "v": "FAIL"
+    },
+    "bline_x560_1027": {
+     "m": 0.828,
+     "v": "FAIL"
+    },
+    "auto_x701_1049": {
+     "m": 0.915,
+     "v": "FAIL"
+    }
+   }
+  },
+  {
+   "template": "C",
+   "time": "18:30:49",
+   "taskId_short": "51d2d645",
+   "role": "★正式矩阵C格",
+   "title_truth": "Floral Dress(照抄)",
+   "h1": {
+    "ref": 81.7,
+    "out": 81.8,
+    "delta": 0.1,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.612,
+     "v": "FAIL"
+    },
+    "bline_x560_1027": {
+     "m": 0.823,
+     "v": "FAIL"
+    },
+    "auto_x701_1049": {
+     "m": 0.917,
+     "v": "FAIL"
+    }
+   }
+  },
+  {
+   "template": "A",
+   "time": "18:46:17",
+   "taskId_short": "6f9e5e08",
+   "role": "修正矩阵(数组序改后)",
+   "title_truth": "Classic Navy Dress",
+   "h1": {
+    "ref": 81.7,
+    "out": 74.9,
+    "delta": 6.8,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.349,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.479,
+     "v": "REVIEW"
+    },
+    "auto_x701_1049": {
+     "m": 0.472,
+     "v": "REVIEW"
+    }
+   }
+  },
+  {
+   "template": "A",
+   "time": "18:51:44",
+   "taskId_short": "42587d53",
+   "role": "顺序实验P1",
+   "title_truth": "Classic Navy Dress",
+   "h1": {
+    "ref": 81.7,
+    "out": 75.3,
+    "delta": 6.3,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.343,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.473,
+     "v": "REVIEW"
+    },
+    "auto_x701_1049": {
+     "m": 0.478,
+     "v": "REVIEW"
+    }
+   }
+  },
+  {
+   "template": "A",
+   "time": "18:53:13",
+   "taskId_short": "4259c91a",
+   "role": "顺序实验P2",
+   "title_truth": "Navy Blue Dress",
+   "h1": {
+    "ref": 81.7,
+    "out": 69.8,
+    "delta": 11.9,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.339,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.474,
+     "v": "REVIEW"
+    },
+    "auto_x701_1049": {
+     "m": 0.608,
+     "v": "FAIL"
+    }
+   }
+  },
+  {
+   "template": "A",
+   "time": "18:54:38",
+   "taskId_short": "cd938a19",
+   "role": "顺序实验R1",
+   "title_truth": "Navy Pleated Dress",
+   "h1": {
+    "ref": 81.7,
+    "out": 73.7,
+    "delta": 8.0,
+    "orient": "左"
+   },
+   "h2color": "PASS",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.394,
+     "v": "PASS"
+    },
+    "bline_x560_1027": {
+     "m": 0.521,
+     "v": "REVIEW"
+    },
+    "auto_x701_1049": {
+     "m": 0.545,
+     "v": "REVIEW"
+    }
+   }
+  },
+  {
+   "template": "A",
+   "time": "18:56:32",
+   "taskId_short": "249bba22",
+   "role": "顺序实验R2",
+   "title_truth": "Floral Dress(照抄)",
+   "h1": {
+    "ref": 81.7,
+    "out": 81.8,
+    "delta": 0.1,
+    "orient": "左"
+   },
+   "h2color": "FAIL",
+   "h3_title": {
+    "testline_x258_1028": {
+     "m": 0.584,
+     "v": "FAIL"
+    },
+    "bline_x560_1027": {
+     "m": 0.841,
+     "v": "FAIL"
+    },
+    "auto_x701_1049": {
+     "m": 0.917,
+     "v": "FAIL"
+    }
+   }
+  }
+ ]
+}
