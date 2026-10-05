@@ -73,42 +73,54 @@ describe("统一任务面 —— 独立性护栏", () => {
 
     test("零画布依赖：模块图不得含画布面（反模式 A4）", () => {
         // ★ P1-1 修复（评审线 R3）：原实现用**正则扫 import 行**（要求 `from`），
-        // 四个盲区均经实证假绿：
+        // 四个盲区均经实证假绿（旧护栏 0/4，新护栏 4/4 —— 控制线独立复现）：
         //   ① 侧效 import（`import "@/stores/canvas/use-canvas-store";`）—— 无 from
-        //   ② 动态 import() / require() —— 语法域外
-        //   ③ 名单外模块（`@/pages/canvas/use-canvas-generation` —— 该模块 :13 持有 canvas-store）
-        //   ④ 子目录文件（非递归 readdirSync）
-        // 现改为**模块图判定**：用 Bun.build 实际打包，检查产物是否含画布面标记。
+        //   ② 动态 import() —— 语法域外（注：**被使用**时才有真实依赖；未使用会被 tree-shake）
+        //   ③ 名单外模块（`@/pages/canvas/use-canvas-generation` —— 该模块持有 canvas-store）
+        //   ④ 子目录文件（原 readdirSync 非递归，注释却承诺「含未来新增」）
+        // 现改为**模块图判定**：Bun.build 实际打包，检查产物是否含画布面标记。
         // 这是**语义判定** —— 不管写法（静态/侧效/动态）、不管名单（只问产物里有没有）、
         // 不管层级（间接依赖一并带出）。实测证据（控制线已收）：
         //   基线 252KB 零命中 / 侧效 371KB 命中 / 动态 377KB 命中 /
         //   名单外真模块（use-canvas-generation）691KB 命中
         //
-        // ★ 为何用子进程：`bun test` 进程内 Bun.build **不解析项目 tsconfig 的 paths**
-        // （实测 `Could not resolve: "@/components/media-preview"`，tsconfig / root / 插件
-        // 三种配置均不生效），而裸 bun 进程能正常解析。故 spawn 一个 bun 子进程做构建。
-        const offenders: string[] = [];
-        for (const file of files) {
-            const script = `
-const built = await Bun.build({
-    entrypoints: [${JSON.stringify(file.path)}],
-    target: "browser", write: false, minify: false,
-    external: ["react", "react-dom", "antd", "lucide-react", "motion", "@tanstack/react-query"],
-});
-if (!built.success) {
-    console.log("BUILD_FAIL::" + built.logs.map(String).join(" | ").slice(0, 300));
-} else {
+        // ★ 两个实测坑（控制线独立复现并更正机制）：
+        //   1. `bun test` 进程内 **首次** Bun.build 调用必败（多进程采样：
+        //      #1=THREW #2=true #3=true ×3 进程），后续调用成功 ——
+        //      与 tsconfig/root/plugin 配置无关，是**调用次序**问题。
+        //      ⇒ 本测试用**子进程**：每次都是该进程的「首次」调用，行为确定。
+        //   2. 未使用的动态 import 会被 tree-shake（无真实依赖，属正确行为）。
+        //
+        // ★ 成本：**一次**子进程构建全部文件（O(1) 而非 O(N)）——
+        //   控制线指出逐文件 spawn 会随任务面扩张线性变慢（1 文件 730ms ⇒ 10 文件 ~7s）。
+        const script = `
+const entries = ${JSON.stringify(files.map((file) => file.path))};
+const results = [];
+for (const entry of entries) {
+    const built = await Bun.build({
+        entrypoints: [entry],
+        target: "browser", write: false, minify: false,
+        external: ["react", "react-dom", "antd", "lucide-react", "motion", "@tanstack/react-query"],
+    });
+    if (!built.success) {
+        results.push(entry + "::BUILD_FAIL::" + built.logs.map(String).join(" | ").slice(0, 200));
+        continue;
+    }
     const bundle = (await Promise.all(built.outputs.map((o) => o.text()))).join("\\n");
     const hits = ["use-canvas-store", "CANVAS_STORE_KEY", "use-canvas-theme-store"].filter((m) => bundle.includes(m));
-    console.log(hits.length ? "HIT::" + hits.join(",") : "CLEAN");
+    if (hits.length) results.push(entry + "::HIT::" + hits.join(","));
 }
+console.log(JSON.stringify(results));
 `;
-            const proc = Bun.spawnSync(["bun", "-e", script], { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" });
-            const output = proc.stdout.toString().trim();
-            if (output.startsWith("BUILD_FAIL::")) offenders.push(`${file.path}: 模块图构建失败（${output.slice(13, 213)}）`);
-            else if (output.startsWith("HIT::")) offenders.push(`${file.path}: 模块图含 ${output.slice(5)}`);
-            else if (output !== "CLEAN") offenders.push(`${file.path}: 子进程输出异常（${output.slice(0, 150)}）`);
+        const proc = Bun.spawnSync(["bun", "-e", script], { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" });
+        const raw = proc.stdout.toString().trim();
+        let reported: string[];
+        try {
+            reported = JSON.parse(raw) as string[];
+        } catch {
+            throw new Error(`模块图子进程输出不可解析：${raw.slice(0, 300)} / stderr=${proc.stderr.toString().slice(0, 300)}`);
         }
+        const offenders = reported.map((item) => item.replace("::BUILD_FAIL::", " 构建失败：").replace("::HIT::", " 模块图含 "));
         expect(offenders).toEqual([]);
     });
 
