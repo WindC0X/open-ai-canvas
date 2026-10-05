@@ -27,9 +27,22 @@
 
 **落盘位置约定**：
 - 队列 / 待办 → `.trellis/workspace/<dev>/queues/<name>.md`
-- 评审报告 → 评审线**自己的分支**（`docs(review)` commit，**不 push**，不混入 main 的开发 journal 面）
+- 评审报告 → 评审线**自己的分支**（`docs(review)` commit，**不推 main**，不混入 main 的开发 journal 面）；
+  **但产出分支应推 fork 保全**（branch-only，见 C5）
 - 任务书 → `docs/artifacts/<batch>-task-book.md`（随批提交）
 - 交付报告 → 直报消息 + 关键结论入 journal
+
+**★ 「不 push」的准确含义**（2026-10-05 评审线指出矛盾后修正）：
+「不 push」指的是**不推 main、不推会被当作发布物的分支**，
+**不是「不推任何远端」**。
+
+理由：若分支只在本地 → 仓库损坏 / 误删 / 重建 → 报告仍会丢
+（这正是 F-1 事故的同类风险，只是从 /tmp 换成了本地 git）。
+⇒ **产出分支可且应推 fork 保全（branch-only，绝不合入 main）**。
+
+反面案例：控制线 2026-10-05 曾令评审线「把 review/w5-batches 推 fork」，
+与该文件 D1/C5 原文的「不 push」字面矛盾——**矛盾在文档，不在令**：
+「不 push」本意是「不混入 main」，而非「不得离开本地磁盘」。
 
 **★ 评审报告的特别要求**：报告**正文**必须落盘（分支或 docs/），
 不得只留摘要。F-1 的教训正是「摘要够不着缺陷」——
@@ -61,14 +74,27 @@ git show -m <merge>                          # 等价（逐双亲）
 **★ 派生防线**（真正让脚本自己暴露问题）：
 
 ```bash
-FILES=$(git diff --name-only <merge>^1 <merge> | grep -E "^web/.*\.(ts|tsx)$" | sed 's|^web/||')
-echo "文件数: $(echo "$FILES" | wc -l)"          # 空输入必须显性可见
-[ -z "$FILES" ] && { echo "❌ 文件面为空，中止"; exit 1; }
+mapfile -t FILES < <(git diff --name-only "${MERGE}^1" "$MERGE" | grep -E '^web/.*\.(ts|tsx)$' | sed 's|^web/||')
+echo "文件数: ${#FILES[@]}" >&2                      # ← 数组计数，空输入显性为 0
+[ ${#FILES[@]} -eq 0 ] && { echo "❌ 文件面为空，中止" >&2; exit 1; }
+bunx eslint "${FILES[@]}"
 ```
 
-理由：**空输入产生的 `exit 0` 与真检过的 `exit 0` 是不同东西**。
-A线 的 R1 合入（`cdfa12c1`）eslint 输入实为 **0 个文件**（`git show` 口径），
-退出 0 但什么都没检——靠人工比对才发现。
+⚠️ **不要用 `echo "$FILES" | wc -l` 计数**（2026-10-05 B线 实测发现）：
+`echo` 即使变量为空也会输出一个换行符，`wc -l` 数的是**行数**而非**元素数**，
+空输入 = **1 行**（实测：`FILES=""; echo "$FILES" | wc -l` → `1`）。
+
+**后果**：`[ -z "$FILES" ]` 仍能拦住（判据正确），但**显性打印失效**——
+读者看到「文件数: 1」会以为真检了 1 个文件，
+与 A线 那次「输入实为 0 个文件、退出 0 但什么都没检」的盲区**同形**。
+
+最小修法：`printf '%s' "$FILES" | grep -c .`（不用 `echo`）；
+推荐修法：用数组 `mapfile -t` + `${#FILES[@]}`（还顺便正确处理含空格的文件名）。
+
+**★ 场景区分**（B线 补充）：若该脚本用于 **lint/格式化**输入，需加 `--diff-filter=ACMR`
+（排除已删除项；实测 `e4be6253` 全量 341 文件 → lint 口径 336），
+否则 lint 会拿到已不存在的文件路径。
+⇒ 工具脚本 `scripts/merge-file-face.sh` 已按此实现（`--exclude-deleted` 开关，B线）。
 
 ### G2 ★ 分支归属判定：用 merge-base 或 merge-tree，不用两点 diff
 
@@ -263,10 +289,18 @@ report delivery」——**发送不等于送达**。派发后必须读目标终�
 A线 实测更正为 `JSON.stringify(Infinity)` → `null`（后端当缺省值，比 NaN 更隐蔽）。
 ⇒ 我的那句话是转述，未实测。
 
-### C5 ★ 测试线/评审线单 commit 不 push
+### C5 ★ 测试线/评审线单 commit，不推 main
 
-**规则**：测试线与评审线的产出以单 commit 落在各自分支，**不 push**，
-避免与开发线的 main 面混淆。
+**规则**：测试线与评审线的产出以单 commit 落在各自分支，
+**不推 main**（不混入开发线的 main 面）——
+**但产出分支应推 fork 保全**（branch-only，绝不合入 main）。
+
+**★ 澄清「不 push」的含义**（2026-10-05 评审线指出 D1/C5 矛盾后修正）：
+「不 push」= **不推 main、不推会被当作发布物的分支**，
+**不是「不推任何远端」**。
+
+理由：分支只在本地 → 仓库损坏/误删/重建 → 产出仍会丢
+（F-1 事故的同类风险，从 /tmp 换成本地 git）。
 
 **评审线附加**：评审 journal 只落自己的 `review/*` 分支，不混入 main 的开发 journal 面。
 
@@ -331,3 +365,5 @@ A线 实测更正为 `JSON.stringify(Infinity)` → `null`（后端当缺省值�
 | V6 | 2026-10-05 | /mnt/f 下 bun test 挂 D 状态 |
 | C1 | 2026-10-05 | 控制线两次漏读测试线报告 |
 | C4 | 2026-10-05 | 控制线转述 NaNxNaN 被实测更正为 null |
+| G1+ | 2026-10-05 | 文档 G1 片段的 `echo \| wc -l` 计数在空输入时返回 1（B线 实测发现，已修为数组计数） |
+| D1/C5 | 2026-10-05 | 「不 push」字面与「推 fork 保全」令矛盾（评审线 指出，已澄清为「不推 main」） |
