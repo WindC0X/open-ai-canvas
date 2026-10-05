@@ -512,10 +512,21 @@ export default function CanvasPage() {
                             />
                         ))}
                     </CollectionGrid>
+                ) : hasMore && !keyword && projectFilter === "all" ? (
+                    /* ★ T2-P1a：当前页被全部过滤（如全是 headless 容器）但还有下一页 ——
+                       显示加载提示而非「没有匹配的画布」终态，避免误导用户以为没有画布。
+                       （下方加载更多节点会继续拉页。） */
+                    <div className="library-load-more" aria-live="polite">
+                        正在加载更多画布…
+                    </div>
                 ) : (
                     <WorkspaceState icon="canvas" title={keyword || projectFilter !== "all" ? "没有匹配的画布" : "让第一个想法落在画布上"} description={keyword || projectFilter !== "all" ? "换一个画布名称或重置筛选条件。" : "图片、分镜和灵感，都可以在这里自由组织。"} action={!keyword && projectFilter === "all" ? <Button type="primary" icon={<Plus />} disabled={!hydrated} onClick={createAndEnter}>新建画布</Button> : undefined} />
                 )}
-                {hydrated && visibleProjects.length ? (
+                {/* ★ T2-P1a（评审线 R3）：过滤后当前页可能全被隐藏（headless 容器），
+                    此时 visibleProjects 为空 —— 若因此不渲染加载更多节点，就永远拉不到下一页
+                    （IntersectionObserver 无观察目标）⇒ 「加载更多」死锁。
+                    条件改为：有可见项 **或** 还有下一页。 */}
+                {hydrated && (visibleProjects.length || hasMore) ? (
                     <div ref={loadMoreRef} className="library-load-more" aria-live="polite">
                         {libraryQuery.isFetchNextPageError ? <Button onClick={() => void libraryQuery.fetchNextPage()}>加载失败，重试</Button> : hasMore ? "继续下滑加载更多" : `已加载全部 ${filteredProjects.length} 个画布`}
                     </div>

@@ -167,6 +167,22 @@ describe("接线（纯函数之外）", () => {
         expect(canvasIndexSource).toContain("filterVisibleCanvasProjects");
     });
 
+    test("★ T2-P1a：过滤后当前页全空时仍能继续拉页（不死锁）", () => {
+        // 缺陷：加载更多节点的渲染条件是 `hydrated && visibleProjects.length`，
+        // 而 visibleProjects 是过滤后的 ⇒ 当前页全被 headless 过滤时长度为 0
+        // ⇒ 节点不渲染 ⇒ IntersectionObserver 无观察目标 ⇒ 永远拉不到下一页。
+        // 修法：条件改为 `visibleProjects.length || hasMore`。
+        expect(canvasIndexSource).toContain("visibleProjects.length || hasMore");
+        // ★ 反向：不得再是只看可见数的旧条件
+        expect(canvasIndexSource).not.toContain("hydrated && visibleProjects.length ? (");
+    });
+
+    test("★ T2-P1a：过滤后为空但仍有下一页时不显示「没有匹配的画布」终态", () => {
+        // 过滤后为空 + hasMore ⇒ 应显示加载中提示，否则用户以为没有画布。
+        expect(canvasIndexSource).toContain('hasMore && !keyword && projectFilter === "all" ? (');
+        expect(canvasIndexSource).toContain("正在加载更多画布…");
+    });
+
     test("★ 验收 2：UnifiedTaskFace 有真实挂载点（无画布上下文页面）", () => {
         // 设计卡验收 2「统一任务面独立可用（不依赖画布上下文）」——
         // 组件存在不等于挂载：必须断言真实使用点，否则「有代码≠能用」复发。
