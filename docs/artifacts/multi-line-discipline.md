@@ -114,6 +114,32 @@ git merge-tree --write-tree main <branch>                        # 干跑（推�
 **事故记录**：A线 无法 checkout main（被 B线 worktree 占用），declined to disturb；
 B线 两次在 main 上做登记提交后未及时释放，造成 A线 落盘受阻。
 
+### G4.1 ★ 控制线不得在多线共享仓库直接 commit（含 index.lock 竞态）
+
+**规则**：任何线（尤其控制线）在**多线共享的同一仓库工作树**做 git 写操作前，
+必须先确认**无其他线正在该工作树执行 git 写操作**。
+
+**推荐做法**：**控制线使用自己的独立工作树**（`/home/windc0x/oac-ext4/oac-wt-ctrl`，
+branch `ctrl/docs`）做文档/纪律类提交，不在主仓工作树操作——
+主仓工作树是 **A线 的家**（它负责 main 面合入），控制线在其中提交即侵入他线家域。
+
+**事故记录**（2026-10-05）：控制线在**未通知**的情况下于主仓工作树（= A线 的家）
+执行 `git add -f docs/artifacts/... && git commit && git push`（pid 392349），
+恰好与 A线 的 journal commit 撞上 `.git/index.lock`：
+```
+fatal: Unable to create '/mnt/f/CODE/Project/open-ai-canvas/.git/index.lock': File exists
+```
+**A线 处置正确**（按纪律未干扰）：等待 30 秒至控制线完成，未删 lock、未强杀，
+随后核实控制线提交落于其合并之上、无冲突，自身 journal 改动完好，commit/push 成功。
+
+**无损失是运气**：若两线**同时**进入 index 写操作，或控制线跑的是 `git reset` /
+`git checkout -f` 这类破坏性命令，后果会严重得多。
+⇒ **`index.lock` 是真实的并发风险点**，不能靠「撞上了再等」解决。
+
+**★ 等待策略的边界**：`index.lock` 冲突时「等待对方完成」**只适用于无破坏性的
+add/commit**。若冲突方在跑 `reset` / `checkout -f` / `rebase` / `filter-branch`，
+**必须停止操作并上报**，不得盲目等待——对方可能正在改变你依赖的状态。
+
 ### G5 ★ 门禁结果与 hash 绑定
 
 **规则**：门禁**只在被报告/被推送的那个 commit 上跑**，报告引用该 hash。
@@ -295,6 +321,7 @@ A线 实测更正为 `JSON.stringify(Infinity)` → `null`（后端当缺省值�
 | G2 | 2026-10-05 | B线 两点 diff 误报回退 |
 | G3 | 2026-10-05 | A线 journal 落错分支 + 旧基线，险回退他线三次追加 |
 | G4 | 2026-10-05 | main 被 B线 worktree 占用，A线 无法落盘 |
+| G4.1 | 2026-10-05 | 控制线在主仓（A线 家域）提交，与 A线 journal 撞 index.lock |
 | G5 | 2026-10-04 | `eb86fd87` 门禁绑错 hash |
 | G6 | 2026-10-04 | 暂存集遗漏已编辑文件 |
 | V1 | 2026-10-04/05 | 三例：b12r17 漏 E-1、F-3 镜像、merge 自身不可编译 |
