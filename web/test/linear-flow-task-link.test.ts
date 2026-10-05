@@ -133,8 +133,12 @@ describe("readLinearFlowTaskContext：反解 answers + cardId（严格守卫）"
 describe("resolveTaskCanvasAction：两段式判定", () => {
     const withContainer = [project("canvas-1", [session("creation:linear-flow-task-a", [message("m1", ["task-a"])])])];
 
-    test("本地命中 ⇒ navigate（零请求）", () => {
-        expect(resolveTaskCanvasAction({ id: "task-a", projectId: "canvas-1" }, withContainer)).toEqual({ kind: "navigate", canvasId: "canvas-1" });
+    test("本地命中 ⇒ navigate（零请求）+ sessionId（P2-1：容器内确有该任务的会话）", () => {
+        expect(resolveTaskCanvasAction({ id: "task-a", projectId: "canvas-1" }, withContainer)).toEqual({
+            kind: "navigate",
+            canvasId: "canvas-1",
+            sessionId: "creation:linear-flow-task-a",
+        });
     });
 
     test("未命中 + 已确认卡流程（详情判据）⇒ create", () => {
@@ -146,7 +150,47 @@ describe("resolveTaskCanvasAction：两段式判定", () => {
         expect(resolveTaskCanvasAction({ id: "task-b" }, [], "task-other")).toEqual({ kind: "none" });
     });
 
+    test("已绑定 headless 容器且本地存在但无会话 ⇒ navigate 不带 sessionId（P2-1 场景①）", () => {
+        const emptyContainer = [project("pre-created", [], "headless_task")];
+        expect(resolveTaskCanvasAction({ id: "task-b", projectId: "pre-created" }, emptyContainer)).toEqual({
+            kind: "navigate",
+            canvasId: "pre-created",
+            sessionId: undefined,
+        });
+    });
+
+    test("容器内有该任务的会话 ⇒ navigate 带 sessionId（P2-1 场景②）", () => {
+        // ★ 此情形由路径 A（全库 taskIds 反查）命中 —— 若容器内有承载该 taskId 的会话，
+        //   路径 A 必然先命中，不会走到路径 B（projectId 分支）。
+        const carrierContainer = [project("pre-created", [session("creation:linear-flow-task-b", [message("m1", ["task-b"])])], "headless_task")];
+        expect(resolveTaskCanvasAction({ id: "task-b", projectId: "pre-created" }, carrierContainer)).toEqual({
+            kind: "navigate",
+            canvasId: "pre-created",
+            sessionId: "creation:linear-flow-task-b",
+        });
+    });
+
+    test("同 taskId 多会话 ⇒ 取最后一个（P2-1 场景③：result 晚于 carrier 写入）", () => {
+        const twoSessions = [
+            project("canvas-multi", [
+                session("creation:linear-flow-task-c", [message("m1", ["task-c"])]),
+                session("creation:linear-flow-task-c-result", [message("m2", ["task-c"])]),
+            ]),
+        ];
+        expect(resolveTaskCanvasAction({ id: "task-c" }, twoSessions)).toEqual({
+            kind: "navigate",
+            canvasId: "canvas-multi",
+            sessionId: "creation:linear-flow-task-c-result",
+        });
+    });
+
+    test("已绑定普通画布（非 headless）⇒ none（画布页本就有入口，不重复）", () => {
+        const standardCanvas = [project("standard-1", [])];
+        expect(resolveTaskCanvasAction({ id: "task-b", projectId: "standard-1" }, standardCanvas)).toEqual({ kind: "none" });
+    });
+
     test("已绑定画布但本地无容器 ⇒ none（容器可能在别的设备创建，不新建防双容器）", () => {
         expect(resolveTaskCanvasAction({ id: "task-b", projectId: "canvas-remote" }, [], "task-b")).toEqual({ kind: "none" });
+        expect(resolveTaskCanvasAction({ id: "task-b", projectId: "canvas-remote" }, withContainer, "task-b")).toEqual({ kind: "none" });
     });
 });

@@ -1,0 +1,203 @@
+[
+  {
+    "grid": "A-nano-banana-2-S1",
+    "template": "A",
+    "channel": "nano-banana-2",
+    "scene": "S1",
+    "taskId": "5c237bde895878928a881d2719ec8ba2",
+    "status": "succeeded",
+    "outputSize": null,
+    "normalization": null
+  },
+  {
+    "grid": "B-nano-banana-2-S1",
+    "template": "B",
+    "channel": "nano-banana-2",
+    "scene": "S1",
+    "taskId": "0853a297ac28f2b62c45efdbdb8e8f34",
+    "status": "succeeded",
+    "outputSize": {
+      "width": 896,
+      "height": 1200
+    },
+    "normalization": {
+      "applied": true,
+      "from": {
+        "width": 896,
+        "height": 1200
+      },
+      "to": {
+        "width": 1086,
+        "height": 1448
+      },
+      "interpolation": "INTER_LANCZOS4",
+      "reason": "make_positive_control.py 尺寸缺陷绕过（控制线裁定1，2026-10-05）"
+    }
+  },
+  {
+    "grid": "C-nano-banana-2-S1",
+    "template": "C",
+    "channel": "nano-banana-2",
+    "scene": "S1",
+    "taskId": "51d2d645a98c23831b170c8c3b9f617c",
+    "status": "succeeded",
+    "outputSize": {
+      "width": 896,
+      "height": 1200
+    },
+    "normalization": {
+      "applied": true,
+      "from": {
+        "width": 896,
+        "height": 1200
+      },
+      "to": {
+        "width": 1086,
+        "height": 1448
+      },
+      "interpolation": "INTER_LANCZOS4",
+      "reason": "make_positive_control.py 尺寸缺陷绕过（控制线裁定1，2026-10-05）"
+    }
+  },
+  {
+    "grid": "A-nano-banana-2-S2",
+    "template": "A",
+    "channel": "nano-banana-2",
+    "scene": "S2",
+    "taskId": "f4fc54295b0ba6d844fb87e9245f5a88",
+    "status": "succeeded",
+    "outputSize": {
+      "width": 896,
+      "height": 1200
+    },
+    "normalization": {
+      "applied": true,
+      "from": {
+        "width": 896,
+        "height": 1200
+      },
+      "to": {
+        "width": 1086,
+        "height": 1448
+      },
+      "interpolation": "INTER_LANCZOS4",
+      "reason": "make_positive_control.py 尺寸缺陷绕过（控制线裁定1，2026-10-05）"
+    }
+  },
+  {
+    "grid": "B-nano-banana-2-S2",
+    "template": "B",
+    "channel": "nano-banana-2",
+    "scene": "S2",
+    "taskId": "463badc78b1f4be21a531e45470a332a",
+    "status": "succeeded",
+    "outputSize": {
+      "width": 896,
+      "height": 1200
+    },
+    "normalization": {
+      "applied": true,
+      "from": {
+        "width": 896,
+        "height": 1200
+      },
+      "to": {
+        "width": 1086,
+        "height": 1448
+      },
+      "interpolation": "INTER_LANCZOS4",
+      "reason": "make_positive_control.py 尺寸缺陷绕过（控制线裁定1，2026-10-05）"
+    }
+  },
+  {
+    "grid": "C-nano-banana-2-S2",
+    "template": "C",
+    "channel": "nano-banana-2",
+    "scene": "S2",
+    "taskId": "a1ce94298c32ae503c72fa6cfd1ab9cd",
+    "status": "succeeded",
+    "outputSize": {
+      "width": 896,
+      "height": 1200
+    },
+    "normalization": {
+      "applied": true,
+      "from": {
+        "width": 896,
+        "height": 1200
+      },
+      "to": {
+        "width": 1086,
+        "height": 1448
+      },
+      "interpolation": "INTER_LANCZOS4",
+      "reason": "make_positive_control.py 尺寸缺陷绕过（控制线裁定1，2026-10-05）"
+    }
+  },
+  {
+    "grid": "A-gpt-image-2.5-S2",
+    "template": "A",
+    "channel": "gpt-image-2.5",
+    "scene": "S2",
+    "taskId": "ce3d0efa4ebacd7b07c155325c1642bf",
+    "status": "succeeded",
+    "outputSize": {
+      "width": 1086,
+      "height": 1448
+    },
+    "normalization": {
+      "applied": false,
+      "size": {
+        "width": 1086,
+        "height": 1448
+      }
+    }
+  },
+  {
+    "grid": "B-gpt-image-2.5-S2",
+    "template": "B",
+    "channel": "gpt-image-2.5",
+    "scene": "S2",
+    "taskId": "4046052240ef90cd079ee5c7a655eae5",
+    "status": "succeeded",
+    "outputSize": {
+      "width": 1086,
+      "height": 1448
+    },
+    "normalization": {
+      "applied": false,
+      "size": {
+        "width": 1086,
+        "height": 1448
+      }
+    }
+  },
+  {
+    "grid": "C-gpt-image-2.5-S2",
+    "template": "C",
+    "channel": "gpt-image-2.5",
+    "scene": "S2",
+    "taskId": "5718416cd88ab4279d46e9de20019f03",
+    "status": "succeeded",
+    "outputSize": {
+      "width": 1086,
+      "height": 1448
+    },
+    "normalization": {
+      "applied": false,
+      "size": {
+        "width": 1086,
+        "height": 1448
+      }
+    }
+  },
+  {
+    "grid": "A/B/C-gpt-image-2.5-S1",
+    "template": "A/B/C",
+    "channel": "gpt-image-2.5",
+    "scene": "S1",
+    "status": "untestable",
+    "reason": "upstream_content_policy_reject",
+    "evidence": "api_call_logs.error_code = upstream_content_policy_reject (taskId 60751af1c7d8)"
+  }
+]
