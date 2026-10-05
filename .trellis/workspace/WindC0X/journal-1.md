@@ -1990,3 +1990,48 @@ go build **0**；go test 5 条 `TestCloudAgent*` = **undici 环境基线**（非
 控制线裁定书写「main 当前无人占用」但实测被其自身 worktree（`oac-wt-ctrl`）持有；
 我报告后控制线核实、释放并认领为「未经核实就下结论」的同类错误。
 ⇒ 纪律：**裁定中涉及环境状态（worktree 占用 / 分支持有）必须先实测再写**。
+
+---
+
+## 2026-10-05 · B线 R5 修复批合入（merge `58eef5d2`）
+
+### 合入拓扑
+
+| 项 | 值 |
+|---|---|
+| 合入对象 | `cf8fbf52`（分支 `fix/w5-runner-reset`，基点 `86f04568`） |
+| 合入前 main | `525532ef`（+C8 纪律 commit，文件面零重叠） |
+| **merge commit** | **`58eef5d2`**（双亲 `525532ef` × `cf8fbf52`） |
+| 文件面 | 6 files **+187/-8** |
+| merge-tree 干跑 | **exit 0**（tree `bfef4320`） |
+| main / fork/main | `58eef5d2`（ls-remote 实测一致） |
+
+### 内容
+
+| 项 | 修复 |
+|---|---|
+| P1 | `LinearFlowRunner` 挂载加 `key={linearFlowCard?.id ?? "none"}` 根治跨卡片状态残留 |
+| P2-1 | D-2 路径B 会话缺失判断改按 taskId 精确判断（消除 `findTaskSessionId` 死代码） |
+| P2-2 | `scripts/merge-file-face.sh` 补执行权限（100644 → **100755**） |
+
+### 门禁（绑定 `58eef5d2`，工作树 0 改动）
+
+| 门 | 结果 |
+|---|---|
+| 文件面（G1 口径 `git diff HEAD^1 HEAD`） | 6 文件（含空输入防御 ✓） |
+| P2-2 自证 `./scripts/merge-file-face.sh 58eef5d2` | **exit 0** ✓（脚本已可执行） |
+| tsc --noEmit | **0** |
+| eslint（web 5 文件） | **0** |
+| 全量 bun test | **3114 pass / 0 fail / 15727 expect / 368 files**（222.51s） |
+| git ls-files -s 权限位 | `100755` ✓ |
+
+### ★ 本批的两处纪律实践
+
+1. **P2-2 自证闭环**：`merge-file-face.sh` 本批自己获得了执行权限 —— 门禁第 ② 步用它
+   验证自己的合入 commit，是「工具与产出同批交付」的自洽验证。
+2. **真机前置校验（B线）**：过程中发现 vite 服务跑的是**旧代码**（drvfs watcher 失效），
+   重启后确认 `transformed` 含新代码才继续 —— 避免了 V3 类的假绿。
+
+### 三线状态
+
+main 推进至 `58eef5d2`，测试线 / 评审线新锚点以控制线通知为准。
