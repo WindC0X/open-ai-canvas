@@ -1284,7 +1284,6 @@
     --canvas-mention-chip-preview-size: 18px;
     --canvas-mention-chip-gap: 0.12em;
     --canvas-mention-chip-padding-inline: 0.16em;
-    --canvas-mention-chip-offset-y: 0.14em;
     --canvas-reference-chip-size: 44px;
 
     /* Modal 组件（对话框，对应 #98 面板层级）*/
