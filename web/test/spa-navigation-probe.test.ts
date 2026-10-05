@@ -142,6 +142,13 @@ describe("SPA 导航探针：消息捕获（MutationObserver）", () => {
         expect(snapshot.msgLog).toHaveLength(1);
         snapshot.navLog.push({ type: "fake", url: "/injected" });
         expect(probe.navLog, "dump 必须返回副本 —— 外部改动不得污染探针内部记录").toHaveLength(1);
+        // ★ 全量语义守护（R8 P3-1 发现，控制线核验采纳）：纪律B「多轮对照前必须 reset」
+        //   的前提是 dump() 返回**全量累计**。若未来改成游标式增量（slice(cursor) 并推进
+        //   游标），既有断言全绿（R8 实测 0 红），而纪律B 的注释会变成过期误导。
+        //   实测：X 形态（消费式增量，dump 后清空）→ 1 红；Y 形态（游标式增量）→ 0 红。
+        probe.dump();
+        expect(probe.navLog, "dump 必须是全量累计（纪律B 的前提，非增量）").toHaveLength(1);
+        expect(probe.dump().navLog, "重复 dump 仍返回全量（不得消费）").toHaveLength(1);
         probe.reset();
         expect(probe.dump()).toEqual({ navLog: [], msgLog: [] });
     });
