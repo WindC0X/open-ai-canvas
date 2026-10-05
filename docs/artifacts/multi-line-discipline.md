@@ -166,6 +166,45 @@ fatal: Unable to create '/mnt/f/CODE/Project/open-ai-canvas/.git/index.lock': Fi
 add/commit**。若冲突方在跑 `reset` / `checkout -f` / `rebase` / `filter-branch`，
 **必须停止操作并上报**，不得盲目等待——对方可能正在改变你依赖的状态。
 
+**★ G4.1 第 2 实例（2026-10-05，控制线自犯，A线 诊断）**：
+控制线向 A线 下达合并令后，**未确认 A线 是否已开始执行**，
+就在同一 worktree 的 `main` 上提交了一条纪律文档（`01d3997c`）。
+
+**reflog 实证**（时间线可复原）：
+```
+19:04:04  A线  checkout main（HEAD = 81bf61e6）
+19:04:52  控制线 commit 01d3997c   ← ★ 在 A线 已 checkout 之后写入 main
+19:06:29  A线  merge 成功（起点已变为 01d3997c）
+```
+**A线 报的现象**：`git merge --no-ff` 返回 `fatal: stash failed`
+（A线 当时 HEAD = 81bf61e6，而 main 已被推进到 01d3997c）。
+
+**⇒ 根因**：控制线在**对方已 checkout 的工作树**上写入提交 ——
+与第 1 实例（index.lock 竞态）**同族**，但形态不同：
+
+| | 第 1 实例 | 第 2 实例 |
+|---|---|---|
+| 形态 | 两线**同时** add/commit ⇒ `index.lock` 冲突 | 一线 **checkout 后**另一线写入 ⇒ `stash failed` |
+| 检测 | git 报 `index.lock` 存在 | git 报 `fatal: stash failed`（**误导性信息**） |
+| 修复 | 等待 + 重试 | 确认状态干净后重试 |
+
+**★ 为什么第 2 实例更隐蔽**：`stash failed` 的字面意思是「暂存失败」，
+**不提示「main 被他人推进」** —— 若不看 reflog，很容易误判为 git 内部故障。
+
+**★ 纪律**：
+> **下达合并令后，控制线不得在同一 worktree 的该分支上做任何写操作**，
+> 直到对方报告合并完成。若必须落盘，**改用其他 worktree**（如 `~/oac-ext4/oac-wt-baseline`）。
+
+**★ 控制线自评**：这是当日**第四次自犯**，且与第 1-3 次同源
+（**操作前未核实对方状态**）：
+| # | 自犯 | 纪律 |
+|---|---|---|
+| 1 | 注释红数漏版本基准 | V7 附2 |
+| 2 | 引用未合并分支漏标分支 | V7 附2-a |
+| 3 | 读部分输出就下结论 | C1 附 |
+| 4 | **下达合并令后写入对方 main** | **G4.1 第 2 实例** |
+**⇒ 四次根因完全一致：操作前未核实对方状态。**
+
 ### G5 ★ 门禁结果与 hash 绑定
 
 **规则**：门禁**只在被报告/被推送的那个 commit 上跑**，报告引用该 hash。
