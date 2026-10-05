@@ -40,6 +40,29 @@
  *   **可同页共现**。若只断言 msgLog.length > 0，捕获到非目标消息也会判「探针工作正常」。
  *   ⇒ 正确写法：msgLog.some(function (m) { return m.indexOf("要接续的会话") !== -1; })
  *
+ *   ★★ 该陷阱是**双向**的（A线 补充，控制线核验采纳）：
+ *     msgLog 是**关键词粗筛**，不是「目标消息证据」。非空**既不能证明目标出现过，
+ *     也不能证明目标没出现过** —— 两个方向都可能被干扰消息污染：
+ *       · 判「目标出现过」时：干扰消息使 msgLog 非空 ⇒ 假阳性
+ *       · 判「目标没出现」时：干扰消息使 msgLog 非空 ⇒ 若据「非空」反推「有消息」
+ *         或据「有干扰」混淆结论 ⇒ 假阴性/误读
+ *     干扰消息的触发路径**独立且不罕见**（lifecycle.ts:210 走
+ *     hydrateAssistantImages 的 catch；而 resolveImageUrl（image-storage.ts:85）
+ *     经 getResourceAccess 发网络请求 ⇒ 网络/OSS 异常即抛错 ⇒ 整批 catch）。
+ *     ⇒ 一切判定必须锚定**目标文案本身**，不得以 msgLog 的空/非空为判据。
+ *
+ *   ★★★ 更根本的原因：本探针**不过滤消息容器**（见 captureNode，捕获任意
+ *     含关键词的 addedNode），因此**任何**插入 DOM 的文本都可能进 msgLog ——
+ *     不只是 antd message。实测案例（B线 R5 P2-1 真机验证，2026-10-05）：
+ *       web/src/components/canvas/canvas-cloud-agent-composer.tsx:171
+ *         <p className="agent-scene-capsules-note">
+ *           仅本会话生效 · 缺失技能将加入技能库 · Agent 按任务调用</p>
+ *       含「会话」二字 ⇒ 被捕获，**但它不是警告**（是常驻说明文字）。
+ *     当时靠人工阅读 msgLog 内容识别（报告标注「面板内容（非警告）」）——
+ *     **若无纪律A，此条会被当作「捕获到消息」的证据**。
+ *     注意它与 antd message 的区别：message 是短暂 toast（3 秒后消失），
+ *     而该 <p> 是**常驻 DOM**（面板打开期间一直在），任何一次面板重渲染都可能命中。
+ *
  * 【纪律B】多轮对照前必须 reset()，否则证据相互污染。
  *   dump() 返回**全量累计**（navLog.slice() / msgLog.slice()），不是增量。
  *   R5 P2-1 式对照需 2 轮（阴性 → 阳性），若不 reset，第 2 轮 dump() 会包含第 1 轮记录，
