@@ -20,6 +20,14 @@
  *   2. ★ 先自检（阴性结论的前置条件）：
  *        orca-ide eval --expression "window.__spaNavProbe.selfCheck().then(r => JSON.stringify(r))"
  *      → { ok: true } 才可采信后续的「无警告 / 无导航」结论
+ *   2.5 ★★ 自检后必须 reset()（自检本身会写入一条 msgLog 记录）：
+ *        orca-ide eval --expression "window.__spaNavProbe.reset(); 'reset'"
+ *      · 探针已内置清理（selfCheck 会移除自己写入的 msgLog 记录），
+ *        但**显式 reset 更稳妥** —— 且能一并清掉自检前的历史记录。
+ *      · 不 reset 的后果：msgLog 残留自检假消息（含目标关键词）⇒
+ *        「msgLog 不含目标文案」类阴性断言**必然失败**（假阳性）。
+ *      （实测：顺序 reset→selfCheck→触发→dump 会残留 1 条；
+ *             顺序 selfCheck→reset→触发→dump 则干净 —— 测试线 b12r26 发现）
  *   3. 触发要验证的交互（点击等）
  *   4. 取证据：
  *        orca-ide eval --expression "JSON.stringify(window.__spaNavProbe.dump())"
@@ -143,6 +151,13 @@
             setTimeout(function () {
                 var captured = msgLog.length > before;
                 if (node.parentNode) node.parentNode.removeChild(node);
+                // ★ 修法2（测试线 b12r26 发现，控制线核验采纳）：自检消息**已进入 msgLog**，
+                //   只删 DOM 节点不够 —— 该记录含目标关键词，会让后续「msgLog 不含
+                //   目标文案」的阴性断言**必然失败**。此处一并移除，保持 msgLog
+                //   只含真实消息。未捕获时（ok=false）msgLog 中本无该条，indexOf 返回 -1，
+                //   不会误删（控制线边界实测：观察器失效场景 msgLog 仍为空）。
+                var selfIdx = msgLog.indexOf(SELF_CHECK_TEXT.slice(0, 200));
+                if (selfIdx !== -1) msgLog.splice(selfIdx, 1);
                 resolve({
                     ok: captured,
                     detail: captured

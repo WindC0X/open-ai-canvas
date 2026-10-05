@@ -168,11 +168,30 @@ describe("SPA 导航探针：★ 自检机制（阴性结论的前置条件）",
         });
     });
 
-    test("自检注入的假消息被清理（不污染后续 dump）", async () => {
+    test("自检注入的假消息被清理（DOM 节点 + msgLog 记录，双重不污染）", async () => {
         const { probe, body } = createHarness(probeSource);
         const result = await probe.selfCheck();
         expect(result.ok).toBe(true);
         expect(body.children, "自检节点必须移除 —— 否则污染页面").toHaveLength(0);
+        // ★ 修法2 守护（测试线 b12r26 发现 + 控制线核验采纳）：仅移除 DOM 节点不够 ——
+        //   自检消息已进入 msgLog，含目标关键词，会让后续「msgLog 不含目标文案」的
+        //   阴性断言必然失败。原测试名声称「不污染后续 dump」但只断言 DOM（V9 ① 族）。
+        expect(probe.dump().msgLog, "自检记录必须一并移除 —— 否则阴性断言必然失败").toHaveLength(0);
+    });
+
+    test("★ 证伪：自检记录若不清除 ⇒ 阴性断言必然失败（修法2 的必要性）", async () => {
+        // 构造「只删 DOM 不删 msgLog」的旧实现，证明该断言确实有区分力
+        const oldImpl = probeSource.replace(
+            "var selfIdx = msgLog.indexOf(SELF_CHECK_TEXT.slice(0, 200));\n                if (selfIdx !== -1) msgLog.splice(selfIdx, 1);",
+            "/* 旧实现：只删 DOM，不删 msgLog */",
+        );
+        expect(oldImpl, "清理代码锚点消失 —— 证伪测试失效，需同步更新").not.toBe(probeSource);
+        const { probe } = createHarness(oldImpl);
+        const result = await probe.selfCheck();
+        expect(result.ok).toBe(true);
+        const msgLog = probe.dump().msgLog;
+        expect(msgLog.length, "旧实现下 msgLog 必残留自检记录").toBeGreaterThan(0);
+        expect(msgLog.some((m) => m.includes("要接续的会话")), "残留记录含目标文案 ⇒ 阴性断言必失败").toBe(true);
     });
 });
 
