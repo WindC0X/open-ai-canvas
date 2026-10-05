@@ -14,8 +14,17 @@ test("发送到 Agent 以自增 id 命令语义交付，面板按 id 去重", as
     expect(project).toContain("setAgentPrefill({ id: agentPrefillIdRef.current, prompt:");
     expect(project).toContain("prefillPromptId={agentPrefill.id}");
     // 面板：按 id 去重，不得按文本值去重
+    // ★ S-2 修复（2026-10-05）：两通道各自独立去重 ref，且**都要执行** ——
+    // 原共享 lastPrefillIdRef + prefillRequest 提前 return 使 fork 通道永不可达。
     expect(panel).toContain("const prefillId = prefillPromptId ?? 0;");
-    expect(panel).toContain("if (!value || prefillId === lastPrefillIdRef.current) return;");
-    expect(panel).toContain("lastPrefillIdRef.current = prefillId;");
-    expect(panel).not.toContain("lastPrefillPromptRef");
+    expect(panel).toContain("lastPrefillRequestIdRef");
+    expect(panel).toContain("lastPrefillPromptIdRef");
+    expect(panel).toContain("prefillId !== lastPrefillPromptIdRef.current");
+    // ★ 反向：不得再共享单一 ref（两通道 id 空间不同，共享会互吞命令）
+    // 注意：不能用 not.toContain("lastPrefillIdRef") —— 它是两个新 ref 名的子串。
+    // 用词边界精确匹配旧名。
+    expect(/\blastPrefillIdRef\b/.test(panel)).toBe(false);
+    // ★ 反向：prefillRequest 分支不得 early-return 吞掉 fork 通道
+    const requestBranch = panel.slice(panel.indexOf("if (prefillRequest && prefillRequest.id !=="), panel.indexOf("const value = prefillPrompt?.trim();"));
+    expect(requestBranch).not.toContain("return;");
 });

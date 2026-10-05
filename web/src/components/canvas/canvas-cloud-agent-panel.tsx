@@ -120,7 +120,14 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     // 自增 id 下每条新命令都会重新落进输入框（含原本就在 chat 视图时切回 chat）。
     // 合并口径（2026-10-04 sync #2）：上游新增 prefillRequest（含 text），与 fork 的
     // prefillPrompt/prefillPromptId 并存——见下方 effect 的双通道处理。
-    const lastPrefillIdRef = useRef(0);
+    // ★ S-2 修复：两通道各自独立去重 ref。
+    // 原先共享单个 ref 有两个后果：
+    //   ① prefillRequest 分支提前 return ⇒ fork 通道（prefillPrompt/prefillPromptId）永不可达
+    //      （而 project.tsx:515-516 两通道都写，fork 通道实为死代码）；
+    //   ② 即使无 return，两通道 id 空间不同（一个是自增计数器、一个是外部 request id），
+    //      共享 ref 会互相误吞对方的命令。
+    const lastPrefillRequestIdRef = useRef(0);
+    const lastPrefillPromptIdRef = useRef(0);
     const [reasoningMode, setReasoningMode] = useState<AgentReasoningMode>("off");
     const [profileView, setProfileView] = useState<AgentProfileView | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
@@ -345,23 +352,27 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     const statusColor = status === "failed" ? "#e66b6b" : status === "rejected" || status === "cancelled" ? theme.node.muted : status === "waiting_approval" ? "#d6a24a" : status === "running" || status === "queued" ? "#69c29b" : theme.node.muted;
 
     useEffect(() => {
-        // 双通道（合并口径 2026-10-04 sync #2）：
+        // 双通道（合并口径 2026-10-04 sync #2 + S-2 修复）：
         // ① 上游 prefillRequest：追加语义（appendAgentPromptPrefill），保留用户已输入内容
         // ② fork prefillPrompt + prefillPromptId：替换语义 + 幂等 id 去重
-        if (prefillRequest) {
-            if (prefillRequest.id === lastPrefillIdRef.current) return;
-            lastPrefillIdRef.current = prefillRequest.id;
-            if (!prefillRequest.text.trim()) return;
-            setPrompt((current) => appendAgentPromptPrefill(current, prefillRequest.text));
-            setView("chat");
-            return;
+        //
+        // ★ S-2：两通道**各自独立去重**且**都要执行**（不再 early-return 吞掉 fork 通道）。
+        // 同一事件里两通道都带同一段文本时，追加语义先落地，替换语义随后以**相同值**写入 ——
+        // 幂等（结果不依赖执行顺序）。
+        if (prefillRequest && prefillRequest.id !== lastPrefillRequestIdRef.current) {
+            lastPrefillRequestIdRef.current = prefillRequest.id;
+            if (prefillRequest.text.trim()) {
+                setPrompt((current) => appendAgentPromptPrefill(current, prefillRequest.text));
+                setView("chat");
+            }
         }
         const value = prefillPrompt?.trim();
         const prefillId = prefillPromptId ?? 0;
-        if (!value || prefillId === lastPrefillIdRef.current) return;
-        lastPrefillIdRef.current = prefillId;
-        setPrompt(value);
-        setView("chat");
+        if (value && prefillId !== lastPrefillPromptIdRef.current) {
+            lastPrefillPromptIdRef.current = prefillId;
+            setPrompt(value);
+            setView("chat");
+        }
     }, [prefillPrompt, prefillPromptId, prefillRequest]);
 
     useEffect(() => {
