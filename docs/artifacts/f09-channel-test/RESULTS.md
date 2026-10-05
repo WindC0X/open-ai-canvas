@@ -242,3 +242,34 @@ docs/artifacts/f09-channel-test/     （11 文件已跟踪）
 原始记录：/tmp/f09-work/out/*.json（含完整请求体 + prompt + 判据输出）
 判据脚本：open-ai-canvas-testing/docs/gate/f09/ @ d7eb286
 ```
+
+---
+
+## 10. 产物溯源核验（★ 闭合「生成→图」这一跳）
+
+**方法**：`taskId → tasks.result_json.images[0].resourceId → 下载 → SHA256 比对本地文件`
+
+**结果（9/9 匹配）**：
+
+| 格 | taskId（前 12） | resourceId（前 12） | 文件 hash（前 12） | 匹配 |
+|---|---|---|---|---|
+| A-nano-banana-2-S1 | 5c237bde8958 | 73c81092e767 | 42e6178ce5d7 | ✓ |
+| B-nano-banana-2-S1 | 0853a297ac28 | f29e44ffbb9c | 00c1f9250358 | ✓ |
+| C-nano-banana-2-S1 | 51d2d645a98c | f72e25ce9b52 | 28b492a1ac41 | ✓ |
+| A-nano-banana-2-S2 | f4fc54295b0b | 5864e9d267fe | dec94ba04a7c | ✓ |
+| B-nano-banana-2-S2 | 463badc78b1f | cf081dd9a92b | 0c3752ef74d5 | ✓ |
+| C-nano-banana-2-S2 | a1ce94298c32 | e33c00018c67 | a3d6a602b73d | ✓ |
+| A-gpt-image-2.5-S2 | ce3d0efa4eba | 3144c8afa341 | ca0640615310 | ✓ |
+| B-gpt-image-2.5-S2 | 4046052240ef | fa29480c656f | c90300e6e6ee | ✓ |
+| C-gpt-image-2.5-S2 | 5718416cd88a | 564132e1e1ab | 8ac25932a1c8 | ✓ |
+
+**第二跳**（本地 raw → git 提交图，归一化 + JPEG q88）：
+全部同尺寸，平均像素差 0.97~3.21（JPEG 有损压缩正常范围）✓
+
+**★ 完整证据链**：
+```
+prompt 组装 → 生成 → 图 → 结论
+    ↑ B3 已声明     ↑ 本节闭合   ↑ 判据复算（三方）
+```
+
+**★ 核验脚本**：`/tmp/f09-work/verify-provenance.mjs`（本次临时脚本，未入库）
