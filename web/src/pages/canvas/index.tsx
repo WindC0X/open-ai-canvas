@@ -23,7 +23,7 @@ import { saveCanvasDrawing, type CanvasDrawingRenderDraft } from "@/lib/canvas/c
 import { createCanvasProjectWithRemoteSync, hasRemoteUserDataSyncSession, loadCanvasProjectForEditing, saveRemoteUserDataNow, scheduleRemoteUserDataSync } from "@/services/user-data-sync";
 import { listRemoteCanvasProjectsPage, type CanvasLibrarySummary } from "@/services/api/user-data";
 import { useUserStore } from "@/stores/use-user-store";
-import { filterVisibleCanvasProjects } from "@/lib/canvas/workspace-type";
+import { filterVisibleCanvasProjects, shouldRenderLoadMore } from "@/lib/canvas/workspace-type";
 import { listProjects } from "@/services/api/projects";
 import { loadCanvasProjectPage } from "@/lib/workspace-route-modules";
 import { resourceFileUrl, resourceStorageKey, uploadResourceFile } from "@/services/api/resources";
@@ -526,7 +526,7 @@ export default function CanvasPage() {
                     此时 visibleProjects 为空 —— 若因此不渲染加载更多节点，就永远拉不到下一页
                     （IntersectionObserver 无观察目标）⇒ 「加载更多」死锁。
                     条件改为：有可见项 **或** 还有下一页。 */}
-                {hydrated && (visibleProjects.length || hasMore) ? (
+                {shouldRenderLoadMore({ hydrated, visibleCount: visibleProjects.length, hasMore }) ? (
                     <div ref={loadMoreRef} className="library-load-more" aria-live="polite">
                         {libraryQuery.isFetchNextPageError ? <Button onClick={() => void libraryQuery.fetchNextPage()}>加载失败，重试</Button> : hasMore ? "继续下滑加载更多" : `已加载全部 ${filteredProjects.length} 个画布`}
                     </div>

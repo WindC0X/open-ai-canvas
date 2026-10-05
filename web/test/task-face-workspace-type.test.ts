@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { readFileSync } from "node:fs";
 import { applyHeadlessTidyPositions, markHeadlessCanvasTidied, planHeadlessTidyBatches, shouldTidyHeadlessCanvas } from "@/lib/canvas/headless-tidy";
-import { filterVisibleCanvasProjects, isHeadlessTaskWorkspace } from "@/lib/canvas/workspace-type";
+import { filterVisibleCanvasProjects, isHeadlessTaskWorkspace, shouldRenderLoadMore } from "@/lib/canvas/workspace-type";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 
 /**
@@ -167,12 +167,12 @@ describe("接线（纯函数之外）", () => {
         expect(canvasIndexSource).toContain("filterVisibleCanvasProjects");
     });
 
-    test("★ T2-P1a：过滤后当前页全空时仍能继续拉页（不死锁）", () => {
-        // 缺陷：加载更多节点的渲染条件是 `hydrated && visibleProjects.length`，
+    test("★ T2-P1a 接线：渲染条件走 shouldRenderLoadMore（行为已单测）", () => {
+        // 缺陷：加载更多节点的渲染条件原为 `hydrated && visibleProjects.length`，
         // 而 visibleProjects 是过滤后的 ⇒ 当前页全被 headless 过滤时长度为 0
-        // ⇒ 节点不渲染 ⇒ IntersectionObserver 无观察目标 ⇒ 永远拉不到下一页。
-        // 修法：条件改为 `visibleProjects.length || hasMore`。
-        expect(canvasIndexSource).toContain("visibleProjects.length || hasMore");
+        // ⇒ 节点不渲染 ⇒ IntersectionObserver 无观察目标 ⇒ 永远拉不到下一页（死锁）。
+        // 修法：抽纯函数 shouldRenderLoadMore（行为级三态测试见下），接线处调用它。
+        expect(canvasIndexSource).toContain("shouldRenderLoadMore({");
         // ★ 反向：不得再是只看可见数的旧条件
         expect(canvasIndexSource).not.toContain("hydrated && visibleProjects.length ? (");
     });
@@ -181,6 +181,23 @@ describe("接线（纯函数之外）", () => {
         // 过滤后为空 + hasMore ⇒ 应显示加载中提示，否则用户以为没有画布。
         expect(canvasIndexSource).toContain('hasMore && !keyword && projectFilter === "all" ? (');
         expect(canvasIndexSource).toContain("正在加载更多画布…");
+    });
+
+    test("★ T2-P1a 行为级：过滤后为空但有下一页 ⇒ 仍渲染加载更多（不死锁）", () => {
+        // 死锁场景：当前页全被 headless 过滤 ⇒ visibleCount=0，但 hasMore=true。
+        // 旧实现（只看 visibleCount）返回 false ⇒ 哨兵节点不渲染 ⇒ observer 无目标 ⇒ 永不拉页。
+        expect(shouldRenderLoadMore({ hydrated: true, visibleCount: 0, hasMore: true })).toBe(true);
+    });
+
+    test("★ T2-P1a 行为级：三态契约", () => {
+        // 有可见项 ⇒ 渲染
+        expect(shouldRenderLoadMore({ hydrated: true, visibleCount: 3, hasMore: false })).toBe(true);
+        expect(shouldRenderLoadMore({ hydrated: true, visibleCount: 3, hasMore: true })).toBe(true);
+        // 无可见项且无下一页 ⇒ 不渲染（真正的空态）
+        expect(shouldRenderLoadMore({ hydrated: true, visibleCount: 0, hasMore: false })).toBe(false);
+        // 未 hydrate ⇒ 不渲染（避免闪空态）
+        expect(shouldRenderLoadMore({ hydrated: false, visibleCount: 0, hasMore: true })).toBe(false);
+        expect(shouldRenderLoadMore({ hydrated: false, visibleCount: 5, hasMore: false })).toBe(false);
     });
 
     test("★ 验收 2：UnifiedTaskFace 有真实挂载点（无画布上下文页面）", () => {
