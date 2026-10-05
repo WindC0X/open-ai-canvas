@@ -1,7 +1,7 @@
 import { Button } from "antd";
 import { IconButton } from "@/components/ui/base/buttons";
 import { Tooltip } from "@/components/ui/base/tooltip";
-import { Eye, FileText, FolderKanban, Image as ImageIcon, Play, RotateCcw, Video } from "lucide-react";
+import { Eye, FileText, FolderKanban, Image as ImageIcon, LayoutGrid, Play, RotateCcw, Video } from "lucide-react";
 import { useState } from "react";
 
 import { MediaPreview } from "@/components/media-preview";
@@ -22,6 +22,9 @@ export function TaskListRow({
     onOpen,
     onRetry,
     onPreview,
+    onOpenCanvas,
+    canvasAction,
+    openingCanvas,
 }: {
     task: GenerationTask;
     canvasById: Map<string, { title: string; projectId?: string }>;
@@ -32,6 +35,10 @@ export function TaskListRow({
     onOpen: () => void;
     onRetry: () => void;
     onPreview: () => void;
+    /** D-2：画布入口（`open` = 已有容器纯跳转；`create` = 卡流程任务重建容器）。 */
+    onOpenCanvas?: () => void;
+    canvasAction?: "open" | "create";
+    openingCanvas?: boolean;
 }) {
     const context = getTaskCanvasContext(task, canvasById, projectNameById);
     const isActive = task.status === "queued" || task.status === "running";
@@ -85,6 +92,18 @@ export function TaskListRow({
                 <Tooltip title="查看详情">
                     <IconButton size="sm" variant="ghost" icon={Eye} aria-label="查看详情" onClick={onOpen} />
                 </Tooltip>
+                {canvasAction && onOpenCanvas ? (
+                    <Tooltip title={canvasAction === "create" ? "创建画布并打开" : "在画布中打开"}>
+                        <IconButton
+                            size="sm"
+                            variant="ghost"
+                            icon={LayoutGrid}
+                            aria-label={canvasAction === "create" ? "创建画布并打开" : "在画布中打开"}
+                            loading={openingCanvas}
+                            onClick={onOpenCanvas}
+                        />
+                    </Tooltip>
+                ) : null}
                 {isFailed ? (
                     <Tooltip title={retryDisabled ? "内容审核失败，无法自动重试" : task.canRecoverMedia ? "重试保存，不重新生成" : "重试任务"}>
                         <Button

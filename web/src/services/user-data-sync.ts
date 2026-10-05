@@ -720,6 +720,24 @@ export async function createCanvasProjectWithRemoteSync(title: string, projectId
     }
 }
 
+/**
+ * 预生成承载容器（D-1）：**只做本地创建，同步返回画布 id**，云端同步交给防抖队列。
+ *
+ * ★ 为什么不用 `createCanvasProjectWithRemoteSync`：后者 `await saveRemoteUserDataNow(id)`，
+ *   云端往返（实测约 7.7s）会阻塞「提交生成」关键路径。承载容器只需要 id 先行就位，
+ *   让任务创建时能带上 `projectId`（生成中容器内任务面板才看得到这条任务）；
+ *   容器内容随用户点「在画布中打开」再写入，云端同步由既有防抖队列（1.2s）落库。
+ *
+ * ★ 调用方须自行确认 store 已 hydrate：水合未完成时创建的项目会被
+ *   `replaceProjects` 覆盖（并触发「本地画布仍在更新」错误）。
+ */
+export function createCanvasProjectLocal(title: string, initialContent?: Partial<Pick<CanvasProject, "chatSessions" | "activeChatId" | "workspaceType">>): string {
+    const id = useCanvasStore.getState().createProject(title);
+    if (initialContent) useCanvasStore.getState().updateProject(id, initialContent);
+    scheduleRemoteUserDataSync();
+    return id;
+}
+
 export async function deleteAssetWithRemoteSync(id: string) {
     return deleteAssetsWithRemoteSync([id]);
 }

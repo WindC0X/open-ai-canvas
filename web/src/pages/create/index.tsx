@@ -10,6 +10,7 @@ import { generationErrorCode, generationErrorMessage } from "@/lib/generation-er
 import { creationResultAssetIds } from "@/lib/canvas/canvas-asset-handoff";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { continueCreationConversationOnCanvas } from "@/services/creation-canvas-conversation";
+import { createCanvasProjectLocal } from "@/services/user-data-sync";
 import { useExternalAssetSources } from "@/hooks/use-external-asset-sources";
 import { modelCapabilityConfigFor, normalizeImageValue, normalizeVideoValue, videoDurationAllowed, videoDurationOptions } from "@/lib/model-capabilities";
 import { inferVideoOperation, modelGroupReferenceLimits, resolveCompatibleModel, mergedImageCapabilityConfig, type ModelRequirements } from "@/lib/model-selection";
@@ -20,6 +21,7 @@ import { loadCreationConversations, pendingCreationTaskIds, removeCreationConver
 import { resolveModelChannel, selectableModelsByCapability, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { useCreationPreferencesStore } from "@/stores/use-creation-preferences-store";
 import { useAssetStore, type Asset } from "@/stores/use-asset-store";
+import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { cn } from "@/lib/utils";
 import { useUserStore } from "@/stores/use-user-store";
@@ -1117,6 +1119,14 @@ export default function CreatePage() {
             config={linearFlowConfig}
             model={linearFlowModel}
             onClose={() => setLinearFlowCard(null)}
+            onPrepareCanvas={({ title }) => {
+                // ★ D-1：提交生成前预建承载容器 —— 任务带 projectId 后，生成中画布任务面板
+                // 才能看到这条任务（面板按 projectId 过滤 + activeOnly 语义，完成后移除是预期）。
+                // 只做本地创建 + 防抖同步（不 await 云端往返，避免阻塞提交关键路径）。
+                // hydrated 未完成时返回 undefined ⇒ 降级为不带 projectId（既有行为）。
+                if (!useCanvasStore.getState().hydrated) return undefined;
+                return createCanvasProjectLocal(title || "卡流程容器", { workspaceType: "headless_task" });
+            }}
             onOpenInCanvas={async (handoff) => {
                 // 硬验收②「给而不要求」：可选转入画布。复用既有会话交接链 ——
                 // 卡流程本身不写画布，只在用户主动点击时才建会话并导航。
@@ -1132,9 +1142,10 @@ export default function CreatePage() {
                 if (handoff.kind === "carrier") {
                     // 承载画布：任务仍在生成，会话里只留「进行中」记录（taskIds 锚定任务）。
                     // ★ 文案不得承诺自动落结果 —— 结果写入靠交付阶段再点一次（同 sessionKey 合并）。
-                    // ★ 已知缺口①仍在（控制线裁定 1）：任务创建时未带 projectId，
-                    //   画布任务面板暂看不到这条运行中任务；② workspaceType 已由 T1-P1 写入。
+                    // ★ D-1：容器已由 onPrepareCanvas 预建（handoff.canvasId）⇒ 走 existingId 分支
+                    //   写进同一容器；任务已带 projectId ⇒ 生成中任务面板可见（完成后移除是预期）。
                     const created = await continueCreationConversationOnCanvas({
+                        ...(handoff.canvasId ? { canvasId: handoff.canvasId } : {}),
                         id: sessionKey,
                         title: cardTitle,
                         updatedAt: stamp,
@@ -1159,6 +1170,7 @@ export default function CreatePage() {
                 const runtime = await loadCreationRuntime();
                 const uploaded = await runtime.uploadImage(handoff.resultUrl);
                 const created = await continueCreationConversationOnCanvas({
+                    ...(handoff.canvasId ? { canvasId: handoff.canvasId } : {}),
                     id: sessionKey,
                     title: cardTitle,
                     updatedAt: stamp,

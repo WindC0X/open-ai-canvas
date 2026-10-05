@@ -16,6 +16,9 @@ import { backendProviderConfig, logicalModelIDForConfig } from "@/services/api/g
 
 import { createGenerationTask, formatTaskLog, listGenerationTasks, listTaskLogs, queryFailedVideoProviderTask, queryGenerationTask, retryGenerationTask, recoverGenerationTaskMedia, type CreateTaskInput, type GenerationTask, type TaskLog } from "@/services/api/task-center";
 import { syncGenerationTaskToCanvasStore } from "@/lib/canvas/canvas-generation-task-sync";
+import { findLinearFlowContainer, isLinearFlowTask, resolveTaskCanvasAction } from "@/lib/canvas/linear-flow-task-link";
+import { continueCreationConversationOnCanvas } from "@/services/creation-canvas-conversation";
+import { uploadImage } from "@/services/image-storage";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { resolveModelRequestConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -93,6 +96,13 @@ export default function TasksPage() {
     const [logsLoading, setLogsLoading] = useState(false);
     const [mediaPreview, setMediaPreview] = useState<{ url: string; kind: "image" | "video"; title: string } | null>(null);
     const [tasks, setTasks] = useState<GenerationTask[]>([]);
+    // D-2：卡流程任务的「详情确认」结果（已确认 ⇒ 提供「创建并打开」入口）。
+    // checked ref 防重复查询（同一 taskId 只查一次详情，避免切页/滚动反复请求）。
+    const [linearFlowTaskIds, setLinearFlowTaskIds] = useState<Set<string>>(() => new Set());
+    const linearFlowCheckedRef = useRef(new Set<string>());
+    // 详情缓存：确认与创建两步共用同一笔详情，同 taskId 不重复请求（控制线要求④）。
+    const linearFlowDetailsRef = useRef(new Map<string, GenerationTask>());
+    const [openingCanvasId, setOpeningCanvasId] = useState("");
     const syncedCanvasTaskIdsRef = useRef(new Set<string>());
     const tasksRef = useRef<GenerationTask[]>([]);
     const canvasById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
@@ -174,6 +184,9 @@ export default function TasksPage() {
             actingId={actingId}
             onOpen={() => void openTaskDetail(task)}
             onRetry={() => void runAction(task.id)}
+            onOpenCanvas={() => void openTaskCanvas(task)}
+            canvasAction={taskCanvasAction(task)}
+            openingCanvas={openingCanvasId === task.id}
             onPreview={() => task.previewUrl && setMediaPreview({ url: task.previewUrl, kind: task.previewKind === "video" ? "video" : "image", title: task.prompt || formatTaskKind(task) })}
         />
     );
@@ -185,6 +198,9 @@ export default function TasksPage() {
             actingId={actingId}
             onOpen={() => void openTaskDetail(task)}
             onRetry={() => void runAction(task.id)}
+            onOpenCanvas={() => void openTaskCanvas(task)}
+            canvasAction={taskCanvasAction(task)}
+            openingCanvas={openingCanvasId === task.id}
         />
     );
 
@@ -298,6 +314,100 @@ export default function TasksPage() {
             document.removeEventListener("visibilitychange", handleVisibility);
         };
     }, [loadTasks]);
+
+    /**
+     * D-2 入口可见性（两段式判据的渲染侧）：
+     * - `open`：本地已有承载容器（零请求直接跳转）；
+     * - `create`：详情已确认是卡流程任务且无容器 ⇒ 提供「创建并打开」；
+     * - undefined：不渲染入口（非卡流程 / 容器在别的设备）。
+     */
+    const taskCanvasAction = useCallback(
+        (task: GenerationTask): "open" | "create" | undefined => {
+            const action = resolveTaskCanvasAction(task, projects, linearFlowTaskIds.has(task.id) ? task.id : undefined);
+            return action.kind === "navigate" ? "open" : action.kind === "create" ? "create" : undefined;
+        },
+        [projects, linearFlowTaskIds],
+    );
+
+    /**
+     * D-2：任务 → 画布（两段式判据，先本地后远端）。
+     *
+     * ① 本地按 taskIds 反查承载容器（零请求）⇒ 命中即纯跳转；
+     * ② 未命中且任务无 projectId ⇒ 查详情确认 `inputJson.metadata.source === "linear-flow"`
+     *    （结果进 ref 缓存，同一 taskId 不重复查）；
+     * ③ 确认是卡流程任务 ⇒ 用同一 sessionKey 重建容器并打开（内容与卡流程点击一致）。
+     */
+    const openTaskCanvas = async (task: GenerationTask) => {
+        const action = resolveTaskCanvasAction(task, useCanvasStore.getState().projects, linearFlowTaskIds.has(task.id) ? task.id : undefined);
+        if (action.kind === "navigate") {
+            navigate(`/canvas/${action.canvasId}?${new URLSearchParams({ conversation: `creation:linear-flow-${task.id}` }).toString()}`);
+            return;
+        }
+        if (action.kind === "none") return;
+        setOpeningCanvasId(task.id);
+        try {
+            // 详情（缓存优先）：确认与创建共用同一笔数据，同 taskId 不重复请求。
+            const detail = linearFlowDetailsRef.current.get(task.id) ?? (await queryGenerationTask(task.id));
+            linearFlowDetailsRef.current.set(task.id, detail);
+            if (!isLinearFlowTask(detail.inputJson)) {
+                message.info("该任务不是卡流程任务，未找到可打开的画布。");
+                return;
+            }
+            setLinearFlowTaskIds((current) => new Set(current).add(task.id));
+            const sessionKey = `linear-flow-${task.id}`;
+            const stamp = new Date().toISOString();
+            const resultUrl = detail.previewUrl || "";
+            const attachment = resultUrl ? await uploadImage(resultUrl).then((uploaded) => [{ name: "linear-flow.png", storageKey: uploaded.storageKey }]) : [];
+            const created = await continueCreationConversationOnCanvas({
+                id: sessionKey,
+                title: detail.prompt || "卡流程结果",
+                updatedAt: stamp,
+                messages: [
+                    { id: `linear-flow-user-${sessionKey}`, role: "user", content: detail.prompt, createdAt: stamp },
+                    {
+                        id: `linear-flow-assistant-${sessionKey}`,
+                        role: "assistant",
+                        content: "卡流程已生成成品图，可在画布中继续编辑。",
+                        createdAt: stamp,
+                        status: "done",
+                        taskIds: [task.id],
+                        ...(attachment.length ? { attachments: attachment } : {}),
+                    },
+                ],
+            }, { workspaceType: "headless_task" });
+            if (created.syncError) message.warning("会话已保存在本机，云端同步尚未完成。");
+            navigate(`/canvas/${created.id}?${new URLSearchParams({ conversation: created.sessionId, mode: "guide" }).toString()}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "打开画布失败");
+        } finally {
+            setOpeningCanvasId("");
+        }
+    };
+
+    // D-2 两段式第二步：本地无容器且任务无 projectId ⇒ 查详情确认 source === "linear-flow"
+    // （结果缓存，同一 taskId 只查一次）。当前场景候选数极小（实测 50 条中 1 条）。
+    useEffect(() => {
+        const candidates = tasks.filter((task) => !task.projectId && !linearFlowCheckedRef.current.has(task.id) && !findLinearFlowContainer(task.id, projects));
+        if (!candidates.length) return;
+        let cancelled = false;
+        void Promise.all(
+            candidates.map(async (task) => {
+                linearFlowCheckedRef.current.add(task.id);
+                try {
+                    const detail = await queryGenerationTask(task.id);
+                    if (cancelled) return;
+                    linearFlowDetailsRef.current.set(task.id, detail);
+                    if (!isLinearFlowTask(detail.inputJson)) return;
+                    setLinearFlowTaskIds((current) => new Set(current).add(task.id));
+                } catch (error) {
+                    console.warn("任务画布判据查询失败", task.id, error);
+                }
+            }),
+        );
+        return () => {
+            cancelled = true;
+        };
+    }, [tasks, projects]);
 
     const runAction = async (id: string) => {
         setActingId(id);
