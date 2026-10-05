@@ -305,11 +305,18 @@ func skuSelectorForIntent(intent ModelRequestIntent) map[string]string {
 		// AI 超分是图片域内的独立计价操作（O-03 层2）：渠道按 operation 配置
 		// 独立价格档，不能归并到 image_to_image，否则超分与普通改图同价。
 		// 归一化以 intent.Operation 为准（前端经 canvasEditOperation=image_upscale 传入）。
-		if strings.EqualFold(strings.TrimSpace(intent.Operation), "image_upscale") {
+		//
+		// ★ F-1 修复：原实现在此直接 `break`，跳过了下方的 quality/size 归一化
+		// ⇒ 超分请求的 selector 永远只有 {operation: image_upscale}，
+		// 而管理端可给超分档配 quality/size 条件（前端对 image 域无条件渲染该两项）
+		// ⇒ matchSKUSelector 对缺失键取零值比较必 false ⇒ **带条件的超分档永不命中**
+		// ⇒ channelModelPriceTierForIntent 落到通配档（score=0），**静默按通配价计费**。
+		// 现改为：operation 仍受保护（不被下面的 image_to_image 覆盖），
+		// 但 quality/size 归一化对超分同样生效 —— 让「配置什么就能命中什么」。
+		upscale := strings.EqualFold(strings.TrimSpace(intent.Operation), "image_upscale")
+		if upscale {
 			selector["operation"] = "image_upscale"
-			break
-		}
-		if intent.Inputs["image"] > 0 {
+		} else if intent.Inputs["image"] > 0 {
 			selector["operation"] = "image_to_image"
 		} else {
 			selector["operation"] = "text_to_image"
