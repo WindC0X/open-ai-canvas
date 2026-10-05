@@ -261,17 +261,44 @@ SCOPE 剥前缀契约只存在于调用示例、未写进脚本（从仓库根�
 | 基线 | 表现 | 根因 |
 |---|---|---|
 | `TestCloudAgent*` 5 红 | `go test ./internal/app/` 5 fail | `backend/node_modules/undici` 缺失（agent-runtime 依赖未装） |
-| canvas-asset-repair mock-leak 族 | **ext4 上 7 fail** / drvfs 上不显 | bun `mock.module` 进程级泄漏，随文件加载顺序显现（ext4 readdir ≠ drvfs） |
-| **headless-writer mock-leak 脆弱** | **ext4 上 5 fail**（`45d0d583` 起） | 同族：B线 新增的 `headless-workspace-writer.test.ts` 暴露于既有进程级 mock 泄漏（隔离跑 7/0 绿） |
+| ~~canvas-asset-repair mock-leak 族~~ **【归因错误，已更正】** | ~~ext4 上 7 fail~~ | ~~asset-repair 自身泄漏~~ → **实际：该 7 红是 `user-data-sync-load-deadlock.test.ts` 的受害者，不是独立基线**（见下「污染源」节） |
+| **★ 唯一污染源：`user-data-sync-load-deadlock.test.ts`** | 有它参与的全量跑 → **12-13 fail**；**排除它 → 0 fail** | `mock.module("../src/stores/canvas/use-canvas-store")` 把 store 换成桩（`setState` 不处理 `hydrated`），bun 的模块 mock 是**进程级跨文件泄漏** |
 | ui-kit timeout 族 | drvfs 上 4-5 fail | drvfs 慢 IO（A/B ≈400x：ext4 185ms/3 pass vs drvfs 76.25s/3 fail） |
 | `agent-canvas-sync.test.ts` | 全量跑时 flaky | 隔离跑 8/0 绿 |
+
+**★ 污染源唯一性（评审线 2026-10-05 验证 + 控制线独立复现）**：
+
+全仓 `mock.module` 共 5 个文件，但 mock **画布 store** 的**只有 1 处**：
+`web/test/user-data-sync-load-deadlock.test.ts:19`。
+
+**控制线独立配对实验**（因果验证）：
+```
+bun test test/canvas-asset-repair.test.ts                              → 10 pass / 0 fail
+bun test test/user-data-sync-load-deadlock.test.ts test/canvas-asset-repair.test.ts →  5 pass / 7 fail
+bun test test/canvas-asset-repair.test.ts test/user-data-sync-load-deadlock.test.ts →  5 pass / 7 fail（顺序无关）
+```
+⇒ **asset-repair 自身完全干净**（10/0），它的 7 红**全部由 load-deadlock 的泄漏引起**。
+
+**排除污染源后的全量**（控制线实测）：`bun test`（356 文件，排除 load-deadlock）→ **3031 pass / 0 fail**。
+
+⇒ **教训（V4 自身的方法论）**：基线登记不能只记「**哪个文件红**」（症状），
+必须追到「**谁泄漏**」（病因）——否则会把**受害者**误登记为独立基线，
+导致后来者把「新增红」错误地归因到无关文件。
 
 **★ 同一 commit 在不同树上基线不同（必须按树对照，2026-10-05 测试线发现）**：
 
 | 树 | 基线 |
 |---|---|
-| ext4（`oac-wt-test` / `oac-wt-baseline`） | 既有 **7 红**（asset-repair mock-leak 族）；`45d0d583` 起 **+5 红**（headless-writer 测试脆弱）= **12 红** |
-| drvfs（`oac-wt-f08` 等） | **0 红** |
+| ext4（`oac-wt-test` / `oac-wt-baseline`） | **12 红**（`45d0d583` 起）= 7 asset-repair（受害者）+ 5 headless-writer（受害者）；**全部源于 load-deadlock 污染源**；排除污染源后 **0 红** |
+| drvfs（`oac-wt-f08` 等） | **0 红**（污染不显现） |
+
+**★ 关键区分（2026-10-05 评审线补正 + 控制线独立复现）**：
+
+这 12 红**不是「12 条独立基线」**，而是**同一个污染源的 12 个受害者**：
+- 排除 `user-data-sync-load-deadlock.test.ts` 后 → **3031 pass / 0 fail**（控制线实测）
+- ⇒ 真正的「环境基线」在 ext4 上**只有污染源本身**，其余都是**它的连带伤害**
+- ⇒ 修 P1-2（给新测试加 `hydrated` 初始化）**只能治标**；
+  **治本需修污染源**（`load-deadlock.test.ts` 加 `mock.restore()` 或移到子进程）
 
 **事故/教训**（2026-10-05）：控制线给测试线的 b12r21 预期写「3057 pass / 0 fail」——
 那是 **drvfs 口径**（B线 在其树 `oac-wt-f08` 上测的）；测试线在 **ext4** 上实测得 5 个新红，
@@ -417,3 +444,4 @@ A线 实测更正为 `JSON.stringify(Infinity)` → `null`（后端当缺省值�
 | G1+ | 2026-10-05 | 文档 G1 片段的 `echo \| wc -l` 计数在空输入时返回 1（B线 实测发现，已修为数组计数） |
 | D1/C5 | 2026-10-05 | 「不 push」字面与「推 fork 保全」令矛盾（评审线 指出，已澄清为「不推 main」） |
 | G7 | 2026-10-05 | B线 冻结期自主补 SCOPE 契约（判断正确，时序上先动后报；已定为「先报一句再动」） |
+| V4 | 2026-10-05 | 基线归因错误：把「7 红」登记为 asset-repair 自身基线，实为 load-deadlock 污染的受害者（评审线补正，控制线配对实验确证） |
