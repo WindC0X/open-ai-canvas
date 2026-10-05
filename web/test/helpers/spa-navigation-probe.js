@@ -28,6 +28,25 @@
  * 典型用法（R5 P2-1 验证）：同一按钮，唯一变量 = 容器内是否有该任务的会话；
  * 正例 navLog 含 ?conversation=...（随后 replaceState 删除），负例不含 —— 直接对照。
  *
+ * ★★ 两条使用纪律（R7 评审 + 控制线核验补充，2026-10-05）：
+ *
+ * 【纪律A】阳性对照必须断言**目标文案**，不能只断言「msgLog 非空」。
+ *   本探针按**子串**匹配（matchesKeywords 用 indexOf），而同一页面可能存在
+ *   **其他含相同关键词的消息** —— 实测画布页 /canvas/* 同时存在两条 warning：
+ *     · project.tsx:682              「未找到要接续的会话，请从首页重新进入。」← 目标
+ *     · use-canvas-project-lifecycle.ts:210
+ *                                    「部分助手会话素材恢复失败，已使用项目记录继续打开」
+ *   两条触发条件独立（前者 = URL 带 ?conversation 但无该会话；后者 = 素材恢复失败 catch），
+ *   **可同页共现**。若只断言 msgLog.length > 0，捕获到非目标消息也会判「探针工作正常」。
+ *   ⇒ 正确写法：msgLog.some(function (m) { return m.indexOf("要接续的会话") !== -1; })
+ *
+ * 【纪律B】多轮对照前必须 reset()，否则证据相互污染。
+ *   dump() 返回**全量累计**（navLog.slice() / msgLog.slice()），不是增量。
+ *   R5 P2-1 式对照需 2 轮（阴性 → 阳性），若不 reset，第 2 轮 dump() 会包含第 1 轮记录，
+ *   无法判断「本条导航是本轮产生的还是上轮残留」。
+ *   ⇒ 每轮开始前：window.__spaNavProbe.reset()
+ *   （★ 注意：reset() 清空记录，但**不影响** selfCheck —— 每轮可重新自检。）
+ *
  * 纪律：任何「无警告」的阴性结论，必须先有 selfCheck().ok === true。
  */
 (function () {
