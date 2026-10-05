@@ -1811,3 +1811,71 @@ tsc 0 / eslint 0（4 文件）/ 关联回归 53 pass / 全量 **3057 pass·0 fai
 
 ### 待控制线裁定
 ① 合入安排 ②（已自行补做，撤回）验收②带节点补验。
+
+---
+
+## 2026-10-05 · B线 T1-P1 批合入（merge `45d0d583`）
+
+**合入令**：控制线 2026-10-05（B线批冻结待合，与我批零交叠；建议 C 组收口后或 F 组前合入，
+「不要拖到整批结束」）。裁定执行顺序为 (b)：先 commit 我批进度 → 再合 B线。
+
+### 合入拓扑
+
+| 项 | 值 |
+|---|---|
+| merge commit | **`45d0d583`** |
+| 双亲 | `06bf455a`（main）× `9bacde62`（B线批 tip） |
+| 内容 | `382de2cc`（T1-P1 workspaceType 写入者）+ `9bacde62`（journal） |
+| 文件面 | 5 files, **+264 / -9** |
+| merge-tree 干跑 | **零冲突**（exit 0） |
+
+### B线批内容（T1-P1 归 B线的兑现）
+
+`continueCreationConversationOnCanvas` 增可选参数 + 新建分支透传 `workspaceType`；
+卡流程两个调用点（carrier/result）带 `headless_task`；新增
+`web/test/headless-workspace-writer.test.ts`（194 行）。
+⇒ 这兑现了控制线裁定 1（T1-P1 归 B线）+ 我 2026-10-05 的建议 1（写入点落 service 层）。
+
+### 门禁（绑定 `45d0d583`，工作树 0 个已跟踪改动）
+
+| 门 | 结果 |
+|---|---|
+| tsc --noEmit | **0** |
+| eslint | **0**（4 文件，正确口径） |
+| 全量 bun test | **3057 pass / 0 fail** / 15590 expect / 364 files |
+| go build | **0** |
+| go test ./internal/canvas/... | **ok** |
+
+**数字对账**：3050（前一基线）+ 7（B线新测试）= **3057** ✓
+
+### ★ 门禁脚本新模板（控制线要求的空输入防线）
+
+本次已按控制线补充的模板执行 —— 文件面用 `git diff <merge>^1 <merge>`，
+**并打印文件数 + 空则中止**：
+
+```bash
+FILES=$(git diff --name-only <merge>^1 <merge> | grep -E "^web/.*\.(ts|tsx)$" | sed 's|^web/||')
+echo "web 文件数: $(echo "$FILES" | wc -l)"   # ← 空输入必须显性可见
+[ -z "$FILES" ] && { echo "❌ 文件面为空，中止"; exit 1; }
+```
+
+实测输出「web 文件数: 4」+ 文件清单，非空校验通过。
+**理由（控制线原话）**：空输入产生的 exit 0 与真检过的 exit 0 是不同东西。
+
+### 我批进度落盘（裁定 (b) 的附带收益）
+
+合 B线前，我批（`fix/w5-review-r1-r2`）已分三个 commit 落盘（防重启丢失）：
+- `8594667a` fix(backend): AST-08 查询面与删除面同源收口 - C 组五条
+- `63df7eff` fix(web): 计费 NaN/Infinity 守卫 + 超分 size 真接缝（F-2/F-3）
+- `d3f18b28` chore(web): 删除孤儿令牌 --canvas-mention-chip-offset-y（S-4）
+
+### F-1 处置（控制线裁定 3）
+
+**降级为「登记待查」，不阻塞本批**。理由：
+- 原证据（`/tmp/review-r1/agents/batch-F.md`）已随重启丢失，控制线找回的仅 journal 级摘要
+- 控制线亲自读码**未复现确定性缺陷**（`image_upscale` 链前后端对齐：
+  前端 `canvasEditOperation` → 后端 selector → 独立价格档）
+- 裁定原文：「F-1 的**归属语义**本身就是「后端零改动」，所以「不动」符合原文」
+⇒ 交付报告登记「F-1 证据不可得 + 未复现确定性缺陷 → 未执行，登记待查」；
+缝隙池登记复核项。★ 纪律：**转述证据必须标注来源，不得当作实测**
+（控制线采纳我的实测更正：`Infinity` 序列化为 **null** 而非 NaNxNaN）。
