@@ -387,13 +387,32 @@ describe("★ superres rider：失败必须可见（与同族工具约定一致�
     });
 
     test("★ 反向：不得只写节点态而无提示（原缺陷形态）", async () => {
-        const source = await Bun.file(new URL("../src/pages/canvas/use-canvas-media-tools.ts", import.meta.url)).text();
-        const start = source.indexOf("const superResolveImageNode = useCallback");
-        const end = source.indexOf("const generateAngleNode = useCallback");
-        const body = source.slice(start, end);
+        const raw = await Bun.file(new URL("../src/pages/canvas/use-canvas-media-tools.ts", import.meta.url)).text();
+        const start = raw.indexOf("const superResolveImageNode = useCallback");
+        const end = raw.indexOf("const generateAngleNode = useCallback");
+        expect(start).toBeGreaterThan(-1);
+        expect(end).toBeGreaterThan(start);
+        const body = raw.slice(start, end);
         const catchIndex = body.indexOf("if (isGenerationCanceled(error)) return;");
-        const catchBlock = body.slice(catchIndex, catchIndex + 600);
-        // 必须有提示；仅有 NODE_STATUS_ERROR 写入不算
-        expect(catchBlock).toContain("message.error");
+        // ★ V9 ② 硬要求：切片前断言锚点存在（否则空切片致 toContain 恒假/恒真）
+        expect(catchIndex).toBeGreaterThan(-1);
+        // ★ P2-2 修复（评审线 R4）：600 字符窗口原先**被注释满足** ——
+        // 注释里写有「与同族工具（…）的 message.error 约定不一致」，
+        // 于是「只删代码行、保留注释」这种最自然的回归形态下断言仍绿（假绿）。
+        // 两道防线：
+        //   ① 剥注释（复用 T1-P2 的 stripComments 范式）
+        //   ② **顺序断言**：message.error 必须出现在写 NODE_STATUS_ERROR 之前
+        //      —— 注释无法满足顺序断言（最强形态）
+        const stripped = body
+            .replace(/\/\*[\s\S]*?\*\//g, (match) => "\n".repeat(match.split("\n").length - 1))
+            .replace(/^\s*\/\/.*$/gm, "");
+        const strippedCatchIndex = stripped.indexOf("if (isGenerationCanceled(error)) return;");
+        expect(strippedCatchIndex).toBeGreaterThan(-1);
+        const catchBlock = stripped.slice(strippedCatchIndex, strippedCatchIndex + 600);
+        const errorToastIndex = catchBlock.indexOf("message.error");
+        const nodeStatusIndex = catchBlock.indexOf("NODE_STATUS_ERROR");
+        expect(errorToastIndex).toBeGreaterThan(-1);
+        expect(nodeStatusIndex).toBeGreaterThan(-1);
+        expect(errorToastIndex).toBeLessThan(nodeStatusIndex);
     });
 });

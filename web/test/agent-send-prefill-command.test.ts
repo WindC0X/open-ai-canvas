@@ -24,7 +24,15 @@ test("发送到 Agent 以自增 id 命令语义交付，面板按 id 去重", as
     // 注意：不能用 not.toContain("lastPrefillIdRef") —— 它是两个新 ref 名的子串。
     // 用词边界精确匹配旧名。
     expect(/\blastPrefillIdRef\b/.test(panel)).toBe(false);
-    // ★ 反向：prefillRequest 分支不得 early-return 吞掉 fork 通道
-    const requestBranch = panel.slice(panel.indexOf("if (prefillRequest && prefillRequest.id !=="), panel.indexOf("const value = prefillPrompt?.trim();"));
+    // ★ 反向：prefillRequest 分支不得 early-return 吞掉 fork 通道。
+    // ★ P2-1 修复（评审线 R4）：原实现直接 slice 两个 indexOf ——
+    // 若锚点字符串在回归时消失（最自然的回归写法正是改回 `if (prefillRequest) {`），
+    // slice(-1, N) 得空串 ⇒ `not.toContain("return;")` 恒真 ⇒ **假绿**。
+    // 修法：锚点存在性前置断言（V9 ②「锚点消失」族的硬要求）。
+    const requestBranchStart = panel.indexOf("if (prefillRequest && prefillRequest.id !==");
+    const requestBranchEnd = panel.indexOf("const value = prefillPrompt?.trim();");
+    expect(requestBranchStart).toBeGreaterThan(-1);
+    expect(requestBranchEnd).toBeGreaterThan(requestBranchStart);
+    const requestBranch = panel.slice(requestBranchStart, requestBranchEnd);
     expect(requestBranch).not.toContain("return;");
 });
