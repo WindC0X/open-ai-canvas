@@ -145,6 +145,15 @@ func TestApplyImageRolePromptInjectsOnlyForImageModeWithCount(t *testing.T) {
 	if !strings.Contains(f09.Prompt, "共 3 张输入图。") {
 		t.Fatalf("totalImages 应取实际数组长度 3：%q", f09.Prompt)
 	}
+	// ★ 接线处必须同时断言【边界编号】：只断言 heading/total 会漏掉调用点传错计数
+	//   （2026-10-05 A/B 注入矩阵实测：调用点传 layoutImageCount 时，
+	//   仅断言 heading/total/suffix 的旧版接线测试 0 红，属 V9 ①-a 测试名过度声称）。
+	if !strings.Contains(f09.Prompt, "图1～1（产品图组）") {
+		t.Fatalf("接线处产品段边界错误（应 图1～1）：%q", f09.Prompt)
+	}
+	if !strings.Contains(f09.Prompt, "图2～3（版式参考图组）") {
+		t.Fatalf("接线处参考段边界错误（应 图2～3）：%q", f09.Prompt)
+	}
 	if !strings.HasSuffix(f09.Prompt, "复刻") {
 		t.Fatalf("用户提示词应保留在末尾：%q", f09.Prompt)
 	}
@@ -161,4 +170,43 @@ func itoa(value int) string {
 		value /= 10
 	}
 	return digits
+}
+
+// TestImageRolePromptRecordsPositionContractNotSemantics 记录一个【已知边界】：
+// 注入层按【数组位置】编号，无法感知调用方的语义顺序。
+//
+// 背景（2026-10-05 控制线发现 + A线 复现）：F-09 渠道实测的调用方构造的数组是
+// [参考图, 产品图]（先 push 参考图），而角色清单声明「图1=产品图组」⇒ 模型看到的
+// 图1 实际是参考图。这正是 F-09 方案 §1.1⑦ 描述的陷阱：写反了不报错，只有静默偏差。
+//
+// ★ 本测试的定位：它【不阻止】误用（数组无语义标签，后端无从校验），
+// 而是把契约【显式记录】下来：
+//   - 注入层的编号 = ReferenceImages 的位置序号，1 基
+//   - 若调用方希望「图1=产品图」，就必须把产品图放在数组第 0 位
+//
+// 若未来有人给注入层加「智能识别」或「自动重排」，本测试会变红 ——
+// 那正是契约变更的信号，提醒同步更新 providerConfig.ProductImageCount 的注释与方案。
+func TestImageRolePromptRecordsPositionContractNotSemantics(t *testing.T) {
+	// 模拟调用方把参考图放在前、产品图在后，但声明 ProductImageCount=1。
+	// 注入层只能按位置编号 —— 输出「图1～1 是产品图组」，
+	// 而数组第 0 位实际是参考图。这个不一致是【调用方的责任】，不是注入层的缺陷。
+	input := canvasGenerationInput{
+		Mode:            "image",
+		Prompt:          "复刻",
+		ReferenceImages: []providerMedia{{ID: "reference"}, {ID: "product"}},
+	}
+	input.Config.ProductImageCount = 1
+	applyImageRolePrompt(&input)
+
+	// 契约：编号严格按位置（第 0 位 → 图1）。
+	if !strings.Contains(input.Prompt, "图1～1（产品图组）") {
+		t.Fatalf("契约：第 0 位必须编为图1（按位置而非语义）：%s", input.Prompt)
+	}
+	if !strings.Contains(input.Prompt, "图2～2（版式参考图组）") {
+		t.Fatalf("契约：第 1 位必须编为图2：%s", input.Prompt)
+	}
+	// 反向断言：注入层【不得】自行重排或改名（它没有语义信息，猜就是错）。
+	if strings.Contains(input.Prompt, "图1～1（版式参考图组）") {
+		t.Fatalf("注入层不得猜测语义（数组无标签，猜即错）：%s", input.Prompt)
+	}
 }

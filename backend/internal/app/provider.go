@@ -99,7 +99,14 @@ type providerConfig struct {
 	RunningHubUploadKey   string                 `json:"runningHubUploadApiKey"`
 	// ProductImageCount 声明 ReferenceImages 前 N 张是「产品图」，其余为版式参考图。
 	// F-09 克隆复刻用它生成图片角色清单（prompt_image_role.go）；0 表示不注入角色清单，
-	// 非 F-09 场景保持零影响。计数按【发给 API 的数组顺序】理解，与前端表单顺序无关。
+	// 非 F-09 场景保持零影响。
+	//
+	// ★ 前置条件（调用方必须满足，后端无法校验）：
+	//   产品图必须排在 ReferenceImages 的【前 N 个位置】。角色清单是连续编号格式
+	//   （「图1～N＝产品图组」），无法描述交错顺序；若调用方把参考图放在前面
+	//   （如 [参考图, 产品图]）而传 ProductImageCount=1，注入的编号会与模型实际
+	//   看到的图片【完全相反】，且不会报错 —— 正是 F-09 方案 §1.1⑦ 描述的陷阱。
+	//   数组无语义标签，后端只能按位置编号，因此这条约束靠调用方保证。
 	ProductImageCount int `json:"productImageCount,omitempty"`
 }
 
