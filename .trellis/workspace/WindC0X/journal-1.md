@@ -2100,3 +2100,93 @@ main 推进至 `58eef5d2`，测试线 / 评审线新锚点以控制线通知为�
 ### 三线状态
 
 main 推进至 `0dcd507d`；测试线已用该锚点跑完 b12r25（GO，3124/0/369 逐数吻合）。
+
+---
+
+## 2026-10-05 · F-09 二期提示词前置注入层合入（merge `d2809237`）
+
+### 合入拓扑
+
+| 项 | 值 |
+|---|---|
+| 合入对象 | `0c0059c8`（分支 `feat/f09-prompt-injection`，基点 `28d1e46e`） |
+| 合入前 main | `01d3997c`（C1 附纪律 commit，非原计划的 81bf61e6） |
+| **merge commit** | **`d2809237`**（双亲 `01d3997c` × `0c0059c8`） |
+| 文件面 | 3 files **+323** |
+| merge-tree 干跑 | exit 0 |
+| main / fork/main | `d2809237`（ls-remote 实测一致 ✓） |
+
+### 内容（F-09 二期：提示词前置注入层）
+
+| 文件 | 内容 |
+|---|---|
+| `prompt_image_role.go`（新，97 行） | `buildImageRolePrompt` 生成角色清单段 / `prependImageRolePrompt` 实现 prepend / `applyImageRolePrompt` 接线 |
+| `prompt_image_role_test.go`（新，212 行） | 10 项测试 |
+| `provider.go`（+14） | `providerConfig.ProductImageCount` + 前置条件声明 |
+
+**三个实现要点**（方案 §7 四条实施要求）：
+1. `position: prepend` —— 角色清单在提示词最前
+2. **编号对齐 API 数组** —— 接线在 `hydrateGenerationMedia` **之后**，
+   `totalImages = len(input.ReferenceImages)`（已定序）⇒ 从接口设计上消除写反可能
+3. 测试覆盖编号顺序（多重守护）
+4. 空槽位注入 `emptyText`（文案逐字对齐方案 §1.1①）
+
+### 门禁（绑定 `d2809237`，工作树 0 个已跟踪改动）
+
+| 门 | 结果 |
+|---|---|
+| G1 文件面 | 3 文件 +323 ✓ |
+| gofmt -l | 空 ✓ |
+| go build ./... | exit 0 |
+| go vet ./internal/app/ | exit 0 |
+| go test -run "ImageRole\|Prepend" | **10 pass / 0 fail** |
+| go test -run "Workflow\|Provider\|Image" | ok（57.071s 相关面回归） |
+
+### ★ 契约显式化（合入前加强，控制线裁定 B + 三加强）
+
+**背景**：B线 渠道实测的数组是 `[参考图, 产品图]`，与其手工清单声明（图1=产品图组）**相反** ——
+模型看到的图1 实际是参考图。这正是方案 §1.1⑦ 陷阱（写反不报错，只有静默偏差）。
+
+**发现链**：控制线核 B线 请求体时发现注入层未被调用（B线 未传 `productImageCount`），
+进而发现数组顺序问题 → A线 核实成立 → 追加契约显式化。
+
+**三加强**：
+1. `ProductImageCount` 注释补**前置条件声明**（产品图须在数组前 N 位，后端无法校验 ——
+   `providerMedia` 无语义标签，只能按位置编号）
+2. 新增 `TestImageRolePromptRecordsPositionContractNotSemantics`：
+   **记录**（而非阻止）契约 —— 编号按位置、非语义；含反向断言「注入层不得猜测语义」
+3. 方案登记三期前端要求（控制线完成，canvas 仓 `76e0842`）
+
+**为何不做 `productImageIndices`**（控制线裁定，A线 撤回原倾向）：
+角色清单是**连续区间格式**（`图1～N` / `图N+1～M`），表达不了交错顺序 ⇒
+除非同时实现重排，否则索引只用于算计数，收益不足。
+
+### ★ 注入点矩阵（V7 附1-a：红数必须附注入点 + 缺陷类别）
+
+基准 `@ feat/f09-prompt-injection / 4a448e06`（V7 附2-a：未合并分支须附分支）：
+
+| # | 注入点 | 红数 | 能暴露的缺陷类别 |
+|---|---|---|---|
+| 1A | `prompt_image_role.go:54` 函数体 | 4 红 | 编号语义错 |
+| **1B** | `:96` **调用点** | **0 红（旧）→ 1 红（补断言后）** | ★ **测试覆盖缺口** |
+| 2A | `:81` 函数体 | 2 红 | prepend 失效 |
+| 2B | `:96` 调用点 | 1 红 | 同上（弱覆盖） |
+| 3A | `:53` 函数体 | 3 红 | 总数错 |
+| 3B | `:96` 调用点 | 1 红 | 同上（弱覆盖） |
+| 4 | `:55` 函数体 | 1 红 | 空槽位缺失 |
+| 5 | `:96` 调用点 | 1 红 | 接线失效 |
+| 6 | `:57-60` 函数体 | 1 红 | 契约漂移 |
+
+**★ 1B 是本轮方法论发现**：同一注入意图在不同层级，不只红数不同，
+**能发现的缺陷类别也不同** —— 函数体注入抓不到调用点误用，
+而调用点注入暴露了接线测试的覆盖缺口（V9 ①-a 形态，已补断言修复）。
+
+### 遗留（明确登记，非欠账）
+
+- **端到端未验**：注入层的「模型是否按角色清单执行」属**渠道实测**（B线 范围）。
+  B线 当前矩阵用手工拼装角色段（因本分支未合并），**合并后仍需单独一格**验证注入层端到端。
+- **`ProductImageCount` 赋值方未实现**：三期前端（`use-canvas-media-tools.ts` 加
+  `createCloneRecreateNode`）负责赋值，二期只提供接口。
+- **`git merge` 首次失败**（`fatal: stash failed`）：与另一线的 git 操作并发导致索引瞬态不一致；
+  未删 lock、未 kill 进程，等待后核实状态干净（MERGE_HEAD 无 / index.lock 无 / stash 0 条）
+  再重试成功。这是多线并发 git 操作的第 2 次（第 1 次是 index.lock）。
