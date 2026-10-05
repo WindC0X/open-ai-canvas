@@ -97,18 +97,32 @@ describe("统一任务面 —— 独立性护栏", () => {
 const entries = ${JSON.stringify(files.map((file) => file.path))};
 const results = [];
 for (const entry of entries) {
-    const built = await Bun.build({
-        entrypoints: [entry],
-        target: "browser", write: false, minify: false,
-        external: ["react", "react-dom", "antd", "lucide-react", "motion", "@tanstack/react-query"],
-    });
-    if (!built.success) {
-        results.push(entry + "::BUILD_FAIL::" + built.logs.map(String).join(" | ").slice(0, 200));
-        continue;
+    try {
+        const built = await Bun.build({
+            entrypoints: [entry],
+            target: "browser", write: false, minify: false,
+            external: ["react", "react-dom", "antd", "lucide-react", "motion", "@tanstack/react-query"],
+        });
+        if (!built.success) {
+            results.push(entry + "::BUILD_FAIL::" + built.logs.map(String).join(" | ").slice(0, 200));
+            continue;
+        }
+        const bundle = (await Promise.all(built.outputs.map((o) => o.text()))).join("\\n");
+        const hits = ["use-canvas-store", "CANVAS_STORE_KEY", "use-canvas-theme-store"].filter((m) => bundle.includes(m));
+        if (hits.length) results.push(entry + "::HIT::" + hits.join(","));
+    } catch (error) {
+        // ★ 护栏诊断质量（控制线 e111a6ad 验证发现）：Bun.build 在**模块解析失败**时
+        // **抛异常**（不是返回 success:false）—— 不捕获会让整个子进程崩溃，
+        // 真正的原因（Could not resolve: ...）丢失，只剩 stderr 首部的代码帧。
+        // 那会被误读为「护栏自身故障」⇒ 进而被跳过或删除（今日已见三次同类失效）。
+        // ⇒ 归类为构建失败，保留文件名 + 原因。
+        // AggregateError 的 message 只有 "Bundle failed"，真正原因在 errors[].message
+        // （实测：Could not resolve: "@/this/does/not/exist"）。
+        const aggregate = error as { errors?: Array<{ message?: string }>; message?: string };
+        const detail = aggregate?.errors?.map((item) => String(item?.message ?? item)).join(" | ")
+            || String(aggregate?.message ?? error);
+        results.push(entry + "::BUILD_FAIL::" + detail.slice(0, 200));
     }
-    const bundle = (await Promise.all(built.outputs.map((o) => o.text()))).join("\\n");
-    const hits = ["use-canvas-store", "CANVAS_STORE_KEY", "use-canvas-theme-store"].filter((m) => bundle.includes(m));
-    if (hits.length) results.push(entry + "::HIT::" + hits.join(","));
 }
 console.log(JSON.stringify(results));
 `;
