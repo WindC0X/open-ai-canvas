@@ -127,6 +127,26 @@ export function priceTierVideoSecondsFromForm(capability: ModelCapabilityChoice,
     return 0;
 }
 
+/**
+ * 价格字段的微积分转换（F 组修复：NaN/Infinity 守卫）。
+ *
+ * ★ 缺陷根因（评审线 R1）：`Math.round((tier.unitPrice || 0) * 1_000_000)` 的 `|| 0`
+ * 只拦得住 `NaN`（falsy），拦不住 `Infinity`（truthy）—— `Infinity * 1e6 = Infinity`，
+ * `Math.round(Infinity) = Infinity`，JSON 序列化后变成 `null`（实测：
+ * `JSON.stringify({v: Infinity})` → `{"v":null}`），后端收到 null 而非拒绝，
+ * 形成隐性账单偏差。
+ *
+ * ★ 两层防御（控制线要求）：本函数是 payload 层；表单层由 InputNumber 的
+ * min/max 提供即时反馈，但**不能只依赖 UI**（值可由表单初始值、程序化设置、
+ * 历史数据回填进入）。
+ *
+ * @returns 有限数值 → 微积分整数；非有限值（NaN/±Infinity）→ 0
+ */
+export function finiteMicrocredits(value: number | undefined | null): number {
+    if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+    return Math.round(value * 1_000_000);
+}
+
 export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier: PriceTierFormValues, upstreamModel: string) {
     const videoTokens = capability === "video" && tier.billingMode === "token";
     return {
@@ -135,16 +155,16 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
         videoSeconds: priceTierVideoSecondsFromForm(capability, tier),
         providerModelKey: tier.providerModelKey?.trim() || upstreamModel,
         billingMode: tier.billingMode,
-        unitPriceMicrocredits: Math.round((tier.unitPrice || 0) * 1_000_000),
-        inputTokenPriceMicrocredits: videoTokens ? 0 : Math.round((tier.inputTokenPrice || 0) * 1_000_000),
-        outputTokenPriceMicrocredits: Math.round((tier.outputTokenPrice || 0) * 1_000_000),
-        cachedTokenPriceMicrocredits: videoTokens ? 0 : Math.round((tier.cachedTokenPrice || 0) * 1_000_000),
+        unitPriceMicrocredits: finiteMicrocredits(tier.unitPrice),
+        inputTokenPriceMicrocredits: videoTokens ? 0 : finiteMicrocredits(tier.inputTokenPrice),
+        outputTokenPriceMicrocredits: finiteMicrocredits(tier.outputTokenPrice),
+        cachedTokenPriceMicrocredits: videoTokens ? 0 : finiteMicrocredits(tier.cachedTokenPrice),
         costPricing: {
             configured: tier.costConfigured,
-            unitPriceMicrocredits: Math.round(tier.costUnitPrice * 1_000_000),
-            inputTokenPriceMicrocredits: videoTokens ? 0 : Math.round(tier.costInputTokenPrice * 1_000_000),
-            outputTokenPriceMicrocredits: Math.round(tier.costOutputTokenPrice * 1_000_000),
-            cachedTokenPriceMicrocredits: videoTokens ? 0 : Math.round(tier.costCachedTokenPrice * 1_000_000),
+            unitPriceMicrocredits: finiteMicrocredits(tier.costUnitPrice),
+            inputTokenPriceMicrocredits: videoTokens ? 0 : finiteMicrocredits(tier.costInputTokenPrice),
+            outputTokenPriceMicrocredits: finiteMicrocredits(tier.costOutputTokenPrice),
+            cachedTokenPriceMicrocredits: videoTokens ? 0 : finiteMicrocredits(tier.costCachedTokenPrice),
         },
         priceConfigured: tier.priceConfigured !== false,
         enabled: tier.enabled !== false,

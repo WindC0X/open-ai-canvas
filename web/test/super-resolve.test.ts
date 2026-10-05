@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { CAPABILITY_ENTRIES, capabilityContextSatisfied, capabilityEntriesByTier, findCapabilityEntry } from "@/lib/canvas/capability-entries";
-import { DEFAULT_SUPER_RESOLVE_PARAMS, SUPER_RESOLVE_MODES, SUPER_RESOLVE_PROMPT_FRAGMENTS, SUPER_RESOLVE_TARGETS, isFaithfulDefault, superResolvePromptFragment, superResolveSize } from "@/lib/canvas/super-resolve-params";
+import { DEFAULT_SUPER_RESOLVE_PARAMS, SUPER_RESOLVE_MODES, SUPER_RESOLVE_PROMPT_FRAGMENTS, SUPER_RESOLVE_TARGETS, isFaithfulDefault, resolveSuperResolveConfigSize, superResolvePromptFragment, superResolveSize } from "@/lib/canvas/super-resolve-params";
 import { prepareBackendGenerationTask } from "@/services/api/generation-task";
 import { createModelChannel, defaultConfig, encodeChannelModel } from "@/stores/use-config-store";
 
@@ -205,16 +205,50 @@ describe("★ 入口可达性（反模式 #12：有代码≠能用）", () => {
     // step 0 探针已证前两段（DB 计费单 price_tier_id=T_UPSCALE）+ 第三段「发出」
     // （error=外部服务域名解析失败，说明请求已构造并发出）。本组补「修复后的 payload 正确性」。
     test("★ size 修复贯通：payload 携带按目标档构造的 size（非源节点历史尺寸）", async () => {
-        // 模拟修复后的调用：media-tools 用源图实际像素 + 目标档算出 size 后写入 config
+        // ★ F-3 修复（评审线 R1）：原版测试自认「模拟修复后的调用」——
+        // `size: superResolveSize(960, 960, "2k")` 是**测试自己算好**传进去的，
+        // 从未执行 use-canvas-media-tools.ts 的真实赋值行；接线一断测试仍绿。
+        // 现改为调用**真接缝** resolveSuperResolveConfigSize（生产代码同一函数），
+        // 断言其返回值 —— 验证形态与被验证对象（size 是否按源图重算）匹配。
+        const sourceNodeSize = "1360x1024"; // 源节点残留的历史尺寸（污染源）
+        const resolved = resolveSuperResolveConfigSize(sourceNodeSize, 960, 960, "2k");
+        expect(resolved).toBe("2048x2048");
         const input = await prepareBackendGenerationTask({
             mode: "image",
             prompt: "AI 超分 · 2K · 保真放大",
-            config: { ...superResolveTestConfig(), size: superResolveSize(960, 960, "2k") },
+            config: { ...superResolveTestConfig(), size: resolved },
             metadata: { canvasEditOperation: "image_upscale" },
         });
         // 960×960 源图对齐 2K ⇒ 2048×2048（而不是源节点残留的 1360x1024）
         expect(input.input?.config?.size).toBe("2048x2048");
         expect(input.input?.config?.size).not.toBe("1360x1024");
+    });
+
+    // ★ F-3：真接缝的三条不变量（不继承 / 有效源图重算 / 无效源图不硬造值）
+    test("★ 真接缝：源图尺寸有效时 size 由源图+目标档独立决定（不继承 baseSize）", () => {
+        // 源节点残留 1360x1024（4:3 时代的历史尺寸），源图实际 960×960（1:1）
+        expect(resolveSuperResolveConfigSize("1360x1024", 960, 960, "2k")).toBe("2048x2048");
+        // 4K 档
+        expect(resolveSuperResolveConfigSize("1360x1024", 1920, 1080, "4k")).toBe("4096x2304");
+        // ★ 反向：结果绝不等同 baseSize（若实现改回继承，本断言必红）
+        expect(resolveSuperResolveConfigSize("1360x1024", 960, 960, "2k")).not.toBe("1360x1024");
+    });
+
+    test("★ 真接缝：源图尺寸无效时不改写 size（不硬造值）", () => {
+        // 返回 undefined 表示「保持 buildGenerationConfig 的结果」
+        expect(resolveSuperResolveConfigSize("1360x1024", 0, 0, "2k")).toBeUndefined();
+        expect(resolveSuperResolveConfigSize("1360x1024", 0, 960, "2k")).toBeUndefined();
+        expect(resolveSuperResolveConfigSize("1360x1024", 960, 0, "2k")).toBeUndefined();
+        expect(resolveSuperResolveConfigSize(undefined, -1, -1, "2k")).toBeUndefined();
+    });
+
+    test("★ 真接缝接线（源码级）：media-tools 调用真接缝而非内联复刻", async () => {
+        const mediaToolsSource = await Bun.file(new URL("../src/pages/canvas/use-canvas-media-tools.ts", import.meta.url)).text();
+        // 真实调用行在位
+        expect(mediaToolsSource).toContain("resolveSuperResolveConfigSize(");
+        // ★ 反向：不得再内联调用 superResolveSize 直接赋值（那正是「测试镜像」形态）
+        const inlineAssignment = /generationConfig\.size\s*=\s*superResolveSize\(/;
+        expect(inlineAssignment.test(mediaToolsSource)).toBe(false);
     });
 
     test("★ prompt 修复贯通：payload 携带 faithful 不变量片段（不再只是标题）", async () => {

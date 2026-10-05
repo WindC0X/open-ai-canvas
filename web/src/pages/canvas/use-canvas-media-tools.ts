@@ -13,7 +13,7 @@ import { buildAnnotateEditSubmission, buildAnnotateMaskSubmission, resolveAnnota
 import { buildAnnotateMaskFallbackPrompt, composeAnnotationMaskDataUrl, composeBrushMaskDataUrl } from "@/lib/canvas/annotate-edit-mask";
 import type { CanvasImageSplitParams } from "@/components/canvas/canvas-node-split-dialog";
 import type { CanvasImageUpscaleParams } from "@/components/canvas/canvas-node-upscale-dialog";
-import { SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, superResolvePromptFragment, superResolveSize, type SuperResolveParams } from "@/lib/canvas/super-resolve-params";
+import { SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, resolveSuperResolveConfigSize, superResolvePromptFragment, type SuperResolveParams } from "@/lib/canvas/super-resolve-params";
 import type { CanvasImageAngleParams } from "@/components/canvas/canvas-node-angle-dialog";
 import type { CanvasVideoSegmentParams } from "@/components/canvas/canvas-video-segment-dialog";
 import { buildLightingLabel, type CanvasImageLightingOptions } from "@/components/canvas/canvas-node-lighting-dialog";
@@ -1592,9 +1592,10 @@ export function useCanvasMediaTools({
         const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
         const sourceWidth = node.metadata?.naturalWidth || node.width || 0;
         const sourceHeight = node.metadata?.naturalHeight || node.height || 0;
-        if (sourceWidth > 0 && sourceHeight > 0) {
-            generationConfig.size = superResolveSize(sourceWidth, sourceHeight, params.targetResolution);
-        }
+        // ★ 真接缝（F-3）：size 由 resolveSuperResolveConfigSize 独立决定，
+        // 不继承 node.metadata.size（buildGenerationConfig 会取它）。
+        const resolvedSize = resolveSuperResolveConfigSize(generationConfig.size, sourceWidth, sourceHeight, params.targetResolution);
+        if (resolvedSize) generationConfig.size = resolvedSize;
         if (!isAiConfigReady(generationConfig, generationConfig.model)) {
             navigateToSettings({ continueCreation: true });
             return;
