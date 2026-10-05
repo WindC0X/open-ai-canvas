@@ -261,9 +261,23 @@ SCOPE 剥前缀契约只存在于调用示例、未写进脚本（从仓库根�
 | 基线 | 表现 | 根因 |
 |---|---|---|
 | `TestCloudAgent*` 5 红 | `go test ./internal/app/` 5 fail | `backend/node_modules/undici` 缺失（agent-runtime 依赖未装） |
-| canvas-asset-repair mock-leak 族 | ext4 上 7 fail | bun `mock.module` 进程级泄漏，随文件加载顺序显现（ext4 readdir ≠ drvfs） |
+| canvas-asset-repair mock-leak 族 | **ext4 上 7 fail** / drvfs 上不显 | bun `mock.module` 进程级泄漏，随文件加载顺序显现（ext4 readdir ≠ drvfs） |
+| **headless-writer mock-leak 脆弱** | **ext4 上 5 fail**（`45d0d583` 起） | 同族：B线 新增的 `headless-workspace-writer.test.ts` 暴露于既有进程级 mock 泄漏（隔离跑 7/0 绿） |
 | ui-kit timeout 族 | drvfs 上 4-5 fail | drvfs 慢 IO（A/B ≈400x：ext4 185ms/3 pass vs drvfs 76.25s/3 fail） |
 | `agent-canvas-sync.test.ts` | 全量跑时 flaky | 隔离跑 8/0 绿 |
+
+**★ 同一 commit 在不同树上基线不同（必须按树对照，2026-10-05 测试线发现）**：
+
+| 树 | 基线 |
+|---|---|
+| ext4（`oac-wt-test` / `oac-wt-baseline`） | 既有 **7 红**（asset-repair mock-leak 族）；`45d0d583` 起 **+5 红**（headless-writer 测试脆弱）= **12 红** |
+| drvfs（`oac-wt-f08` 等） | **0 红** |
+
+**事故/教训**（2026-10-05）：控制线给测试线的 b12r21 预期写「3057 pass / 0 fail」——
+那是 **drvfs 口径**（B线 在其树 `oac-wt-f08` 上测的）；测试线在 **ext4** 上实测得 5 个新红，
+**没有被我给的口径带偏**，而是自己追到根因（确定性重跑 + bun 版本 + 归属确证）。
+⇒ **纪律：给验收预期时必须注明「哪棵树 + 哪个环境」，不得直接引用他线的数字。**
+⇒ **纪律：执行线若实测与预期不符，先相信实测并追根因，再报告控制线口径可能有误。**
 
 ### V5 ★ 禁用 substring pkill
 
