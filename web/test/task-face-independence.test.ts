@@ -33,15 +33,33 @@ function stripComments(source: string): string {
 
 type TaskFaceFile = { path: string; code: string };
 
+/**
+ * 递归列出任务面目录下的源码文件。
+ *
+ * ★ P1-1 修复（评审线 R3）：原实现用 `readdirSync(dir)` **非递归**，
+ * 注释却宣称「扫描整个目录而非单个文件」—— 子目录文件（如
+ * `src/components/task/nested/deep.tsx`）完全不纳入扫描，注入画布依赖后测试仍全绿。
+ * 改用 withFileTypes 递归，并保留原有过滤（排除测试文件）。
+ */
+function collectTaskFaceFiles(dir: string, prefix = "src/components/task"): TaskFaceFile[] {
+    if (!existsSync(dir)) return [];
+    const collected: TaskFaceFile[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const childPath = `${prefix}/${entry.name}`;
+        const childDir = join(dir, entry.name);
+        if (entry.isDirectory()) {
+            collected.push(...collectTaskFaceFiles(childDir, childPath));
+            continue;
+        }
+        if (!entry.name.endsWith(".ts") && !entry.name.endsWith(".tsx")) continue;
+        if (entry.name.endsWith(".test.ts") || entry.name.endsWith(".test.tsx")) continue;
+        collected.push({ path: childPath, code: stripComments(readFileSync(childDir, "utf8")) });
+    }
+    return collected;
+}
+
 function taskFaceFiles(): TaskFaceFile[] {
-    if (!existsSync(taskFaceDir)) return [];
-    return readdirSync(taskFaceDir)
-        .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))
-        .filter((name) => !name.endsWith(".test.ts") && !name.endsWith(".test.tsx"))
-        .map((name) => ({
-            path: `src/components/task/${name}`,
-            code: stripComments(readFileSync(join(taskFaceDir, name), "utf8")),
-        }));
+    return collectTaskFaceFiles(taskFaceDir);
 }
 
 const files = taskFaceFiles();
@@ -53,22 +71,43 @@ describe("统一任务面 —— 独立性护栏", () => {
         expect(files.some((file) => file.path.includes("unified-task-face"))).toBe(true);
     });
 
-    test("零画布依赖：不 import 画布 store / 画布层（反模式 A4）", () => {
-        const forbidden = [
-            "@/stores/canvas",
-            "use-canvas-store",
-            "use-canvas-theme-store",
-            "@/lib/canvas",
-            "@/components/canvas",
-        ];
+    test("零画布依赖：模块图不得含画布面（反模式 A4）", () => {
+        // ★ P1-1 修复（评审线 R3）：原实现用**正则扫 import 行**（要求 `from`），
+        // 四个盲区均经实证假绿：
+        //   ① 侧效 import（`import "@/stores/canvas/use-canvas-store";`）—— 无 from
+        //   ② 动态 import() / require() —— 语法域外
+        //   ③ 名单外模块（`@/pages/canvas/use-canvas-generation` —— 该模块 :13 持有 canvas-store）
+        //   ④ 子目录文件（非递归 readdirSync）
+        // 现改为**模块图判定**：用 Bun.build 实际打包，检查产物是否含画布面标记。
+        // 这是**语义判定** —— 不管写法（静态/侧效/动态）、不管名单（只问产物里有没有）、
+        // 不管层级（间接依赖一并带出）。实测证据（控制线已收）：
+        //   基线 252KB 零命中 / 侧效 371KB 命中 / 动态 377KB 命中 /
+        //   名单外真模块（use-canvas-generation）691KB 命中
+        //
+        // ★ 为何用子进程：`bun test` 进程内 Bun.build **不解析项目 tsconfig 的 paths**
+        // （实测 `Could not resolve: "@/components/media-preview"`，tsconfig / root / 插件
+        // 三种配置均不生效），而裸 bun 进程能正常解析。故 spawn 一个 bun 子进程做构建。
         const offenders: string[] = [];
         for (const file of files) {
-            const imports = file.code.match(/^\s*import\s+[^;]+?from\s+["'][^"']+["']/gm) ?? [];
-            for (const line of imports) {
-                for (const needle of forbidden) {
-                    if (line.includes(needle)) offenders.push(`${file.path}: ${line.trim()}`);
-                }
-            }
+            const script = `
+const built = await Bun.build({
+    entrypoints: [${JSON.stringify(file.path)}],
+    target: "browser", write: false, minify: false,
+    external: ["react", "react-dom", "antd", "lucide-react", "motion", "@tanstack/react-query"],
+});
+if (!built.success) {
+    console.log("BUILD_FAIL::" + built.logs.map(String).join(" | ").slice(0, 300));
+} else {
+    const bundle = (await Promise.all(built.outputs.map((o) => o.text()))).join("\\n");
+    const hits = ["use-canvas-store", "CANVAS_STORE_KEY", "use-canvas-theme-store"].filter((m) => bundle.includes(m));
+    console.log(hits.length ? "HIT::" + hits.join(",") : "CLEAN");
+}
+`;
+            const proc = Bun.spawnSync(["bun", "-e", script], { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" });
+            const output = proc.stdout.toString().trim();
+            if (output.startsWith("BUILD_FAIL::")) offenders.push(`${file.path}: 模块图构建失败（${output.slice(13, 213)}）`);
+            else if (output.startsWith("HIT::")) offenders.push(`${file.path}: 模块图含 ${output.slice(5)}`);
+            else if (output !== "CLEAN") offenders.push(`${file.path}: 子进程输出异常（${output.slice(0, 150)}）`);
         }
         expect(offenders).toEqual([]);
     });
