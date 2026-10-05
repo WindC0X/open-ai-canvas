@@ -508,6 +508,28 @@ if (payload.registryVersion !== EXPECTED_REGISTRY_VERSION) {
 
 **禁止**：静默接受未知版本（会让脏数据混入 UI）。
 
+> ★ **2026-10-05 A-1 核查结论（评审线 R1 · 控制线裁定 (B) 登记待链路就绪）**
+>
+> **现状（逐项实测）**：
+> | 层 | 字段 | 现状 |
+> |---|---|---|
+> | 数据层 | `tools.json` / `presets.json` 的 `version` | ✅ **有**（收编时已补 =1；`tools_seed.go` 定义 + `TestBuiltinToolsSeedVersionMatchesCode` 启动校验） |
+> | 条目层 | `capability-entries.ts` 的 `registryVersion` | ✅ 有（=1，**前端本地硬编码**） |
+> | **列表 API** | `backend/internal/tools/tools.go` 的 `ToolList` | ❌ **无 version**（仅 tools/totalCount/page/pageSize/hasMore） |
+> | **前端消费侧** | `registry-reader.ts` 的 `loadStyleAssets` / `loadSkillPresetAssets` | ❌ **未校验**（直接 listTools → 适配器 → 返回） |
+>
+> **⇒ 结论：消费侧存在，但版本信号不可达** —— 前端无法校验一个它拿不到的字段。
+>
+> **★ 本段的字段名需修正（语义错配）**：上文 `payload.registryVersion` 用的是
+> `registryVersion`，而该名在实码里是**前端本地常量**（`capability-entries.ts` 硬编码 1），
+> **不是服务端下发字段** ⇒ 照字面实现会**两边都是前端常量 ⇒ 恒等 ⇒ 永远为 true（空写假防线）**。
+> 真正的校验对象应是**数据 schema 版本**（seed 的 `version`，需列表 API 下发）。
+>
+> **触发条件**：`ToolList` 增 `version` 字段（后端 + 前端类型同步）后，消费侧落地
+> 「不符 → 降级 fallback + 明示『预设版本不符，已降级』」。
+> **在此之前不做代码改动** —— 避免写一个永远为 true 的假防线
+> （同族教训：护栏的失败路径必须与成功路径同等可诊断）。
+
 ### 5.3 回滚点（git 层面）
 
 | 回滚点 | 粒度 | 触发条件 |

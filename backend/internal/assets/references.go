@@ -26,14 +26,8 @@ func DocumentReferencedIDs(raw string, resourceIDs map[string]struct{}) map[stri
 	if len(resourceIDs) == 0 {
 		return matched
 	}
-	references, err := CollectDocumentResourceReferences(raw)
+	references, err := CollectDocumentResourceReferencesWithFallback(raw)
 	if err != nil {
-		// A few read models store a URL directly rather than a JSON string.
-		if id := ResourceID(strings.TrimSpace(raw)); id != "" {
-			if _, exists := resourceIDs[id]; exists {
-				matched[id] = struct{}{}
-			}
-		}
 		return matched
 	}
 	for _, reference := range references {
@@ -42,6 +36,29 @@ func DocumentReferencedIDs(raw string, resourceIDs map[string]struct{}) map[stri
 		}
 	}
 	return matched
+}
+
+// CollectDocumentResourceReferencesWithFallback 与 CollectDocumentResourceReferences 相同，
+// 但额外处理「文档本身就是资源定位符」的存量形态（C-4）。
+//
+// 背景：部分只读模型把 URL 直接存成裸串（非 JSON），例如 Result.URL 存
+// `resource:xxx`。删除面早已兼容这种形态（DocumentReferencedIDs 的裸标量回退），
+// 而查询面只调 CollectDocumentResourceReferences ⇒ json.Unmarshal 失败 ⇒ 该文档
+// 被计为不可读而不报引用 ⇒ 用户看到「无引用」但删除会被拦（两面对同一记录结论矛盾）。
+// 本函数把回退收到同一入口，两个面共用。
+//
+// ★ 仅当整个文档无法解析为 JSON 时才回退；合法 JSON 标量（如 `"resource:xxx"`）
+// 已由 CollectDocumentResourceReferences 自身处理。
+func CollectDocumentResourceReferencesWithFallback(raw string) ([]DocumentResourceReference, error) {
+	references, err := CollectDocumentResourceReferences(raw)
+	if err == nil {
+		return references, nil
+	}
+	// 兼容存量：文档即资源定位符（裸串形态）。
+	if resourceID := ResourceID(strings.TrimSpace(raw)); resourceID != "" {
+		return []DocumentResourceReference{{ResourceID: resourceID, Path: "$", ReferenceType: "value"}}, nil
+	}
+	return nil, err
 }
 
 // CollectOwnedDocumentReferences is kept as the compatibility API used by the

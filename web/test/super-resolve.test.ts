@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { CAPABILITY_ENTRIES, capabilityContextSatisfied, capabilityEntriesByTier, findCapabilityEntry } from "@/lib/canvas/capability-entries";
-import { DEFAULT_SUPER_RESOLVE_PARAMS, SUPER_RESOLVE_MODES, SUPER_RESOLVE_PROMPT_FRAGMENTS, SUPER_RESOLVE_TARGETS, isFaithfulDefault, superResolvePromptFragment, superResolveSize } from "@/lib/canvas/super-resolve-params";
+import { DEFAULT_SUPER_RESOLVE_PARAMS, SUPER_RESOLVE_MODES, SUPER_RESOLVE_PROMPT_FRAGMENTS, SUPER_RESOLVE_TARGETS, isFaithfulDefault, resolveSuperResolveConfigSize, superResolvePromptFragment, superResolveSize } from "@/lib/canvas/super-resolve-params";
 import { prepareBackendGenerationTask } from "@/services/api/generation-task";
 import { createModelChannel, defaultConfig, encodeChannelModel } from "@/stores/use-config-store";
 
@@ -205,16 +205,50 @@ describe("★ 入口可达性（反模式 #12：有代码≠能用）", () => {
     // step 0 探针已证前两段（DB 计费单 price_tier_id=T_UPSCALE）+ 第三段「发出」
     // （error=外部服务域名解析失败，说明请求已构造并发出）。本组补「修复后的 payload 正确性」。
     test("★ size 修复贯通：payload 携带按目标档构造的 size（非源节点历史尺寸）", async () => {
-        // 模拟修复后的调用：media-tools 用源图实际像素 + 目标档算出 size 后写入 config
+        // ★ F-3 修复（评审线 R1）：原版测试自认「模拟修复后的调用」——
+        // `size: superResolveSize(960, 960, "2k")` 是**测试自己算好**传进去的，
+        // 从未执行 use-canvas-media-tools.ts 的真实赋值行；接线一断测试仍绿。
+        // 现改为调用**真接缝** resolveSuperResolveConfigSize（生产代码同一函数），
+        // 断言其返回值 —— 验证形态与被验证对象（size 是否按源图重算）匹配。
+        const sourceNodeSize = "1360x1024"; // 源节点残留的历史尺寸（污染源）
+        const resolved = resolveSuperResolveConfigSize(sourceNodeSize, 960, 960, "2k");
+        expect(resolved).toBe("2048x2048");
         const input = await prepareBackendGenerationTask({
             mode: "image",
             prompt: "AI 超分 · 2K · 保真放大",
-            config: { ...superResolveTestConfig(), size: superResolveSize(960, 960, "2k") },
+            config: { ...superResolveTestConfig(), size: resolved },
             metadata: { canvasEditOperation: "image_upscale" },
         });
         // 960×960 源图对齐 2K ⇒ 2048×2048（而不是源节点残留的 1360x1024）
         expect(input.input?.config?.size).toBe("2048x2048");
         expect(input.input?.config?.size).not.toBe("1360x1024");
+    });
+
+    // ★ F-3：真接缝的三条不变量（不继承 / 有效源图重算 / 无效源图不硬造值）
+    test("★ 真接缝：源图尺寸有效时 size 由源图+目标档独立决定（不继承 baseSize）", () => {
+        // 源节点残留 1360x1024（4:3 时代的历史尺寸），源图实际 960×960（1:1）
+        expect(resolveSuperResolveConfigSize("1360x1024", 960, 960, "2k")).toBe("2048x2048");
+        // 4K 档
+        expect(resolveSuperResolveConfigSize("1360x1024", 1920, 1080, "4k")).toBe("4096x2304");
+        // ★ 反向：结果绝不等同 baseSize（若实现改回继承，本断言必红）
+        expect(resolveSuperResolveConfigSize("1360x1024", 960, 960, "2k")).not.toBe("1360x1024");
+    });
+
+    test("★ 真接缝：源图尺寸无效时不改写 size（不硬造值）", () => {
+        // 返回 undefined 表示「保持 buildGenerationConfig 的结果」
+        expect(resolveSuperResolveConfigSize("1360x1024", 0, 0, "2k")).toBeUndefined();
+        expect(resolveSuperResolveConfigSize("1360x1024", 0, 960, "2k")).toBeUndefined();
+        expect(resolveSuperResolveConfigSize("1360x1024", 960, 0, "2k")).toBeUndefined();
+        expect(resolveSuperResolveConfigSize(undefined, -1, -1, "2k")).toBeUndefined();
+    });
+
+    test("★ 真接缝接线（源码级）：media-tools 调用真接缝而非内联复刻", async () => {
+        const mediaToolsSource = await Bun.file(new URL("../src/pages/canvas/use-canvas-media-tools.ts", import.meta.url)).text();
+        // 真实调用行在位
+        expect(mediaToolsSource).toContain("resolveSuperResolveConfigSize(");
+        // ★ 反向：不得再内联调用 superResolveSize 直接赋值（那正是「测试镜像」形态）
+        const inlineAssignment = /generationConfig\.size\s*=\s*superResolveSize\(/;
+        expect(inlineAssignment.test(mediaToolsSource)).toBe(false);
     });
 
     test("★ prompt 修复贯通：payload 携带 faithful 不变量片段（不再只是标题）", async () => {
@@ -328,5 +362,57 @@ describe("★ mode → 提示词语义（控制线 2026-10-04 追加）", () => 
 
     test("未知 mode 回退到 faithful（保守优先）", () => {
         expect(superResolvePromptFragment("bogus" as never)).toBe(SUPER_RESOLVE_PROMPT_FRAGMENTS.faithful);
+    });
+});
+
+// ★ superres rider（测试线 b12r18 发现，控制线裁定折入本批）：
+// `superResolveImageNode` 的 catch 原先只写节点态（status=error + errorDetails）、
+// **不弹用户提示** —— 与同族工具（editImageNode / maskEditImageNode / upscaleImageNode
+// 等）的 `message.error` 约定不一致。
+// 用户可见症状：弹窗关闭 + 无请求 + 节点留 loading（实际已置 error，但无可见反馈）。
+describe("★ superres rider：失败必须可见（与同族工具约定一致）", () => {
+    test("superResolveImageNode 的 catch 调用 message.error", async () => {
+        const source = await Bun.file(new URL("../src/pages/canvas/use-canvas-media-tools.ts", import.meta.url)).text();
+        // 定位 superResolveImageNode 函数体
+        const start = source.indexOf("const superResolveImageNode = useCallback");
+        expect(start).toBeGreaterThan(-1);
+        const end = source.indexOf("const generateAngleNode = useCallback");
+        expect(end).toBeGreaterThan(start);
+        const body = source.slice(start, end);
+        // ★ 断言 catch 块内有 message.error（不是仅 import 或别处）
+        const catchIndex = body.indexOf("if (isGenerationCanceled(error)) return;");
+        expect(catchIndex).toBeGreaterThan(-1);
+        const catchBlock = body.slice(catchIndex, catchIndex + 600);
+        expect(catchBlock).toContain("message.error(details)");
+    });
+
+    test("★ 反向：不得只写节点态而无提示（原缺陷形态）", async () => {
+        const raw = await Bun.file(new URL("../src/pages/canvas/use-canvas-media-tools.ts", import.meta.url)).text();
+        const start = raw.indexOf("const superResolveImageNode = useCallback");
+        const end = raw.indexOf("const generateAngleNode = useCallback");
+        expect(start).toBeGreaterThan(-1);
+        expect(end).toBeGreaterThan(start);
+        const body = raw.slice(start, end);
+        const catchIndex = body.indexOf("if (isGenerationCanceled(error)) return;");
+        // ★ V9 ② 硬要求：切片前断言锚点存在（否则空切片致 toContain 恒假/恒真）
+        expect(catchIndex).toBeGreaterThan(-1);
+        // ★ P2-2 修复（评审线 R4）：600 字符窗口原先**被注释满足** ——
+        // 注释里写有「与同族工具（…）的 message.error 约定不一致」，
+        // 于是「只删代码行、保留注释」这种最自然的回归形态下断言仍绿（假绿）。
+        // 两道防线：
+        //   ① 剥注释（复用 T1-P2 的 stripComments 范式）
+        //   ② **顺序断言**：message.error 必须出现在写 NODE_STATUS_ERROR 之前
+        //      —— 注释无法满足顺序断言（最强形态）
+        const stripped = body
+            .replace(/\/\*[\s\S]*?\*\//g, (match) => "\n".repeat(match.split("\n").length - 1))
+            .replace(/^\s*\/\/.*$/gm, "");
+        const strippedCatchIndex = stripped.indexOf("if (isGenerationCanceled(error)) return;");
+        expect(strippedCatchIndex).toBeGreaterThan(-1);
+        const catchBlock = stripped.slice(strippedCatchIndex, strippedCatchIndex + 600);
+        const errorToastIndex = catchBlock.indexOf("message.error");
+        const nodeStatusIndex = catchBlock.indexOf("NODE_STATUS_ERROR");
+        expect(errorToastIndex).toBeGreaterThan(-1);
+        expect(nodeStatusIndex).toBeGreaterThan(-1);
+        expect(errorToastIndex).toBeLessThan(nodeStatusIndex);
     });
 });

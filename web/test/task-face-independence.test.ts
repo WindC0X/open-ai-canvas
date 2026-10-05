@@ -33,15 +33,33 @@ function stripComments(source: string): string {
 
 type TaskFaceFile = { path: string; code: string };
 
+/**
+ * 递归列出任务面目录下的源码文件。
+ *
+ * ★ P1-1 修复（评审线 R3）：原实现用 `readdirSync(dir)` **非递归**，
+ * 注释却宣称「扫描整个目录而非单个文件」—— 子目录文件（如
+ * `src/components/task/nested/deep.tsx`）完全不纳入扫描，注入画布依赖后测试仍全绿。
+ * 改用 withFileTypes 递归，并保留原有过滤（排除测试文件）。
+ */
+function collectTaskFaceFiles(dir: string, prefix = "src/components/task"): TaskFaceFile[] {
+    if (!existsSync(dir)) return [];
+    const collected: TaskFaceFile[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const childPath = `${prefix}/${entry.name}`;
+        const childDir = join(dir, entry.name);
+        if (entry.isDirectory()) {
+            collected.push(...collectTaskFaceFiles(childDir, childPath));
+            continue;
+        }
+        if (!entry.name.endsWith(".ts") && !entry.name.endsWith(".tsx")) continue;
+        if (entry.name.endsWith(".test.ts") || entry.name.endsWith(".test.tsx")) continue;
+        collected.push({ path: childPath, code: stripComments(readFileSync(childDir, "utf8")) });
+    }
+    return collected;
+}
+
 function taskFaceFiles(): TaskFaceFile[] {
-    if (!existsSync(taskFaceDir)) return [];
-    return readdirSync(taskFaceDir)
-        .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))
-        .filter((name) => !name.endsWith(".test.ts") && !name.endsWith(".test.tsx"))
-        .map((name) => ({
-            path: `src/components/task/${name}`,
-            code: stripComments(readFileSync(join(taskFaceDir, name), "utf8")),
-        }));
+    return collectTaskFaceFiles(taskFaceDir);
 }
 
 const files = taskFaceFiles();
@@ -53,23 +71,70 @@ describe("统一任务面 —— 独立性护栏", () => {
         expect(files.some((file) => file.path.includes("unified-task-face"))).toBe(true);
     });
 
-    test("零画布依赖：不 import 画布 store / 画布层（反模式 A4）", () => {
-        const forbidden = [
-            "@/stores/canvas",
-            "use-canvas-store",
-            "use-canvas-theme-store",
-            "@/lib/canvas",
-            "@/components/canvas",
-        ];
-        const offenders: string[] = [];
-        for (const file of files) {
-            const imports = file.code.match(/^\s*import\s+[^;]+?from\s+["'][^"']+["']/gm) ?? [];
-            for (const line of imports) {
-                for (const needle of forbidden) {
-                    if (line.includes(needle)) offenders.push(`${file.path}: ${line.trim()}`);
-                }
-            }
+    test("零画布依赖：模块图不得含画布面（反模式 A4）", () => {
+        // ★ P1-1 修复（评审线 R3）：原实现用**正则扫 import 行**（要求 `from`），
+        // 四个盲区均经实证假绿（旧护栏 0/4，新护栏 4/4 —— 控制线独立复现）：
+        //   ① 侧效 import（`import "@/stores/canvas/use-canvas-store";`）—— 无 from
+        //   ② 动态 import() —— 语法域外（注：**被使用**时才有真实依赖；未使用会被 tree-shake）
+        //   ③ 名单外模块（`@/pages/canvas/use-canvas-generation` —— 该模块持有 canvas-store）
+        //   ④ 子目录文件（原 readdirSync 非递归，注释却承诺「含未来新增」）
+        // 现改为**模块图判定**：Bun.build 实际打包，检查产物是否含画布面标记。
+        // 这是**语义判定** —— 不管写法（静态/侧效/动态）、不管名单（只问产物里有没有）、
+        // 不管层级（间接依赖一并带出）。实测证据（控制线已收）：
+        //   基线 252KB 零命中 / 侧效 371KB 命中 / 动态 377KB 命中 /
+        //   名单外真模块（use-canvas-generation）691KB 命中
+        //
+        // ★ 两个实测坑（控制线独立复现并更正机制）：
+        //   1. `bun test` 进程内 **首次** Bun.build 调用必败（多进程采样：
+        //      #1=THREW #2=true #3=true ×3 进程），后续调用成功 ——
+        //      与 tsconfig/root/plugin 配置无关，是**调用次序**问题。
+        //      ⇒ 本测试用**子进程**：每次都是该进程的「首次」调用，行为确定。
+        //   2. 未使用的动态 import 会被 tree-shake（无真实依赖，属正确行为）。
+        //
+        // ★ 成本：**一次**子进程构建全部文件（O(1) 而非 O(N)）——
+        //   控制线指出逐文件 spawn 会随任务面扩张线性变慢（1 文件 730ms ⇒ 10 文件 ~7s）。
+        const script = `
+const entries = ${JSON.stringify(files.map((file) => file.path))};
+const results = [];
+for (const entry of entries) {
+    try {
+        const built = await Bun.build({
+            entrypoints: [entry],
+            target: "browser", write: false, minify: false,
+            external: ["react", "react-dom", "antd", "lucide-react", "motion", "@tanstack/react-query"],
+        });
+        if (!built.success) {
+            results.push(entry + "::BUILD_FAIL::" + built.logs.map(String).join(" | ").slice(0, 200));
+            continue;
         }
+        const bundle = (await Promise.all(built.outputs.map((o) => o.text()))).join("\\n");
+        const hits = ["use-canvas-store", "CANVAS_STORE_KEY", "use-canvas-theme-store"].filter((m) => bundle.includes(m));
+        if (hits.length) results.push(entry + "::HIT::" + hits.join(","));
+    } catch (error) {
+        // ★ 护栏诊断质量（控制线 e111a6ad 验证发现）：Bun.build 在**模块解析失败**时
+        // **抛异常**（不是返回 success:false）—— 不捕获会让整个子进程崩溃，
+        // 真正的原因（Could not resolve: ...）丢失，只剩 stderr 首部的代码帧。
+        // 那会被误读为「护栏自身故障」⇒ 进而被跳过或删除（今日已见三次同类失效）。
+        // ⇒ 归类为构建失败，保留文件名 + 原因。
+        // AggregateError 的 message 只有 "Bundle failed"，真正原因在 errors[].message
+        // （实测：Could not resolve: "@/this/does/not/exist"）。
+        const aggregate = error as { errors?: Array<{ message?: string }>; message?: string };
+        const detail = aggregate?.errors?.map((item) => String(item?.message ?? item)).join(" | ")
+            || String(aggregate?.message ?? error);
+        results.push(entry + "::BUILD_FAIL::" + detail.slice(0, 200));
+    }
+}
+console.log(JSON.stringify(results));
+`;
+        const proc = Bun.spawnSync(["bun", "-e", script], { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" });
+        const raw = proc.stdout.toString().trim();
+        let reported: string[];
+        try {
+            reported = JSON.parse(raw) as string[];
+        } catch {
+            throw new Error(`模块图子进程输出不可解析：${raw.slice(0, 300)} / stderr=${proc.stderr.toString().slice(0, 300)}`);
+        }
+        const offenders = reported.map((item) => item.replace("::BUILD_FAIL::", " 构建失败：").replace("::HIT::", " 模块图含 "));
         expect(offenders).toEqual([]);
     });
 

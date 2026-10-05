@@ -540,8 +540,35 @@ describe("注册表资产层——片 7 运镜预设（视频域窗口标注）"
     test("★ 收编但不丢弃 —— 数据仍在（窗口标注只控用户面）", () => {
         const asset = registryAssetFromToolSummary({ ...SERVER_MOTION_TOOL } as never)!;
         // 记录完整，只是可见性受控 —— 防「因窗口跳过收编导致视频线启动时返工」
-        expect(asset.prompt.length).toBeGreaterThan(0);
         expect(asset.title).toBe("固定镜头");
+        expect(asset.slug).toBe("static_shot");
+    });
+
+    // ★ A-2（评审线 R1）：测试与生产**形态不匹配**导致的假绿。
+    //
+    // 背景：`registryAssetFromToolSummary` 接受两种输入形态：
+    //   · ToolSummary（**列表接口**返回，无 prompt 大字段）→ 适配器输出 prompt = ""
+    //   · ToolItem（**详情接口**返回，有 prompt）→ 适配器输出真实 prompt
+    // 适配器注释已声明「列表场景 prompt 留空是预期，需要 prompt 的消费侧走详情接口」。
+    //
+    // 缺陷：片 7 原先唯一的「数据仍在」断言（`asset.prompt.length > 0`）喂的是
+    // **含 prompt 的 ToolItem 形态 fixture**，而**生产列表链路走 ToolSummary** ——
+    // ⇒ 测试永远绿，而生产 prompt 永远空（V1「验证形态必须匹配被验证对象」的实例）。
+    test("★ 列表链路（ToolSummary 形态）prompt 为空是设计预期", () => {
+        // 模拟列表接口返回：无 prompt 字段
+        const { prompt: _omitted, ...summary } = SERVER_MOTION_TOOL;
+        const asset = registryAssetFromToolSummary(summary as never)!;
+        expect(asset.assetKind).toBe("preset/motion");
+        // ★ 真实形态断言：列表链路拿不到 prompt（需 prompt 请走 getTool 详情接口）
+        expect(asset.prompt).toBe("");
+        // 其余字段不受影响（收编完整）
+        expect(asset.title).toBe("固定镜头");
+        expect(asset.slug).toBe("static_shot");
+    });
+
+    test("★ 详情链路（ToolItem 形态）prompt 保留（与列表形态对照）", () => {
+        const asset = registryAssetFromToolSummary({ ...SERVER_MOTION_TOOL } as never)!;
+        expect(asset.prompt.length).toBeGreaterThan(0);
     });
 });
 

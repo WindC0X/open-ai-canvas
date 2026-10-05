@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { readFileSync } from "node:fs";
 import { applyHeadlessTidyPositions, markHeadlessCanvasTidied, planHeadlessTidyBatches, shouldTidyHeadlessCanvas } from "@/lib/canvas/headless-tidy";
-import { filterVisibleCanvasProjects, isHeadlessTaskWorkspace } from "@/lib/canvas/workspace-type";
+import { filterVisibleCanvasProjects, isHeadlessTaskWorkspace, shouldRenderLoadMore } from "@/lib/canvas/workspace-type";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 
 /**
@@ -13,6 +13,20 @@ import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
  * **结构断言**：整理只投影 position，产物里 metadata/status/生成参数逐字节不变。
  * 这匹配「验证形态必须匹配被验证对象」—— 被验对象是「整理不触碰任务态」这个结构约束。
  */
+
+/**
+ * 剥离注释（块注释与行注释），保留行数便于定位。
+ *
+ * ★ T1-P2 修复（评审线 R3）：接线断言原先直接对源码 `toContain` / `indexOf` ——
+ * 三个字符串在 **import 行**里就已存在，与是否真的调用无关；`indexOf` 命中注释同样通过。
+ * 实证：把 `void tidyHeadlessCanvasIfNeeded();` 整行**注释掉** → 测试仍全绿（11 pass）。
+ * 修法：先剥注释再断言（本仓已有范式，见 task-face-independence.test.ts）。
+ */
+function stripComments(source: string): string {
+    return source
+        .replace(/\/\*[\s\S]*?\*\//g, (match) => "\n".repeat(match.split("\n").length - 1))
+        .replace(/^\s*\/\/.*$/gm, "");
+}
 
 // bun 测试环境无 DOM：按 canvas-appearance.test.ts 的既有范式注入最小 window stub。
 const storageValues = new Map<string, string>();
@@ -135,8 +149,9 @@ describe("headless 首入自动整理（验收 8 / 反模式 A5）", () => {
  * 否则护栏和实现在，首入整理却永不触发（本仓已复发的失效模式）。
  */
 describe("接线（纯函数之外）", () => {
-    const lifecycleSource = readFileSync(new URL("../src/pages/canvas/use-canvas-project-lifecycle.ts", import.meta.url), "utf8");
-    const canvasIndexSource = readFileSync(new URL("../src/pages/canvas/index.tsx", import.meta.url), "utf8");
+    // ★ T1-P2：剥注释后再断言 —— 否则注释掉调用仍能通过（见 stripComments 注释）
+    const lifecycleSource = stripComments(readFileSync(new URL("../src/pages/canvas/use-canvas-project-lifecycle.ts", import.meta.url), "utf8"));
+    const canvasIndexSource = stripComments(readFileSync(new URL("../src/pages/canvas/index.tsx", import.meta.url), "utf8"));
 
     test("headless 首入整理接在画布 load 完成路径上", () => {
         expect(lifecycleSource).toContain("tidyHeadlessCanvasIfNeeded");
@@ -152,10 +167,43 @@ describe("接线（纯函数之外）", () => {
         expect(canvasIndexSource).toContain("filterVisibleCanvasProjects");
     });
 
+    test("★ T2-P1a 接线：渲染条件走 shouldRenderLoadMore（行为已单测）", () => {
+        // 缺陷：加载更多节点的渲染条件原为 `hydrated && visibleProjects.length`，
+        // 而 visibleProjects 是过滤后的 ⇒ 当前页全被 headless 过滤时长度为 0
+        // ⇒ 节点不渲染 ⇒ IntersectionObserver 无观察目标 ⇒ 永远拉不到下一页（死锁）。
+        // 修法：抽纯函数 shouldRenderLoadMore（行为级三态测试见下），接线处调用它。
+        expect(canvasIndexSource).toContain("shouldRenderLoadMore({");
+        // ★ 反向：不得再是只看可见数的旧条件
+        expect(canvasIndexSource).not.toContain("hydrated && visibleProjects.length ? (");
+    });
+
+    test("★ T2-P1a：过滤后为空但仍有下一页时不显示「没有匹配的画布」终态", () => {
+        // 过滤后为空 + hasMore ⇒ 应显示加载中提示，否则用户以为没有画布。
+        expect(canvasIndexSource).toContain('hasMore && !keyword && projectFilter === "all" ? (');
+        expect(canvasIndexSource).toContain("正在加载更多画布…");
+    });
+
+    test("★ T2-P1a 行为级：过滤后为空但有下一页 ⇒ 仍渲染加载更多（不死锁）", () => {
+        // 死锁场景：当前页全被 headless 过滤 ⇒ visibleCount=0，但 hasMore=true。
+        // 旧实现（只看 visibleCount）返回 false ⇒ 哨兵节点不渲染 ⇒ observer 无目标 ⇒ 永不拉页。
+        expect(shouldRenderLoadMore({ hydrated: true, visibleCount: 0, hasMore: true })).toBe(true);
+    });
+
+    test("★ T2-P1a 行为级：三态契约", () => {
+        // 有可见项 ⇒ 渲染
+        expect(shouldRenderLoadMore({ hydrated: true, visibleCount: 3, hasMore: false })).toBe(true);
+        expect(shouldRenderLoadMore({ hydrated: true, visibleCount: 3, hasMore: true })).toBe(true);
+        // 无可见项且无下一页 ⇒ 不渲染（真正的空态）
+        expect(shouldRenderLoadMore({ hydrated: true, visibleCount: 0, hasMore: false })).toBe(false);
+        // 未 hydrate ⇒ 不渲染（避免闪空态）
+        expect(shouldRenderLoadMore({ hydrated: false, visibleCount: 0, hasMore: true })).toBe(false);
+        expect(shouldRenderLoadMore({ hydrated: false, visibleCount: 5, hasMore: false })).toBe(false);
+    });
+
     test("★ 验收 2：UnifiedTaskFace 有真实挂载点（无画布上下文页面）", () => {
         // 设计卡验收 2「统一任务面独立可用（不依赖画布上下文）」——
         // 组件存在不等于挂载：必须断言真实使用点，否则「有代码≠能用」复发。
-        const runnerSource = readFileSync(new URL("../src/components/create/linear-flow-runner.tsx", import.meta.url), "utf8");
+        const runnerSource = stripComments(readFileSync(new URL("../src/components/create/linear-flow-runner.tsx", import.meta.url), "utf8"));
         expect(runnerSource).toContain("<UnifiedTaskFace");
         expect(runnerSource).toContain("taskIds={[taskId]}");
         // /create 直线流程不是画布页 ⇒ 满足「无画布上下文」

@@ -101,3 +101,38 @@ export function superResolveSize(sourceWidth: number, sourceHeight: number, targ
     const nextHeight = Math.max(1, Math.round(height * scale));
     return `${nextWidth}x${nextHeight}`;
 }
+
+/**
+ * 超分 size 的**真接缝**：把「源图实际像素 + 目标档」写进生成配置的 size 字段。
+ *
+ * ★ 为什么单独抽函数（F-3 修复，评审线 R1）：原实现内联在 `use-canvas-media-tools.ts`
+ * 的 `superResolveImageNode` 里（`generationConfig.size = superResolveSize(...)`），
+ * 而当时的测试只断言 `prepareBackendGenerationTask` 收到**测试自己算好的** size ——
+ * 即测试复刻了接缝表达式，从未执行真实赋值行。接线一断（如有人删掉该行、
+ * 或改回继承 node.metadata.size），测试仍绿。
+ *
+ * 本函数把赋值行为固定下来，接线处只调用它，测试可直接断言返回值 ——
+ * 验证形态与被验证对象（「size 是否按源图重算」）匹配。
+ *
+ * ★ 不变量：
+ *   1. 源图尺寸有效（宽高 > 0）时，size = 按目标档 longEdge 等比缩放的结果；
+ *   2. 源图尺寸无效时**不改写** size（返回 undefined，调用方保留 buildGenerationConfig 的结果）——
+ *      不硬造值；
+ *   3. 不读取 node.metadata.size（这正是缺陷根因：源节点历史尺寸不得透传）。
+ *
+ * @param baseSize buildGenerationConfig 产出的 size（可能来自 node.metadata.size，**不得继承**）
+ * @param sourceWidth 源图实际像素宽（naturalWidth / node.width）
+ * @param sourceHeight 源图实际像素高（naturalHeight / node.height）
+ * @param targetResolution 目标档（2k / 4k）
+ * @returns 重算后的 size；源图尺寸无效时 undefined（表示「保持 baseSize 不变」）
+ */
+export function resolveSuperResolveConfigSize(
+    baseSize: string | undefined,
+    sourceWidth: number,
+    sourceHeight: number,
+    targetResolution: SuperResolveParams["targetResolution"],
+): string | undefined {
+    void baseSize; // 显式声明「不参与计算」：size 必须由源图与目标档独立决定。
+    if (!(sourceWidth > 0) || !(sourceHeight > 0)) return undefined;
+    return superResolveSize(sourceWidth, sourceHeight, targetResolution);
+}

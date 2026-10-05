@@ -1,6 +1,10 @@
 import { getResourceBlob } from "@/services/api/resources";
 import type { GenerationTask } from "@/services/api/task-center";
 import { useAssetStore } from "@/stores/use-asset-store";
+import { taskDeliverableOutput } from "@/lib/task-deliverable-state";
+
+// 纯判据的单一来源是零依赖模块（供任务面组件直接使用，不拖入 asset store）。
+export { taskDeliverableOutput, taskDeliverableState, type TaskDeliverableState } from "@/lib/task-deliverable-state";
 
 /**
  * 统一任务面交付步 —— 下载合规成品（设计卡 §5.3 硬验收③）。
@@ -42,11 +46,6 @@ function extensionFor(mimeType: string, kind: string): string {
 }
 
 /** 任务的首个可下载产物（按输出序号）。 */
-export function taskDeliverableOutput(task: GenerationTask) {
-    const outputs = task.outputs ?? [];
-    return outputs.slice().sort((a, b) => a.outputIndex - b.outputIndex)[0];
-}
-
 /**
  * 下载任务产物。返回实际使用的文件名（供调用方提示），失败时抛错由调用方提示。
  *

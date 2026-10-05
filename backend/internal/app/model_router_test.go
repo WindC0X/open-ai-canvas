@@ -142,6 +142,73 @@ func TestSKUSelectorKeepsImageUpscaleOperation(t *testing.T) {
 	}
 }
 
+// ★ F-1（评审线 R1，证据恢复版）：带 quality/size 条件的超分价格档必须能命中。
+//
+// 缺陷（三条断言，均经独立读码验证）：
+//   ① model_router.go 原 :308-311 在 image_upscale 分支直接 `break`，跳过后面的
+//      quality/size 归一化 ⇒ 超分请求 selector 永远只有 {operation: image_upscale}
+//   ② matchSKUSelector 对缺失键取零值比较（requested["quality"]="" != "2k"）⇒ 返回 false
+//      ⇒ 带条件的超分档永不命中
+//   ③ channelModelPriceTierForIntent 随后落到通配档（全键 continue ⇒ score=0）
+//      ⇒ 静默按通配价计费（不报错）
+//
+// ★ 测试形态（控制线硬性要求）：**行为级** —— 构造带 quality 的超分档，断言**能命中**，
+// 不是源码文本断言。同时验证反例（无匹配档时不得静默落通配）。
+func TestImageUpscalePriceTierMatchesQualityCondition(t *testing.T) {
+	channelModel := model.ChannelModel{PriceTiers: []model.ChannelModelPriceTier{
+		{ID: "upscale-2k", SelectorJSON: `{"operation":"image_upscale","quality":"2k"}`, Enabled: true, PriceConfigured: true},
+		{ID: "upscale-4k", SelectorJSON: `{"operation":"image_upscale","quality":"4k"}`, Enabled: true, PriceConfigured: true},
+		// 通配档（score=0）：缺陷存在时超分会静默落到它。
+		{ID: "any-anything", SelectorJSON: `{"operation":"*"}`, Enabled: true, PriceConfigured: true},
+	}}
+	// 超分请求：size=2048x2048 → normalizeImagePriceQuality ⇒ "2k"
+	intent := ModelRequestIntentFromTaskInput(map[string]any{
+		"mode": "image", "referenceImages": []any{map[string]any{}}, "config": map[string]any{"size": "2048x2048"},
+	}, "canvas_image", "image_upscale")
+	selector := skuSelectorForIntent(intent)
+	if selector["operation"] != "image_upscale" {
+		t.Fatalf("operation = %q, want image_upscale (selector=%#v)", selector["operation"], selector)
+	}
+	if selector["quality"] != "2k" {
+		t.Fatalf("quality = %q, want 2k —— 超分 selector 必须包含 quality（F-1 修复点）", selector["quality"])
+	}
+	tier := channelModelPriceTierForIntent(channelModel, intent)
+	if tier == nil || tier.ID != "upscale-2k" {
+		t.Fatalf("tier = %#v, want upscale-2k（带条件的超分档必须命中，而非静默落通配档）", tier)
+	}
+}
+
+// ★ F-1 反例一：带条件的超分档**优先于**通配档（分数排序契约）。
+// 若实现回退到 `break`（selector 无 quality），"upscale-2k" 不会匹配（缺失键零值比较失败），
+// 结果会落到通配档 —— 本断言即红，正是缺陷形态。
+func TestImageUpscaleSpecificTierBeatsWildcard(t *testing.T) {
+	channelModel := model.ChannelModel{PriceTiers: []model.ChannelModelPriceTier{
+		{ID: "any-anything", SelectorJSON: `{"operation":"*"}`, Enabled: true, PriceConfigured: true},
+		{ID: "upscale-2k", SelectorJSON: `{"operation":"image_upscale","quality":"2k"}`, Enabled: true, PriceConfigured: true},
+	}}
+	intent := ModelRequestIntentFromTaskInput(map[string]any{
+		"mode": "image", "referenceImages": []any{map[string]any{}}, "config": map[string]any{"size": "2048x2048"},
+	}, "canvas_image", "image_upscale")
+	tier := channelModelPriceTierForIntent(channelModel, intent)
+	if tier == nil || tier.ID != "upscale-2k" {
+		t.Fatalf("tier = %#v, want upscale-2k（带条件档分数高于通配档，必须优先命中）", tier)
+	}
+}
+
+// ★ F-1 反例二：既无匹配的带条件档、也无通配档时，必须**显式返回 nil**
+// （调用方报「当前模型尚未配置所选规格的价格」），而不是静默按某个价计费。
+func TestImageUpscaleWithoutAnyMatchingTierReturnsNil(t *testing.T) {
+	channelModel := model.ChannelModel{PriceTiers: []model.ChannelModelPriceTier{
+		{ID: "upscale-4k", SelectorJSON: `{"operation":"image_upscale","quality":"4k"}`, Enabled: true, PriceConfigured: true},
+	}}
+	intent := ModelRequestIntentFromTaskInput(map[string]any{
+		"mode": "image", "referenceImages": []any{map[string]any{}}, "config": map[string]any{"size": "2048x2048"},
+	}, "canvas_image", "image_upscale")
+	if tier := channelModelPriceTierForIntent(channelModel, intent); tier != nil {
+		t.Fatalf("2K 超分无匹配档时必须返回 nil（显式失败），got %#v", tier)
+	}
+}
+
 func TestSKUSelectorKeepsImageToImageForOtherEdits(t *testing.T) {
 	// 回归保护：非超分的图片编辑仍走 image_to_image，不被超分分支影响。
 	for _, operation := range []string{"", "image_to_image", "mask_edit"} {

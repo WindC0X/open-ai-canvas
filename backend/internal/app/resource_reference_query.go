@@ -26,6 +26,11 @@ type ResourceReferenceQuery struct {
 	References []ResourceReferenceEntry `json:"references"`
 	// Truncated 表示扫描结果被截断（超过上限），UI 应提示「还有更多」。
 	Truncated bool `json:"truncated,omitempty"`
+	// Unreadable 是无法解析因而**未能参与扫描**的业务文档数。
+	// ★ 非零时引用列表是**不完整**的：UI 必须提示「有 N 处记录无法读取」而不是
+	// 显示「无引用」。删除面遇到不可解析文档直接拒删（resource_delete.go），
+	// 查询面若静默跳过就会给出「可以删」的错误结论 —— 两个面的结论必须同源。
+	Unreadable int `json:"unreadable,omitempty"`
 }
 
 // ResourceReferenceEntry 是一条业务引用。
@@ -42,10 +47,62 @@ type ResourceReferenceEntry struct {
 	NodeID string `json:"nodeId,omitempty"`
 	// ReferenceType 引用形态（value / 等，来自 assets 引用解释器）。
 	ReferenceType string `json:"referenceType,omitempty"`
+	// SelfReference 表示该引用来自**拥有本资源的素材自身**（C-2）。
+	// 删除该素材时资源会一并删除，故它不构成删除障碍；UI 不应把它
+	// 显示成「被占用」而与删除结果相矛盾。
+	SelfReference bool `json:"selfReference,omitempty"`
 }
 
 // maxResourceReferenceEntries 限制单次查询返回的引用条数，防止超大画布拖垮响应。
 const maxResourceReferenceEntries = 200
+
+// owningAssetIDsForResource 返回「拥有该资源的素材 ID 集合」——
+// 即哪些素材的 representation.ResourceID 或素材文档引用指向了该资源。
+//
+// ★ C-2 共享判定（查询面与删除面同源）：删除面用 `excludingAssetIDs` 排除被删素材，
+// 使「素材自引用」不构成删除障碍；查询面若不知道宿主是谁，就会把自引用当成
+// 「被别人占用」报告给用户，出现「预检说不能删、实际能删」的矛盾。
+// 两面共用本函数，保证同一资源在两面得到同一结论。
+//
+// ★ 返回值含**两类标识**：素材 ID（Asset.ID）与表现 ID（AssetRepresentation.ID）——
+// 因为快照的 Direct 里「素材」类引用的 ID 是 representation.ID（见
+// ResourceReferenceSnapshotExcludingAssets），而删除面的排除集是 Asset.ID。
+// 两者都收进同一集合，调用方按 kind+id 直接查即可。
+func (s *Service) owningAssetIDsForResource(userID string, resourceID string) (map[string]struct{}, error) {
+	owners := map[string]struct{}{}
+	// 注意：AssetsForUserIDs 对空 id 列表返回 nil（不返回全部），
+	// 故用 Assets(userID) 取该用户全部素材。
+	assets, err := s.repo.Assets(userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(assets) == 0 {
+		return owners, nil
+	}
+	assetIDs := make([]string, 0, len(assets))
+	for _, asset := range assets {
+		assetIDs = append(assetIDs, asset.ID)
+	}
+	versions, representations, err := s.repo.AssetsResourceRecords(assetIDs)
+	if err != nil {
+		return nil, err
+	}
+	versionOwner := make(map[string]string, len(versions))
+	for _, version := range versions {
+		versionOwner[version.ID] = version.AssetID
+	}
+	for _, representation := range representations {
+		if validCanvasResourceID(representation.ResourceID) != resourceID {
+			continue
+		}
+		if owner := versionOwner[representation.AssetVersionID]; owner != "" {
+			owners[owner] = struct{}{}
+		}
+		// Direct 里的「素材」引用用 representation.ID 作标识，一并收录。
+		owners[representation.ID] = struct{}{}
+	}
+	return owners, nil
+}
 
 // ResourceReferences 返回指定资源被哪些业务对象引用（只读，AST-08）。
 //
@@ -66,6 +123,21 @@ func (s *Service) ResourceReferences(userID string, resourceID string) (*Resourc
 		return nil, NotFound("资源不存在或无权访问")
 	}
 
+	// ★ C-2：先算出哪些素材是「宿主」（其 representation.ResourceID 指向本资源），
+	// 删除这些素材时资源会一并删除 ⇒ 它们的引用不构成删除障碍，
+	// 查询面必须标为 selfReference，否则会出现「预检说被引用、实际能删」的矛盾。
+	owners, err := s.owningAssetIDsForResource(userID, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	isSelfReference := func(kind string, id string) bool {
+		if kind != "素材" {
+			return false
+		}
+		_, owner := owners[id]
+		return owner
+	}
+
 	ownedIDs := map[string]struct{}{resourceID: {}}
 	snapshot, err := s.repo.ResourceReferenceSnapshotExcludingAssets(userID, nil, []string{resourceID})
 	if err != nil {
@@ -77,12 +149,20 @@ func (s *Service) ResourceReferences(userID string, resourceID string) (*Resourc
 		if direct.ResourceID != resourceID {
 			continue
 		}
-		entries = append(entries, ResourceReferenceEntry{Kind: direct.Kind, ID: direct.ID, Title: direct.Title})
+		entries = append(entries, ResourceReferenceEntry{Kind: direct.Kind, ID: direct.ID, Title: direct.Title, SelfReference: isSelfReference(direct.Kind, direct.ID)})
 	}
+	// 解析失败计数（C-5）：删除面对不可解析文档直接拒删，查询面若静默跳过
+	// 就会给出「无引用、可以删」的错误结论 —— 必须显式暴露为 unreadable。
+	unreadable := 0
 	for _, document := range snapshot.Documents {
-		references, referenceErr := assets.CollectDocumentResourceReferences(document.PrimaryJSON)
+		// ★ C-3：已结束任务的日志/结果只是生成历史，不构成占用（与删除面同源，
+		// 见 resource_reference_rules.go）。不跳过就会报出「被任务日志引用」而实际能删。
+		if finishedTaskReferenceIsHistorical(resourceReferenceDocument{Kind: document.Kind, Status: document.TaskStatus}) {
+			continue
+		}
+		references, referenceErr := assets.CollectDocumentResourceReferencesWithFallback(document.PrimaryJSON)
 		if referenceErr != nil {
-			// 单个业务文档解析失败不阻断整体查询；该文档计入 unknown 由 UI 提示。
+			unreadable++
 			continue
 		}
 		matched := matchDocumentReferences(references, ownedIDs)
@@ -90,15 +170,20 @@ func (s *Service) ResourceReferences(userID string, resourceID string) (*Resourc
 			entries = append(entries, ResourceReferenceEntry{
 				Kind: document.Kind, ID: document.ID, Title: document.Title,
 				Path: reference.Path, NodeID: reference.NodeID, ReferenceType: reference.ReferenceType,
+				SelfReference: isSelfReference(document.Kind, document.ID),
 			})
 		}
-		if document.SecondaryJSON != "" {
-			secondary, secondaryErr := assets.CollectDocumentResourceReferences(document.SecondaryJSON)
-			if secondaryErr == nil {
+		// ★ C-3：已结束任务的 ResultJSON 同样是历史记录（删除面会清空它）。
+		if document.SecondaryJSON != "" && !finishedTaskResultIsHistorical(resourceReferenceDocument{Kind: document.Kind, Status: document.TaskStatus}) {
+			secondary, secondaryErr := assets.CollectDocumentResourceReferencesWithFallback(document.SecondaryJSON)
+			if secondaryErr != nil {
+				unreadable++
+			} else {
 				for _, reference := range matchDocumentReferences(secondary, ownedIDs) {
 					entries = append(entries, ResourceReferenceEntry{
 						Kind: document.Kind, ID: document.ID, Title: document.Title,
 						Path: reference.Path, NodeID: reference.NodeID, ReferenceType: reference.ReferenceType,
+						SelfReference: isSelfReference(document.Kind, document.ID),
 					})
 				}
 			}
@@ -106,7 +191,7 @@ func (s *Service) ResourceReferences(userID string, resourceID string) (*Resourc
 	}
 
 	result := dedupeResourceReferenceEntries(entries)
-	query := &ResourceReferenceQuery{ResourceID: resourceID, References: result}
+	query := &ResourceReferenceQuery{ResourceID: resourceID, References: result, Unreadable: unreadable}
 	if len(result) > maxResourceReferenceEntries {
 		query.References = result[:maxResourceReferenceEntries]
 		query.Truncated = true
@@ -122,6 +207,19 @@ func (s *Service) AssetResourceOccupancy(userID string, assetID string) (*AssetR
 	assetID = strings.TrimSpace(assetID)
 	if strings.TrimSpace(userID) == "" || assetID == "" {
 		return nil, BadAuthRequest("查询素材占用需要有效的用户和素材 ID")
+	}
+
+	// ★ 归属校验必须**先于**任何记录读取（C-1）：
+	// AssetsResourceRecords 只按 asset_id 查（无 user 过滤），若先读再校验，
+	// 他人素材的版本/表现数据会被读入并解析；解析失败时返回 BadAuthRequest
+	// 「素材版本数据无法解析」而 NotFound 则永不触发 —— 错误码差异泄露了
+	// 「该 ID 存在且损坏」这一非本人信息。先校验后读，非本人一律 NotFound。
+	assets, err := s.repo.AssetsForUserIDs(userID, []string{assetID})
+	if err != nil {
+		return nil, err
+	}
+	if len(assets) != 1 {
+		return nil, NotFound("素材不存在或无权访问")
 	}
 
 	versions, representations, err := s.repo.AssetsResourceRecords([]string{assetID})
@@ -144,14 +242,7 @@ func (s *Service) AssetResourceOccupancy(userID string, assetID string) (*AssetR
 		}
 	}
 
-	// 素材本体（payload）也计入。
-	assets, err := s.repo.AssetsForUserIDs(userID, []string{assetID})
-	if err != nil {
-		return nil, err
-	}
-	if len(assets) != 1 {
-		return nil, NotFound("素材不存在或无权访问")
-	}
+	// 素材本体（payload）也计入（归属已在上方校验）。
 	if err := collectOwnedAssetDocumentReferences(assets[0].PayloadJSON, resourceIDs); err != nil {
 		return nil, BadAuthRequest("素材数据无法解析，已停止查询以避免误报")
 	}

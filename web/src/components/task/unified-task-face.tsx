@@ -14,6 +14,7 @@ import {
     mediaDeliverySummary,
 } from "@/lib/generation-task-display";
 import { subscribeGenerationTasks, type GenerationTask } from "@/services/api/task-center";
+import { taskDeliverableState } from "@/lib/task-deliverable-state";
 import { useUserStore } from "@/stores/use-user-store";
 
 /**
@@ -174,7 +175,10 @@ function UnifiedTaskCard({
     });
     const delivery = mediaDeliverySummary(task.status, task.mediaStage);
     const preview = taskPreview(task);
-    const canDownload = task.status === "succeeded" && Boolean(preview.url);
+    // ★ R3 P1-2：可下载判据与下载实现同源（task-deliverable-state 零依赖模块），
+    // 不再只看 previewUrl —— 有合规素材但无 previewUrl 时也能下载。
+    const deliverable = taskDeliverableState(task);
+    const canDownload = deliverable.downloadable;
     const canOpenInCanvas = showOpenInCanvas && Boolean(onOpenInCanvas);
     const canCancel = Boolean(onCancelTask) && canCancelGenerationTask(task);
     const hasActions = canDownload || canOpenInCanvas || canCancel;
