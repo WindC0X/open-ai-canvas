@@ -1929,3 +1929,64 @@ go build **0**；go test 5 条 `TestCloudAgent*` = **undici 环境基线**（非
 3. S-2 首版测试用 `not.toContain` 直查旧 ref 名（是新名子串）→ 词边界正则
 4. F-1 首版反例前提错（通配档命中是既有设计）→ 改为正确契约
 5. P2-2 首版修法只取 `error.message`（丢原因，真因在 `errors[].message`）→ 测试红
+
+---
+
+## B线 · W5 headless 可达性主批（D-1/D-2）交付登记（2026-10-05）
+
+**分支**：`fix/w5-headless-reachability` @ `e6061c6b`（2 commit，基点 `cb8d8dc4`）
+**裁定**：控制线验收通过（独立核验全绿：静态拓扑 / 动态 3106 pass 0 fail /
+5 项注入 5/5 复现 / 代码级读码）——准予合入 main。
+
+### 交付内容
+
+| # | 项 | 要点 |
+|---|---|---|
+| 1 | **D-1 预建承载容器** | 新 helper `createCanvasProjectLocal`（本地创建 + 防抖同步，**不 await 云端往返**——避开实测 7.7s 关键路径阻塞）；runner 新增 `onPrepareCanvas` 回调，提交前预建 → 任务带 `projectId` → handoff 两分支带 `canvasId` → 交接走 existingId 分支写进同一容器；预建失败/hydrated 未完成 ⇒ 降级为既有行为不阻塞生成 |
+| 2 | **D-2 /tasks 画布入口** | 新纯函数模块 `linear-flow-task-link.ts`：按消息 `detail.taskIds` 反查（**不按 session id 字符串匹配**——service 内部加 `creation:` 前缀、消息 id 双重前缀，按拼接约定匹配会在任一侧改前缀时静默失配）；`inputJson.metadata.source` 判据 + 严格类型守卫；两段式（本地反查零请求 → 详情确认带 ref 缓存） |
+
+### 真机验收（Orca 浏览器 + :8488 + :3020）
+
+| 验收项 | 结果 |
+|---|---|
+| D-1 容器预建 | ✅ `-k-i5P60O1zAeru2GFZeC`（title=白底主图，workspaceType=headless_task） |
+| D-1 任务带 projectId | ✅ 任务 `1a77cf1d55a2bbf446fa956fb08610df` 的 projectId = 预建容器 id |
+| D-1 生成中面板可见 | ✅ 容器页「生成任务 · 当前画布 · 1 个进行中」 |
+| D-1 完成后消失 | ✅ 任务 succeeded 后面板无该任务（activeOnly 语义，预期行为） |
+| D-2 入口 + 跳转 | ✅ /tasks 双态按钮（「在画布中打开」/「创建画布并打开」）→ 导航到 `/canvas/i1VKWWDcIPqffPeI_jtlb` |
+
+### ★ 真机自发现的两处交界缺陷（第二个 commit 修复）
+
+1. **预建容器反而不达**（与 P1-1 原意相反）：用户未点「在画布中打开」时容器无会话 ⇒
+   本地按 taskIds 反查落空，而任务已带 projectId ⇒ `resolveTaskCanvasAction` 返回 none。
+   修法：按 id 命中本地画布同样直接跳转。
+2. **①初版修法过宽**：30 条历史任务里 **19 条**都长出画布按钮（普通画布任务在画布页本就有入口）。
+   收窄为只认 headless 容器（`isHeadlessTaskWorkspace`）⇒ 真机复测降到 **4 个**。
+
+### 可证伪性（5 项注入，控制线独立复现 5/5）
+
+| 注入 | 实测 |
+|---|---|
+| runner 不传 projectId | 1 fail |
+| 预建挪到任务创建之后（时序回归） | 1 fail |
+| handoff 不带 canvasId | 1 fail |
+| D-2 去掉详情确认 | 1 fail（初版测试假绿——被详情 effect 的同名调用满足；已强化为切片内顺序断言） |
+| D-2 用不同 sessionKey | 1 fail |
+
+### 门禁（绑定 `e6061c6b`）
+
+- 全量 `bun test`（ext4）：**3106 pass / 0 fail / 15709 expect / 367 files**
+- `tsc --noEmit`：exit 0；`eslint` 9 文件：exit 0
+- 诚实边界：中途 1 次 flaky（`agent-canvas-sync` 的 minimum refresh interval）——
+  **非本批引入**（隔离跑 8 pass 0 fail；stash 本批改动后基线全量同样 3 跑 1 现；V4 已登记）
+
+### G1 precheck
+
+- 文件面 vs main：9 文件
+- `merge-tree main × e6061c6b`：exit=0 tree=296e0392（零冲突）
+
+### 教训：G4 占用核查（控制线侧）
+
+控制线裁定书写「main 当前无人占用」但实测被其自身 worktree（`oac-wt-ctrl`）持有；
+我报告后控制线核实、释放并认领为「未经核实就下结论」的同类错误。
+⇒ 纪律：**裁定中涉及环境状态（worktree 占用 / 分支持有）必须先实测再写**。
