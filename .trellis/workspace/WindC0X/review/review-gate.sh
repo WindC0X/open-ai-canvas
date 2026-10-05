@@ -17,6 +17,17 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
+# ★ 计数纪律（控制线 838a50e4 / B线 发现）：
+#   禁用 echo "$FILES" | wc -l 与 grep -c . || echo 0 ——
+#   空输入时前者得 1（echo 输出一个换行），后者得双值 "0\n0"，两者都使「空输入显性防线」失效。
+#   正确：mapfile -t < <(...) + ${#ARR[@]}。
+# 用法：count_lines <多行字符串> → 输出元素数（0 表示空）
+count_lines() {
+    local -a arr=()
+    mapfile -t arr < <(printf '%s\n' "$1" | grep .)
+    printf '%s' "${#arr[@]}"
+}
+
 MODE="${1:---range}"
 
 if [ "$MODE" = "--merge" ]; then
@@ -42,13 +53,14 @@ echo "范围: $BASE_LABEL .. $TIP_LABEL"
 echo
 
 # ── 文件清单（全量）──
-echo "── 全量变更文件（$(echo "$FILES_ALL" | grep -c . ) 个）──"
+ALL_COUNT=$(count_lines "$FILES_ALL")
+echo "── 全量变更文件（$ALL_COUNT 个）──"
 echo "$FILES_ALL"
 echo
 
 # ── 代码面（剔除 docs/.trellis/*.md，测试文件保留——测试质量是评审重点）──
 FILES_CODE=$(echo "$FILES_ALL" | grep -vE '^(docs/|\.trellis/)' | grep -E '\.(ts|tsx|go|css|json|yaml|yml|sh|md)$' || true)
-CODE_COUNT=$(echo "$FILES_CODE" | grep -c . || echo 0)
+CODE_COUNT=$(count_lines "$FILES_CODE")
 echo "── 代码面（剔 docs/.trellis）：$CODE_COUNT 个 ──"
 echo "$FILES_CODE"
 echo
@@ -61,7 +73,7 @@ fi
 
 # ── 前端文件面（bun test 用）──
 WEB_FILES=$(echo "$FILES_ALL" | grep -E '^web/.*\.(ts|tsx)$' | sed 's|^web/||' || true)
-WEB_COUNT=$(echo "$WEB_FILES" | grep -c . || echo 0)
+WEB_COUNT=$(count_lines "$WEB_FILES")
 echo "── web 侧 ts/tsx：$WEB_COUNT 个 ──"
 [ "$WEB_COUNT" -eq 0 ] && echo "⚠️  web 文件面为空（若本批不含前端改动属正常）"
 echo "$WEB_FILES"
@@ -69,7 +81,7 @@ echo
 
 # ── 测试文件（评审重点，ocr 默认会漏）──
 TEST_FILES=$(echo "$FILES_ALL" | grep -E '^(web/test/.*\.(ts|tsx)|backend/.*_test\.go)$' || true)
-TEST_COUNT=$(echo "$TEST_FILES" | grep -c . || echo 0)
+TEST_COUNT=$(count_lines "$TEST_FILES")
 echo "── 测试文件：$TEST_COUNT 个（测试质量是评审重点）──"
 echo "$TEST_FILES"
 echo
