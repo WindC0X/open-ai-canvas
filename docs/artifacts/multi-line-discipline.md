@@ -262,9 +262,17 @@ SCOPE 剥前缀契约只存在于调用示例、未写进脚本（从仓库根�
 |---|---|---|
 | `TestCloudAgent*` 5 红 | `go test ./internal/app/` 5 fail | `backend/node_modules/undici` 缺失（agent-runtime 依赖未装） |
 | ~~canvas-asset-repair mock-leak 族~~ **【归因错误，已更正】** | ~~ext4 上 7 fail~~ | ~~asset-repair 自身泄漏~~ → **实际：该 7 红是 `user-data-sync-load-deadlock.test.ts` 的受害者，不是独立基线**（见下「污染源」节） |
-| **★ 唯一污染源：`user-data-sync-load-deadlock.test.ts`** | 有它参与的全量跑 → **12-13 fail**；**排除它 → 0 fail** | `mock.module("../src/stores/canvas/use-canvas-store")` 把 store 换成桩（`setState` 不处理 `hydrated`），bun 的模块 mock 是**进程级跨文件泄漏** |
+| **★ 唯一污染源：`user-data-sync-load-deadlock.test.ts`** ~~有它参与的全量跑 → 12-13 fail~~ **【已修复 2026-10-05】** | ~~12-13 fail~~ → **已根治**（B线 `3d2660ed`：`mock.module` → `spyOn` + `afterAll` + 桩只接管 projects 其余透传真实 store）<br>**现状：全量 3078 pass / 0 fail，顺序无关** | `mock.module("../src/stores/canvas/use-canvas-store")` 把 store 换成桩（`setState` 不处理 `hydrated`），bun 的模块 mock 是**进程级跨文件泄漏** |
 | ui-kit timeout 族 | drvfs 上 4-5 fail | drvfs 慢 IO（A/B ≈400x：ext4 185ms/3 pass vs drvfs 76.25s/3 fail） |
-| `agent-canvas-sync.test.ts` | 全量跑时 flaky | 隔离跑 8/0 绿 |
+| **`agent-canvas-sync.test.ts:75`** | **已知 flaky**（复现率随系统负载变化：评审线高负载 6 跑 2 红；控制线空闲 7 跑 0 红） | 依赖真实定时器 + 100ms 窗口，并行负载下回调被延迟出窗（测试自述「全量 3 跑 1 现」） |
+
+**★ 「0 fail」的表述纪律（评审线 2026-10-05 提出，控制线采纳）**：
+
+> 存在已知 flaky 时，「全量 0 fail」**必须标注 flaky**，否则验收方无法区分「新缺陷」与「flaky」。
+> **正确表述**：`全量 3078 pass / 0 fail（除已知 flaky：agent-canvas-sync.test.ts:75）`
+
+**控制线自纠**：2026-10-05 多次宣称「全量 3078 pass / 0 fail」而未标注 flaky ——
+这正是 V7「报告断言必须精确」的同族问题（**我批评过别人，自己也犯**）。
 
 **★ 污染源唯一性（评审线 2026-10-05 验证 + 控制线独立复现）**：
 
