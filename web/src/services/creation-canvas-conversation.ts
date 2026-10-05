@@ -62,11 +62,15 @@ export async function continueCreationConversationOnCanvas(source: SourceConvers
         } catch (cause) { syncError = cause; }
     } else {
         const session: CanvasAssistantSession = { id: sessionId, title: source.title, createdAt: source.messages[0].createdAt, updatedAt: source.updatedAt, messages };
-        const created = await createCanvasProjectWithRemoteSync(source.title || "创作画布", undefined, {
-            chatSessions: [session],
-            activeChatId: sessionId,
-            ...(options?.workspaceType ? { workspaceType: options.workspaceType } : {}),
-        });
+        const created = await createCanvasProjectWithRemoteSync(
+            source.title || "创作画布",
+            undefined,
+            // 显式对象字面量而非条件展开：展开会绕过 TypeScript 的 excess property check，
+            // createCanvasProjectWithRemoteSync 的 Pick 白名单收窄时编译期无报警（R4 P2-2）。
+            options?.workspaceType
+                ? { chatSessions: [session], activeChatId: sessionId, workspaceType: options.workspaceType }
+                : { chatSessions: [session], activeChatId: sessionId },
+        );
         id = created.id;
         syncError = created.syncError;
         await flushCanvasStorePersistence();

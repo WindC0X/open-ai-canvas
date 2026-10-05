@@ -7,6 +7,14 @@ import { initializeRemoteUserDataSession, resetRemoteUserDataSync } from "../src
 import { flushCanvasStorePersistence, useCanvasStore, type CanvasProject } from "../src/stores/canvas/use-canvas-store";
 import { flushAssetStorePersistence, useAssetStore } from "../src/stores/use-asset-store";
 
+// V9 ①：源码文本断言前剥离注释 —— 否则「注释掉调用」仍参与匹配（评审线 R4 P2-1：
+// 注释掉 carrier 打标行 → 7 pass / 0 fail 假绿）。范式同 task-face-independence.test.ts。
+function stripComments(source: string): string {
+    return source
+        .replace(/\/\*[\s\S]*?\*\//g, (match) => "\n".repeat(match.split("\n").length - 1))
+        .replace(/^\s*\/\/.*$/gm, "");
+}
+
 // T1-P1（评审线 R3 · 控制线裁定）：workspaceType 写入者。
 //
 // 读侧（workspace-type.ts / headless-tidy.ts / 画布库过滤 / 首入整理）与后端透出
@@ -174,7 +182,7 @@ test("同一会话第二次交接（命中 existingId）不改变已有标记", 
 // 接线级断言（控制线验收④）：调用点的打标范围 —— 卡流程两分支打标、既有创作交接不打标。
 // 断言的是一次调用是否带第二参，不是源码文本形状。
 test("接线：卡流程 carrier/result 两分支传 headless_task，既有创作交接不传", async () => {
-    const source = await Bun.file(new URL("../src/pages/create/index.tsx", import.meta.url)).text();
+    const source = stripComments(await Bun.file(new URL("../src/pages/create/index.tsx", import.meta.url)).text());
     // 三处调用点各自独立成句：统计带参调用数 = 2（carrier + result）。
     const headlessCalls = source.match(/\}, \{ workspaceType: "headless_task" \}\);/g) ?? [];
     expect(headlessCalls).toHaveLength(2);
@@ -185,10 +193,14 @@ test("接线：卡流程 carrier/result 两分支传 headless_task，既有创�
 });
 
 test("接线：service 层只在新建分支消费 workspaceType（existingId 分支无该字段写入）", async () => {
-    const source = await Bun.file(new URL("../src/services/creation-canvas-conversation.ts", import.meta.url)).text();
-    // 契约：唯一消费点 = 新建分支的 initialContent 透传（条件展开，缺省不写字段）。
-    expect(source).toContain("options?.workspaceType ? { workspaceType: options.workspaceType } : {}");
+    const source = stripComments(await Bun.file(new URL("../src/services/creation-canvas-conversation.ts", import.meta.url)).text());
+    // 契约：唯一消费点 = 新建分支的显式对象字面量。不得退回条件展开 —— 展开会绕过
+    // TypeScript 的 excess property check，Pick 白名单收窄时编译期无任何报警（R4 P2-2）。
+    const literalAnchor = source.indexOf("workspaceType: options.workspaceType");
+    expect(literalAnchor).toBeGreaterThan(-1); // V9 ②：锚点存在性前置断言
+    expect(source).not.toContain("...(options?.workspaceType");
     // 反向：existingId 分支的 updateProject 调用不得带 workspaceType。
-    const updateProjectLine = source.split("\n").find((line) => line.includes("updateProject(project.id")) ?? "";
+    const updateProjectLine = source.split("\n").find((line) => line.includes("updateProject(project.id"));
+    expect(updateProjectLine).toBeDefined(); // V9 ②：锚点存在性前置断言
     expect(updateProjectLine).not.toContain("workspaceType");
 });
