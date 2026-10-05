@@ -8,6 +8,13 @@
 #   scripts/merge-file-face.sh <merge-commit> --exclude-deleted    # 排除已删除项（lint 用）
 #   scripts/merge-file-face.sh <merge-commit> web ts tsx           # 限定 web/ 下指定扩展名
 #
+# ★ 契约（带 SCOPE 时）：输出的路径**已剥离 SCOPE 前缀**，消费方须先 `cd <SCOPE>`：
+#     FILES=$(scripts/merge-file-face.sh <merge> --exclude-deleted web ts tsx) || exit 1
+#     cd web && bunx eslint $FILES          # 正确：src/... 在 web/ 下存在
+#   ✗ 反例（从仓库根直接消费）：bunx eslint $(scripts/... web ts tsx)
+#     → 全部路径找不到；且这不是空输入，空输入防线拦不住（lint 会报 no files matching）。
+#   带 SCOPE 时脚本会在 stderr 打印该契约提示。
+#
 # 输出：文件清单到 stdout；文件数到 stderr（显性可见）；空输入 → exit 1。
 #
 # ★ 为什么不用 `echo "$FILES" | wc -l`：空输入时 echo 仍产生一个换行，
@@ -42,6 +49,7 @@ fi
 mapfile -t FILES < <(git diff --name-only ${DIFF_FILTER:+"$DIFF_FILTER"} "${MERGE}^1" "${MERGE}")
 
 if [ -n "$SCOPE" ]; then
+    echo "提示: 输出路径已剥离 '${SCOPE}/' 前缀，请在 ${SCOPE}/ 下消费（cd ${SCOPE} && <tool> \$FILES）" >&2
     filtered=()
     for f in "${FILES[@]}"; do
         [[ "$f" == "${SCOPE}/"* ]] || continue
