@@ -386,7 +386,7 @@ for (const entry of files) {
 
 | 族 | 失效形态 | 实例 | 后果 |
 |---|---|---|---|
-| **① 注释免疫** | 断言匹配源码文本，注释掉调用仍匹配 | T1-P2：注释掉 `void tidyHeadlessCanvasIfNeeded()` → **11 pass / 0 fail** | 断言验的是注释里的字符串 |
+| **① 注释免疫** | 断言匹配源码文本，注释满足 `toContain` / 注释掉调用仍匹配 | T1-P2：注释掉 `void tidyHeadlessCanvasIfNeeded()` → **11 pass / 0 fail**；<br>R4 superres：600 字符窗口**覆盖注释中的 `message.error` 字样**，删代码保留注释 → **反向断言仍绿** | 断言验的是注释里的字符串 |
 | **② 锚点消失** | 断言依赖的字符串在回归时消失 ⇒ 空切片 ⇒ `not.toContain` 恒真 | R4 S-2：`panel.slice(panel.indexOf(锚点), end)` 锚点缺失 ⇒ `slice(-1, N)` 空串 → **1 pass / 0 fail** | **对最可能的回归形态无防护** |
 | **③ 失败路径不可诊断** | 护栏崩溃/空输入时无法区分「护栏坏了」与「被测对象坏了」 | V8 四例（G1 计数 / A-3 空 manifest / P1-1 子进程崩溃） | 护栏被跳过或删除 |
 
@@ -401,6 +401,20 @@ for (const entry of files) {
   ⇒ expect("").not.toContain("return;") = 恒真 ⇒ 假绿
   ```
 - **判据**：**若「恢复缺陷」会改变断言依赖的字符串，则该断言对回归无防护**
+
+**★ 切片类断言的两条硬要求**（R4 两个 P2 归纳）：
+
+> 源码文本切片断言（`slice` + `toContain`/`not.toContain`）必须满足：
+> ① **锚点存在性前置断言**：`expect(idx).toBeGreaterThan(-1)`
+> ② **断言前剥离注释**（`stripComments`）—— 否则注释中的字样会满足 `toContain`
+
+| 来源 | 形态 | 假绿机制 | 触发条件 |
+|---|---|---|---|
+| R4 选项 C（S-2） | `slice(indexOf(锚点), indexOf(结束))` | 锚点缺失 → `-1` → **空串** → `not.toContain` 恒真 | **恢复缺陷写法**（锚点字符串消失） |
+| R4 追加（superres） | `slice(ci, ci+600)` + `toContain` | 窗口**覆盖注释**中的同名字样 | **只删代码保留注释** |
+
+**共同点**：都是「源码文本切片断言」在边界条件下失效，
+且**触发条件都是最自然的回归写法** ⇒ 对真实回归无防护。
 
 **实践要求**：
 1. **切片/索引前断言锚点存在**：`expect(start).toBeGreaterThan(-1)`
