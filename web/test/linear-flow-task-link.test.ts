@@ -146,7 +146,18 @@ describe("resolveTaskCanvasAction：两段式判定", () => {
         expect(resolveTaskCanvasAction({ id: "task-b" }, [], "task-other")).toEqual({ kind: "none" });
     });
 
+    test("已绑定 headless 容器且本地存在 ⇒ navigate（D-1 预建容器尚未写会话的场景）", () => {
+        const emptyContainer = [project("pre-created", [], "headless_task")];
+        expect(resolveTaskCanvasAction({ id: "task-b", projectId: "pre-created" }, emptyContainer)).toEqual({ kind: "navigate", canvasId: "pre-created" });
+    });
+
+    test("已绑定普通画布（非 headless）⇒ none（画布页本就有入口，不重复）", () => {
+        const standardCanvas = [project("standard-1", [])];
+        expect(resolveTaskCanvasAction({ id: "task-b", projectId: "standard-1" }, standardCanvas)).toEqual({ kind: "none" });
+    });
+
     test("已绑定画布但本地无容器 ⇒ none（容器可能在别的设备创建，不新建防双容器）", () => {
         expect(resolveTaskCanvasAction({ id: "task-b", projectId: "canvas-remote" }, [], "task-b")).toEqual({ kind: "none" });
+        expect(resolveTaskCanvasAction({ id: "task-b", projectId: "canvas-remote" }, withContainer, "task-b")).toEqual({ kind: "none" });
     });
 });

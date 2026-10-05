@@ -1,5 +1,6 @@
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
 import type { GenerationTask } from "@/services/api/task-center";
+import { isHeadlessTaskWorkspace } from "@/lib/canvas/workspace-type";
 
 /**
  * D-2：/tasks → 卡流程容器的反查（纯函数，零请求）。
@@ -99,7 +100,16 @@ export function resolveTaskCanvasAction(
 ): TaskCanvasAction {
     const container = findLinearFlowContainer(task.id, projects);
     if (container) return { kind: "navigate", canvasId: container.id };
-    // 已绑定画布但本地无容器：容器可能在别的设备创建 —— 不提供新建（避免双容器）。
+    // D-1 之后卡流程任务带 projectId（预建容器）—— 容器本地存在但可能尚无会话
+    // （用户没点过「在画布中打开」）。按 id 命中本地 headless 容器同样直接跳转，
+    // 否则 D-1 预建的容器反而不达（P1-1 的原意就是让容器可达）。
+    // ★ 只认 headless 容器：普通画布任务（用户在画布页生成）本来就有画布入口，
+    //   不在这里重复提供（否则 30 条历史任务几乎每条都长出一个按钮）。
+    if (task.projectId) {
+        const bound = projects.find((project) => project.id === task.projectId);
+        if (bound && isHeadlessTaskWorkspace(bound.workspaceType)) return { kind: "navigate", canvasId: task.projectId };
+    }
+    // 已绑定画布但本地无该画布：容器可能在别的设备创建 —— 不提供新建（避免双容器）。
     if (task.projectId) return { kind: "none" };
     // 两段式第二步的结果由调用方传入（详情查询缓存命中后才传入 taskId）。
     return linearFlowTaskId === task.id ? { kind: "create" } : { kind: "none" };
