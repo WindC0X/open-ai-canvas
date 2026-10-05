@@ -326,14 +326,29 @@ V4 登记「评审线高负载 6 跑 2 红 / 控制线空闲 7 跑 0 红」—�
 
 #### ★ V4 附2：`bun test --rerun-each N` **不适用于 flaky 检测**（会制造假红）
 
-**实测**（控制线在 `f88fc24a` 复现）：
-```bash
-$ bun test test/agent-canvas-sync.test.ts --rerun-each 3
- 23 pass / 1 fail          ← 制造了假红
-```
-**原因**：`--rerun-each` 在**同一进程内**重复执行同一测试 ⇒
-**测试间状态污染**（非自然 flaky）。测试线还观察到
-`added Skills retries...` ×5、`canvas audio playback` ×15 等**大量假红**。
+**证据来源（★ 修正 2026-10-05，控制线自纠）**：
+
+**测试线的观察（真证据）**：它观察到 `added Skills retries...` ×5、
+`canvas audio playback` ×15 等**大量假红** ——
+**这些是「确定性测试被重复执行后污染」的直接证据**（它们本不该红）。
+
+**★ 控制线的原始「复现」不成立（自纠）**：
+控制线曾报告「`--rerun-each 3` → 23 pass / 1 fail」作为佐证，
+但核验后发现**观察到的 fail 是 `fallback snapshots obey the configured
+minimum refresh interval`** —— 这**正是 V4 已登记的已知 flaky**
+（`agent-canvas-sync.test.ts:75`），**不是状态污染的证据**：
+- `--rerun-each 3` 让它跑 **3 次** ⇒ **3 倍机会命中该 flaky**（~14% × 3）
+- 控制线随后重跑 5 次全绿（0/5）⇒ 复现率 1/6 ≈ 17%，**与该 flaky 的 ~14% 吻合**
+- ⇒ **该观察是「flaky 被放大」，而非「同进程污染」**
+
+**A线 独立测试也未复现**（drvfs，4 次全绿）—— 与上述判断一致。
+
+**⇒ 教训（本条自身即 §四·五 的实例）**：
+控制线把「已知 flaky 被放大」误读为「状态污染的证据」——
+**证据与结论之间缺少机制核验**（V7：数字须真测；本条：**观察须与声称的机制对应**）。
+`--rerun-each` 的真实缺陷是**它放大了已登记 flaky 的暴露率**，
+**并可能污染其他测试**（测试线观察到的 ×5/×15）——
+但**不能用「某个已知 flaky 红了」来证明后者**。
 
 **纪律**：
 > **flaky 检测必须用「多次独立进程运行」（单次连跑 N 遍）**，
@@ -343,8 +358,17 @@ $ bun test test/agent-canvas-sync.test.ts --rerun-each 3
 
 **★ 污染源唯一性（评审线 2026-10-05 验证 + 控制线独立复现）**：
 
-全仓 `mock.module` 共 5 个文件，但 mock **画布 store** 的**只有 1 处**：
-`web/test/user-data-sync-load-deadlock.test.ts:19`。
+> ★ **时态标注（B线 2026-10-05 指出，控制线核实）**：本段描述的是
+> **修复前状态**（`@3d2660ed` 之前）。该唯一污染源**已根治**：
+> `user-data-sync-load-deadlock.test.ts` 的 store 桩已由 `mock.module` 改为
+> `spyOn` 临时替换（见该文件 `:13-16` 注释说明为何改）。
+> **实测**（`@deb7ad09`）：`grep -rn "mock.module.*use-canvas-store" web/test/` **为空** ⇒
+> 画布 store 的 `mock.module` **已清零**（`mock.module` 仍是 5 个文件，但均不 mock 画布 store）。
+> **保留本段作为历史证据**（说明当时污染源确实唯一，因果实验成立），
+> **但不得据此认为当前仍有 mock.module 泄漏**。
+
+全仓 `mock.module` 共 5 个文件（@修复前），但 mock **画布 store** 的**只有 1 处**：
+`web/test/user-data-sync-load-deadlock.test.ts:19`（@修复前；已改为 spyOn）。
 
 **控制线独立配对实验**（因果验证）：
 ```
