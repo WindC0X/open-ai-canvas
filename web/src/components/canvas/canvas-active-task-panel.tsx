@@ -8,6 +8,7 @@ import { MediaPreview } from "@/components/media-preview";
 import { canCancelGenerationTask, formatTaskKind, generationTaskExecutionLabel, generationTaskShowsProgress, generationTaskStageLabel, generationTaskStatusLabel } from "@/lib/generation-task-display";
 import { canvasThemes } from "@/lib/canvas-theme";
 import type { GenerationTask } from "@/services/api/task-center";
+import { taskDeliverableState } from "@/lib/task-deliverable-state";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -285,7 +286,7 @@ function ActiveTaskCard({
                         </div>
                         {/* 交付步（硬验收③）：「下载」给成品，「在画布中打开」给而不要求 */}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                            {task.status === "succeeded" && onDownload ? (
+                            {taskDeliverableState(task).downloadable && onDownload ? (
                                 <button
                                     type="button"
                                     className="inline-flex h-7 items-center gap-1 rounded-[var(--r-sm)] px-2 text-[var(--fs-tiny)] font-medium transition-colors"
