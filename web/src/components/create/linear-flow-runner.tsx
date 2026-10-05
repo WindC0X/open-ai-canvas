@@ -57,8 +57,8 @@ type RunnerStage = "form" | "generating" | "done" | "error";
  * 判别式（`kind`）让调用方无法把两种语义写混 —— 生成阶段不可能拿到 `resultUrl`。
  */
 export type LinearFlowCanvasHandoff =
-    | { kind: "result"; prompt: string; resultUrl: string; taskId?: string; metadata: Record<string, unknown> }
-    | { kind: "carrier"; prompt: string; taskId: string; metadata: Record<string, unknown> };
+    | { kind: "result"; prompt: string; resultUrl: string; taskId?: string; canvasId?: string; metadata: Record<string, unknown> }
+    | { kind: "carrier"; prompt: string; taskId: string; canvasId?: string; metadata: Record<string, unknown> };
 
 export type LinearFlowRunnerProps = {
     card: LinearFlowCard | null;
@@ -83,6 +83,17 @@ export type LinearFlowRunnerProps = {
      * 交付阶段发 `result`（结果交接），生成阶段发 `carrier`（打开承载画布）。
      */
     onOpenInCanvas?: (input: LinearFlowCanvasHandoff) => void | Promise<void>;
+    /**
+     * 可选：提交生成前预建承载容器（D-1），返回 canvasId（空串/undefined = 未预建）。
+     *
+     * ★ 为什么要预建：任务创建时带 `projectId` ⇒ 生成中画布任务面板能看到这条任务
+     *   （面板按 projectId 过滤 + activeOnly 语义）。任务创建后无法补写 projectId
+     *   （后端无任务 PATCH 路由），所以必须在提交前先有容器 id。
+     *
+     * ★ 实现约束（调用方）：只做**本地创建 + 防抖同步**，不得 `await` 云端往返
+     *   （实测约 7.7s，会阻塞提交关键路径）。
+     */
+    onPrepareCanvas?: (input: { title: string }) => string | undefined | Promise<string | undefined>;
 };
 
 /**
@@ -90,7 +101,7 @@ export type LinearFlowRunnerProps = {
  *
  * 单卡单流程：`card` 变化即重置（同一时刻只跑一张卡）。
  */
-export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas }: LinearFlowRunnerProps) {
+export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas, onPrepareCanvas }: LinearFlowRunnerProps) {
     const { message: toast } = App.useApp();
     const [step, setStep] = useState<LinearFlowStepId>("clarify");
     const [completed, setCompleted] = useState<LinearFlowStepId[]>([]);
@@ -106,6 +117,8 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
     const [taskId, setTaskId] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const abortRef = useRef<AbortController | null>(null);
+    // D-1：本次生成周期的承载容器 id（预建后缓存，carrier/result 两次交接共用同一容器）。
+    const canvasIdRef = useRef("");
 
     const gate = useMemo(() => resolveLinearFlowGate(step, completed), [step, completed]);
     const visibleSteps = useMemo(() => visibleLinearFlowSteps(gate), [gate]);
@@ -123,6 +136,7 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
         setResultText("");
         setErrorText("");
         setTaskId("");
+        canvasIdRef.current = "";
         abortRef.current?.abort();
         abortRef.current = null;
     }, []);
@@ -180,7 +194,19 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
             const requestConfig = config.model === modeModel
                 ? config
                 : { ...config, model, ...(card.mode === "text" ? { textModel: model } : { imageModel: model }) };
+            // ★ D-1：提交前预建承载容器（只建一次/生成周期）。任务带 projectId ⇒
+            //   生成中画布任务面板可见（面板按 projectId 过滤）。预建失败不阻塞生成 ——
+            //   降级为「任务不带 projectId」（既有行为），用户仍可用「在画布中打开」补建。
+            if (!canvasIdRef.current && onPrepareCanvas) {
+                try {
+                    canvasIdRef.current = (await onPrepareCanvas({ title: card.title })) || "";
+                } catch (error) {
+                    console.warn("预建承载容器失败，本次任务不带 projectId", error);
+                }
+            }
+            const canvasId = canvasIdRef.current;
             const result = await runBackendGenerationTask({
+                ...(canvasId ? { projectId: canvasId } : {}),
                 mode: card.mode,
                 prompt,
                 config: requestConfig,
@@ -220,7 +246,7 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
         if (!onOpenInCanvas || !resultUrl) return;
         setOpeningCanvas(true);
         try {
-            await onOpenInCanvas({ kind: "result", prompt, resultUrl, taskId: taskId || undefined, metadata: card ? buildLinearFlowMetadata(card, answers) : {} });
+            await onOpenInCanvas({ kind: "result", prompt, resultUrl, taskId: taskId || undefined, canvasId: canvasIdRef.current || undefined, metadata: card ? buildLinearFlowMetadata(card, answers) : {} });
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "转入画布失败");
         } finally {
@@ -238,7 +264,7 @@ export function LinearFlowRunner({ card, config, model, onClose, onOpenInCanvas 
         if (!onOpenInCanvas || !taskId) return;
         setOpeningCanvas(true);
         try {
-            await onOpenInCanvas({ kind: "carrier", prompt, taskId, metadata: card ? buildLinearFlowMetadata(card, answers) : {} });
+            await onOpenInCanvas({ kind: "carrier", prompt, taskId, canvasId: canvasIdRef.current || undefined, metadata: card ? buildLinearFlowMetadata(card, answers) : {} });
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "打开画布失败");
         } finally {

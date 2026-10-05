@@ -1,7 +1,7 @@
 import { Button } from "antd";
 import { IconButton } from "@/components/ui/base/buttons";
 import { Tooltip } from "@/components/ui/base/tooltip";
-import { Eye, FileText, Image as ImageIcon, RotateCcw, Video } from "lucide-react";
+import { Eye, FileText, Image as ImageIcon, LayoutGrid, RotateCcw, Video } from "lucide-react";
 
 import { MediaPreview } from "@/components/media-preview";
 import { CONTENT_MODERATION_ERROR_CODE, isContentModerationError } from "@/lib/generation-error";
@@ -10,7 +10,16 @@ import type { GenerationTask } from "@/services/api/task-center";
 import { isTaskFailed, statusDotClassName, taskAttentionReason, TaskDate } from "./task-shared";
 import { TaskVideoThumbnail } from "./task-video-thumbnail";
 
-export function TaskGridCard({ task, actingId, onOpen, onRetry }: { task: GenerationTask; actingId: string; onOpen: () => void; onRetry: () => void }) {
+export function TaskGridCard({ task, actingId, onOpen, onRetry, onOpenCanvas, canvasAction, openingCanvas }: {
+    task: GenerationTask;
+    actingId: string;
+    onOpen: () => void;
+    onRetry: () => void;
+    /** D-2：画布入口（`open` = 已有容器纯跳转；`create` = 卡流程任务重建容器）。 */
+    onOpenCanvas?: () => void;
+    canvasAction?: "open" | "create";
+    openingCanvas?: boolean;
+}) {
     const isActive = task.status === "queued" || task.status === "running";
     const isFailed = isTaskFailed(task);
     const retryDisabled = task.errorCode === CONTENT_MODERATION_ERROR_CODE || isContentModerationError(task.error);
@@ -34,6 +43,18 @@ export function TaskGridCard({ task, actingId, onOpen, onRetry }: { task: Genera
                     <Tooltip title="查看详情">
                         <IconButton size="sm" variant="ghost" icon={Eye} aria-label="查看详情" onClick={onOpen} />
                     </Tooltip>
+                    {canvasAction && onOpenCanvas ? (
+                        <Tooltip title={canvasAction === "create" ? "创建画布并打开" : "在画布中打开"}>
+                            <IconButton
+                                size="sm"
+                                variant="ghost"
+                                icon={LayoutGrid}
+                                aria-label={canvasAction === "create" ? "创建画布并打开" : "在画布中打开"}
+                                loading={openingCanvas}
+                                onClick={onOpenCanvas}
+                            />
+                        </Tooltip>
+                    ) : null}
                     {isFailed ? (
                         <Tooltip title={retryDisabled ? "内容审核失败，无法自动重试" : task.canRecoverMedia ? "重试保存，不重新生成" : "重试任务"}>
                             <Button
