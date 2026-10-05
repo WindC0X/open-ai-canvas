@@ -97,6 +97,10 @@ type providerConfig struct {
 	RunningHubUseWallet   bool                   `json:"runningHubUseWallet"`
 	RunningHubWalletKey   string                 `json:"runningHubWalletApiKey"`
 	RunningHubUploadKey   string                 `json:"runningHubUploadApiKey"`
+	// ProductImageCount 声明 ReferenceImages 前 N 张是「产品图」，其余为版式参考图。
+	// F-09 克隆复刻用它生成图片角色清单（prompt_image_role.go）；0 表示不注入角色清单，
+	// 非 F-09 场景保持零影响。计数按【发给 API 的数组顺序】理解，与前端表单顺序无关。
+	ProductImageCount int `json:"productImageCount,omitempty"`
 }
 
 const providerHTTPTimeout = 5 * time.Minute
@@ -242,6 +246,9 @@ func (s *Service) processCanvasGenerationTask(ctx context.Context, userID string
 			return nil, err
 		}
 	}
+	// 图片角色清单必须在这之后注入：hydrateGenerationMedia 完成 ReferenceImages 定序，
+	// 编号才能对齐真正发给 API 的数组顺序（F-09 方案 §1.1 ⑦ 陷阱）。
+	applyImageRolePrompt(&input)
 	if input.Mode == "video" && input.VideoCapability != nil {
 		if err := validateVideoTask(input.VideoCapability, input); err != nil {
 			return nil, err
