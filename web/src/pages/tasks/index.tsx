@@ -340,7 +340,11 @@ export default function TasksPage() {
     const openTaskCanvas = async (task: GenerationTask) => {
         const action = resolveTaskCanvasAction(task, useCanvasStore.getState().projects, linearFlowTaskIds.has(task.id) ? task.id : undefined);
         if (action.kind === "navigate") {
-            navigate(`/canvas/${action.canvasId}?${new URLSearchParams({ conversation: `creation:linear-flow-${task.id}` }).toString()}`);
+            // ★ P2-1：D-1 预建容器可能尚无会话（用户从未点过「在画布中打开」）——
+            //   此时不带 conversation 参数，避免画布页弹「未找到要接续的会话」警告。
+            //   sessionId 由 resolveTaskCanvasAction 按 taskIds 精确判定（非「容器有无会话」）。
+            const query = action.sessionId ? `?${new URLSearchParams({ conversation: action.sessionId }).toString()}` : "";
+            navigate(`/canvas/${action.canvasId}${query}`);
             return;
         }
         if (action.kind === "none") return;
