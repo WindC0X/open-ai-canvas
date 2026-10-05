@@ -13,7 +13,7 @@
 |---|---|---|
 | B1 | **nano-banana-2 无 seed 参数**（渠道配置实测：image keys 无 seed） | 生成不可复现；单次结果不可归因 |
 | B2 | **已观测方差极大**（同条件 Δ 范围 0.2%~17.4%） | 单次对照不足以分离效应（V4 附1） |
-| B3 | **角色段为手工拼装**（未经后端注入层 `feat/f09-prompt-injection @ 4a448e06`，该分支未合并） | 注入层有效性未验证 |
+| B3 | **角色段为手工拼装，未经后端注入层**。<br>依据：`run-batch.mjs` 未传 `config.productImageCount` ⇒ 后端 `applyImageRolePrompt` 因 `ProductImageCount <= 0` 直接 return。<br>（该依据**不依赖注入层分支的合并状态** —— 无论是否合并，注入层都不会被调用） | 注入层的端到端有效性未被本矩阵验证 |
 | B4 | **H3 阳性对照绕过**：输出归一化到参考图尺寸（因 `make_positive_control.py` 尺寸缺陷，控制线裁定1） | 归一化记录见各格 JSON 的 `normalization` 字段 |
 | B5 | **H1③ 光线 / H2① 部件** 为人工判定（判据无自动化） | 判定依据见 §5 |
 | B6 | **S1 × gpt-image-2.5 不可测**（渠道内容政策拒绝） | 矩阵实际 9 格（非 12） |
@@ -230,8 +230,11 @@ M/N = 1/3 < 半数（H3 项）⇒ 按控制线要求登记「稳定性存疑」
 
 ## 9. 产物清单
 
+**★ 产物已入库可分发**（`docs/artifacts/` 被 gitignore，故用 `git add -f` 强制入库；
+`git ls-files` 验证 11 文件已跟踪，`git archive` 可导出）：
+
 ```
-docs/artifacts/f09-channel-test/
+docs/artifacts/f09-channel-test/     （11 文件已跟踪）
 ├── RESULTS.md          （本文件）
 ├── results.json        （全矩阵结构化数据）
 └── images/             （9 格输出图，JPEG q88 压缩：18MB→2MB）
