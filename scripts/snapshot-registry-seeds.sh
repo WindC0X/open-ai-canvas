@@ -63,6 +63,15 @@ cmd_verify() {
         echo "校验失败：$dir 下无 manifest.txt" >&2
         return 2
     fi
+    # ★ 空输入防线（V8）：manifest 被裁剪/改写为无 hash 行时，下面的循环零次执行、
+    #   failed 保持 0 ⇒ 末尾会打印「校验通过」—— 防线自身对空输入失效
+    #   （与 G1 的 echo|wc -l 空输入计数 bug 同族）。先显式判定「有可校验条目」。
+    local entries=()
+    mapfile -t entries < <(grep '^[0-9a-f]\{64\} ' "$dir/manifest.txt" || true)
+    if [ ${#entries[@]} -eq 0 ]; then
+        echo "校验失败：manifest 无可校验条目（可能被裁剪或改写）" >&2
+        return 2
+    fi
     local failed=0
     while read -r expected name; do
         local current src
@@ -93,7 +102,7 @@ cmd_verify() {
             echo "      当前: $current"
             failed=1
         fi
-    done < <(grep '^[0-9a-f]\{64\} ' "$dir/manifest.txt")
+    done < <(printf '%s\n' "${entries[@]}")
     if [ "$failed" -ne 0 ]; then
         echo "校验失败：快照与当前 seed 不一致（若收编已进行，这是预期结果）" >&2
         return 2

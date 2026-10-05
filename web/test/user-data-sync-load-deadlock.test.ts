@@ -1,4 +1,4 @@
-import { expect, mock, spyOn, test } from "bun:test";
+import { afterAll, expect, spyOn, test } from "bun:test";
 
 import { http } from "../src/services/api/request";
 import * as actualCanvasStore from "../src/stores/canvas/use-canvas-store";
@@ -10,22 +10,31 @@ import { CanvasNodeType } from "../src/types/canvas";
 // 的 load 也一起等 → 「事务等 load、load 等事务」双向死锁，尾随队列永久卡死（撤销事务 POST
 // 期间任意一次打开画布 / 生成任务完成回写即中招，自动同步/保存/登出全部挂起且无提示）。
 //
-// 自带确定性 store 桩：本仓其他测试文件会 mock.module 掉画布 store（bun 的模块 mock 是进程级、
-// 跨文件泄漏），真实 store 在同进程全量跑里会变成没有 setState 的桩，这里不依赖加载顺序。
+// 自带确定性 store 桩：**spyOn 临时替换**（不用 mock.module）。
+// ★ 为什么改：bun 的 mock.module 是进程级且无恢复手段（实测 mock.restore() 不还原已加载
+//   模块），桩会泄漏给后续测试文件 —— 全量跑中 headless-workspace-writer（5 红）与
+//   canvas-asset-repair（7 红）都因此受害。spyOn 只替换同一 store 对象的方法，afterAll
+//   恢复后所有持有该对象引用的模块自动回到真实实现。
+// ★ 桩只接管 projects：其余 setState 字段透传真实 store。只处理 projects 的桩会吞掉
+//   persist rehydrate 回调写入的 hydrated，使同进程后续测试的「画布资料正在加载」守卫
+//   误报（配对跑实测 5 红；全量跑是否触发取决于文件加载顺序，不可依赖）。
 let projects: CanvasProject[] = [];
-void mock.module("../src/stores/canvas/use-canvas-store", () => ({
-    // 保留其余导出（CANVAS_STORE_KEY 等），只替换 store 本体
-    ...actualCanvasStore,
-    useCanvasStore: {
-        getState: () => ({ projects }),
-        setState: (updater: unknown) => {
-            const patch = typeof updater === "function"
-                ? (updater as (state: { projects: CanvasProject[] }) => { projects?: CanvasProject[] })({ projects })
-                : (updater as { projects?: CanvasProject[] });
-            if (patch?.projects) projects = patch.projects;
-        },
-    },
-}));
+const realGetState = actualCanvasStore.useCanvasStore.getState;
+const realSetState = actualCanvasStore.useCanvasStore.setState;
+const getStateSpy = spyOn(actualCanvasStore.useCanvasStore, "getState").mockImplementation(() => ({ ...realGetState(), projects }));
+const setStateSpy = spyOn(actualCanvasStore.useCanvasStore, "setState").mockImplementation((updater: unknown) => {
+    const patch = (typeof updater === "function"
+        ? (updater as (state: { projects: CanvasProject[] }) => { projects?: CanvasProject[] })({ ...realGetState(), projects })
+        : (updater as { projects?: CanvasProject[] })) ?? {};
+    if (patch.projects) projects = patch.projects;
+    // 桩只接管 projects：其余字段透传真实 store，不得吞掉 rehydrate 写入的其它状态。
+    const { projects: _intercepted, ...rest } = patch as Record<string, unknown>;
+    if (Object.keys(rest).length) realSetState(rest as never);
+});
+afterAll(() => {
+    getStateSpy.mockRestore();
+    setStateSpy.mockRestore();
+});
 
 const {
     flushRemoteUserDataUnlocked,
@@ -121,4 +130,12 @@ test("去重命中时第二个调用者的 onLoad 仍被调用", async () => {
     expect(loadedIds).toEqual(["deadlock-probe", "deadlock-probe"]);
     expect(firstProject?.id).toBe("deadlock-probe");
     expect(secondProject?.id).toBe("deadlock-probe");
+});
+
+// ★ P1-2 治本的可证伪锚点：桩只接管 projects，其余 setState 字段必须透传真实 store。
+// 缺陷形态（只处理 projects 的桩）会吞掉 rehydrate 的 hydrated —— 该缺陷在全量跑中
+// 因文件加载顺序可能不显形，故此契约在本地显式钉住（注入「去掉透传」→ 本测试必红）。
+test("桩只接管 projects：其余 setState 字段透传真实 store（防 hydrated 被吞）", () => {
+    actualCanvasStore.useCanvasStore.setState({ hydrated: true });
+    expect(actualCanvasStore.useCanvasStore.getState().hydrated).toBe(true);
 });
