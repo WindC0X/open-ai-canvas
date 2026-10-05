@@ -4209,3 +4209,27 @@ Agent 面板新对话态新增 4 张电商 starter 卡（白底产品图 / 3:4 �
 仍待真实环境验收：
 
 - [ ] 在管理员后台存储资源页分别输入完整/部分用户名、昵称、邮箱和用户 ID，确认返回同一用户资源；再叠加类型、状态和存储位置筛选，确认分页与清空筛选正常。
+
+## 注册表版本校验（A-1 · 待链路就绪）
+
+**来源**：评审线 R1（A 组）· 控制线 2026-10-05 裁定 (B)「登记待链路就绪」。
+
+**待测项**：`registry-reader.ts` 的 `loadStyleAssets` / `loadSkillPresetAssets`
+在消费服务端 registry 数据时，校验**数据 schema 版本**，不符时降级 fallback 并明示。
+
+**当前阻塞**：版本信号不可达 ——
+`backend/internal/tools/tools.go` 的 `ToolList`（列表 API 响应）不含 `version` 字段，
+前端 `services/api/tools.ts` 的 `ToolList` 类型同样不含
+⇒ 前端无法校验它拿不到的字段。
+
+**触发条件**：`ToolList` 增 `version` 字段（后端 + 前端类型同步）。
+
+**★ 落地时注意（契约字段名修正）**：
+`capability-registry-architecture.md` 原写 `payload.registryVersion`，但
+`registryVersion` 在实码里是**前端本地常量**（`capability-entries.ts` 硬编码）
+⇒ 照字面实现会**恒等 ⇒ 永远为 true（空写假防线）**。
+正确对象是**服务端下发的 schema version**（seed 的 `version`）。
+详见该文档 §5.2 防线 3 的 2026-10-05 核查结论。
+
+**验证要求**（落地时）：测试必须喂**真实 payload 形态**（含 version 字段的 ToolList），
+不得用本地常量对本地常量（同族教训：A-2 的「测试与生产形态不匹配」假绿）。
