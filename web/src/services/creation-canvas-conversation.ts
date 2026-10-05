@@ -1,4 +1,4 @@
-import type { CanvasAssistantMessage, CanvasAssistantSession } from "@/types/canvas";
+import type { CanvasAssistantMessage, CanvasAssistantSession, CanvasWorkspaceType } from "@/types/canvas";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { flushCanvasStorePersistence, useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { createCanvasProjectWithRemoteSync, hasRemoteUserDataSyncSession, loadCanvasProjectForEditing, saveRemoteUserDataNow } from "@/services/user-data-sync";
@@ -13,7 +13,12 @@ type SourceConversation = { id: string; title: string; updatedAt: string; canvas
 
 // Same source IDs merge into the same canvas conversation, without replaying tasks
 // or replacing messages produced by the canvas Agent after the handoff.
-export async function continueCreationConversationOnCanvas(source: SourceConversation) {
+//
+// `options.workspaceType`（W5 统一任务面 §4.2）只在**新建容器**时生效：
+// existingId 分支一律不覆盖既有画布的 workspaceType —— 既有画布可能是用户
+// 正常画布，不能因一次交接就打成 headless。调用方无需预判是否首次，
+// 服务内部才判定 `source.canvasId || local?.id`。
+export async function continueCreationConversationOnCanvas(source: SourceConversation, options?: { workspaceType?: CanvasWorkspaceType }) {
     const scope = getActiveUserScope();
     const assertScope = () => { if (scope !== getActiveUserScope()) throw new DOMException("账号已切换，请重新打开创作", "AbortError"); };
     if (!source.id || !source.messages.length) throw new Error("请先开始一段创作对话");
@@ -57,7 +62,11 @@ export async function continueCreationConversationOnCanvas(source: SourceConvers
         } catch (cause) { syncError = cause; }
     } else {
         const session: CanvasAssistantSession = { id: sessionId, title: source.title, createdAt: source.messages[0].createdAt, updatedAt: source.updatedAt, messages };
-        const created = await createCanvasProjectWithRemoteSync(source.title || "创作画布", undefined, { chatSessions: [session], activeChatId: sessionId });
+        const created = await createCanvasProjectWithRemoteSync(source.title || "创作画布", undefined, {
+            chatSessions: [session],
+            activeChatId: sessionId,
+            ...(options?.workspaceType ? { workspaceType: options.workspaceType } : {}),
+        });
         id = created.id;
         syncError = created.syncError;
         await flushCanvasStorePersistence();
