@@ -561,6 +561,119 @@ process 3: #1=THREW #2=true #3=true
 
 ---
 
+### C8 ★ 投递前必须核实对方 handle 的身份（禁用自指变量）
+
+**规则**：任何跨线投递（报告 / 请示 / 裁定）之前，必须执行
+```
+orca-ide terminal show --terminal <目标 handle>
+```
+并确认 `title` / `worktree` **是对方**，不是自己。**发送后**再读一次终端确认落地。
+
+**★ 绝对禁止**：把环境变量 `ORCA_TERMINAL_HANDLE` 当作投递目标 ——
+**它是「自指」变量**（= 自己所在的终端），拿它投递必然发给自己。
+
+**事故记录**（2026-10-05，测试线自报，控制线独立核实）：
+
+测试线原控制线 handle（`term_395e7f6d-...`）因会话重启变为 stale 后，
+它**未核实身份**就改用 `term_68999d9b-...` 投递 ——
+而该 handle **正是它自己的终端**（`ORCA_TERMINAL_HANDLE` 自指）。
+
+**后果**：自 b12r20 起历轮的「直报控制线」**全部发进了它自己的会话**，
+控制线**从未收到**。连带后果：控制线误判「b12r22 报告未落盘」（实际已落盘，
+只是从未通报），并据此向评审线发出了错误的评审范围。
+
+**独立核实证据**（控制线实测）：
+| 核验项 | 结果 |
+|---|---|
+| 控制线真实 handle | `term_d0044894-...`（`Pi - pi`, `F:\CODE\Project\pi`） |
+| `term_68999d9b` 归属 | `Pi - open-ai-canvas-testing`（**测试线自己**） |
+| 控制线终端内 `b12r2` 命中 | 6 处**全是控制线自己的命令回显**，非收到的消息 |
+
+**★ 根因**：`ORCA_TERMINAL_HANDLE` 的语义是「我所在的终端」，**不是「对方的终端」**。
+把它当投递目标是一个**语义误用**，而非笔误。
+
+**A线 同源事故**（测试线通报后 A线 自查确认）：
+A线 也发错了 —— 它发到了 `term_d0044894-...`（**确实是控制线**），
+但用的是 A线 **自己以为的** handle，说明 A线 对「控制线 handle 是什么」的认知也是错的
+（正确性来自巧合而非核实）。
+
+**派生纪律**：
+1. **投递目标必须是「对方」的 handle**，来源只能是控制线下发的任务书或双方确认的记录
+2. **每次投递前 `terminal show` 核实**，`title`/`worktree` 不符则**不发**，先上报
+3. **发送后读终端确认落地**（`read --terminal <对方 handle>` 应能看到自己的消息）
+4. **会话重启后所有 handle 失效** —— 重启后必须重新交换 handle，不得沿用旧值
+5. **不确定时先问**：宁可多问一句「你的 handle 是哪个」，也不要发进自己的会话
+
+**★ 为何这条必须成文**：投递失败是**静默的** —— 发送方看到「已发送」，
+接收方什么都没收到，**双方都不知道**。这类故障不会被任何现有纪律捕获。
+
+---
+
+#### C8.1 ★ 四条判据（2026-10-05 全线自查后补，A线/B线/测试线 各自提出）
+
+**★ 判据1：`terminal show` 是必要不充分（B线 提出）**
+
+> 「如果候选 handle 本身来源错误（旧记录 / 旧快照 / 别人转述），
+> `show` 会告诉你『这是某某终端』，但**你无法判断它是不是控制线**。
+> 只有 **cwd 白名单**（或双方显式交换）才能闭合这个环。」
+
+**⇒ 投递目标的来源必须可追溯**：只能是①控制线下发的任务书 ②双方显式交换 ③`terminal list` 的 cwd 实测。
+**禁止**：从旧记录、旧快照、别人转述中取 handle。
+
+**★ 判据2：仅 `show` 不足以发现自指（测试线 提出）**
+
+实测确认：**自己 show 自己完全正常**
+```
+$ orca-ide terminal show --terminal $ORCA_TERMINAL_HANDLE
+title: Pi - pi
+worktree: F:\CODE\Project\pi
+connected: true          ← 没有任何异常信号
+```
+⇒ **必须额外比对** `echo $ORCA_TERMINAL_HANDLE`，确认候选 handle **≠ 自己的 handle**。
+这一条是本轮事故的直接防线 —— 测试线正是「自己 show 自己」而未能发现。
+
+**★ 判据3：`send` 的返回不能作为送达判据（A线 提出）**
+
+> 「send 返回 `input_accepted` / `delivery observation: unsupported` ——
+> 该 provider **恒返回** unsupported 观测，
+> 『发到对方』与『发到死终端 / 自己终端』**在 send 的返回里不可区分**。
+> 否则该纪律本身会落入 V8（失败路径不可诊断）。」
+
+**⇒ 送达成立的充要条件**：
+1. `read` 目标终端，内容里**出现自己的消息**
+2. **且**该终端存在「**他人会话特征**」——对方正在处理的、与我消息无关的上下文
+3. 若只有 ① 没有 ② ⇒ **高度怀疑发到了自己终端**（本轮事故的精确形态）
+
+**★ 判据4（正向识别程序，B线 提出，重启后必须执行）**
+```
+1. orca-ide terminal list --json
+2. 按 cwd 定位对方（控制线 = /mnt/f/CODE/Project/pi；B线 = oac-wt-f08；…）
+3. orca-ide terminal show --terminal <候选>   → 确认 title/worktree 是对方
+4. echo $ORCA_TERMINAL_HANDLE                → 确认候选 ≠ 自己
+5. 记录目标 handle 到本会话（写 /tmp 或 journal，避免再次猜测）
+```
+
+**★ handle 白名单**（2026-10-05 实测，会话重启后需重新核对）
+| 线 | handle | title | worktree |
+|---|---|---|---|
+| **控制线** | `term_d0044894-c9da-43ad-95fc-7bc76b4c1641` | `Pi - pi` | `F:\CODE\Project\pi` |
+| **A线** | `term_595163ef-fcc5-4e2c-9bae-1fce67fc061e` | `Pi - open-ai-canvas` | `F:\CODE\Project\open-ai-canvas` |
+| **B线** | `term_f9cb5f47-afd1-4da2-90aa-684fc53ac2f3` | `Pi - oac-wt-f08` | `F:\CODE\Project\oac-wt-f08` |
+| **测试线** | `term_68999d9b-1399-4826-80d5-af75c3b5be1f` | `Pi - open-ai-canvas-testing` | `F:\CODE\Project\open-ai-canvas-testing` |
+| **评审线** | `term_0ff98021-9abb-47d3-80e8-9158decb4b5f` | `Pi - oac-wt-review` | `F:\CODE\Project\oac-wt-review` |
+| **深拆线** | `term_56459ab4-4966-437b-a508-de4112b8ada8` | `π - open-ai-canvas` | `F:\CODE\Project\open-ai-canvas` |
+
+**★ 全线自查结果**（2026-10-05）：
+| 线 | 自查结论 | 依据 |
+|---|---|---|
+| **测试线** | ❌ **确认发错**（自指，b12r17–b12r22 全部发给自己） | 报告落在自己终端 + 未收到回执 |
+| **A线** | ✅ **无问题**（自报「也发错了」经证据撤回） | 控制线 session 内 recall 找到其报告 + 独立复核记录 |
+| **B线** | ✅ **无问题**（用 `terminal list` cwd 实测识别 handle） | 无一条 `send --terminal <自己>` |
+| **评审线** | ⏳ 待回复 | — |
+| **深拆线** | ⏳ 待回复（新开终端，尚未参与历史投递） | — |
+
+---
+
 ---
 
 ## 五、任务书模板（控制线拟任务书时逐项确认）
