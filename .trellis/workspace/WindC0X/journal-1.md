@@ -2227,3 +2227,131 @@ command-palette ✗ / create-card ✗（★ F-09 用的）/ canvas-route ✗   �
 - 报告：`docs/artifacts/f09-canvas-template-review.md`（`git add -f`，因 `.gitignore` 有 `docs/*`）
 - commit：**`b66a86a5`**（单 commit，未 push）
 - 已发送控制线，落地确认（控制线已在独立核验 B-1/B-2）
+
+---
+
+## F-09 修复批独立复核（2026-10-06）
+
+**对象**：`f88feac7`（= 修复批 `40b9c915` + journal，代码面零差异）
+**隔离树**：`_f09fix`（依赖物理隔离）
+**基线**：3178 pass / 0 fail / 375 files（连跑 3 次，1 次命中已知 flaky）
+
+### ★ 我自己的纪律违反（G4.1 自报）
+
+13:10-13:12 我在 `/mnt/f/CODE/Project/open-ai-canvas`（**A线 的家域**）执行
+`git worktree add` + `cp -r node_modules` ⇒ 持有 `.git` 锁 ⇒ 撞 A线 的 journal commit。
+控制线用 `/proc` 环境变量定位到我的 handle（`term_0ff98021`）。
+
+**根因**：我以为「worktree add 是只读元数据操作」—— 错在它仍短暂持有 index.lock。
+
+**★ lesson 16 的同族**：
+```
+lesson 16（R5）：依赖共享（symlink node_modules）⇒ 假红
+本条（F-09）：  家域共享（主仓做 git 写操作）⇒ 锁冲突
+共同根因：共享资源的写入者互不可见
+```
+
+**纠正**：① 先 `ps aux | grep git` 查活跃操作 ② 优先从自己仓发起 worktree。
+
+### §1 证伪重跑（3 项，独立实测）
+
+| # | 注入 | 控制线声称 | 我实测 |
+|---|---|---|---|
+| B-1 | 谓词 `imageCount === 2` → `=== 5` | 2 red | **2 red ✓** |
+| B-2 | `if (cloneParams)` → `if (false && cloneParams)` | 1 red | **1 red ✓** |
+| N-1 | `create-card` target → 假值 | 1 red | **1 red ✓** |
+
+**★ 我追加的注入**（检验 B-2 测试的性质）：
+```
+if (cloneParams && false) {              → 1 red（断言含 "if (cloneParams) {"）
+分支内改走 handleGenerateNode           → 1 red（另一个文本断言）
+handler 内部首行早退（文本全保留）      → ★ 10 pass / 0 fail
+⇒ B-2 测试是【纯源码文本断言】，不能捕获语义失效
+```
+
+### §2 ★★ 阻塞级发现 B2-1
+
+**B-2 的派发加在 Config 节点【永不渲染】的组件上 ⇒ handler 仍零消费方。**
+
+**5 项独立验证全通过**：
+```
+① renderCanvasNodePanel 的 Config 分支返回 <CanvasConfigComposer />  ✓
+② CanvasConfigComposer(111543) 在 CanvasNodePromptPanel(112408) 之前 ⇒ 前者是 Config 分支  ✓
+③ 派发代码位于 PromptPanel 与 ConfigNodePanel 之间 ⇒ 属 PromptPanel 的 JSX 内  ✓
+④ CanvasConfigNodePanel 区块【不含】cloneParams  ✓
+⑤ 真实生成按钮：canvas-config-node-panel:297 → project.tsx:2499 → handleGenerateNode  ✓
+```
+
+**真实路径**：
+```
+爆款复刻节点（CanvasNodeType.Config）
+  → 对话框：<CanvasConfigComposer />（无 onGenerate prop ⇒ 无法生成）
+  → 节点卡片：<CanvasConfigNodePanel onGenerate={... handleGenerateNode ...} />（无 cloneParams 派发）
+  ⇒ ★ handler createCloneRecreateNode 仍然零消费方
+```
+
+**★ 为什么测试全绿**：断言的是**源码文本存在**，不检查**渲染路径可达**。
+```
+B-1（上轮）：测试名声称「真实入口消费路径」，实际测工具栏重复实现
+B2-1（本轮）：测试名声称「handler 有真实消费方」，实际测源码文本存在
+⇒ 共同点：断言对象 ≠ 声称的验证对象
+```
+
+**建议修法**：把派发移到 `CanvasConfigNodePanel` 的 onGenerate（`:2499`）；
+或抽纯函数（`resolveConfigGenerateAction(node)`）做**行为断言**。
+
+### §3 非阻塞 N3-1
+
+**N-3 的 sourceImageIds 可能含非图片节点**（探针实测）：
+| 场景 | selectedNodeIds | selectedImageCount | 填入槽位 |
+|---|---|---|---|
+| 只选 2 图 | `[img-1, img-2]` | 2 ✓ | `[img-1, img-2]` ✓ |
+| **先选文本再选 2 图** | `[text-1, img-1, img-2]` | 2 ✓ | **`[text-1, img-1]`** ✗ |
+
+⇒ slot[0]（产品图槽位）= 文本内容（文本节点也有 `content` 字段），**不报错**。
+**修法**：传参前过滤 `CanvasNodeType.Image`。
+
+### §4 逐项结论
+
+| 项 | 状态 |
+|---|---|
+| B-1 谓词接线 | ✅ 已修（行为断言，质量高） |
+| **B-2 handler 接线** | ❌ **未修（位置错误）** |
+| N-1 守卫覆盖 | ✅ 已修（超出建议，加防未来缺口断言） |
+| N-2 顺序契约 | ⚠️ 未修（控制线裁定只登记，我复核**裁定合理**） |
+| N-3 选区入口 | ⚠️ 部分修（残留 N3-1） |
+| N-4 copyMode 默认 | ✅ 已修（`no-copy`） |
+| 新-1/新-2 entryPoints | ✅ 已修 |
+| 新-3 升格枝派发 | ✅ 登记未实现（合理） |
+| □5-2 guided 态 | ✅ 已修（**只加不改**，零回归风险） |
+
+### §5 控制线指定核实项
+
+**□5-2 是否影响既有 guided 态**：**不影响** ✓
+（`templateCards?` 可选 + `{templateCards?.length ? ... : null}`；分支顺序未变；独立区域不混入引导语义）
+
+**派发是否影响 F-08/超分**：**零影响** ✓
+（判据 `metadata.cloneRecreateParams` 全仓写入点只有 1 个 = 模板实例化）
+**★ 但因 B2-1（派发不可达），这是「基于不可达代码的零影响」—— 修好后需重新核实。**
+
+### §6 结论：**需修复后合并**
+
+阻塞 1（B2-1）+ 非阻塞 1（N3-1）。已修好 6 项，登记 1 项，裁定未修 1 项。
+
+**★ 修复质量对比（值得记录）**：
+```
+B-1（已修，高质量）：抽函数 cloneRecreateContextSatisfied + 双向注入对照（行为断言）
+B-2（未修）：        内联代码 + 源码文本断言
+⇒ 同一批修复，两种质量
+```
+
+### ★ 教训二十五：跨线共享资源不只「依赖」，还有「家域」
+
+> lesson 16（R5）：依赖共享 ⇒ 假红
+> 本条（F-09）：家域共享 ⇒ 锁冲突
+> **共同根因：共享资源的写入者互不可见。**
+> 纠正：跨线操作前 `ps aux | grep` 查活跃进程；优先从自己仓发起 worktree。
+
+### 交付
+- 报告：`docs/artifacts/f09-canvas-template-fix-review.md`
+- 已发送控制线，落地确认
