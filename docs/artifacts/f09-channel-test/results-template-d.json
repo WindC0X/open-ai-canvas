@@ -1,0 +1,1250 @@
+{
+  "_meta": {
+    "batch": "F-09 模板 D 渠道实测",
+    "date": "2026-10-06",
+    "criteria": {
+      "repo": "open-ai-canvas-testing",
+      "commit": "353bb36",
+      "docCommit": "c0cc968"
+    },
+    "caliber": {
+      "layerConfig": "layers.example.json",
+      "titleX": [
+        258,
+        1028
+      ],
+      "imageRepresentation": "text_mask",
+      "normalization": "on (INTER_LANCZOS4) → 1086x1448",
+      "calibPoints": [
+        0.486,
+        0.492,
+        0.68,
+        0.763
+      ]
+    },
+    "prompts": {
+      "corpus": {
+        "len": 867,
+        "md5": "f91e69fddeda06951da353f26d2915eb"
+      },
+      "upstreamWithInjection": {
+        "len": 973,
+        "md5": "443b9d4c0ceae4e9b964922beeb425ce"
+      },
+      "onepass": {
+        "len": 598,
+        "md5": "55a5fa22584c03c70705e2810507dd82"
+      }
+    },
+    "channelChange": {
+      "table": "model_channels",
+      "id": "CHANNEL_000011",
+      "name": "chatgpt2api",
+      "baseUrl": "http://127.0.0.1:8000",
+      "apiFormat": "openai",
+      "models": [
+        "gpt-image-2.5",
+        "gpt-image-2"
+      ],
+      "apiKey": "<redacted>",
+      "channelModels": {
+        "table": "channel_models",
+        "ids": [
+          "MODEL_00032",
+          "MODEL_00033"
+        ],
+        "protocol": "openai-image",
+        "billingMode": "fixed_request",
+        "unitPriceMicrocredits": 0
+      }
+    }
+  },
+  "E1": [
+    {
+      "tag": "E1",
+      "id": "E1-corpus-chatgpt2api-S1-r01",
+      "status": "succeeded",
+      "taskId": "4133b8e80d169cf653de0eaf073edc0c",
+      "elapsedSec": 101,
+      "h1": {
+        "delta": 14.2,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": false
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.24,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.24,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.365,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.238,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E1",
+      "id": "E1-corpus-chatgpt2api-S1-r02",
+      "status": "failed",
+      "taskId": "174a90b76525abb90bf21b81de8651ae",
+      "error": "模型服务拒绝了请求，请检查模型和参数；上游：非常抱歉，该提示可能违反了我们的内容政策。如果你认为此判断有误，请重试或修改提示语。"
+    },
+    {
+      "tag": "E1",
+      "id": "E1-corpus-chatgpt2api-S1-r03",
+      "status": "succeeded",
+      "taskId": "257f15a1061d24f7df924f2d5059c84a",
+      "elapsedSec": 88,
+      "h1": {
+        "delta": 11.7,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.259,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.259,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.563,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.209,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E1",
+      "id": "E1-corpus-chatgpt2api-S1-r04",
+      "status": "succeeded",
+      "taskId": "5b1a1cdcf02c877375e70fd7c3fda761",
+      "elapsedSec": 130,
+      "h1": {
+        "delta": 15.6,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.225,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.225,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.361,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.277,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E1",
+      "id": "E1-corpus-chatgpt2api-S1-r05",
+      "status": "succeeded",
+      "taskId": "35a444c418c42be7c26e4980c96a373b",
+      "elapsedSec": 163,
+      "h1": {
+        "delta": 17.1,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.295,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.295,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.555,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.212,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E1",
+      "id": "E1-corpus-chatgpt2api-S1-r06",
+      "status": "succeeded",
+      "taskId": "9b635c8118b421b2ea1b5834979ecd30",
+      "elapsedSec": 121,
+      "h1": {
+        "delta": 18.1,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.276,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.276,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.365,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.238,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E1",
+      "id": "E1-corpus-chatgpt2api-S1-r07",
+      "status": "succeeded",
+      "taskId": "f5b076376c604996713a0a885062b974",
+      "elapsedSec": 113,
+      "h1": {
+        "delta": 12.7,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.216,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.216,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.354,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.234,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E1",
+      "id": "E1-corpus-chatgpt2api-S1-r08",
+      "status": "succeeded",
+      "taskId": "cb8de99305350a248a4eb45d75f589ae",
+      "elapsedSec": 117,
+      "h1": {
+        "delta": 14.5,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.327,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.327,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.367,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.231,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    }
+  ],
+  "E2": [
+    {
+      "tag": "E2",
+      "id": "E1-corpus-nano-banana-2-S1-r01",
+      "status": "succeeded",
+      "taskId": "3a4d7d9044a27997d64b79b1b2f95298",
+      "elapsedSec": 92,
+      "h1": {
+        "delta": 15.6,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.373,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.373,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.558,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.404,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E2",
+      "id": "E1-corpus-nano-banana-2-S1-r02",
+      "status": "succeeded",
+      "taskId": "dd64a9d99afe3ce5ffb464064d785674",
+      "elapsedSec": 94,
+      "h1": {
+        "delta": 8.9,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.376,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.376,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.55,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.189,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E2",
+      "id": "E1-corpus-nano-banana-2-S1-r03",
+      "status": "succeeded",
+      "taskId": "b86ecb7ebee8e18e0bd9d4c8ddf14647",
+      "elapsedSec": 99,
+      "h1": {
+        "delta": 15.5,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.352,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.352,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.558,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.22,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E2",
+      "id": "E1-corpus-nano-banana-2-S1-r04",
+      "status": "succeeded",
+      "taskId": "824a6f0862f7f050136187cbc148343c",
+      "elapsedSec": 74,
+      "h1": {
+        "delta": 9.4,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.243,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.243,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.292,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.194,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E2",
+      "id": "E1-corpus-nano-banana-2-S1-r05",
+      "status": "succeeded",
+      "taskId": "d001f0c9f3e4487d88bb24da20b93a17",
+      "elapsedSec": 80,
+      "h1": {
+        "delta": 16.2,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.373,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.373,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.559,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.219,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E2",
+      "id": "E1-corpus-nano-banana-2-S1-r06",
+      "status": "succeeded",
+      "taskId": "c82af0f00a74df1bc06d54bdb12ccbb8",
+      "elapsedSec": 103,
+      "h1": {
+        "delta": 4.9,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.319,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.319,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.396,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.211,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E2",
+      "id": "E1-corpus-nano-banana-2-S1-r07",
+      "status": "succeeded",
+      "taskId": "eee55a475d2984f39a10b5b029deb788",
+      "elapsedSec": 80,
+      "h1": {
+        "delta": 9.2,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.247,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.247,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.403,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.176,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E2",
+      "id": "E1-corpus-nano-banana-2-S1-r08",
+      "status": "succeeded",
+      "taskId": "1c5fb4cdd9b0e32d4f44710a36c3f141",
+      "elapsedSec": 96,
+      "h1": {
+        "delta": 6.4,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.328,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.328,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.56,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.408,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    }
+  ],
+  "E3": [
+    {
+      "tag": "E3",
+      "id": "A-182508-5c237bde.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 2.6,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.404,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.404,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.561,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.411,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E3",
+      "id": "A-184617-6f9e5e08.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 6.8,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.351,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.351,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.561,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.41,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E3",
+      "id": "A-185144-42587d53.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 17.4,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.341,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.341,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.377,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.408,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E3",
+      "id": "A-185313-4259c91a.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 12,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.339,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.339,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.558,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.41,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E3",
+      "id": "A-185438-cd938a19.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 8,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.395,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.395,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.523,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.407,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E3",
+      "id": "A-185632-249bba22.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 0.2,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": false
+      },
+      "h3": {
+        "exit": 1,
+        "title": 0.573,
+        "titleVerdict": "FAIL",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.573,
+            "verdict": "FAIL"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.531,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.452,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E3",
+      "id": "A-175715-8fe9a15b.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 14.5,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "右"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.278,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.278,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.439,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.296,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E3",
+      "id": "A-180009-e6e14175.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 17.5,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.373,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.373,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.561,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.41,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E3",
+      "id": "A-181902-8a6b0e8f.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 19.3,
+        "exit": 1,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.351,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.351,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.562,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.411,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    },
+    {
+      "tag": "E3",
+      "id": "A-182228-2d888fb4.png",
+      "status": "succeeded",
+      "taskId": null,
+      "elapsedSec": null,
+      "h1": {
+        "delta": 2.2,
+        "exit": 2,
+        "orientation": {
+          "ref": "左",
+          "out": "左"
+        }
+      },
+      "h2color": {
+        "pass": true
+      },
+      "h3": {
+        "exit": 0,
+        "title": 0.315,
+        "titleVerdict": "PASS",
+        "entries": [
+          {
+            "id": "title",
+            "layer": "L2",
+            "match": 0.315,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge1",
+            "layer": "L3",
+            "match": 0.46,
+            "verdict": "PASS"
+          },
+          {
+            "id": "badge2",
+            "layer": "L3",
+            "match": 0.408,
+            "verdict": "PASS"
+          }
+        ]
+      },
+      "manual": {
+        "title": null,
+        "productReplaced": null
+      }
+    }
+  ]
+}
