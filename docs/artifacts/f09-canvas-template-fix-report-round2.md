@@ -117,14 +117,32 @@ B. 抽纯函数 shouldRenderTemplateCards（只验证判据，不验证渲染）
 
 | 时间 | 文件 | 注入形式 | 红数 | 恢复 |
 |---|---|---|---|---|
-| 13:5x | `clone-recreate-submission.ts` | 判据恒返回 `generic` | **2 red** | ✓ |
-| 13:5x | `clone-recreate-submission.ts` | 判据恒返回 `clone-recreate`（反向） | **1 red** | ✓ |
+| 13:5x | `clone-recreate-submission.ts` | 判据恒返回 `generic` | **3 red** ★ | ✓ |
+| 13:5x | `clone-recreate-submission.ts` | 判据恒返回 `clone-recreate`（反向） | **2 red** ★ | ✓ |
 | 13:5x | `project.tsx` | `&& false` 使 clone 分支不生效 | 0 red → **已修**（见 §4） | ✓ |
 | 14:0x | `canvas-clone-template.ts` | 去掉类型过滤 | **2 red** | ✓ |
 | 14:0x | `canvas-short-drama-entry.tsx` | `false && templateCards?.length` | **3 red** | ✓ |
 | 14:0x | `canvas-short-drama-entry.tsx` | ★ **`[].map` 保留全部文本、渲染为空** | **2 red** | ✓ |
 | 14:0x | `canvas-short-drama-entry.tsx` | 卡片改 `span role="none"`（无 button 语义） | **1 red** | ✓ |
 | 14:0x | `canvas-short-drama-entry.tsx` | 首次注入 `div` 闭合标签不匹配 | 语法错误 ⇒ **该注入作废，重做** | ✓ |
+| 15:0x | `project.tsx` | 注入 8 行真实代码（评审线复现场景） | **0 red**（假阳性消除）★ | ✓ |
+| 15:0x | `project.tsx` | 删除 Config 块的调用点（阳性对照） | **1 red** | ✓ |
+
+**★ N-3 位置断言脆弱性修正（控制线/评审线 2026-10-06 第二轮发现）**：
+```
+【原实现】projectCode.slice(configPanelIndex, configPanelIndex + 1200)
+【实测】剥离注释后距离 646 字符 ⇒ 余量仅 554
+【评审线复现】在 Config 块内插入 8 行真实代码（~700 字符）⇒ 距离 1346 > 1200
+              ⇒ ★ 测试红，但接线完全正确 ⇒ 假阳性（代码增长后误报）
+【修法 A（已采用）】改为【括号深度配对】扫描到 onGenerate 的 JSX 块闭合：
+  · 与代码长度【解耦】⇒ 注入 8 行真实代码 ⇒ 0 red（假阳性消除）✓
+  · 阳性对照：删除调用点 ⇒ 1 red（仍能捕获真问题）✓
+  · 附带价值：注释注入不影响（测试先剥离注释，V9 ① 生效）
+```
+
+**★ 红数口径修正（N-1）**：前两条的红数在本报告初版记为 2 / 1 —— 那是**第一轮**的口径
+（当时 `f09-fix-batch.test.ts` 只有 10 条测试）。本轮新增了 spy 行为断言后，
+同一注入会额外打红新测试 ⇒ 实测 **3 red / 2 red**（控制线与评审线独立复现一致）。
 
 **★ 关键一条**：注入「`[].map`（文本全保留、渲染为空）」⇒ **2 red**。
 这是控制线对 N3-1 用的同类注入形式（保留文本、语义失效），
@@ -163,11 +181,19 @@ if (action.kind === "clone-recreate" && target) { ... return; }
 ⑤ go build ./... ...................... exit 0（本批未改后端）
 ```
 
-**测试文件明细**：
+**测试文件明细**（★ N-1 修正：控制线/评审线 2026-10-06 实测口径）：
 ```
-f09-fix-batch.test.ts ................. 19 pass（第一轮 10 + 本轮 9）
+f09-fix-batch.test.ts ................. 18 pass（★ 实测值；本报告初版误写 19）
 f09-guided-template-cards-render.tsx ... 5 pass（新增，真实渲染）
-其他 F-09 + 守卫 ..................... 44 pass
+其他 F-09 + 守卫 ..................... 45 pass
+```
+**★ 计数口径修正说明**（两线独立发现 + A线 实测确认）：
+```
+第一轮 f09-fix-batch.test.ts = 10 条
+本轮                      = 18 条
+变化 = 删除 6 条（含恒真断言）+ 新增 14 条
+验算 = 10 − 6 + 14 = 18 ✓
+⇒ 本报告初版写的「第一轮 10 + 本轮 9 = 19」★ 漏算删除的 6 条 ⇒ 19 无法由任何组合复现
 ```
 
 ---
@@ -188,6 +214,25 @@ f09-guided-template-cards-render.tsx ... 5 pass（新增，真实渲染）
 □ N-2（顺序契约可被用户操作破坏）：控制线裁定只登记，本批未修
 
 □ 新-3（升格枝无运行时派发机制）：架构缺口，登记不改
+
+□ ★【N-2 边界，评审线 2026-10-06 第二轮发现 + A线 实测复现】
+  **handler 体层无专项测试** —— 注入 `createCloneRecreateNode` 首行早退
+  （文本全保留）⇒ ★ **24 pass / 0 fail**（跨 f09-fix-batch + f09-clone-recreate-submission 两文件）。
+
+  **辨析（层次必须说清）**：
+  ```
+  · 派发层（dispatchConfigGenerate → handler 被调用）⇒ ★ 已覆盖 ✓
+    证据：注入「dispatch 保留文本改调 generic」⇒ 1 red（spy 断言）
+  · handler 体层（内部执行逻辑）⇒ 无专项测试
+    · buildCloneRecreateSubmission（纯函数）⇒ 有 6 测试 ✓
+    · buildGenerationConfig / getGenerationResourceNodes / setNodes ⇒ 无专项测试
+  ```
+
+  **⇒ §1.3 的声明「派发点退化为无分支纯接线 ⇒ 改分支条件注入点物理不存在」
+  只覆盖【派发层】，不覆盖 handler 体层。** 本报告初版未声明该边界，现补。
+
+  **修法方向（未做，登记）**：handler 体层若要可测，需把「节点创建 + 连线 + 请求发起」
+  的编排抽为可注入依赖的纯函数（类似 F-08 的做法），成本中等 —— 属后续批次。
 ```
 
 ---

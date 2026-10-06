@@ -145,10 +145,31 @@ describe("修复批 B-2 / B2-1：handler 有真实消费方（行为断言，非
         const projectCode = SOURCES.project
             .replace(/\/\*[\s\S]*?\*\//g, "")
             .replace(/^\s*\/\/.*$/gm, "");
+        // ★ N-3 修正（控制线/评审线 2026-10-06 第二轮）：
+        //   原先用固定窗口 slice(index, index + 1200)，实测距离 646 字符（余量仅 554）。
+        //   评审线复现：在 Config 块内插入 8 行真实代码（~700 字符）⇒ 距离 1346 > 1200
+        //   ⇒ 测试红，但接线完全正确 ⇒ ★ 假阳性（代码增长后误报）。
+        //   修法 A：取到【JSX 块闭合】而非固定窗口 —— 与代码长度解耦。
         const configPanelIndex = projectCode.indexOf("<CanvasConfigNodePanel");
         expect(configPanelIndex).toBeGreaterThan(-1);
-        const configPanelBlock = projectCode.slice(configPanelIndex, configPanelIndex + 1200);
+        // 从块首扫描到该 JSX 元素的闭合（用括号深度配对，从 onGenerate={ 的 { 开始计深度）
+        const scanFrom = projectCode.indexOf("onGenerate={", configPanelIndex);
+        expect(scanFrom).toBeGreaterThan(-1);
+        let depth = 0;
+        let end = -1;
+        for (let index = projectCode.indexOf("{", scanFrom); index < projectCode.length; index += 1) {
+            const char = projectCode[index];
+            if (char === "{") depth += 1;
+            else if (char === "}") {
+                depth -= 1;
+                if (depth === 0) { end = index; break; }
+            }
+        }
+        expect(end).toBeGreaterThan(scanFrom);
+        const configPanelBlock = projectCode.slice(configPanelIndex, end + 1);
         expect(configPanelBlock).toContain("dispatchConfigGenerate(nodeId,");
+        // ★ 附带价值：本断言现在与【代码长度无关】，只在「调用点不在该块内」时红
+        //   （例如被移到另一个组件或删掉）。
     });
 });
 
