@@ -163,8 +163,41 @@
           "controlLineRead": "4133b8e8 = 裸腿+奶油鞋；5b1a1cdc = 裸腿+奶油鞋；257f15a1 = 白袜+黑鞋（3 张中 1 张符合初版 claim）",
           "blineReRead": "同结论（放大 4x 裁剪复核 4133b8e8 与 257f15a1）",
           "agreement": "both lines agree"
+        },
+        "methodBoundary": {
+          "discoveredBy": "control line (2026-10-06), verified by B-line",
+          "rule": "像素量化仅适用于模特图；挂拍/人台图该区域无腿部，会被误判为黑鞋",
+          "evidence": {
+            "hanger_cd938a19": {
+              "form": "hanger",
+              "blineRatio": 0.179,
+              "controlRatio": 0.334
+            },
+            "hanger_8fe9a15b": {
+              "form": "hanger",
+              "blineRatio": 0.421,
+              "controlRatio": 0.432
+            },
+            "hanger_2d888fb4": {
+              "form": "hanger",
+              "blineRatio": 0.396,
+              "controlRatio": 0.431
+            },
+            "model_samples": {
+              "ratioRange": [
+                0.005,
+                0.008
+              ]
+            }
+          },
+          "applicability": "E-1 全为模特 ⇒ 本报告分析未触发此边界"
         }
       }
+    },
+    "claimVerificationDiscipline": {
+      "rule": "数量/属性 claim 必须声明核验方式（全量逐张/抽样/量化阈值）+ 适用条件",
+      "proposedBy": "B-line (核验方式维度) + control line (适用条件维度)",
+      "adopted": "control line 2026-10-06 (will register into multi-line-discipline §四·五)"
     }
   },
   "E1": [
