@@ -68,6 +68,52 @@
       },
       "light": "左前（全部，与参考图同向）",
       "note": "E-3 含 4 张非模特输出 ⇒ F4 的 Δ 对比受主体形态混淆，已按形态分层复算"
+    },
+    "findingCorrections": {
+      "F3": {
+        "initialClaim": "H1① 奖励照抄、惩罚正确执行",
+        "status": "RETRACTED (control line read-image rebuttal, 2026-10-06)",
+        "reason": "初版仅引用 3 张极值样本下全局结论；完整 10 样本显示 H1① PASS 组 5 张中 4 张为正确执行",
+        "correctedClaim": "H1① 与 H3/H2③ 维度正交（度量构图比例，不测文字/产品）；照抄样本由 H2③+H3 双判红拦截",
+        "crossTable": {
+          "H1_PASS": {
+            "n": 5,
+            "rewrite": 4,
+            "copy": 1,
+            "titleMean": 0.408
+          },
+          "H1_FAIL": {
+            "n": 5,
+            "rewrite": 5,
+            "copy": 0,
+            "titleMean": 0.336
+          }
+        },
+        "jointDistribution": {
+          "H1_PASS_x_H2_PASS": 4,
+          "H1_PASS_x_H2_FAIL": 1,
+          "H1_FAIL_x_H2_PASS": 5,
+          "H1_FAIL_x_H2_FAIL": 0
+        }
+      },
+      "F4": {
+        "caveat": "E-3 含 4 张非模特输出（挂拍 3 + 人台 1），E-2 全为模特 ⇒ Δ 对比受主体形态混淆",
+        "stratifiedByForm": {
+          "E3_model_6": {
+            "h1Pass": 3,
+            "deltaMean": 9.7
+          },
+          "E3_nonModel_4": {
+            "h1Pass": 2,
+            "deltaMean": 10.5
+          },
+          "E2_model_8": {
+            "h1Pass": 5,
+            "deltaMean": 10.8
+          }
+        },
+        "conclusion": "分层后仍无显著差异，但样本量缩小（n=6 vs n=8），不足以给统计结论"
+      }
     }
   },
   "E1": [
@@ -830,8 +876,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "Navy Pleated Dress",
+        "titleKind": "rewrite",
+        "subjectForm": "model"
       }
     },
     {
@@ -877,8 +924,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "Classic Navy Dress",
+        "titleKind": "rewrite",
+        "subjectForm": "model"
       }
     },
     {
@@ -924,8 +972,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "Classic Navy Dress",
+        "titleKind": "rewrite",
+        "subjectForm": "ghost-mannequin"
       }
     },
     {
@@ -971,8 +1020,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "Navy Blue Dress",
+        "titleKind": "rewrite",
+        "subjectForm": "model"
       }
     },
     {
@@ -1018,8 +1068,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "Navy Pleated Dress",
+        "titleKind": "rewrite",
+        "subjectForm": "hanger"
       }
     },
     {
@@ -1065,8 +1116,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "Floral Dress",
+        "titleKind": "copy",
+        "subjectForm": "model"
       }
     },
     {
@@ -1112,8 +1164,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "Peter Pan Collar Dress",
+        "titleKind": "rewrite",
+        "subjectForm": "hanger"
       }
     },
     {
@@ -1159,8 +1212,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "School Dress",
+        "titleKind": "rewrite",
+        "subjectForm": "model"
       }
     },
     {
@@ -1206,8 +1260,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "Sophisticated Navy Dress",
+        "titleKind": "rewrite",
+        "subjectForm": "model"
       }
     },
     {
@@ -1253,8 +1308,9 @@
         ]
       },
       "manual": {
-        "title": null,
-        "productReplaced": null
+        "title": "Classic Dress",
+        "titleKind": "rewrite",
+        "subjectForm": "hanger"
       }
     }
   ]
