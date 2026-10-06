@@ -2331,3 +2331,54 @@ main 推进至 `0dcd507d`；测试线已用该锚点跑完 b12r25（GO，3124/0/
   - 错误 3：有验证手段（worktree reflog 语义）但**没试**
 - **当前状态**：`local main = fork/main = de3d086d`（三方一致）；被测对象 `f88feac7`
   （`git diff f88feac7..de3d086d --name-only` 仅 1 个 docs 文件，代码面命中 0）。
+
+## 2026-10-06 · F-09 修复批第二轮（A线，a492b089，未 push）
+
+- **起点**：main @ a7c2575c（第一轮修复批 40b9c915 的代码面）
+- **评审线发现**：B2-1（B-2 派发在不可达路径，handler 仍零消费方）+ N3-1（非图片节点可占产品图槽位）
+  + 断言质量（多项是源码文本断言，无捕获语义失效能力）
+- **★ B2-1 根因**（评审线 5 步证据链，A线 独立复核成立）：
+  ```
+  爆款复刻节点 type = CanvasNodeType.Config
+  Config 渲染分支 = CanvasConfigComposer（Props 无 onGenerate）
+  第一轮的 createCloneRecreateNode 调用在 CanvasNodePromptPanel.onGenerate
+  ⇒ Config 节点永不渲染该组件 ⇒ 调用不可达
+  Config 的真实生成入口 = CanvasConfigNodePanel.onGenerate（project.tsx:2505）
+  ```
+  ⇒ **代码本身正确，只是挂错了组件**。
+- **修法（方案 ②+③）**：
+  - 新增纯函数 `resolveConfigGenerateAction`（判据）+ `dispatchConfigGenerateAction`（分支）
+  - `project.tsx` 派发退化为**无分支纯接线**，两个 onGenerate 共用同一入口
+  - **★ 为什么把分支搬进纯函数**：分支留在组件内时测试只能文本断言；
+    搬出后可用 spy handler 行为断言，且「改分支条件」注入点在 project.tsx **物理消失**
+- **★ 自我发现（最有价值的一条）**：第一版行为断言只覆盖纯函数，**未覆盖派发点分支** ——
+  注入「`&& false`」⇒ **0 red**（未被捕获）。修正后分支搬进纯函数，spy 断言覆盖。
+  ⇒ 控制线的批评（文本断言无捕获能力）在**更深的层次**上同样适用于我第一版的「行为断言」：
+  **我只行为化了纯函数，没行为化调用点**。
+- **N3-1 修法**：新增纯函数 `resolveTemplateImageSlots`（过滤图片节点 + 位置配对 + 只填有内容的源）
+- **★ 语义判定（测试初版假设错误，已修正）**：
+  ```
+  sourceImageIds = [img-empty(无内容), img-ok(有内容)]
+  · 位置配对（当前实现）：img-ok → slot-layout，slot-product 保持空  ✓
+  · 压缩填充（初版假设）：img-ok → slot-product                     ✗ 错位
+  为什么位置配对对：模板契约是「位置即角色」；压缩会把版式参考图
+  【静默提升为产品图】，后端按位置编号无法察觉。保持空则占位可见。
+  ```
+- **□5-2 采用【选项 C】**（比控制线给的 A/B 都强）：
+  - A：保留文本断言 + 如实标注（控制线推荐）
+  - B：抽纯函数 `shouldRenderTemplateCards`（只验证判据，不验证渲染）
+  - **C（A线 采用）**：`react-dom/server` 的 `renderToStaticMarkup` **真实渲染**组件
+    （项目已有 react-dom 依赖，**无新增**），断言输出 HTML
+  - 新文件 `web/test/f09-guided-template-cards-render.test.tsx`（5 测试）
+  - **为何选 C**：B 只验证判据不验证渲染（无法覆盖「判据对了但渲染没挂」）；A 是承认无法验证
+- **★ 注入记录（8 条，V10-g 要求）**：判据恒 generic 2 red / 判据恒 clone 1 red /
+  `&& false` **0 red（失败，已修）** / 去掉类型过滤 2 red / `false && templateCards?.length` 3 red /
+  **★ `[].map` 保留文本渲染为空 2 red** / 卡片改 span 1 red / 首次 div 闭合不匹配**语法错误作废重做**
+  - **★ 第 6 条是关键**：`[].map`（文本全保留、渲染为空）⇒ 2 red
+    —— 这正是控制线对 N3-1 用的同类注入形式 ⇒ 证明 □5-2 的**渲染测试能捕获**该形式
+- **门禁**：tsc 0 / eslint 0 / bun test **3191 pass 0 fail**（起点 3178 + 13）
+  / F-09 测试组+守卫 68 pass / go build 0
+- **报告落盘**：`docs/artifacts/f09-canvas-template-fix-report-round2.md`（7 节，含注入记录表 + 失败登记）
+- **★ V10-g（控制线登记）**：他人活动工作区不可读 —— 控制线在 A线 注入窗口跑测试得三次不同结果；
+  评审线两次导出快照落在注入间隙（靠 md5 对照发现）。**A线 的义务**：STOP 报告附注入记录表 +
+  每次注入后立即恢复（已做到，本次 8 条全登记）。
