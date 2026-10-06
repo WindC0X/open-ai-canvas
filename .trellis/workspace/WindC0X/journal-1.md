@@ -2223,3 +2223,35 @@ main 推进至 `0dcd507d`；测试线已用该锚点跑完 b12r25（GO，3124/0/
 - **★ 工作区残留（非本次改动）**：`web/src/lib/canvas/capability-entries.ts` 有未提交的
   `dual_image` 谓词改动（2026-10-05 23:12，标注「F-09 双图复刻」），**未提交**，
   已报控制线确认归属。
+
+## 2026-10-06 · F-09 三期（画布模板化）交付（A线，main = fd2b1f53，待门 2）
+
+- **任务**：任务书 `docs/artifacts/f09-canvas-template-task-book.md`（393 行），基线 main @ b2a3523b。
+  产品代码批，五块内容，单 commit 不 push（C5）。
+- **交付**：`8f6b59ba`（29 files +1838/-8）+ `fd2b1f53`（修 3 处语料索引注释）。
+  main = fd2b1f53，fork/main = c28b7de6（未 push，等门 2）。
+- **五块**：
+  ① `productImageCount` 前端赋值（metadata → buildGenerationConfig → backendProviderConfig → 请求体）
+  ② handler `createCloneRecreateNode` + `clone-recreate-submission.ts` 纯函数（数组顺序契约）
+  ③ 条目 `image.cloneRecreate`（tier 0 / dual_image / 3 参数面）★ 接上 `dual_image` 的真实消费方
+  ④ 节点图模板（F-2 扩 `canFrameContain` +1 行，未新增 CanvasNodeType）+ 空状态卡入口
+  ⑤ 提示词层2 六段式 + 3 条 concatRules（C-2：全后端，des 文本后端单点存放）
+- **门禁**（绑 8f6b59ba / fd2b1f53）：tsc 0 / eslint 0 / bun test **3167 pass 0 fail**（基线 3132 + 35）
+  / registry-namespace-guard 14 pass / go build 0 / go vet 0 / gofmt clean / go test Clone 7 pass。
+- **证伪**：8 处注入，实测 4/3/1/1/1/1/2/1 red（红数附注入点，V7 附1-a）。
+  ★ 其中「真实入口消费路径」测试（非谓词自证）：选区工具栏 `selection-clone-recreate`
+  在选中恰好 2 张图时渲染、1/3 张时不渲染；注入 `applicable: () => true` → 2 red。
+- **控制线独立核实**：文件面 / 五段正文逐字 / 11 条 des 逐字 / C-2 前端无真值 / F-2 +1 行 /
+  全量 3167 / guard 14 / F-09 35 / Go 7 / 接线两处消费 —— **全部一致**。
+- **★ 控制线发现 1 处可追溯性缺陷（已修）**：注释里的语料索引 `inputs[8]` 应为 `inputs[7]`。
+  实测：`inputs[5]=clone.degree` / `[6]=clone.scope` / **`[7]=copy.mode`** / `[8]=copy.text`（text 型无 item）。
+  代码值不受影响（提取按 `field_path` 匹配而非索引），仅注释索引错 —— 但后人按注释查语料会找不到。
+  同族：V7 附2（引用溯源维度）。修于 `fd2b1f53`（3 行，2 文件）。
+- **门 2（合入门）**：控制线派测试线独立跑（被测 = fd2b1f53，分身 oac-wt-test，判据连续两轮全绿、retries=0），
+  **门 2 结果出来前不 push fork**。评审线并行做代码面复核（8f6b59ba）。
+- **flakes 说明**：全量测试首轮 1 red（`fallback snapshots obey the configured minimum refresh interval`，
+  agent-canvas-sync.test.ts 计时窗口），隔离跑 8/0 ×3，第二轮全量 0 fail —— 已知 flake，与本批无关。
+- **诚实边界**（报告 §7）：不含引导标记（步骤 3）；不含模板市场/跨用户复用；
+  **参数面 UI 未实现**（只落地数据结构与提交链路，用户当前拿默认参数）；
+  只实现 3 条 concatRules（其余 8 条无 UI 可填值）；未做浏览器实测；未做真实生成。
+- **报告落盘**：`docs/artifacts/f09-canvas-template-delivery-report.md`（9 节）。
