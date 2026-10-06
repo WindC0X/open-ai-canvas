@@ -2000,3 +2000,62 @@ open-ai-canvas-testing/scripts/wip-read-guard.sh @ d21981f
           ② STOP 报告里登记【注入记录表】（时间 / 文件 / 注入形式 / 恢复确认）
 ⇒ 这样其他线能知道「何时是注入窗口」
 ```
+
+---
+
+## V10-h — 只读 git 命令也会取 index.lock（2026-10-06，控制线实例）
+
+**触发**：F-09 修复批第二轮，A线 第 2 次遭遇 `index.lock` 阻塞（commit 报
+"may have crashed in this repository earlier"）。A线 按 V10-a 查 `ps aux | grep git`
+⇒ **输出为空** ⇒ 它正确地**拒绝推测**（符合 V10-a）。
+
+**控制线随后做隔离实验，定位到根因**：
+
+```bash
+# 实验（/tmp 隔离仓库）
+touch f.txt                      # 制造 stat-dirty（index 与工作区 mtime 不一致）
+git status --porcelain           # ⇒ ★ index mtime 被更新 ⇒ 取了 index.lock
+```
+
+**⇒ 结论：`git status` / `git diff` 不是只读操作**
+（stat-dirty 时会刷新 index ⇒ 取 index.lock ⇒ 与并发提交撞车）。
+
+**对照实验**：
+```
+git status                          ⇒ 写 index（取 lock）
+git diff --stat                     ⇒ 写 index（取 lock）
+GIT_OPTIONAL_LOCKS=0 git status     ⇒ ✓ 不写（只读）
+git status --no-optional-locks      ⇒ ✓ 不写（但部分 git 版本无此选项）
+git log / rev-parse / show          ⇒ 本身不写 index
+```
+
+**★ 本实例的归因**：
+```
+A线 第 2 次事件时 ps 为空 ⇒ 无法抓到活跃进程
+⇒ 不是「无法归因」，而是【肇事者已执行完并退出】
+⇒ 肇事者是【控制线自己的只读检查】（git status / git diff）
+⇒ 第 1 次事件（PID 980725）是评审线的 worktree add（写操作）
+   第 2 次事件是控制线的 git status（读操作）—— 同一后果，不同机制
+```
+
+**★ 纪律条款**：
+- **V10-h**：跨线共享仓库中，**所有只读 git 检查加 `GIT_OPTIONAL_LOCKS=0`**
+  ```bash
+  GIT_OPTIONAL_LOCKS=0 git status --short
+  GIT_OPTIONAL_LOCKS=0 git diff --name-only
+  ```
+  理由：stat-dirty 时 `git status` / `git diff` 会写 index（取 index.lock），
+  与他方的 `git commit` 撞车 ⇒ 对方看到 "may have crashed in this repository earlier"。
+  `git log` / `rev-parse` / `show` 不写 index，无需加。
+
+- **V10-h 附**：判断「谁持锁」不能只查活跃进程 ——
+  **只读命令执行完即退出**，其锁窗口可能已结束。
+  ⇒ 归因需结合【机制知识】（哪些命令会取锁）+【时间线】，
+     而不是只看「此刻有无进程」。
+
+**★ 与 V10-g 的关系**：
+```
+V10-g：不要在他人【活动】工作区做验证（读侧污染结论）
+V10-h：在共享仓库做【只读】检查也会取锁（读侧干扰写入）
+⇒ 同一族：读操作并非无副作用（这是 V10-f 族视图的第 4 个形态候选）
+```
