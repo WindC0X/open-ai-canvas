@@ -2291,3 +2291,43 @@ main 推进至 `0dcd507d`；测试线已用该锚点跑完 b12r25（GO，3124/0/
   但**被修复注释里引用的旧代码满足**（注释写了 `原先这里写 ctx.selectedImageCount === 2`）
   ⇒ 改为**剥离注释后断言**（先 `replace` 掉块注释与行注释）。这是 V9 ① 家族的新实例。
 - **报告落盘**：`docs/artifacts/f09-canvas-template-fix-report.md`（7 节）。
+
+## 2026-10-06 · V10 归因纪律（A线 3 处错误 + 2 处控制线修正）
+
+- **背景**：G4.1 事件（index.lock 撞车）后 A线 报告归因，控制线用 /proc 核实后指出归因错误。
+- **★ A线 3 处错误**（均已认错并登记）：
+  1. **归因未经 ID 核实**：抓到 ps 输出（含 `TRELLIS_CONTEXT_ID`）却**没比对**，
+     凭脚本内容（"建修复批隔离树"、"把 A线 的未提交修复同步进隔离树"）推测是控制线，
+     实为**评审线**（context ID 前缀 `pi_01a10788-...` 一致）。
+     ⇒ **C8 同族错误**（C8：投递前核实 handle；本次：归因前核实 context ID）。
+  2. **说「patch 0 字节不是已提交」**：主因**就是**已提交 —— 修复批 `40b9c915` 在
+     13:08:24 提交，patch 生成于 13:10:48（晚 2m24s）⇒ `git diff` 永远看不到已提交内容。
+     控制线的推论「0 字节 ⇒ 已提交」**正确**。A线 用「journal 已暂存」解释属**附带原因**误作主因。
+     ⇒ 已自查修正（commit `53aad656`）。
+  3. **说「并发建树」**：实为**串行**（先建后删重建），用词错误。
+- **★ 控制线 1 处修正**（A线 核实后指出）：
+  - 控制线据「reflog 无 `9b80133d`」推断「PID 980725 那次 worktree add 失败/或路径不同」。
+    **A线 做了隔离实验**（/tmp 仓库）：
+    ```
+    ① worktree add tree1 <C1>   ⇒ reflog 首行 = C1
+    ② worktree remove --force   ⇒ ★ .git/worktrees/tree1 目录【整体删除】（含 reflog）
+    ③ worktree add tree1 <C2>   ⇒ reflog 首行 = C2，★ 无 C1 任何痕迹
+    ⇒ 「reflog 无记录 X」不能证明「从未以 X 建过」
+    ```
+    ⇒ 正确结论：只能断言「**当前**树的起点是 40b9c915」；「先建后删重建」标为**待确认**
+    （管理目录 mtime 13:13 晚于 PID 980725 启动 13:09，但无操作方输出确认）。
+- **★ V10 纪律已登记**（`docs/artifacts/multi-line-discipline.md`，commits `aaa72d90` + `53aad656` + `de3d086d`）：
+  ```
+  V10-a 报告归因前必须用进程身份（context ID / handle）核实，不得凭脚本内容/时间邻近/行为模式推测
+  V10-b git diff 导出他人未提交改动时用 git diff HEAD（含暂存区）
+  V10-c 判断某次 git 操作是否失败以操作方输出为准，reflog 只反映成功状态
+  V10-d（控制线建议）隔离树创建起点以 .git/worktrees/<name>/logs/HEAD 为准
+  V10-e（A线 实验）worktree remove 会删除 reflog ⇒「reflog 无记录」不能证明「未建过」；
+        须配合管理目录 mtime 与进程启动时间对照
+  ```
+- **★ 本轮共性**：3 处错误都在【未穷尽证据】时就下结论（V7 附2-e 同族）。
+  - 错误 1：有证据（ps 含 ID）但**没用**
+  - 错误 2：有反证条件（时间戳）但**没查**
+  - 错误 3：有验证手段（worktree reflog 语义）但**没试**
+- **当前状态**：`local main = fork/main = de3d086d`（三方一致）；被测对象 `f88feac7`
+  （`git diff f88feac7..de3d086d --name-only` 仅 1 个 docs 文件，代码面命中 0）。
