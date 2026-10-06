@@ -1978,3 +1978,294 @@ go build **0**；go test 5 条 `TestCloudAgent*` = **undici 环境基线**（非
 - **交叉验证优于单方声称**：我用独立数据（14 样本）+ 独立路径验证测试线 v3，比它自证强
 - **「先证明双方都没错」**：§12.2 逐值核对（11/11）把「矛盾」转为「口径差异」，避免误判任一方出错
 - **读图真值 > 判据值**：口径统一前，H3 结论以人工读图为准（判据仅辅助）
+## B线 · W5 headless 可达性主批（D-1/D-2）交付登记（2026-10-05）
+
+**分支**：`fix/w5-headless-reachability` @ `e6061c6b`（2 commit，基点 `cb8d8dc4`）
+**裁定**：控制线验收通过（独立核验全绿：静态拓扑 / 动态 3106 pass 0 fail /
+5 项注入 5/5 复现 / 代码级读码）——准予合入 main。
+
+### 交付内容
+
+| # | 项 | 要点 |
+|---|---|---|
+| 1 | **D-1 预建承载容器** | 新 helper `createCanvasProjectLocal`（本地创建 + 防抖同步，**不 await 云端往返**——避开实测 7.7s 关键路径阻塞）；runner 新增 `onPrepareCanvas` 回调，提交前预建 → 任务带 `projectId` → handoff 两分支带 `canvasId` → 交接走 existingId 分支写进同一容器；预建失败/hydrated 未完成 ⇒ 降级为既有行为不阻塞生成 |
+| 2 | **D-2 /tasks 画布入口** | 新纯函数模块 `linear-flow-task-link.ts`：按消息 `detail.taskIds` 反查（**不按 session id 字符串匹配**——service 内部加 `creation:` 前缀、消息 id 双重前缀，按拼接约定匹配会在任一侧改前缀时静默失配）；`inputJson.metadata.source` 判据 + 严格类型守卫；两段式（本地反查零请求 → 详情确认带 ref 缓存） |
+
+### 真机验收（Orca 浏览器 + :8488 + :3020）
+
+| 验收项 | 结果 |
+|---|---|
+| D-1 容器预建 | ✅ `-k-i5P60O1zAeru2GFZeC`（title=白底主图，workspaceType=headless_task） |
+| D-1 任务带 projectId | ✅ 任务 `1a77cf1d55a2bbf446fa956fb08610df` 的 projectId = 预建容器 id |
+| D-1 生成中面板可见 | ✅ 容器页「生成任务 · 当前画布 · 1 个进行中」 |
+| D-1 完成后消失 | ✅ 任务 succeeded 后面板无该任务（activeOnly 语义，预期行为） |
+| D-2 入口 + 跳转 | ✅ /tasks 双态按钮（「在画布中打开」/「创建画布并打开」）→ 导航到 `/canvas/i1VKWWDcIPqffPeI_jtlb` |
+
+### ★ 真机自发现的两处交界缺陷（第二个 commit 修复）
+
+1. **预建容器反而不达**（与 P1-1 原意相反）：用户未点「在画布中打开」时容器无会话 ⇒
+   本地按 taskIds 反查落空，而任务已带 projectId ⇒ `resolveTaskCanvasAction` 返回 none。
+   修法：按 id 命中本地画布同样直接跳转。
+2. **①初版修法过宽**：30 条历史任务里 **19 条**都长出画布按钮（普通画布任务在画布页本就有入口）。
+   收窄为只认 headless 容器（`isHeadlessTaskWorkspace`）⇒ 真机复测降到 **4 个**。
+
+### 可证伪性（5 项注入，控制线独立复现 5/5）
+
+| 注入 | 实测 |
+|---|---|
+| runner 不传 projectId | 1 fail |
+| 预建挪到任务创建之后（时序回归） | 1 fail |
+| handoff 不带 canvasId | 1 fail |
+| D-2 去掉详情确认 | 1 fail（初版测试假绿——被详情 effect 的同名调用满足；已强化为切片内顺序断言） |
+| D-2 用不同 sessionKey | 1 fail |
+
+### 门禁（绑定 `e6061c6b`）
+
+- 全量 `bun test`（ext4）：**3106 pass / 0 fail / 15709 expect / 367 files**
+- `tsc --noEmit`：exit 0；`eslint` 9 文件：exit 0
+- 诚实边界：中途 1 次 flaky（`agent-canvas-sync` 的 minimum refresh interval）——
+  **非本批引入**（隔离跑 8 pass 0 fail；stash 本批改动后基线全量同样 3 跑 1 现；V4 已登记）
+
+### G1 precheck
+
+- 文件面 vs main：9 文件
+- `merge-tree main × e6061c6b`：exit=0 tree=296e0392（零冲突）
+
+### 教训：G4 占用核查（控制线侧）
+
+控制线裁定书写「main 当前无人占用」但实测被其自身 worktree（`oac-wt-ctrl`）持有；
+我报告后控制线核实、释放并认领为「未经核实就下结论」的同类错误。
+⇒ 纪律：**裁定中涉及环境状态（worktree 占用 / 分支持有）必须先实测再写**。
+
+---
+
+## 2026-10-05 · B线 R5 修复批合入（merge `58eef5d2`）
+
+### 合入拓扑
+
+| 项 | 值 |
+|---|---|
+| 合入对象 | `cf8fbf52`（分支 `fix/w5-runner-reset`，基点 `86f04568`） |
+| 合入前 main | `525532ef`（+C8 纪律 commit，文件面零重叠） |
+| **merge commit** | **`58eef5d2`**（双亲 `525532ef` × `cf8fbf52`） |
+| 文件面 | 6 files **+187/-8** |
+| merge-tree 干跑 | **exit 0**（tree `bfef4320`） |
+| main / fork/main | `58eef5d2`（ls-remote 实测一致） |
+
+### 内容
+
+| 项 | 修复 |
+|---|---|
+| P1 | `LinearFlowRunner` 挂载加 `key={linearFlowCard?.id ?? "none"}` 根治跨卡片状态残留 |
+| P2-1 | D-2 路径B 会话缺失判断改按 taskId 精确判断（消除 `findTaskSessionId` 死代码） |
+| P2-2 | `scripts/merge-file-face.sh` 补执行权限（100644 → **100755**） |
+
+### 门禁（绑定 `58eef5d2`，工作树 0 改动）
+
+| 门 | 结果 |
+|---|---|
+| 文件面（G1 口径 `git diff HEAD^1 HEAD`） | 6 文件（含空输入防御 ✓） |
+| P2-2 自证 `./scripts/merge-file-face.sh 58eef5d2` | **exit 0** ✓（脚本已可执行） |
+| tsc --noEmit | **0** |
+| eslint（web 5 文件） | **0** |
+| 全量 bun test | **3114 pass / 0 fail / 15727 expect / 368 files**（222.51s） |
+| git ls-files -s 权限位 | `100755` ✓ |
+
+### ★ 本批的两处纪律实践
+
+1. **P2-2 自证闭环**：`merge-file-face.sh` 本批自己获得了执行权限 —— 门禁第 ② 步用它
+   验证自己的合入 commit，是「工具与产出同批交付」的自洽验证。
+2. **真机前置校验（B线）**：过程中发现 vite 服务跑的是**旧代码**（drvfs watcher 失效），
+   重启后确认 `transformed` 含新代码才继续 —— 避免了 V3 类的假绿。
+
+### 三线状态
+
+main 推进至 `58eef5d2`，测试线 / 评审线新锚点以控制线通知为准。
+
+---
+
+## 2026-10-05 · B线 SPA 导航探针小批合入（merge `0dcd507d`）
+
+### 合入拓扑
+
+| 项 | 值 |
+|---|---|
+| 合入对象 | `9578c2e3`（分支 `chore/spa-nav-probe`，基点 `e4b59f89`） |
+| 合入前 main | `e4b59f89` |
+| **merge commit** | **`0dcd507d`**（双亲 `e4b59f89` × `9578c2e3`） |
+| 文件面 | 2 files **+322** |
+| merge-tree 干跑 | **exit 0**（tree `799f1d13`） |
+
+### 内容
+
+新增 `web/test/helpers/spa-navigation-probe.js`（123 行）+ `web/test/spa-navigation-probe.test.ts`（199 行）：
+**SPA 导航探针 —— 让「无警告/无导航」类阴性结论可证伪**。
+此前「页面无跳转/无警告」类结论只能靠人眼或日志缺席证明（阴性结论不可证伪，属 V8 家族）；
+本探针把它转为可注入、可观测的阳性证据。单文件 10 pass / 22 expect。
+
+### 门禁（绑定 `0dcd507d`，工作树 0 改动）
+
+| 门 | 结果 |
+|---|---|
+| G1 文件面（含空输入防御） | 2 文件 ✓ |
+| `./scripts/merge-file-face.sh 0dcd507d` | **exit 0** ✓ |
+| tsc --noEmit | **0** |
+| eslint（web 2 文件） | **0** |
+| 单文件 bun test | **10 pass / 0 fail / 22 expect** |
+| 全量 bun test | **3124 pass / 0 fail / 15749 expect / 369 files**（229.85s） |
+
+**新全量基线：3124 pass / 0 fail / 369 files**（较前批 3114 增 10）。
+
+### 证伪注入对照（控制线独立复现）
+
+| 注入 | 控制线实测 | B线 自报 | 说明 |
+|---|---|---|---|
+| A | 1 红 | 1 红 | 一致 |
+| B | 3 红 | 3 红 | 一致 |
+| C | **5 红** | 4 红 | ★ **均为改源文件、位置不同**（控制线改 `MESSAGE_KEYWORDS` 数组 / B线 改 `captureNode` push 行）；差 1 红 = 测试 `:161` 锚点前置断言主动报警 |
+| D | 1 红 | 1 红 | 一致 |
+| E | **5 红** | 1 红 | ★ **注入层级不同**（控制线改源文件 / B线 改测试内部 `anchor` 常量 = 测试内自证伪） |
+
+★ **归因修正记录（2026-10-05，控制线指出 + A线 独立复现）**：
+本条初版把 C 项也写成「控制线改源文件 / B线 改测试内部字符串」——**该归因错误**，
+对 E 成立、对 C 不成立。经隔离环境实测复现（`/tmp` ext4，两文件无项目依赖）：
+
+| 注入形态 | 实测红数 | 差额原因 |
+|---|---|---|
+| 改 `MESSAGE_KEYWORDS` 数组（控制线） | **5 fail** | 多 1 红 = `:161` 锚点前置断言报「关键词锚点消失 —— 证伪测试失效，需同步更新」 |
+| 改 `captureNode` push 行（B线） | **4 fail** | — |
+| 改测试内 `anchor` 常量（B线 E 项） | **1 fail** | 测试内自证伪 |
+
+**★ 差额的那 1 红正是 V9 ② 防护的真实收益**：测试主动检测「我依赖的锚点消失了」，
+而非静默失效。若无该前置断言，改关键词数组同样只会红 4 条，
+「证伪测试失效」将被静默吞掉 —— 这是 V9 ② 的可测量价值证明。
+
+**C7 实例（修正后仍成立）**：同一结论（探针可证伪）在不同注入点下红数不同，不构成分歧；
+**报告红数时必须附带注入点/注入方式**（V9 的「实测 N 红」需补注入层级才完整）。
+
+### 三线状态
+
+main 推进至 `0dcd507d`；测试线已用该锚点跑完 b12r25（GO，3124/0/369 逐数吻合）。
+
+---
+
+## 2026-10-05 · F-09 二期提示词前置注入层合入（merge `d2809237`）
+
+### 合入拓扑
+
+| 项 | 值 |
+|---|---|
+| 合入对象 | `0c0059c8`（分支 `feat/f09-prompt-injection`，基点 `28d1e46e`） |
+| 合入前 main | `01d3997c`（C1 附纪律 commit，非原计划的 81bf61e6） |
+| **merge commit** | **`d2809237`**（双亲 `01d3997c` × `0c0059c8`） |
+| 文件面 | 3 files **+323** |
+| merge-tree 干跑 | exit 0 |
+| main / fork/main | `d2809237`（ls-remote 实测一致 ✓） |
+
+### 内容（F-09 二期：提示词前置注入层）
+
+| 文件 | 内容 |
+|---|---|
+| `prompt_image_role.go`（新，97 行） | `buildImageRolePrompt` 生成角色清单段 / `prependImageRolePrompt` 实现 prepend / `applyImageRolePrompt` 接线 |
+| `prompt_image_role_test.go`（新，212 行） | 10 项测试 |
+| `provider.go`（+14） | `providerConfig.ProductImageCount` + 前置条件声明 |
+
+**三个实现要点**（方案 §7 四条实施要求）：
+1. `position: prepend` —— 角色清单在提示词最前
+2. **编号对齐 API 数组** —— 接线在 `hydrateGenerationMedia` **之后**，
+   `totalImages = len(input.ReferenceImages)`（已定序）⇒ 从接口设计上消除写反可能
+3. 测试覆盖编号顺序（多重守护）
+4. 空槽位注入 `emptyText`（文案逐字对齐方案 §1.1①）
+
+### 门禁（绑定 `d2809237`，工作树 0 个已跟踪改动）
+
+| 门 | 结果 |
+|---|---|
+| G1 文件面 | 3 文件 +323 ✓ |
+| gofmt -l | 空 ✓ |
+| go build ./... | exit 0 |
+| go vet ./internal/app/ | exit 0 |
+| go test -run "ImageRole\|Prepend" | **10 pass / 0 fail** |
+| go test -run "Workflow\|Provider\|Image" | ok（57.071s 相关面回归） |
+
+### ★ 契约显式化（合入前加强，控制线裁定 B + 三加强）
+
+**背景**：B线 渠道实测的数组是 `[参考图, 产品图]`，与其手工清单声明（图1=产品图组）**相反** ——
+模型看到的图1 实际是参考图。这正是方案 §1.1⑦ 陷阱（写反不报错，只有静默偏差）。
+
+**发现链**：控制线核 B线 请求体时发现注入层未被调用（B线 未传 `productImageCount`），
+进而发现数组顺序问题 → A线 核实成立 → 追加契约显式化。
+
+**三加强**：
+1. `ProductImageCount` 注释补**前置条件声明**（产品图须在数组前 N 位，后端无法校验 ——
+   `providerMedia` 无语义标签，只能按位置编号）
+2. 新增 `TestImageRolePromptRecordsPositionContractNotSemantics`：
+   **记录**（而非阻止）契约 —— 编号按位置、非语义；含反向断言「注入层不得猜测语义」
+3. 方案登记三期前端要求（控制线完成，canvas 仓 `76e0842`）
+
+**为何不做 `productImageIndices`**（控制线裁定，A线 撤回原倾向）：
+角色清单是**连续区间格式**（`图1～N` / `图N+1～M`），表达不了交错顺序 ⇒
+除非同时实现重排，否则索引只用于算计数，收益不足。
+
+### ★ 注入点矩阵（V7 附1-a：红数必须附注入点 + 缺陷类别）
+
+基准 `@ feat/f09-prompt-injection / 4a448e06`（V7 附2-a：未合并分支须附分支）：
+
+| # | 注入点 | 红数 | 能暴露的缺陷类别 |
+|---|---|---|---|
+| 1A | `prompt_image_role.go:54` 函数体 | 4 红 | 编号语义错 |
+| **1B** | `:96` **调用点** | **0 红（旧）→ 1 红（补断言后）** | ★ **测试覆盖缺口** |
+| 2A | `:81` 函数体 | 2 红 | prepend 失效 |
+| 2B | `:96` 调用点 | 1 红 | 同上（弱覆盖） |
+| 3A | `:53` 函数体 | 3 红 | 总数错 |
+| 3B | `:96` 调用点 | 1 红 | 同上（弱覆盖） |
+| 4 | `:55` 函数体 | 1 红 | 空槽位缺失 |
+| 5 | `:96` 调用点 | 1 红 | 接线失效 |
+| 6 | `:57-60` 函数体 | 1 红 | 契约漂移 |
+
+**★ 1B 是本轮方法论发现**：同一注入意图在不同层级，不只红数不同，
+**能发现的缺陷类别也不同** —— 函数体注入抓不到调用点误用，
+而调用点注入暴露了接线测试的覆盖缺口（V9 ①-a 形态，已补断言修复）。
+
+### 遗留（明确登记，非欠账）
+
+- **端到端未验**：注入层的「模型是否按角色清单执行」属**渠道实测**（B线 范围）。
+  B线 当前矩阵用手工拼装角色段（因本分支未合并），**合并后仍需单独一格**验证注入层端到端。
+- **`ProductImageCount` 赋值方未实现**：三期前端（`use-canvas-media-tools.ts` 加
+  `createCloneRecreateNode`）负责赋值，二期只提供接口。
+- **`git merge` 首次失败**（`fatal: stash failed`）：与另一线的 git 操作并发导致索引瞬态不一致；
+  未删 lock、未 kill 进程，等待后核实状态干净（MERGE_HEAD 无 / index.lock 无 / stash 0 条）
+  再重试成功。这是多线并发 git 操作的第 2 次（第 1 次是 index.lock）。
+
+## 2026-10-06 · F-09 画布工作流承载性验证（A线，提交 b2a3523b）
+
+- **任务**：任务书 `docs/artifacts/f09-canvas-workflow-validation-task-book.md`（main @ 8f05b71a）。
+  核心问题：画布单独能否承载 F-09（换图 + 生成），Q1（@提及顺序 → referenceImages 数组顺序）为决定性子问题。
+- **结论**：**画布能承载 F-09**，Q1 成立，唯一缺口是 `productImageCount` 字段透传（三期前端），无需独立 F-09 页面。
+- **Q1 实测**（隔离探针，连线顺序固定 `[product, layout]`）：
+  `@图片1 是产品，@图片2 是版式` → `[product, layout]`；
+  `@图片2 是版式，@图片1 是产品` → `[layout, product]` ⇒ **数组顺序 = @提及首次出现顺序**。
+- **机制细节**（任务书 §2.1 未覆盖）：`@图片N` 是**槽位 token**，槽位由 `generationSlotEntries`
+  按**连线顺序**分配（`canvas-node-generation.ts:346`）；而**数组顺序**由 `matchAll` 循环里
+  `selectedInputs.push`（:229）的首次出现顺序决定 ⇒ **两个独立杠杆**。
+- **★ 工作流渠道边界**（控制线裁定②要求登记）：`canvas-node-generation.ts:96`
+  `autoIncludeWorkflowMedia` 为真时（RunningHub 工作流节点），数组**先按连线顺序**放入媒体、
+  显式 @ 只追加（:239-255）⇒ **「@提及顺序优先」不外推到工作流渠道**。已用 2 条对照测试锁定
+  （同一提示词 + 同一连线，工作流节点得连线顺序、普通节点得 @提及顺序）。
+- **证伪**（红数附注入点）：
+  ① `buildComposerGenerationContext` 的 `selectedInputs` 改为按连线顺序 → **12 fail**（含 5 条 F-09）；
+  ② `:239` `if (autoIncludeWorkflowMedia)` 改 `if (false && ...)` → **5 fail**（含边界锁）；恢复后均 24 pass。
+- **Q2 已验**：全仓 grep 显示前端**仅注释提及** `ProductImageCount`（`capability-entries.ts:49`），
+  **无赋值来源** ⇒ 后端 `applyImageRolePrompt` 早返回，角色清单不注入 —— 任务书 §3 步骤 2 缺陷已确认。
+- **Q3/Q4 不做**（控制线裁定）：Q3（透明 PNG 引导层 + `metadata.locked`）登记为三期设计输入；
+  Q4（端到端出图）由 B线 一期门覆盖，重复验证违反 V1。
+- **交付物**：报告 `docs/artifacts/f09-canvas-workflow-validation-report.md`（205 行，含 8 节）+ 7 条测试。
+- **门**：tsc 0 / eslint 0 / bun test **3132 pass 0 fail**（基线 3125 + 7）。
+- **方法调整**（控制线裁定③）：原计划纯 UI 手工验证（拖拽/连线/点生成），因画布 UI 交互成本远超预期
+  （右键菜单 CDP 与 JS 派发均无法触发）改为**代码级验证**（直测 `buildNodeGenerationContext`）——
+  Q1 本质是前端逻辑，UI 拖拽方式不影响该逻辑。
+- **环境障碍与解法**（供后续复现）：任务书 §7 的 :3020/:8488 被 B线 占用 → 改用 :8489/:3030；
+  浏览器标签建不出 → CDP `Target.createTarget`；`exec` 被其他 debugger 占用 → `Runtime.evaluate` 直连。
+- **★ 工作区残留（非本次改动）**：`web/src/lib/canvas/capability-entries.ts` 有未提交的
+  `dual_image` 谓词改动（2026-10-05 23:12，标注「F-09 双图复刻」），**未提交**，
+  已报控制线确认归属。

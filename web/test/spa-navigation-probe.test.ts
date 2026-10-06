@@ -1,0 +1,233 @@
+import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+
+/**
+ * SPA 导航探针测试（页面内注入脚本）。
+ *
+ * ★ 为什么需要测试一个「浏览器注入脚本」：它的核心承诺是**让阴性结论可信**
+ *   （「无警告」必须区别于「监视器失灵」）。若自检机制本身失效，
+ *   探针会给出**虚假的阴性证据** —— 比没有探针更危险（V8 纪律：失败路径必须可诊断）。
+ *
+ * ★ 本文件用最小 DOM 桩在 bun 内执行脚本（本仓无 happy-dom/jsdom）：
+ *   桩只提供脚本用到的四个全局（window / history / document / MutationObserver），
+ *   断言针对**脚本行为**（记录了什么、自检是否报红），不针对浏览器渲染。
+ */
+
+const probeSource = readFileSync(new URL("./helpers/spa-navigation-probe.js", import.meta.url), "utf8");
+
+type ProbeApi = {
+    navLog: Array<{ type: string; url: string; at: number }>;
+    msgLog: string[];
+    reset: () => void;
+    dump: () => { navLog: Array<{ type: string; url: string }>; msgLog: string[] };
+    selfCheck: () => Promise<{ ok: boolean; detail: string }>;
+    keywords: string[];
+};
+
+type FakeNode = { className: string; textContent: string; parentNode: unknown };
+
+type Harness = {
+    probe: ProbeApi;
+    historyStub: { pushState: (...args: unknown[]) => void; replaceState: (...args: unknown[]) => void };
+    historyCalls: Array<{ method: string; url: unknown }>;
+    body: { appendChild: (node: FakeNode) => FakeNode; removeChild: (node: FakeNode) => FakeNode; children: FakeNode[] };
+    /** 读取当前 window 上的探针实例（二次注入后可能与首次不同）。 */
+    current: () => ProbeApi;
+    run: () => void;
+};
+
+/** 最小 DOM/History 桩：只实现脚本用到的接口。 */
+function createHarness(source: string): Harness {
+    const observers: Array<(records: Array<{ addedNodes: FakeNode[] }>) => void> = [];
+
+    class FakeMutationObserver {
+        private callback: (records: Array<{ addedNodes: FakeNode[] }>) => void;
+        constructor(callback: (records: Array<{ addedNodes: FakeNode[] }>) => void) {
+            this.callback = callback;
+        }
+        observe() {
+            observers.push(this.callback);
+        }
+    }
+
+    const body = {
+        children: [] as FakeNode[],
+        appendChild(node: FakeNode) {
+            node.parentNode = body;
+            body.children.push(node);
+            for (const callback of observers) callback([{ addedNodes: [node] }]);
+            return node;
+        },
+        removeChild(node: FakeNode) {
+            body.children = body.children.filter((item) => item !== node);
+            node.parentNode = null;
+            return node;
+        },
+    };
+
+    const documentStub = {
+        body,
+        createElement(): FakeNode {
+            return { className: "", textContent: "", parentNode: null };
+        },
+    };
+
+    const historyCalls: Array<{ method: string; url: unknown }> = [];
+    const historyStub = {
+        pushState(_state: unknown, _title: unknown, url?: unknown) {
+            historyCalls.push({ method: "pushState", url: url });
+        },
+        replaceState(_state: unknown, _title: unknown, url?: unknown) {
+            historyCalls.push({ method: "replaceState", url: url });
+        },
+    };
+
+    const windowStub: Record<string, unknown> = {};
+    const run = () => {
+        const factory = new Function("window", "history", "document", "MutationObserver", source);
+        factory(windowStub, historyStub, documentStub, FakeMutationObserver);
+    };
+    run();
+
+    const probe = windowStub.__spaNavProbe as ProbeApi;
+    const current = () => windowStub.__spaNavProbe as ProbeApi;
+    return { probe, historyStub: historyStub as Harness["historyStub"], historyCalls, body, current, run };
+}
+
+function fakeMessageNode(text: string): FakeNode {
+    return { className: "", textContent: text, parentNode: null };
+}
+
+describe("SPA 导航探针：导航记录（pushState/replaceState 包装）", () => {
+    test("push 与 replace 都被记录，含完整 query（SPA 消费后仍可回溯）", () => {
+        const { probe, historyStub } = createHarness(probeSource);
+        historyStub.pushState({}, "", "/canvas/abc?conversation=creation%3Alinear-flow-t1");
+        historyStub.replaceState({}, "", "/canvas/abc");
+        expect(probe.navLog).toHaveLength(2);
+        expect(probe.navLog[0]).toMatchObject({ type: "push", url: "/canvas/abc?conversation=creation%3Alinear-flow-t1" });
+        expect(probe.navLog[1]).toMatchObject({ type: "replace", url: "/canvas/abc" });
+    });
+
+    test("透传：包装层调用原始 history 方法（不吞掉真实导航）", () => {
+        const { historyStub, historyCalls } = createHarness(probeSource);
+        historyStub.pushState({}, "", "/canvas/abc");
+        historyStub.replaceState({}, "", "/canvas/abc?x=1");
+        expect(historyCalls, "包装层必须透传 —— 否则真实导航被吞").toEqual([
+            { method: "pushState", url: "/canvas/abc" },
+            { method: "replaceState", url: "/canvas/abc?x=1" },
+        ]);
+    });
+});
+
+describe("SPA 导航探针：消息捕获（MutationObserver）", () => {
+    test("关键词命中的插入节点被捕获", () => {
+        const { probe, body } = createHarness(probeSource);
+        body.appendChild(fakeMessageNode("未找到要接续的会话，请从首页重新进入。"));
+        expect(probe.msgLog).toHaveLength(1);
+        expect(probe.msgLog[0]).toContain("未找到要接续的会话");
+    });
+
+    test("非关键词节点不被捕获（避免噪声淹没证据）", () => {
+        const { probe, body } = createHarness(probeSource);
+        body.appendChild(fakeMessageNode("生成成功"));
+        expect(probe.msgLog).toHaveLength(0);
+    });
+
+    test("dump/reset 语义：dump 返回副本，reset 清空", () => {
+        const { probe, historyStub, body } = createHarness(probeSource);
+        historyStub.pushState({}, "", "/a");
+        body.appendChild(fakeMessageNode("未找到"));
+        const snapshot = probe.dump();
+        expect(snapshot.navLog).toHaveLength(1);
+        expect(snapshot.msgLog).toHaveLength(1);
+        snapshot.navLog.push({ type: "fake", url: "/injected" });
+        expect(probe.navLog, "dump 必须返回副本 —— 外部改动不得污染探针内部记录").toHaveLength(1);
+        // ★ 全量语义守护（R8 P3-1 发现，控制线核验采纳）：纪律B「多轮对照前必须 reset」
+        //   的前提是 dump() 返回**全量累计**。若未来改成游标式增量（slice(cursor) 并推进
+        //   游标），纪律B 的注释会变成过期误导。
+        //
+        //   ★ 实测红数（★ 均附 commit 基准 —— V7 附2 要求）：
+        //     · 本断言加入**前**（@9b4c8b85）：
+        //         X 形态（消费式增量，dump 后清空）  → 1 红（被既有「副本」断言顺带捕获）
+        //         Y 形态（游标式增量）              → ★ 0 红（既有断言全绿 —— 这正是本断言要补的缺口）
+        //     · 本断言加入**后**（@75768505 起）：
+        //         X 形态 → 1 红    Y 形态 → ★ 1 红（本断言抓住）
+        //   ⇒ 数字随版本变化，引用时必须标注基准（A线 2026-10-05 发现注释未标基准，
+        //     把「加断言前」的 0 红写进了「加断言后」的代码 —— 自身即 V7 附2 实例）。
+        probe.dump();
+        expect(probe.navLog, "dump 必须是全量累计（纪律B 的前提，非增量）").toHaveLength(1);
+        expect(probe.dump().navLog, "重复 dump 仍返回全量（不得消费）").toHaveLength(1);
+        probe.reset();
+        expect(probe.dump()).toEqual({ navLog: [], msgLog: [] });
+    });
+});
+
+describe("SPA 导航探针：★ 自检机制（阴性结论的前置条件）", () => {
+    test("正常配置：自检 ok === true（监视器确实抓得住）", async () => {
+        const { probe } = createHarness(probeSource);
+        const result = await probe.selfCheck();
+        expect(result.ok).toBe(true);
+        expect(result.detail).toContain("可信");
+    });
+
+    test("★ 证伪：关键词配错 ⇒ 自检 ok === false（「无警告」结论不可采信）", () => {
+        const anchor = 'var MESSAGE_KEYWORDS = ["未找到", "会话"];';
+        // V9 ①：替换前先断言锚点存在，避免锚点消失导致证伪测试静默失效
+        expect(probeSource, "关键词锚点消失 —— 证伪测试失效，需同步更新").toContain(anchor);
+        const brokenSource = probeSource.replace(anchor, 'var MESSAGE_KEYWORDS = ["__probe_broken_keyword__"];');
+        expect(brokenSource).not.toBe(probeSource);
+        const { probe } = createHarness(brokenSource);
+        return probe.selfCheck().then((result) => {
+            expect(result.ok).toBe(false);
+            expect(result.detail).toContain("无效");
+        });
+    });
+
+    test("自检注入的假消息被清理（DOM 节点 + msgLog 记录，双重不污染）", async () => {
+        const { probe, body } = createHarness(probeSource);
+        const result = await probe.selfCheck();
+        expect(result.ok).toBe(true);
+        expect(body.children, "自检节点必须移除 —— 否则污染页面").toHaveLength(0);
+        // ★ 修法2 守护（测试线 b12r26 发现 + 控制线核验采纳）：仅移除 DOM 节点不够 ——
+        //   自检消息已进入 msgLog，含目标关键词，会让后续「msgLog 不含目标文案」的
+        //   阴性断言必然失败。原测试名声称「不污染后续 dump」但只断言 DOM（V9 ① 族）。
+        expect(probe.dump().msgLog, "自检记录必须一并移除 —— 否则阴性断言必然失败").toHaveLength(0);
+    });
+
+    test("★ 证伪：自检记录若不清除 ⇒ 阴性断言必然失败（修法2 的必要性）", async () => {
+        // 构造「只删 DOM 不删 msgLog」的旧实现，证明该断言确实有区分力
+        const oldImpl = probeSource.replace(
+            "var selfIdx = msgLog.indexOf(SELF_CHECK_TEXT.slice(0, 200));\n                if (selfIdx !== -1) msgLog.splice(selfIdx, 1);",
+            "/* 旧实现：只删 DOM，不删 msgLog */",
+        );
+        expect(oldImpl, "清理代码锚点消失 —— 证伪测试失效，需同步更新").not.toBe(probeSource);
+        const { probe } = createHarness(oldImpl);
+        const result = await probe.selfCheck();
+        expect(result.ok).toBe(true);
+        const msgLog = probe.dump().msgLog;
+        expect(msgLog.length, "旧实现下 msgLog 必残留自检记录").toBeGreaterThan(0);
+        expect(msgLog.some((m) => m.includes("要接续的会话")), "残留记录含目标文案 ⇒ 阴性断言必失败").toBe(true);
+    });
+});
+
+describe("SPA 导航探针：幂等（重复注入不叠加监听）", () => {
+    test("二次注入不替换已安装实例（守卫命中）", () => {
+        const { probe, run, current } = createHarness(probeSource);
+        const first = current();
+        run();
+        const second = current();
+        // ★ 可证伪点：移除 `if (previous && previous.__installed) return;` 后，
+        //   二次注入会重新包装 history 并替换 window.__spaNavProbe（second !== first）。
+        //   （仅断言 navLog 长度会假绿：两个闭包各自记录一次，第一个实例的日志仍是 1 条。）
+        expect(second, "二次注入必须返回同一实例 —— 否则监听器与包装层会无界叠加").toBe(first);
+        expect(probe).toBe(first);
+    });
+
+    test("二次注入后单次导航在该实例日志中只记一条", () => {
+        const { probe, historyStub, run } = createHarness(probeSource);
+        run();
+        run();
+        historyStub.pushState({}, "", "/once");
+        expect(probe.navLog).toHaveLength(1);
+    });
+});
