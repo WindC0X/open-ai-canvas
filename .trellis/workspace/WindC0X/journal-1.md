@@ -2087,3 +2087,143 @@ V4 附1 的【纪律】是对的（「跑 N 次全绿」≠「无 flaky」）
 - 回执：`.trellis/workspace/WindC0X/review/r10/r11-verdict.md`
 - 本轮计数：**P2 × 1**（算式）+ **P3 × 1**（口径）
 - **§四·五 审计清单实战首用**：我用「位置/工具/样本量」三项定位到算式问题
+
+---
+
+## F-09 三期交付独立复核（2026-10-06）
+
+**对象**：`open-ai-canvas` @ `8f6b59ba`（29 文件 +1838/-8）
+**隔离树**：`/home/windc0x/oac-ext4/_f09`（依赖 `cp -r` 物理隔离，lesson 16）
+**基线**：`web/` 下 `bun test` → **3167 pass / 0 fail / 374 files**（连跑 5 次全绿，与控制线一致）
+
+### §1 证伪重跑（8 处注入，我独立实测）
+
+| # | 注入点 | A线 声称 | 我实测 |
+|---|---|---|---|
+| ① | `canvas-project-generation.ts` requestedConfig 不读 metadata | 4 red | **4 red ✓** |
+| ② | `generation-task.ts` generationOptions → undefined | 3 red | **3 red ✓** |
+| ③ | `clone-recreate-submission.ts` 数组顺序写反 | 1 red | **1 red ✓** |
+| ④ | `productImageCount` → 0 | 1 red | **1 red ✓** |
+| ⑤ | 提示词混入六段式正文 | 1 red | **1 red ✓** |
+| ⑥ | `dual_image` 谓词恒 true | 1 red | **1 red ⚠️** |
+| ⑦ | 工具栏 gating 去掉 | 2 red | **2 red ✓** |
+| ⑧ | `entryPoints.target` → nonexistent | 1 red | **★ 0 red ✗ 不可复现** |
+
+### §2 ★★ 两个阻塞发现
+
+**B-1：`dual_image` 谓词仍然悬空**（报告 §3.2 声称「本批接上真实消费方」不成立）
+```
+grep -rn "capabilityContextSatisfied(" web/src/ | grep -v capability-entries.ts:269
+→ 空 ⇒ 谓词在生产代码中零调用
+```
+工具栏用的是**自己的重复实现**（`selection-toolbar-tools.tsx:46`）：
+```tsx
+applicable: (ctx) => ctx.selectedImageCount === 2,   // ← 不调用谓词
+```
+
+**★ 判定实验（决定性）**：
+| 注入对象 | 「真实入口消费路径」两测试 | 「谓词与入口判定一致」 |
+|---|---|---|
+| **谓词**（改成 `imageCount === 5`） | **全绿（未红）** | **1 red** |
+| **工具栏 gating**（去掉） | **2 red** | 全绿 |
+
+⇒ 标着「★ 真实入口消费路径」的测试，**实际验证的是工具栏自己的 `applicable`**，
+与 `dual_image` 谓词无关。**谓词改动不影响任何真实入口行为。**
+
+**⇒ 与 V9 ①-a 同族但更严重**：不是断言太窄，而是**断言对象错误**（镜像实现）。
+
+**★ 任务书 §3.2 明确要求**：「该谓词目前悬空 —— **本批 ③ 为它接上消费方**」
+⇒ 本批**未达成**该要求。
+
+**B-2：`createCloneRecreateNode`（handler）零消费方**
+```
+grep -rn "createCloneRecreateNode" web/src/
+→ use-canvas-media-tools.ts:1338（定义）+ :1963（导出）+ capability-entries.ts:239（字符串）
+→ ★ 无 project.tsx 消费
+```
+**对照先例**：
+| handler | project.tsx 消费 |
+|---|---|
+| `superResolveImageNode` | ✓ `:1024` 解构 + `:3717` `onSuperResolve` |
+| `editAnnotatedImageNode` | ✓ `:1017` 解构 + `:3693` `onAnnotationEdit` |
+| **`createCloneRecreateNode`** | **✗ 未解构、无调用** |
+
+真实路径（`project.tsx:2487`）：Config 节点走 `CanvasConfigNodePanel.onGenerate` → **通用路径** `handleGenerateNode`。
+
+**★ 但主流程功能未断**（实测确认，避免误判）：
+```
+buildGenerationConfig 从 node.metadata 读 productImageCount=1     ✓ 序列化后 = 1
+buildGenerationConfig 从 node.metadata 读 clonePromptParams       ✓ 序列化后 = {...}
+getGenerationResourceNodes 按连线顺序收集 [产品图, 版式参考图]     ✓
+序列化后 input.referenceImages = ["p","l"] + productImageCount=1  ✓ 端到端
+```
+⇒ **`productImageCount` 与顺序契约在通用路径下仍生效**（落在 metadata 与连线上）。
+**⇒ 真正失效的是 handler 独有部分**：`buildCloneRecreateSubmission`（提交构造）**生产不可达**
+⇒ 其 6 个测试测的是**死代码路径**。
+
+**★ 定性**：不是功能缺失，而是**死代码 + 两份实现**（模板路径与 handler 路径各实现一遍顺序保证，只一条被执行）。
+
+### §3 非阻塞 4 项
+
+**N-1：报告 §5 注入⑧ 红数不可复现**（称 1 red，实测 0 red）
+根因：守卫测试**只校验 3 种 kind**（`registry-namespace-guard.test.ts:81`）：
+```ts
+if (point.kind === "node-toolbar" || point.kind === "selection-toolbar" || point.kind === "main-toolbar") {
+```
+而 `CapabilityEntryPoint.kind` 有 **6 种**：
+```
+node-toolbar ✓ / selection-toolbar ✓ / main-toolbar ✓
+command-palette ✗ / create-card ✗（★ F-09 用的）/ canvas-route ✗   ← 静默跳过
+```
+**实测对照**：`create-card` + 假 target → **全量 3167/0（0 red）**；
+`selection-toolbar` + 假 target → **1 red**。
+⇒ **F-09 新登记的入口实际无守卫保护**，与「入口登记缺口已机器化收口」不符。
+
+**N-2：数组顺序契约有绕过路径**（动态实证）
+| 场景 | 上游图片 | productImageCount | 后端编号结果 |
+|---|---|---|---|
+| 基线 | `[产品图, 版式参考图]` | 1 | 图1=产品图 ✓ |
+| **用户删掉产品图** | `[版式参考图]` | **仍为 1** | **图1=版式参考图 ✗ 静默错位** |
+| 用户拖拽重排 | `[版式参考图, 产品图]` | **仍为 1** | **图1=版式参考图 ✗ 静默错位** |
+
+根因：`productImageCount` 是**模板实例化时写死的常量**，不随用户操作更新；顺序由**连线数组顺序**决定。
+两者**无同步机制**。⇒ 且**不报错**（后端无语义标签，只能按位置编号）。
+
+**N-3：选区入口丢弃用户选中的图**
+`project.tsx:3227` `onCreateCloneRecreate={() => instantiateTemplate("clone-recreate")}` ——
+`instantiateTemplate(templateId)` 只接收 id，**不接收选中的图**
+⇒ 用户选中 2 张图点按钮 → 出现**另外 2 张空占位图**，选中的图未使用。
+任务书 §2.3 只规定**空状态卡入口**，未提及选区入口（A线 自行新增）。
+
+**N-4：`copy.mode` 默认值 `auto-copy` 与调研裁决矛盾**
+代码注释声称「对齐 ImgAk 默认表单：文字默认自动文案」，但：
+- 一手语料 `inputs[7]`（copy.mode）**value = `no-copy`**
+- 一手默认表单（`M01-meitu-clone.md:69`，bundle@1474942）**没有 copy.mode 字段**
+- 三处调研裁决均为「**短期只做 no-copy**」（`F-09-IMPLEMENTATION-PLAN.md:468`、`SYNTH:580`、`X02:255`）
+
+⇒ 注释的一手依据不成立 + 默认值与调研裁决矛盾 ⇒ 用户不选参数时会生成文字。
+
+### §4 边界补充（A线 §7 漏报 4 项）
+
+1. handler 未接线（B-2）
+2. 谓词仍悬空（B-1）
+3. 顺序契约可被用户操作破坏（N-2）
+4. `create-card` kind 无守卫（N-1）
+
+### §5 结论：**需修复后合并**
+
+**★ 可信部分**：模板实例化（结构/容器/连线顺序）、`productImageCount` 的 metadata→请求体链路
+（注入①②各 4/3 red）、后端六段式注入（控制线已核）、全量基线 3167/0 一致。
+
+### ★ 教训二十四：「消费方」必须用「改一处是否影响另一处」判定
+
+> 我最初读测试名（「★ 真实入口消费路径」）与报告 §3.2（「本批接上真实消费方」）时，
+> 倾向相信「已接上」。**只有做了双向注入对照，才暴露「测试测的是镜像实现」。**
+>
+> ⇒ 同族于教训二十二（不凭来源判定数字有效）、二十三（不凭结论方向判定算式有效）：
+> **本条：不凭声明判定接线有效。**
+
+### 交付
+- 报告：`docs/artifacts/f09-canvas-template-review.md`（`git add -f`，因 `.gitignore` 有 `docs/*`）
+- commit：**`b66a86a5`**（单 commit，未 push）
+- 已发送控制线，落地确认（控制线已在独立核验 B-1/B-2）
