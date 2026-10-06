@@ -56,7 +56,7 @@ export function canvasTemplateCards(): CanvasTemplateCard[] {
 export function useCanvasTemplateCards(options: UseCanvasTemplateCardsOptions) {
     const { nodesRef, connectionsRef, commitNodes, commitConnections, selectNodes, getCanvasCenter } = options;
 
-    const instantiateTemplate = useCallback((templateId: string) => {
+    const instantiateTemplate = useCallback((templateId: string, sourceImageIds?: string[]) => {
         const template = CANVAS_TEMPLATES.find((item) => item.id === templateId);
         if (!template) return;
         const center = getCanvasCenter();
@@ -79,15 +79,36 @@ export function useCanvasTemplateCards(options: UseCanvasTemplateCardsOptions) {
                 metadata: { ...spec.metadata },
             });
         }
+        // ★ 修复批 N-3（控制线 2026-10-06）：把用户选中的图填入模板的图片槽位。
+        //
+        // 为什么需要：选区入口原先只建【空占位模板】（用户选中的 2 张图被丢弃），
+        // 用户还得重新上传 —— 与「点卡复用」的意图相左。
+        //
+        // 顺序契约：按模板 nodes 顺序填（产品图槽位在前、版式参考图槽位在后），
+        // 与 buildCloneRecreateSubmission 的数组顺序契约一致。
+        const imageSlots = instantiated.nodes.filter((node) => node.type === CanvasNodeType.Image);
+        const sourceById = new Map((sourceImageIds ?? []).map((id) => [id, nodesRef.current.find((item) => item.id === id)]));
+        const filledByNodeId = new Map<string, CanvasNodeData>();
+        imageSlots.forEach((slot, index) => {
+            const sourceId = sourceImageIds?.[index];
+            const source = sourceId ? sourceById.get(sourceId) : undefined;
+            if (source?.metadata?.content || source?.metadata?.storageKey) filledByNodeId.set(slot.id, source);
+        });
+
         for (const node of instantiated.nodes) {
+            const filled = filledByNodeId.get(node.id);
             newNodes.push({
                 id: node.id,
                 type: node.type,
-                title: node.title,
+                title: filled?.title || node.title,
                 position: node.position,
                 width: node.width,
                 height: node.height,
-                metadata: { ...node.metadata },
+                // 填入源图的内容（content/storageKey 等）—— 保留模板自带的 metadata 字段
+                // （如生成节点的 productImageCount / cloneRecreateParams）。
+                metadata: filled
+                    ? { ...node.metadata, content: filled.metadata?.content, storageKey: filled.metadata?.storageKey, mimeType: filled.metadata?.mimeType }
+                    : { ...node.metadata },
                 ...(node.parentId ? { parentId: node.parentId } : {}),
             });
         }

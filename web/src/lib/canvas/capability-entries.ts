@@ -244,8 +244,13 @@ export const CAPABILITY_ENTRIES: CapabilityEntry[] = [
             requiredOperations: [],
         },
         zeroParameterPreset: "暂无",
-        // 本批入口：空状态模板卡（§2.3）。卡 id 由 canvas-clone-template.ts 定义。
-        entryPoints: [{ kind: "create-card", target: "clone-recreate" }],
+        // ★ 修复批新-1/新-2：登记【两个】真实入口（此前只登记一个，且 target 语义未明）。
+        //   · create-card       → target 是【模板 id】（canvas-clone-template.ts 的 CLONE_RECREATE_TEMPLATE.id）
+        //   · selection-toolbar → target 是【真实 tool id】（selection-toolbar-tools.tsx）
+        entryPoints: [
+            { kind: "create-card", target: "clone-recreate" },
+            { kind: "selection-toolbar", target: "selection-clone-recreate" },
+        ],
         registryVersion: 1,
     },
 ];

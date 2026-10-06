@@ -23,6 +23,7 @@ import { assetKindFromToolType, isAssetVisibleToUser, PRESET_ASSET_KINDS, type R
 import { mainToolbarTools } from "../src/lib/canvas/tool-registry/definitions/main-toolbar-tools";
 import { nodeHoverToolbarTools } from "../src/lib/canvas/tool-registry/definitions/node-hover-tools";
 import { selectionToolbarTools } from "../src/lib/canvas/tool-registry/definitions/selection-toolbar-tools";
+import { CANVAS_TEMPLATES } from "../src/lib/canvas/canvas-clone-template";
 
 /**
  * 全部按钮层工具定义。
@@ -33,6 +34,19 @@ import { selectionToolbarTools } from "../src/lib/canvas/tool-registry/definitio
  * 守卫必须覆盖两个层才能校验 entryPoints.target 真实存在。
  */
 const ALL_TOOL_DEFINITIONS = [...mainToolbarTools, ...nodeHoverToolbarTools, ...selectionToolbarTools, ...imageToolDefinitions];
+
+/**
+ * ★ 修复批 N-1（控制线 2026-10-06）：create-card 的校验源。
+ *
+ * 为什么单独一个源：`create-card` 的 target 是【画布模板 id】
+ * （canvas-clone-template.ts 的 CANVAS_TEMPLATES），不是按钮层 tool id。
+ * 原守卫只覆盖 node-toolbar/selection-toolbar/main-toolbar 三种 kind，
+ * create-card 被静默跳过 —— 于是「登记了不存在的卡 id」不会被发现。
+ */
+const CANVAS_TEMPLATE_IDS = new Set(CANVAS_TEMPLATES.map((template) => template.id));
+
+/** 已覆盖校验的 kind 全集（新增 kind 时必须同步此处，否则守卫静默跳过）。 */
+const GUARDED_ENTRY_KINDS = ["node-toolbar", "selection-toolbar", "main-toolbar", "create-card"] as const;
 
 const CAPABILITY_IDS = CAPABILITY_ENTRIES.map((entry) => entry.id);
 const TOOL_IDS = ALL_TOOL_DEFINITIONS.map((tool) => tool.id);
@@ -74,15 +88,31 @@ describe("注册表命名空间——能力层与按钮层隔离", () => {
 });
 
 describe("注册表命名空间——入口登记校验（§1.4 待建字段）", () => {
-    test("每个能力条目的 entryPoints.target 在按钮层真实存在", () => {
+    test("每个能力条目的 entryPoints.target 在对应层真实存在", () => {
         const toolIdSet = new Set(TOOL_IDS);
         for (const entry of CAPABILITY_ENTRIES) {
             expect(entry.entryPoints.length).toBeGreaterThan(0);
             for (const point of entry.entryPoints) {
-                if (point.kind === "node-toolbar" || point.kind === "selection-toolbar" || point.kind === "main-toolbar") {
+                // ★ 修复批 N-1：kind 必须落在已覆盖集合内 —— 防「新增 kind 被静默跳过」。
+                expect(GUARDED_ENTRY_KINDS).toContain(point.kind as (typeof GUARDED_ENTRY_KINDS)[number]);
+                if (point.kind === "create-card") {
+                    // create-card 的 target 是模板 id，校验源是 CANVAS_TEMPLATES。
+                    expect(CANVAS_TEMPLATE_IDS.has(point.target)).toBe(true);
+                } else if (point.kind === "node-toolbar" || point.kind === "selection-toolbar" || point.kind === "main-toolbar") {
                     expect(toolIdSet.has(point.target)).toBe(true);
                 }
             }
+        }
+    });
+
+    // ★ 修复批 N-1：命令式补丁（如 command-palette / canvas-route）尚未实现运行时派发，
+    // 守卫仍要求 kind 落在已覆盖集合 —— 未来实现时须先扩 GUARDED_ENTRY_KINDS。
+    test("守卫覆盖的 kind 集合非空且与条目实际使用一致", () => {
+        expect(GUARDED_ENTRY_KINDS.length).toBeGreaterThan(0);
+        const usedKinds = new Set<string>();
+        for (const entry of CAPABILITY_ENTRIES) for (const point of entry.entryPoints) usedKinds.add(point.kind);
+        for (const kind of usedKinds) {
+            expect(GUARDED_ENTRY_KINDS).toContain(kind as (typeof GUARDED_ENTRY_KINDS)[number]);
         }
     });
 

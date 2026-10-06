@@ -26,13 +26,24 @@ export function CanvasLinkedProjectEmptyState({ projectName, hasChapter, onAddFi
     );
 }
 
-export function CanvasShortDramaEmptyState({ onCreatePipeline, onOpenAgent, onStartFreeform, onUpload, onAddText, onAddScript }: {
+export function CanvasShortDramaEmptyState({ onCreatePipeline, onOpenAgent, onStartFreeform, onUpload, onAddText, onAddScript, templateCards }: {
     onCreatePipeline: () => void;
     onOpenAgent: () => void;
     onStartFreeform: () => void;
     onUpload: () => void;
     onAddText: () => void;
     onAddScript: () => void;
+    /**
+     * ★ 修复批 □5-2（控制线 2026-10-06）：模板卡也挂到 guided 态。
+     *
+     * 为什么必需：默认新建画布是 guided 态（`shortDramaEnabled: true` +
+     * `starterMode !== "freeform"`），而模板卡原先只在 freeform 态渲染 ⇒
+     * 默认路径下用户看不到「爆款复刻」卡，任务书 §2.3 判据① FAIL。
+     *
+     * 方案 D（控制线裁定）：作为【独立区域】挂在 footer 之后，
+     * 不混入短剧流程引导（语义边界清晰：上方是「开始创作」，下方是「现成模板」）。
+     */
+    templateCards?: { id: string; title: string; hint: string; onPick: () => void }[];
 }) {
     const theme = canvasThemes[useActiveTheme()];
     const entryStyle = {
@@ -67,6 +78,27 @@ export function CanvasShortDramaEmptyState({ onCreatePipeline, onOpenAgent, onSt
                         <button type="button" onClick={onAddScript}><Clapperboard aria-hidden="true" />空白分镜</button>
                     </div>
                 </div>
+                {/* ★ 修复批 □5-2：模板卡独立区域（不混入短剧引导语义）。
+                    data-canvas-no-zoom 与上方壳一致，避免滚轮缩放画布。 */}
+                {templateCards?.length ? (
+                    <div className="mt-4 border-t pt-4" style={{ borderColor: theme.node.stroke }} data-canvas-no-zoom>
+                        <p className="mb-2 text-[var(--fs-label)]" style={{ color: theme.node.muted }}>或从现成模板开始</p>
+                        <div className="flex flex-wrap gap-2">
+                            {templateCards.map((card) => (
+                                <button
+                                    key={card.id}
+                                    type="button"
+                                    onClick={card.onPick}
+                                    className="rounded-xl border px-3 py-2 text-left transition-transform hover:scale-[1.02] focus-visible:ring-2 motion-reduce:transition-none motion-reduce:hover:scale-100"
+                                    style={{ background: theme.toolbar.panel, borderColor: theme.node.edge, color: theme.node.text, "--tw-ring-color": theme.accent.primary } as CSSProperties}
+                                >
+                                    <span className="block text-xs font-medium">{card.title}</span>
+                                    <span className="mt-0.5 block text-[var(--fs-label)]" style={{ color: theme.node.muted }}>{card.hint}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

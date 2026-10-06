@@ -51,7 +51,8 @@ describe("F-09 §2.2 画布模板实例化", () => {
         const generate = result.nodes.find((node) => node.type === CanvasNodeType.Config)!;
         expect(generate.metadata.productImageCount).toBe(1);
         // 参数面默认值随模板落地（UI 回显）
-        expect(generate.metadata.cloneRecreateParams).toEqual({ cloneDegree: "high-structure", cloneScope: ["composition", "palette", "lighting"], copyMode: "auto-copy" });
+        // 修复批 N-4：默认 copyMode 改为 no-copy（对齐 F-09-IMPLEMENTATION-PLAN.md:468）
+        expect(generate.metadata.cloneRecreateParams).toEqual({ cloneDegree: "high-structure", cloneScope: ["composition", "palette", "lighting"], copyMode: "no-copy" });
     });
 
     test("★ 容器内节点带 parentId（Frame 归属，供整体移动/复制）", () => {
@@ -101,6 +102,6 @@ describe("F-09 §2.2 画布模板实例化", () => {
     });
 
     test("templateCloneParams 返回参数面默认值（UI 回显入口）", () => {
-        expect(templateCloneParams(CLONE_RECREATE_TEMPLATE)).toEqual({ cloneDegree: "high-structure", cloneScope: ["composition", "palette", "lighting"], copyMode: "auto-copy" });
+        expect(templateCloneParams(CLONE_RECREATE_TEMPLATE)).toEqual({ cloneDegree: "high-structure", cloneScope: ["composition", "palette", "lighting"], copyMode: "no-copy" });
     });
 });

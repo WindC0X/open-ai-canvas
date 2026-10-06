@@ -1015,6 +1015,7 @@ function InfiniteCanvasPage() {
         detectImageText,
         editTextImageNode,
         editAnnotatedImageNode,
+        createCloneRecreateNode,
         editImageNode,
         setUpscaleNodeId,
         splitImageNode,
@@ -2335,6 +2336,23 @@ function InfiniteCanvasPage() {
                             next.delete(nodeId);
                             return next;
                         });
+                        // ★ F-09 修复批 B-2：爆款复刻节点走专属执行链。
+                        //
+                        // 为什么需要派发：通用 handleGenerateNode 不构造 F-09 的提交物
+                        // （productImageCount 已落在 metadata、连线顺序也对，但前端提示词与
+                        //  数组拼装由 buildCloneRecreateSubmission 负责），
+                        // 不派发则 handler createCloneRecreateNode 无人调用、其提交物不可达。
+                        //
+                        // 判据：节点 metadata 带 cloneRecreateParams（模板实例化时写入）
+                        // ⇒ 只有爆款复刻模板产出的生成节点走该分支，其他 Config 节点零影响。
+                        const targetNode = nodesRef.current.find((item) => item.id === nodeId);
+                        const cloneParams = targetNode?.metadata?.cloneRecreateParams;
+                        if (cloneParams) {
+                            void createCloneRecreateNode(targetNode, cloneParams).catch((error) => {
+                                message.error(error instanceof Error ? error.message : "爆款复刻失败");
+                            });
+                            return;
+                        }
                         handleGenerateNode(nodeId, mode, prompt);
                     }}
                     onRemoveReference={handleRemoveNodeReference}
@@ -2802,6 +2820,7 @@ function InfiniteCanvasPage() {
         />
     ) : emptyStateKind === "guided" ? (
         <CanvasShortDramaEmptyState
+            templateCards={templateCards}
             onCreatePipeline={createShortDramaPipeline}
             onOpenAgent={() => openAgent()}
             onStartFreeform={() => updateProject(projectId, { starterMode: "freeform" })}
@@ -3224,7 +3243,8 @@ function InfiniteCanvasPage() {
                             selectedVideoCount={selectedVideoNodes.length}
                             // F-09 三期 §3.2：dual_image 谓词的消费输入（选中项中的图片节点数）。
                             selectedImageCount={nodes.filter((item) => selectedNodeIds.has(item.id) && item.type === CanvasNodeType.Image).length}
-                            onCreateCloneRecreate={() => instantiateTemplate("clone-recreate")}
+                            // ★ 修复批 N-3：把选中的 2 张图填入模板槽位（按选中顺序，第一张=产品图）。
+                            onCreateCloneRecreate={() => instantiateTemplate("clone-recreate", Array.from(selectedNodeIds))}
                             mergingVideos={Boolean(mergeVideoProgress)}
                             onAlign={alignSelectedNodes}
                             onArrange={arrangeSelectedNodes}

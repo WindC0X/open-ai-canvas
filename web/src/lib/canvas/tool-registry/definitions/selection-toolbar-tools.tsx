@@ -1,6 +1,23 @@
 import { AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignHorizontalJustifyStart, AlignHorizontalSpaceAround, AlignHorizontalSpaceBetween, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalSpaceAround, AlignVerticalSpaceBetween, AtSign, Film, FolderTree, Grid3X3, LayoutTemplate, Link2, LoaderCircle, Sparkles, Workflow } from "lucide-react";
 
 import { registerToolbarTools, type ToolDefinition } from "@/lib/canvas/tool-registry";
+import { capabilityContextSatisfied, findCapabilityEntry } from "@/lib/canvas/capability-entries";
+
+/**
+ * F-09 爆款复刻的入口可用性判定 —— 单一真值来自能力层谓词。
+ *
+ * ★ 为什么要有这个函数（修复批 B-1）：入口此前内联 `selectedImageCount === 2`，
+ *   与能力条目的 `dual_image` 谓词是两份独立实现，改一处不影响另一处。
+ *   现在入口经由本函数调用谓词，谓词是唯一判定源。
+ *
+ * 入口在选区工具栏（多选场景）⇒ hasSelection 恒为 true。
+ */
+function cloneRecreateContextSatisfied(selectedImageCount: number): boolean {
+    const entry = findCapabilityEntry("image.cloneRecreate");
+    // 条目缺失时保守返回 false（不渲染入口），而不是抛错 —— 与「默认拒绝」一致。
+    if (!entry) return false;
+    return capabilityContextSatisfied(entry, { imageCount: selectedImageCount, hasSelection: true });
+}
 
 export const selectionToolbarTools: ToolDefinition[] = [
     { id: "selection-align-left", toolbar: "selection", category: "layout", label: "左对齐", icon: <AlignHorizontalJustifyStart />, defaultVisible: true, defaultOrder: 10, run: (ctx) => ctx.handlers.onAlign("left") },
@@ -32,8 +49,16 @@ export const selectionToolbarTools: ToolDefinition[] = [
         run: (ctx) => ctx.handlers.onMergeVideos(),
     },
     {
-        // F-09 三期 §3.2：`dual_image` 谓词的真实消费方 —— 恰好选中 2 张图片时可用。
-        // 此前该谓词零消费方、零测试（控制线 2026-10-05 加的悬空谓词），本批接上。
+        // F-09 三期 §3.2：`dual_image` 谓词的真实消费方。
+        //
+        // ★ 修复批 B-1（控制线 2026-10-06 评审发现）：原先这里写 `ctx.selectedImageCount === 2`，
+        //   是谓词的【第二份实现】—— 改谓词不会影响入口行为（双向注入对照已证）。
+        //   现改为【调用能力层谓词函数】，消除两份真值：
+        //   改 capability-entries.ts 的 dual_image case ⇒ 本入口行为随之改变（可证伪）。
+        //
+        // ★ 不违反「禁止把能力层字段塞进 ToolDefinition」（架构方案 §1.1）：
+        //   本处是按钮层【调用】能力层的谓词函数，不是把能力层字段搬进按钮层结构；
+        //   唯一契约仍是 executionChain.handler ↔ ToolbarHandlers.onXxx。
         id: "selection-clone-recreate",
         toolbar: "selection",
         category: "selection",
@@ -41,8 +66,7 @@ export const selectionToolbarTools: ToolDefinition[] = [
         icon: <Sparkles />,
         defaultVisible: true,
         defaultOrder: 152,
-        // 真实入口消费路径：谓词判定「恰好 2 张图」，不满足则不渲染该按钮。
-        applicable: (ctx) => ctx.selectedImageCount === 2,
+        applicable: (ctx) => cloneRecreateContextSatisfied(ctx.selectedImageCount),
         run: (ctx) => ctx.handlers.onCreateCloneRecreate(),
     },
 ];

@@ -48,9 +48,20 @@ export const COPY_MODE_OPTIONS: { value: CopyMode; label: string }[] = [
     { value: "exact-copy", label: "使用文案" },
 ];
 
-/** 默认参数（对齐 ImgAk 默认表单：cloneLevel 默认 high；文字默认自动文案）。 */
+/**
+ * 默认参数。
+ *
+ * ★ 修复批 N-4（控制线 2026-10-06）：copyMode 由 `auto-copy` 改为 `no-copy`。
+ *   依据：F-09-IMPLEMENTATION-PLAN.md:468 第 2 项 ——「ImgAk copy.mode 3 档文字策略
+ *   ⇒ **短期只保留 no-copy**，其余挂 F-11（文字渲染是独立能力）」。
+ *   此前默认 auto-copy 与该裁决矛盾（原注释只对齐了 ImgAk 表单默认，未对齐本仓裁决）。
+ *
+ * ★ 另注（计划 §141/§146 实测）：`no-copy` 的语义是「不自动生成促销文案」，
+ *   不是「画面完全无字」—— 结构性文字（标题/标签/贴士）仍保留。
+ *   若需真正无字，须在提示词里显式禁止（属 F-11 范围）。
+ */
 export const DEFAULT_CLONE_RECREATE_PARAMS: CloneRecreateParams = {
     cloneDegree: "high-structure",
     cloneScope: ["composition", "palette", "lighting"],
-    copyMode: "auto-copy",
+    copyMode: "no-copy",
 };
