@@ -18,7 +18,7 @@
 import { useCallback } from "react";
 import { nanoid } from "nanoid";
 
-import { CANVAS_TEMPLATES, instantiateCanvasTemplate, templateContainerSpec, type CanvasTemplate } from "@/lib/canvas/canvas-clone-template";
+import { CANVAS_TEMPLATES, instantiateCanvasTemplate, templateContainerSpec, type CanvasTemplate, resolveTemplateImageSlots } from "@/lib/canvas/canvas-clone-template";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/types/canvas";
 
 export type CanvasTemplateCard = {
@@ -86,14 +86,21 @@ export function useCanvasTemplateCards(options: UseCanvasTemplateCardsOptions) {
         //
         // 顺序契约：按模板 nodes 顺序填（产品图槽位在前、版式参考图槽位在后），
         // 与 buildCloneRecreateSubmission 的数组顺序契约一致。
+        // ★ 修复批 N-3 / N3-1（控制线 2026-10-06）：图片槽位填充委托给【纯函数】。
+        //
+        // 为什么抽函数：原先内联在此处时，测试只能用源码文本断言覆盖，
+        // 而文本断言无法捕获语义失效（控制线注入：`imageSourceIds.length = 0;`
+        // ⇒ 被断言的文本全保留 ⇒ 14 pass / 0 fail）。抽函数后可行为断言返回值。
+        //
+        // 顺序契约：按模板 nodes 顺序填（产品图槽位在前、版式参考图槽位在后），
+        // 与 buildCloneRecreateSubmission 的数组顺序契约一致。
         const imageSlots = instantiated.nodes.filter((node) => node.type === CanvasNodeType.Image);
-        const sourceById = new Map((sourceImageIds ?? []).map((id) => [id, nodesRef.current.find((item) => item.id === id)]));
-        const filledByNodeId = new Map<string, CanvasNodeData>();
-        imageSlots.forEach((slot, index) => {
-            const sourceId = sourceImageIds?.[index];
-            const source = sourceId ? sourceById.get(sourceId) : undefined;
-            if (source?.metadata?.content || source?.metadata?.storageKey) filledByNodeId.set(slot.id, source);
-        });
+        const filledByNodeId = resolveTemplateImageSlots(
+            imageSlots,
+            sourceImageIds,
+            (id) => nodesRef.current.find((item) => item.id === id),
+            CanvasNodeType.Image,
+        );
 
         for (const node of instantiated.nodes) {
             const filled = filledByNodeId.get(node.id);

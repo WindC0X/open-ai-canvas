@@ -191,3 +191,40 @@ export function templateCloneParams(template: CanvasTemplate): CloneRecreatePara
     const node = template.nodes.find((item) => item.type === CanvasNodeType.Config);
     return node?.metadata.cloneRecreateParams;
 }
+
+/**
+ * ★ 修复批 N3-1 / N-3（控制线 2026-10-06 第二轮）：图片槽位填充的【纯函数】。
+ *
+ * 为什么抽出来：原先这段逻辑内联在 use-canvas-template-cards.ts 的 instantiateTemplate 里，
+ * 测试只能用【源码文本断言】覆盖它 —— 控制线的注入实验证明文本断言无捕获能力：
+ * ```
+ * 注入：在 `const sourceId = imageSourceIds[index];` 之后加 `imageSourceIds.length = 0;`
+ * 结果：被断言的两条文本【全部保留】⇒ ★ 14 pass / 0 fail（无捕获）
+ * ```
+ * 抽成纯函数后可直接断言【返回值】，语义失效必红。
+ *
+ * @param slots            模板的图片槽位（按模板 nodes 顺序，产品图槽位在前）
+ * @param sourceImageIds   调用方选中的节点 id（可能含非图片节点）
+ * @param findNode         按 id 取节点（注入式，便于测试）
+ * @returns                slotId → 源节点 的填充映射（只含真正可用的源）
+ */
+export function resolveTemplateImageSlots<T extends { id: string; type: string; metadata?: { content?: unknown; storageKey?: string } }>(
+    slots: { id: string }[],
+    sourceImageIds: string[] | undefined,
+    findNode: (id: string) => T | undefined,
+    imageNodeType: string,
+): Map<string, T> {
+    // ① 过滤：只保留【图片节点】的 id（N3-1）。
+    //    不过滤则「先选文本再选 2 张图」时文本节点的 content 会被填入产品图槽位
+    //    （文本节点也有 metadata.content ⇒ 下面 ③ 的判据会放行）⇒ 静默错位。
+    const imageSourceIds = (sourceImageIds ?? []).filter((id) => findNode(id)?.type === imageNodeType);
+    const filled = new Map<string, T>();
+    // ② 按【位置】配对：模板槽位顺序 = 数组顺序（产品图在前 N 位，与后端编号契约一致）。
+    slots.forEach((slot, index) => {
+        const sourceId = imageSourceIds[index];
+        const source = sourceId ? findNode(sourceId) : undefined;
+        // ③ 只填有实际内容的源（空占位节点不覆盖模板占位）。
+        if (source?.metadata?.content || source?.metadata?.storageKey) filled.set(slot.id, source);
+    });
+    return filled;
+}

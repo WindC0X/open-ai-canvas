@@ -1,5 +1,6 @@
 import { CanvasWorkspacePanel } from "@/components/canvas/canvas-workspace-panel";
 import { isCanvasNodeGenerating } from "@/lib/canvas/canvas-node-task-state";
+import { dispatchConfigGenerateAction } from "@/lib/canvas/clone-recreate-submission";
 import { createCanvasStateWriter } from "@/lib/canvas/canvas-editor-state";
 import { canCancelGenerationTask } from "@/lib/generation-task-display";
 import { downloadGenerationTaskResult } from "@/lib/task-face-download";
@@ -2336,24 +2337,8 @@ function InfiniteCanvasPage() {
                             next.delete(nodeId);
                             return next;
                         });
-                        // ★ F-09 修复批 B-2：爆款复刻节点走专属执行链。
-                        //
-                        // 为什么需要派发：通用 handleGenerateNode 不构造 F-09 的提交物
-                        // （productImageCount 已落在 metadata、连线顺序也对，但前端提示词与
-                        //  数组拼装由 buildCloneRecreateSubmission 负责），
-                        // 不派发则 handler createCloneRecreateNode 无人调用、其提交物不可达。
-                        //
-                        // 判据：节点 metadata 带 cloneRecreateParams（模板实例化时写入）
-                        // ⇒ 只有爆款复刻模板产出的生成节点走该分支，其他 Config 节点零影响。
-                        const targetNode = nodesRef.current.find((item) => item.id === nodeId);
-                        const cloneParams = targetNode?.metadata?.cloneRecreateParams;
-                        if (cloneParams) {
-                            void createCloneRecreateNode(targetNode, cloneParams).catch((error) => {
-                                message.error(error instanceof Error ? error.message : "爆款复刻失败");
-                            });
-                            return;
-                        }
-                        handleGenerateNode(nodeId, mode, prompt);
+                        // ★ F-09 修复批 B-2 / B2-1：走统一派发入口（与 Config 真实入口同一判据）。
+                        dispatchConfigGenerate(nodeId, mode, prompt);
                     }}
                     onRemoveReference={handleRemoveNodeReference}
                     onReorderReferences={handleReorderNodeReferences}
@@ -2405,6 +2390,41 @@ function InfiniteCanvasPage() {
         ],
     );
 
+    // ★ 修复批 B2-1（评审线 2026-10-06）：Config 节点生成派发的【唯一入口】。
+    //
+    // 两个 onGenerate 都调用它（Config 真实入口 CanvasConfigNodePanel:2505 +
+    // 通用面板 CanvasNodePromptPanel），防止未来分叉出第二份判据。
+    //
+    // 判据本身是纯函数 resolveConfigGenerateAction（clone-recreate-submission.ts），
+    // 可被单元测试【行为断言】，不依赖源码文本（评审线：文本断言无法捕获
+    // handler 内部首行早退 —— 实测 10 pass / 0 fail）。
+    // ★ 修复批 B2-1（评审线 2026-10-06）：Config 节点生成派发的【唯一入口】。
+    //
+    // 两个 onGenerate 都调用它（Config 真实入口 CanvasConfigNodePanel + 通用面板
+    // CanvasNodePromptPanel），防止未来分叉出第二份判据（V1）。
+    //
+    // ★ 分支逻辑【不在本函数内】—— 全部委托给纯函数 dispatchConfigGenerateAction
+    //   （clone-recreate-submission.ts）。原因：分支留在组件内时，测试只能靠
+    //   源码文本断言覆盖，而文本断言无法捕获语义失效（评审线注入实验：
+    //   handler 首行早退 ⇒ 文本全保留 ⇒ 全绿）。搬进纯函数后可行为断言，
+    //   且本处退化为【无分支的纯接线】—— 「改分支条件」这个注入点在此物理不存在。
+    const dispatchConfigGenerate = useCallback(
+        (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => {
+            const target = nodesRef.current.find((item) => item.id === nodeId);
+            dispatchConfigGenerateAction(target, mode, prompt, {
+                onCloneRecreate: (node, params) => {
+                    void createCloneRecreateNode(node, params).catch((error) => {
+                        message.error(error instanceof Error ? error.message : "爆款复刻失败");
+                    });
+                },
+                onGenericGenerate: (id, generationMode, generationPrompt) => {
+                    void handleGenerateNode(id, generationMode as CanvasNodeGenerationMode, generationPrompt);
+                },
+            });
+        },
+            [createCloneRecreateNode, handleGenerateNode, message],
+    );
+    
     const renderCanvasNodeContent = useCallback(
         (contentNode: CanvasNodeData) => {
             if (contentNode.metadata?.workflowKind === "character" && contentNode.metadata.characterAssetId) {
@@ -2506,7 +2526,15 @@ function InfiniteCanvasPage() {
                         const target = nodesRef.current.find((item) => item.id === nodeId);
                         // flora 语法:生成启动即收起编辑面,节点以 ambient 呈现进度(S04)
                         setDialogNodeId(null);
-                        void handleGenerateNode(nodeId, target?.metadata?.generationMode || "image", target?.metadata?.composerContent ?? target?.metadata?.prompt ?? "");
+                        // ★ 修复批 B2-1（评审线 2026-10-06）：Config 节点的【唯一真实生成入口】。
+                        //
+                        // 为什么在这里：上一轮把派发写在 CanvasNodePromptPanel.onGenerate（dialog 面板），
+                        // 但 Config 节点渲染的是 CanvasConfigComposer（project.tsx:2286-2299，其 Props
+                        // 无 onGenerate）⇒ 派发挂在不可达路径，handler 仍零消费方（评审线 5 步证据链）。
+                        //
+                        // 方案 ②+③：判据抽纯函数 resolveConfigGenerateAction（可行为断言），
+                        // 执行抽 dispatchConfigGenerate（两个 onGenerate 共用，防未来分叉）。
+                        dispatchConfigGenerate(nodeId, target?.metadata?.generationMode || "image", target?.metadata?.composerContent ?? target?.metadata?.prompt ?? "");
                     }}
                     workspaceMode={workspaceMode}
                 />

@@ -88,6 +88,78 @@ export function buildCloneRecreateSubmission(input: CloneRecreateSubmissionInput
 }
 
 /**
+ * ★ F-09 修复批 B2-1（评审线 2026-10-06）：Config 节点生成动作的【纯函数判据】。
+ *
+ * 为什么抽成纯函数：原先判据内联在 project.tsx 的 `CanvasNodePromptPanel.onGenerate` 里，
+ * 而 Config 节点【永不渲染该组件】（project.tsx:2286-2299 走 CanvasConfigComposer 分支，
+ * 其 Props 无 onGenerate）⇒ 派发挂在不可达路径，handler 仍零消费方。
+ *
+ * 抽成纯函数后：
+ *   ① 两个 onGenerate（Config 真实入口 CanvasConfigNodePanel + 通用面板）共用同一判据，防未来分叉
+ *   ② 测试可以断言【返回值】（行为断言），而不是断言源码文本存在（文本断言无法捕获功能失效 ——
+ *      评审线实测：handler 内部首行早退时 10 pass / 0 fail）
+ *
+ * 判据：节点 metadata 带 cloneRecreateParams（模板实例化时写入）
+ * ⇒ 只有爆款复刻模板产出的生成节点走专属链，其他 Config 节点（含 RunningHub 工作流）零影响。
+ */
+export type ConfigGenerateAction =
+    | { kind: "clone-recreate"; params: CloneRecreateParams }
+    | { kind: "generic" };
+
+export function resolveConfigGenerateAction(
+    node: { metadata?: { cloneRecreateParams?: CloneRecreateParams } } | undefined | null,
+): ConfigGenerateAction {
+    const params = node?.metadata?.cloneRecreateParams;
+    if (params) return { kind: "clone-recreate", params };
+    return { kind: "generic" };
+}
+
+/** 判据所需的最小节点结构（结构类型，避免 lib 依赖页面类型）。 */
+export type ConfigGenerateTarget = {
+    id: string;
+    metadata?: { cloneRecreateParams?: CloneRecreateParams };
+};
+
+/**
+ * ★ 泛型 <T>：调用方传入的节点类型（如 CanvasNodeData）在 handler 中原样保留。
+ * 为什么需要：createCloneRecreateNode 的签名要求完整 CanvasNodeData，
+ * 若此处收窄为 ConfigGenerateTarget，调用方还得做一次无意义的类型断言。
+ */
+export type ConfigGenerateHandlers<T extends ConfigGenerateTarget> = {
+    onCloneRecreate: (node: T, params: CloneRecreateParams) => void;
+    onGenericGenerate: (nodeId: string, mode: string, prompt: string) => void;
+};
+
+/**
+ * ★ 修复批 B2-1（评审线 2026-10-06 第二轮）：Config 节点生成派发的【完整分支逻辑】。
+ *
+ * 为什么把分支整个搬到这里（而不是留在 project.tsx 的 dispatchConfigGenerate 里）：
+ *   评审线的注入实验证明 —— 只要分支留在组件内，测试就只能用【源码文本断言】覆盖它，
+ *   而文本断言无法捕获「语义失效」（handler 首行早退 ⇒ 文本全保留 ⇒ 全绿）。
+ *   把分支搬进纯函数后：
+ *     ① 分支可被【行为断言】直接覆盖（注入 spy handler，断言哪个被调用）
+ *     ② project.tsx 的派发点退化为【无分支的纯接线】（只有一处 if 都没有的调用），
+ *        「改分支条件」这个注入点在该处【物理上不存在】了
+ *     ③ 两个 onGenerate 共用同一分支 ⇒ 不存在第二份判据（V1）
+ *
+ * @returns 实际走的动作 kind（便于测试与日志）
+ */
+export function dispatchConfigGenerateAction<T extends ConfigGenerateTarget>(
+    node: T | undefined | null,
+    mode: string,
+    prompt: string,
+    handlers: ConfigGenerateHandlers<T>,
+): ConfigGenerateAction["kind"] {
+    const action = resolveConfigGenerateAction(node);
+    if (action.kind === "clone-recreate" && node) {
+        handlers.onCloneRecreate(node, action.params);
+        return "clone-recreate";
+    }
+    handlers.onGenericGenerate(node?.id ?? "", mode, prompt);
+    return "generic";
+}
+
+/**
  * 前端提示词 —— 只写用户意图与参数口径。
  *
  * ★ 六段式骨架（任务/优先级/主体真实性/原创与文字安全/输出要求）与动态段
