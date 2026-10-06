@@ -57,6 +57,17 @@
         "billingMode": "fixed_request",
         "unitPriceMicrocredits": 0
       }
+    },
+    "manualAnnotation": {
+      "method": "合成拼图读图 + 关键样本放大复核",
+      "subjectForm": {
+        "REF": "模特",
+        "E1": "模特 7/7",
+        "E2": "模特 8/8",
+        "E3": "模特 6/10 + 挂拍 3 (42587d53/cd938a19/2d888fb4) + 人台 1 (8fe9a15b)"
+      },
+      "light": "左前（全部，与参考图同向）",
+      "note": "E-3 含 4 张非模特输出 ⇒ F4 的 Δ 对比受主体形态混淆，已按形态分层复算"
     }
   },
   "E1": [
