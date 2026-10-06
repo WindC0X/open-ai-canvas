@@ -4233,3 +4233,30 @@ Agent 面板新对话态新增 4 张电商 starter 卡（白底产品图 / 3:4 �
 
 **验证要求**（落地时）：测试必须喂**真实 payload 形态**（含 version 字段的 ToolList），
 不得用本地常量对本地常量（同族教训：A-2 的「测试与生产形态不匹配」假绿）。
+
+## F-09 爆款复刻模板（画布三期，2026-10-06）
+
+画布内新增「爆款复刻」节点图模板：空状态出现模板卡 → 点卡实例化 4 节点组（Frame 容器 + 产品图 Image + 版式参考 Image + Config 生成节点，产品→生成、版式→生成两条连线）→ 用户替换图片 → 点生成。后端提示词两层：① 角色清单（`prompt_image_role.go`，声明哪张是产品图组、哪张是版式参考图组）② 六段式骨架 + 动态段（`prompt_clone_skeleton.go`，5 个固定段「任务/优先级/主体真实性/原创与文字安全/输出要求」+ 3 个动态段，由参数驱动）。选区工具栏同时新增「爆款复刻」入口（选中恰好 2 张图时出现）。
+
+**改动**（commit `8f6b59ba` + 修复批 `40b9c915` / `a492b089` / `95d8966d`）：
+- 前端：`canvas-clone-template.ts`（模板定义 + 实例化纯函数）、`clone-recreate-params.ts`（3 个参数面数据）、`clone-recreate-submission.ts`（提交构造 + 生成派发判据）、`use-canvas-template-cards.ts`（空状态卡片 + 实例化接线）、`selection-toolbar-tools.tsx`（选区入口）、`capability-entries.ts`（能力条目 `image.cloneRecreate` 登记）
+- 后端：`prompt_image_role.go`（角色清单层）、`prompt_clone_skeleton.go`（六段式层）、`provider.go`（`productImageCount` + `clonePromptParams` 配置字段与接线）
+- 参数默认值：`cloneDegree=high-structure` / `cloneScope=[composition,palette,lighting]` / `copyMode=no-copy`（依 `F-09-IMPLEMENTATION-PLAN.md:468`「短期只保留 no-copy」）
+
+**开发侧证据**：F-09 测试组 + 注册表守卫共 68 项通过 / 0 失败（276 断言）；全量 `bun test` 3191 通过 / 0 失败 / 376 文件；`tsc --noEmit` 与 `eslint` 均 exit 0；后端 `go build ./...` exit 0、clone 专项 7 项通过。两轮复核：测试线 8 项注入全 CAPTURE（含「保留文本、语义失效」形式）、评审线 4 项复核通过。
+
+仍待真实环境验收：
+
+- [ ] **空状态点卡 → 节点组出现**（默认路径）：新建画布默认为 guided 态（短剧引导页），确认「爆款复刻」卡在该态可见（修复批 □5-2 把卡挂到 guided 态的独立区域）；点击后确认画布出现完整 4 节点组且两条连线正确。
+- [ ] **选区入口**：选中恰好 2 张图 → 确认选区工具栏出现「爆款复刻」→ 点击 → 确认两张图按「先选的为产品图、后选的为版式参考」填入模板槽位（顺序错位会导致后端编号完全反转且不报错）。
+- [ ] **真实出图**：点生成 → 确认请求体携带 `productImageCount` 与 `clonePromptParams` → 确认出图结果（六段式提示词 + 角色清单实际生效；当前无渠道实测，属渠道验收范围）。
+- [ ] **参数面**：当前**无 UI**，用户拿到默认参数（`high-structure` / 组合三项 / `no-copy`）。确认默认值产出的效果可接受，或登记需参数 UI 的诉求。
+- [ ] 用户替换图片、增删节点、移动整组、复制粘贴后的行为（模板只保证初始连线与槽位顺序）。
+
+**已登记边界（非缺陷，交付时如实登记）**：
+- 空状态验证为 SSR 静态渲染（`renderToStaticMarkup`），**非真实浏览器交互** —— 浏览器内点击 → 实例化 → 节点组出现的端到端未验。
+- **handler 体层无专项测试**：注入 `createCloneRecreateNode` 首行早退（文本全保留）⇒ 24 项测试全绿、无捕获。已覆盖的是派发层（`dispatchConfigGenerateAction` 的 spy 行为断言）与提交构造纯函数（`buildCloneRecreateSubmission` 6 项）。
+- **顺序契约可被用户操作破坏**：`productImageCount` 在模板内为固定值，用户删除产品图节点或调换连线顺序会导致编号静默错位（后端按位置编号、无法校验）。控制线裁定只登记不修。
+- **升格枝无运行时派发机制**：`entryPoints` 当前是声明 + 守卫校验，无按 `entryPoints` 派发的运行时（`grep entryPoints web/src/` 除定义外零命中）。
+- **8/11 条 concatRules 未实现**：三期只暴露 3 个参数面（复刻程度 / 复刻范围 / 文字策略），其余 8 条无 UI 可填值。
+- 引导标记（步骤 3）延后，仅保留 `metadata.locked` 透传链。
