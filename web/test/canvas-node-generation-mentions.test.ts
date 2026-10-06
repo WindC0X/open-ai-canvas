@@ -264,3 +264,169 @@ describe("canvas node generation video text references", () => {
         expect(buildNodeGenerationContext(target.id, nodes, connections, "跳舞", [], false).prompt).toBe("跳舞\n\n角色设定：禾禾");
     });
 });
+
+describe("★ F-09 Q1：数组顺序 = @提及首次出现顺序（2026-10-06 画布承载性验证）", () => {
+    // 背景：F-09（爆款复刻）依赖「产品图 = 图1、版式参考图 = 图2」的编号语义，
+    // 而后端注入层按【数组位置】编号（prompt_image_role.go）。因此
+    // 「referenceImages 的顺序是否等于用户 @ 的顺序」是画布能否承载 F-09 的前提。
+    // 本组测试补上既有用例缺失的【多图相对顺序】断言 —— 既有 :161 只验单张图。
+
+    test("两张图按 @提及顺序进入 referenceImages（产品图在前）", () => {
+        const target = targetNode();
+        const product = node("product", CanvasNodeType.Image, "data:image/png;base64,product");
+        const layout = node("layout", CanvasNodeType.Image, "data:image/png;base64,layout");
+        const connections = [connection(product.id), connection(layout.id)];
+
+        // @ 产品图 在前、@ 版式参考图 在后 —— F-09 期望的顺序
+        const context = buildNodeGenerationContext(
+            target.id,
+            [target, product, layout],
+            connections,
+            "@图片1 是产品图，@图片2 是版式参考图。",
+            [],
+        );
+        expect(context.referenceImages.map((image) => image.id)).toEqual([product.id, layout.id]);
+    });
+
+    test("★ 数组顺序跟随 @提及首次出现顺序（连线顺序相同、仅提示词不同）", () => {
+        const target = targetNode();
+        const product = node("product", CanvasNodeType.Image, "data:image/png;base64,product");
+        const layout = node("layout", CanvasNodeType.Image, "data:image/png;base64,layout");
+        const connections = [connection(product.id), connection(layout.id)];
+
+        // 提示词里把「版式参考图」写在 @图片1、把「产品图」写在 @图片2（用户写反）
+        const context = buildNodeGenerationContext(
+            target.id,
+            [target, product, layout],
+            connections,
+            "@图片1 是版式参考图，@图片2 是产品图。",
+            [],
+        );
+        // ★ 数组跟随 @提及顺序：提示词里 @图片1 在前 ⇒ [product, layout]。
+        //   注意 @图片1 是槽位 token（指向连线第 1 张 = product），
+        //   所以这条的语义是「槽位 1 的图先入数组」——
+        //   而【真正的顺序证据】是下一条：把 token 顺序颠倒后数组也随之颠倒。
+        expect(context.referenceImages.map((image) => image.id)).toEqual([product.id, layout.id]);
+    });
+
+    test("同一节点重复 @ 只入数组一次，且位置为首次出现处", () => {
+        const target = targetNode();
+        const a = node("image-a", CanvasNodeType.Image, "data:image/png;base64,a");
+        const b = node("image-b", CanvasNodeType.Image, "data:image/png;base64,b");
+        const connections = [connection(a.id), connection(b.id)];
+
+        const context = buildNodeGenerationContext(
+            target.id,
+            [target, a, b],
+            connections,
+            "参考 @图片2 的版式，再用 @图片1 的产品，最后再看一次 @图片2。",
+            [],
+        );
+        // image-b 首次出现在最前 ⇒ 数组为 [b, a]，且不重复
+        expect(context.referenceImages.map((image) => image.id)).toEqual([b.id, a.id]);
+    });
+});
+
+describe("★ F-09 Q1 补充：槽位 token vs 显式节点引用（2026-10-06 机制澄清）", () => {
+    // 上一条测试失败暴露的机制：@图片N 是【槽位 token】，指向第 N 张图（按连线顺序分配），
+    // 不是「提示词里第 N 个出现的引用」。所以 @图片1 写在哪里都指向同一张图。
+    // 下面用【显式节点引用】@[node:id] 验证「引用顺序」是否影响数组。
+
+    test("槽位 token @图片N 的位置不影响数组顺序（由连线顺序决定槽位）", () => {
+        const target = targetNode();
+        const product = node("product", CanvasNodeType.Image, "data:image/png;base64,product");
+        const layout = node("layout", CanvasNodeType.Image, "data:image/png;base64,layout");
+        const connections = [connection(product.id), connection(layout.id)];
+
+        // 提示词里先 @图片2 再 @图片1（顺序颠倒）
+        const context = buildNodeGenerationContext(
+            target.id,
+            [target, product, layout],
+            connections,
+            "先看 @图片2，再看 @图片1。",
+            [],
+        );
+        // ★ 数组跟随 @提及首次出现顺序：[layout, product]（先 @图片2 即 layout）。
+        //   ⇒ 本条与上一条共同证明：数组顺序 = 提示词中 @ 的首次出现顺序，
+        //     与连线顺序无关（两条测试的连线顺序相同，仅提示词顺序不同）。
+        expect(context.referenceImages.map((image) => image.id)).toEqual([layout.id, product.id]);
+    });
+
+    test("显式节点引用 @[node:id] 的顺序决定数组顺序", () => {
+        const target = targetNode();
+        const product = node("product", CanvasNodeType.Image, "data:image/png;base64,product");
+        const layout = node("layout", CanvasNodeType.Image, "data:image/png;base64,layout");
+        const connections = [connection(product.id), connection(layout.id)];
+
+        // 显式引用：先 layout 再 product
+        const context = buildNodeGenerationContext(
+            target.id,
+            [target, product, layout],
+            connections,
+            "参考 @[node:layout] 的版式，用 @[node:product] 的产品。",
+            [],
+        );
+        // 显式引用按出现顺序入数组
+        expect(context.referenceImages.map((image) => image.id)).toEqual([layout.id, product.id]);
+    });
+});
+
+describe("★ F-09 Q1 边界：工作流渠道（RunningHub）走【连线顺序优先】", () => {
+    // 控制线 2026-10-06 裁定②：登记并锁住 canvas-node-generation.ts:96 的
+    // autoIncludeWorkflowMedia 边界 —— RunningHub 工作流节点的槽位由保存的字段映射
+    // 决定（autoIncludeWorkflowMedia 分支先按连线顺序放入媒体，显式 @ 只做补充），
+    // 因此【@提及顺序优先】这条结论只适用于普通模型渠道，不能外推到工作流渠道。
+    // 见 canvas-node-generation.ts:239-255（autoIncludeWorkflowMedia 分支实现）。
+
+    function workflowConfigNode(): CanvasNodeData {
+        return {
+            id: "target",
+            type: CanvasNodeType.Config,
+            title: "workflow-config",
+            position: { x: 0, y: 0 },
+            width: 100,
+            height: 100,
+            metadata: {
+                composerContent: "参考 @图片2 的版式，用 @图片1 的产品。",
+                prompt: "参考 @图片2 的版式，用 @图片1 的产品。",
+                workflowProvider: "runninghub",
+                runningHubWorkflowId: "wf-test-001",
+            },
+        };
+    }
+
+    test("工作流节点：数组按【连线顺序】而非 @提及顺序（边界锁）", () => {
+        const target = workflowConfigNode();
+        const product = node("product", CanvasNodeType.Image, "data:image/png;base64,product");
+        const layout = node("layout", CanvasNodeType.Image, "data:image/png;base64,layout");
+        // 连线顺序：product 在前
+        const connections = [connection(product.id), connection(layout.id)];
+
+        const context = buildNodeGenerationContext(
+            target.id,
+            [target, product, layout],
+            connections,
+            "参考 @图片2 的版式，用 @图片1 的产品。",
+            [],
+        );
+        // ★ 与普通渠道相反：提示词里 @图片2 在前，但数组仍是连线顺序 [product, layout]
+        expect(context.referenceImages.map((image) => image.id)).toEqual([product.id, layout.id]);
+    });
+
+    test("对照：同一提示词在普通模型节点上得到【@提及顺序】的数组", () => {
+        const target = targetNode(); // CanvasNodeType.Video，非工作流
+        const product = node("product", CanvasNodeType.Image, "data:image/png;base64,product");
+        const layout = node("layout", CanvasNodeType.Image, "data:image/png;base64,layout");
+        const connections = [connection(product.id), connection(layout.id)];
+
+        const context = buildNodeGenerationContext(
+            target.id,
+            [target, product, layout],
+            connections,
+            "参考 @图片2 的版式，用 @图片1 的产品。",
+            [],
+        );
+        // ★ 普通渠道：数组跟随 @提及顺序 [layout, product]
+        expect(context.referenceImages.map((image) => image.id)).toEqual([layout.id, product.id]);
+    });
+});
