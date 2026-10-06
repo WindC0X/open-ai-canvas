@@ -2190,3 +2190,36 @@ main 推进至 `0dcd507d`；测试线已用该锚点跑完 b12r25（GO，3124/0/
 - **`git merge` 首次失败**（`fatal: stash failed`）：与另一线的 git 操作并发导致索引瞬态不一致；
   未删 lock、未 kill 进程，等待后核实状态干净（MERGE_HEAD 无 / index.lock 无 / stash 0 条）
   再重试成功。这是多线并发 git 操作的第 2 次（第 1 次是 index.lock）。
+
+## 2026-10-06 · F-09 画布工作流承载性验证（A线，提交 b2a3523b）
+
+- **任务**：任务书 `docs/artifacts/f09-canvas-workflow-validation-task-book.md`（main @ 8f05b71a）。
+  核心问题：画布单独能否承载 F-09（换图 + 生成），Q1（@提及顺序 → referenceImages 数组顺序）为决定性子问题。
+- **结论**：**画布能承载 F-09**，Q1 成立，唯一缺口是 `productImageCount` 字段透传（三期前端），无需独立 F-09 页面。
+- **Q1 实测**（隔离探针，连线顺序固定 `[product, layout]`）：
+  `@图片1 是产品，@图片2 是版式` → `[product, layout]`；
+  `@图片2 是版式，@图片1 是产品` → `[layout, product]` ⇒ **数组顺序 = @提及首次出现顺序**。
+- **机制细节**（任务书 §2.1 未覆盖）：`@图片N` 是**槽位 token**，槽位由 `generationSlotEntries`
+  按**连线顺序**分配（`canvas-node-generation.ts:346`）；而**数组顺序**由 `matchAll` 循环里
+  `selectedInputs.push`（:229）的首次出现顺序决定 ⇒ **两个独立杠杆**。
+- **★ 工作流渠道边界**（控制线裁定②要求登记）：`canvas-node-generation.ts:96`
+  `autoIncludeWorkflowMedia` 为真时（RunningHub 工作流节点），数组**先按连线顺序**放入媒体、
+  显式 @ 只追加（:239-255）⇒ **「@提及顺序优先」不外推到工作流渠道**。已用 2 条对照测试锁定
+  （同一提示词 + 同一连线，工作流节点得连线顺序、普通节点得 @提及顺序）。
+- **证伪**（红数附注入点）：
+  ① `buildComposerGenerationContext` 的 `selectedInputs` 改为按连线顺序 → **12 fail**（含 5 条 F-09）；
+  ② `:239` `if (autoIncludeWorkflowMedia)` 改 `if (false && ...)` → **5 fail**（含边界锁）；恢复后均 24 pass。
+- **Q2 已验**：全仓 grep 显示前端**仅注释提及** `ProductImageCount`（`capability-entries.ts:49`），
+  **无赋值来源** ⇒ 后端 `applyImageRolePrompt` 早返回，角色清单不注入 —— 任务书 §3 步骤 2 缺陷已确认。
+- **Q3/Q4 不做**（控制线裁定）：Q3（透明 PNG 引导层 + `metadata.locked`）登记为三期设计输入；
+  Q4（端到端出图）由 B线 一期门覆盖，重复验证违反 V1。
+- **交付物**：报告 `docs/artifacts/f09-canvas-workflow-validation-report.md`（205 行，含 8 节）+ 7 条测试。
+- **门**：tsc 0 / eslint 0 / bun test **3132 pass 0 fail**（基线 3125 + 7）。
+- **方法调整**（控制线裁定③）：原计划纯 UI 手工验证（拖拽/连线/点生成），因画布 UI 交互成本远超预期
+  （右键菜单 CDP 与 JS 派发均无法触发）改为**代码级验证**（直测 `buildNodeGenerationContext`）——
+  Q1 本质是前端逻辑，UI 拖拽方式不影响该逻辑。
+- **环境障碍与解法**（供后续复现）：任务书 §7 的 :3020/:8488 被 B线 占用 → 改用 :8489/:3030；
+  浏览器标签建不出 → CDP `Target.createTarget`；`exec` 被其他 debugger 占用 → `Runtime.evaluate` 直连。
+- **★ 工作区残留（非本次改动）**：`web/src/lib/canvas/capability-entries.ts` 有未提交的
+  `dual_image` 谓词改动（2026-10-05 23:12，标注「F-09 双图复刻」），**未提交**，
+  已报控制线确认归属。
