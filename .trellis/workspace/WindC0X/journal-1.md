@@ -2570,3 +2570,155 @@ f09-fix-batch.test.ts 10 条中 8 条是源码文本断言
 · dispatchConfigGenerate 是否【真的被两个入口共用】（防「只改一个」）
 · 新测试是否【行为断言】而非【文本断言】（用 C/D 手法反验）
 ```
+
+---
+
+## 回执③ + ★ 自纠：B-1「行为断言」判断有误（2026-10-06）
+
+### ★★ 我的报告错误（测试线 先发现，我独立复现）
+
+**我在 `a92a7204` 报告 §1 写**：
+> B-1 | 注入谓词 → `imageCount === 5` | **2 red ✓** | 19 pass ✓
+> §4：B-1 谓词接线 ✅ 已修 | 注入谓词 → 真实入口测试 **2 red**（修复前同注入全绿）
+
+**⇒ 部分错误**：
+```
+我跑的是【两个文件一起】：
+  bun test test/f09-fix-batch.test.ts test/f09-clone-recreate-entry.test.ts ⇒ 2 fail
+⇒ 误归因为「新测试的行为断言有效」
+⇒ ★ 实际：2 fail 全来自 f09-clone-recreate-entry.test.ts（旧文件）
+   而新文件 f09-fix-batch.test.ts 的「★ 行为：谓词与入口同源」是【恒真断言】
+```
+
+### 我的独立复现（三种注入，按文件分离）
+
+| 注入 | f09-fix-batch.test.ts（新） | f09-clone-recreate-entry.test.ts（旧） |
+|---|---|---|
+| 谓词 → `imageCount === 5` | **10 pass / 0 fail** | **2 fail** |
+| 谓词 → `Math.random() > 0.5` | **10 pass / 0 fail** | （未跑） |
+
+**⇒ 恒真确证**：谓词改成**随机值**仍 10 pass。
+
+### 形式化证明
+
+```
+测试（fix-batch:63-71）：
+  predicate = capabilityContextSatisfied(entry, { imageCount: count, hasSelection: true })
+  rendered  = resolveToolbarEntries(...).some(id === "selection-clone-recreate")
+  expect(rendered).toBe(predicate)
+
+生产（selection-toolbar-tools.tsx:15-20）：
+  applicable → cloneRecreateContextSatisfied(n)
+            → capabilityContextSatisfied(entry, { imageCount: n, hasSelection: true })
+
+推导：
+  rendered = applicable(ctx) 的结果
+           = cloneRecreateContextSatisfied(count)
+           = capabilityContextSatisfied(entry, { imageCount: count, hasSelection: true })
+           = predicate                                ← 同一函数、同一入参
+⇒ expect(rendered).toBe(predicate) ≡ expect(X).toBe(X) 【恒真】
+```
+
+### ★ 重要区分：B-1 修复仍有效，但守护来自【旧测试】
+
+```
+f09-clone-recreate-entry.test.ts:38-42（旧，R9 前就有）
+  expect(ids).toContain("selection-clone-recreate")
+⇒ 谓词改 5 ⇒ 不渲染 ⇒ 红 ✓  ← 【真实守护】
+
+f09-fix-batch.test.ts:63-71（新，A线 修复批新增）
+  expect(rendered).toBe(predicate)  ← ★ 恒真
+⇒ 谓词改任何值 ⇒ 仍绿 ✗  ← 【无守护能力】
+
+⇒ 结论：B-1 功能修复有效；但新增测试【无守护能力】且【重复覆盖】（旧测试质量更高）
+```
+
+### ★ 教训二十七：归因前必须分离证据来源
+
+```
+实例（我）：
+  · 跑 `bun test <新测试> <旧测试>` ⇒ 2 fail
+  · 归因为「新测试的行为断言有效」
+  · 实际：2 fail 全来自旧测试；新测试是恒真断言（10 pass）
+
+⇒ 教训：**多源证据的红数，必须按来源分离后才能归因**
+
+【判定方法】
+  · 单文件跑（不是多文件合并跑）
+  · 或：注入后逐文件统计
+
+【同族】
+  · V10-a：归因前核实【执行者身份】（进程 ID / context ID）
+  · lesson 18（R6）：对齐两条注入序列时，按【对象+形式】而非【序号】
+  · 本条：归因红数时，按【文件来源】分离
+  ⇒ 共同点：归因对象必须是可独立核实的单元
+```
+
+### ★ 自纠的方法论意义
+
+**我在同一轮报告里犯了两个同族错误**：
+```
+① 发现的问题：测试名声称 X，实际测 Y（断言对象 ≠ 声称对象）—— 我发现了它
+② 我自己犯的：两文件合跑，归因给其中一个（证据来源 ≠ 归因对象）—— 我犯了它
+⇒ ★ 同族：都是「归因对象与实际不符」
+⇒ 这说明：发现某类问题 ≠ 对该类问题免疫
+```
+
+### 写权纠正（接受控制线纠正）
+
+**我原判断**：「multi-line-discipline.md 在主仓（A线 家域），我没有写权」
+**控制线纠正**：「它是项目文档，不是 A线 私有域 ⇒ 三线都可提交；git 提交本身串行化」
+
+**★ 我接受，并承认两处偏差**：
+```
+偏差 1：把「物理位置」当成「写入权限」
+  ⇒ 主仓是 A线 的【工作目录】（家域），但不是【文档的私有域】
+偏差 2：夸大了「多线共写」的风险
+  ⇒ git 冲突处理是正常协作机制；该文件是 append-only ⇒ 冲突概率极低
+```
+
+**★ 我的根因**（小教训）：
+```
+我在 G4.1 事件后变得【过度谨慎】——
+因为「在主仓做 git 写操作」刚撞过车，所以把「写主仓文件」也归入「危险操作」
+⇒ 但两者性质完全不同：
+   · worktree add：修改 .git 管理状态（影响所有 worktree）
+   · 提交 docs/ 文件：修改工作树文件（正常协作）
+⇒ ★ 过度谨慎与鲁莽是同一错误的两个方向：都是【未区分操作的实际影响面】
+```
+
+### 教训二十六归属修正（同意控制线）
+
+```
+原表述（我）：我发现 B-2 文本断言模式，测试线 扫描 N-3/□5-2
+修正后（控制线 建议，我同意）：
+  · 评审线 在 B-2 上发现文本断言模式
+  · 测试线 用同法扫描 N-3/□5-2 ⇒ 确认同病
+  ⇒ 实例是【两者合起来】构成，不归给单方
+```
+
+**★ 配套纪律**（控制线 补）：「同注入双跑对照法」——
+**我补充其价值**：实质是【把注入当作探针，扫过所有同类测试】
+⇒ 把「发现模式」和「扫描模式」合并为一个动作 ⇒ 比「先发现再扫描」更高效。
+
+### 二次复核范围（最终版，含新增 ④）
+
+```
+① B2-1：行为注入（打在 Config 可达路径）
+② N3-1：探针实测（三场景表）
+③ N-3 / □5-2 行为断言（用测试线 的 C/D 手法反验）
+④ ★ B-1 的「行为同源」测试是否改为真行为断言（或已删除）
+⑤ 基线：受影响文件 + 全量一次
+```
+
+**★ 我补充的判据**：
+```
+恒真（当前）：expect(rendered).toBe(predicate)          ← 同函数同入参
+真行为断言 A：expect(rendered).toBe(true/false)          ← 与实现解耦（硬编码期望）
+真行为断言 B：spyOn(capabilityContextSatisfied) + toHaveBeenCalled()
+              ⇒ ★ B 才是「接线」的真正证明（A 只证明结果对，B 证明路径通）
+```
+
+### 隔离树状态
+
+`_f09fix` @ `f88feac7` **pristine**（关键 4 文件与 HEAD 无差异；仅 `node_modules` 符号链接）。
