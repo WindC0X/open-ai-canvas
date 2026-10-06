@@ -40,7 +40,15 @@ export type CapabilityContextRequirement =
     /** 需要恰好一张图片节点作为输入 */
     | "single_image"
     /** 需要选区（多节点或框选区域） */
-    | "selection";
+    | "selection"
+    /**
+     * ★ 需要两张图片作为输入（2026-10-05 新增，F-09 双图复刻）。
+     *
+     * 与 `single_image` 的区别：本谓词要求恰好 2 张，且**两张图有角色区分**
+     * （产品图 / 版式参考图）。角色由调用方按数组顺序保证（产品图在前 N 位），
+     * 见后端 `providerConfig.ProductImageCount` 的前置条件声明。
+     */
+    | "dual_image";
 
 /**
  * 入口登记 —— 该能力在 UI 上暴露的入口点（架构方案 §1.4 待建字段）。
@@ -196,6 +204,50 @@ export const CAPABILITY_ENTRIES: CapabilityEntry[] = [
         entryPoints: [{ kind: "node-toolbar", target: "annotationEdit" }],
         registryVersion: 1,
     },
+    {
+        id: "image.cloneRecreate",
+        name: "爆款复刻",
+        // 档 0：点卡出图（用户 2026-10-05 23:06 裁定）。
+        tier: 0,
+        // 双图复刻：产品图 + 版式参考图（控制线 2026-10-05 23:12 加的谓词，本批接消费方）。
+        contextRequirement: "dual_image",
+        assetKind: "capability/tool",
+        // 参数面三项（用户裁定）：复刻程度 / 复刻侧重 / 文字策略。
+        // ★ 选项的 des 文本（提示词片段）在后端 prompt_clone_skeleton.go 单点存放，
+        //   前端只提交 value —— 避免两份真值（V1，控制线 2026-10-06 裁定 C-2）。
+        parameterSurface: [
+            {
+                field: "cloneDegree",
+                label: "复刻程度",
+                options: ["style-reference", "high-structure"],
+                default: "high-structure",
+            },
+            {
+                field: "cloneScope",
+                label: "复刻侧重",
+                options: ["composition", "palette", "lighting", "typography", "background", "people-models"],
+                default: "composition",
+            },
+            {
+                field: "copyMode",
+                label: "文字策略",
+                options: ["no-copy", "auto-copy", "exact-copy"],
+                default: "auto-copy",
+            },
+        ],
+        executionChain: {
+            handler: "createCloneRecreateNode",
+            location: "cloud",
+            // F-09 一期渠道门结论（B线 test/f09-channel-gate）：a6api · nano-banana-2。
+            primaryChannel: "a6api · nano-banana-2",
+            // 爆款复刻是普通图片生成，按图生图计价（无独立 operation）。
+            requiredOperations: [],
+        },
+        zeroParameterPreset: "暂无",
+        // 本批入口：空状态模板卡（§2.3）。卡 id 由 canvas-clone-template.ts 定义。
+        entryPoints: [{ kind: "create-card", target: "clone-recreate" }],
+        registryVersion: 1,
+    },
 ];
 
 /** 按 id 查能力条目。 */
@@ -225,5 +277,9 @@ export function capabilityContextSatisfied(
             return context.imageCount === 1;
         case "selection":
             return context.hasSelection;
+        case "dual_image":
+            // ★ 双图：恰好 2 张。角色区分（产品图/参考图）由调用方保证数组顺序，
+            // 本谓词只校验数量 —— 与后端「数组无语义标签，只能按位置编号」的边界一致。
+            return context.imageCount === 2;
     }
 }

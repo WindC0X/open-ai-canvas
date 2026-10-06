@@ -97,7 +97,7 @@ function CanvasEntryFilmMark() {
     );
 }
 
-export function CanvasFreeformEmptyState({ commands }: { commands: CanvasCreateCommand[] }) {
+export function CanvasFreeformEmptyState({ commands, templateCards }: { commands: CanvasCreateCommand[]; templateCards?: { id: string; title: string; hint: string; onPick: () => void }[] }) {
     const theme = canvasThemes[useActiveTheme()];
     const [createOpen, setCreateOpen] = useState(false);
     const createCommands = commands.map((command) => ({
@@ -112,6 +112,24 @@ export function CanvasFreeformEmptyState({ commands }: { commands: CanvasCreateC
             <div className="pointer-events-auto flex min-h-[260px] w-full max-w-[520px] flex-col items-center justify-center rounded-2xl border border-dashed px-8 py-10 text-center backdrop-blur" data-canvas-no-zoom style={{ background: theme.node.fill, borderColor: theme.node.edge, boxShadow: theme.node.shadow, color: theme.node.text }}>
                 <h2 className="text-base font-semibold">自由空白画布</h2>
                 <p className="mt-1 text-xs" style={{ color: theme.node.muted }}>不预设流程，从任意一种素材开始创作。</p>
+                {/* F-09 三期 §2.3：模板卡入口 —— 点卡直接实例化完整节点组（节点图 + 连线）。
+                    面向小白：不必手工搭「2 图节点 + 生成节点 + 连线」。 */}
+                {templateCards?.length ? (
+                    <div className="mt-5 flex w-full flex-wrap justify-center gap-2">
+                        {templateCards.map((card) => (
+                            <button
+                                key={card.id}
+                                type="button"
+                                onClick={card.onPick}
+                                className="rounded-xl border px-3 py-2 text-left transition-transform hover:scale-[1.02] focus-visible:ring-2 motion-reduce:transition-none motion-reduce:hover:scale-100"
+                                style={{ background: theme.toolbar.panel, borderColor: theme.node.edge, color: theme.node.text, "--tw-ring-color": theme.accent.primary } as CSSProperties}
+                            >
+                                <span className="block text-xs font-medium">{card.title}</span>
+                                <span className="mt-0.5 block text-[var(--fs-label)]" style={{ color: theme.node.muted }}>{card.hint}</span>
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
                 <Popover
                     arrow={false}
                     open={createOpen}

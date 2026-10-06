@@ -70,6 +70,11 @@ export type ToolbarHandlers = {
     onBatchConnect: () => void;
     onMergeVideos: () => void;
     onSendSelectionToAgent: () => void;
+    /**
+     * F-09 三期 §2.3：用当前选中的 2 张图片实例化爆款复刻模板。
+     * 这是 `dual_image` 谓词的真实消费方（谓词此前零消费方、零测试）。
+     */
+    onCreateCloneRecreate: () => void;
     // 节点悬停工具栏——节点操作（均接收当前节点）
     onNodeInfo: (node: CanvasNodeData) => void;
     onNodeDelete: (node: CanvasNodeData) => void;
@@ -110,6 +115,13 @@ export type ToolContext = {
     selectedCount: number;
     selectedNodeTypes: Set<CanvasNodeTypeId>;
     selectedVideoCount: number;
+    /**
+     * 选中项中的图片节点数（F-09 三期 §3.2）。
+     *
+     * 为什么需要：`capabilityContextSatisfied` 的 dual_image 谓词要求「恰好 2 张图」，
+     * 而选区工具栏是唯一能同时看到「多选且是图片」的界面层 —— 谓词的消费方在此。
+     */
+    selectedImageCount: number;
     canvasTool: CanvasToolMode;
     workspaceMode: CanvasWorkspaceMode;
     isProjectLinked: boolean;

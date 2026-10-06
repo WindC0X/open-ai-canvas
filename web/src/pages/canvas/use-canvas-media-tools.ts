@@ -11,6 +11,9 @@ import { buildCanvasTextEditPrompt, type CanvasImageTextEditPayload, type Canvas
 import type { CanvasAnnotateEditPayload } from "@/components/canvas/canvas-node-annotate-edit-dialog";
 import { buildAnnotateEditSubmission, buildAnnotateMaskSubmission, resolveAnnotateEditRoute } from "@/lib/canvas/annotate-edit-submission";
 import { buildAnnotateMaskFallbackPrompt, composeAnnotationMaskDataUrl, composeBrushMaskDataUrl } from "@/lib/canvas/annotate-edit-mask";
+import { buildCloneRecreateSubmission } from "@/lib/canvas/clone-recreate-submission";
+import { getGenerationResourceNodes } from "@/lib/canvas/canvas-resource-references";
+import type { CloneRecreateParams } from "@/lib/canvas/clone-recreate-params";
 import type { CanvasImageSplitParams } from "@/components/canvas/canvas-node-split-dialog";
 import type { CanvasImageUpscaleParams } from "@/components/canvas/canvas-node-upscale-dialog";
 import { SUPER_RESOLVE_MODES, SUPER_RESOLVE_TARGETS, resolveSuperResolveConfigSize, superResolvePromptFragment, type SuperResolveParams } from "@/lib/canvas/super-resolve-params";
@@ -1320,6 +1323,74 @@ export function useCanvasMediaTools({
         }
     }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, navigateToSettings, nodesRef, persistMediaNodes, projectId, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
 
+    /**
+     * F-09 爆款复刻执行链（handler，条目 executionChain.handler 引用本函数）。
+     *
+     * 编排：收集产品图/版式参考图 → 构造提交物（纯函数）→ 创建结果子节点 → 提交生成。
+     *
+     * ★ 分工（控制线 2026-10-06 裁定 C-2）：
+     *   六段式骨架与动态段由【后端】注入（prompt_clone_skeleton.go），
+     *   前端只提交 productImageCount 与参数选择，保证 H3 合规段不可被用户误改。
+     *
+     * ★ 数组顺序契约：产品图在前 N 位（buildCloneRecreateSubmission 保证），
+     *   后端据此编号「图1～N＝产品图组 / 图N+1～M＝版式参考图组」。
+     */
+    const createCloneRecreateNode = useCallback(async (node: CanvasNodeData, params: CloneRecreateParams) => {
+        const generationConfig = buildGenerationConfig(effectiveConfig, node, "image");
+        if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+            navigateToSettings({ continueCreation: true });
+            return;
+        }
+        // ★ 参考图来自【入边连线】（Config 生成节点自身无内容），顺序 = 数组顺序。
+        //   连线顺序即槽位顺序（generationSlotEntries 按 inputs 顺序分配图片N），
+        //   用户按「产品图 → 参考图」的顺序接线即得正确数组。
+        const upstream = getGenerationResourceNodes(node.id, nodesRef.current, connectionsRef.current);
+        const images = upstream.map((item) => nodeReferenceImage(item)).filter((image): image is NonNullable<typeof image> => Boolean(image));
+        if (!images.length) {
+            message.warning("爆款复刻需要至少一个图片节点作为输入（请先连线）");
+            return;
+        }
+        // ★ 数组顺序契约：产品图在前 N 位、版式参考图在后。
+        //   本批只做最小模板：约定【第一张 = 产品图】，其余 = 版式参考图；
+        //   顺序写反后端无法校验（providerMedia 无语义标签），只能靠调用方保证。
+        const submission = buildCloneRecreateSubmission({
+            nodeId: node.id,
+            productImages: images.slice(0, 1),
+            referenceImages: images.slice(1),
+            params,
+        });
+        const childId = nanoid();
+        const generationMetadata = buildImageGenerationMetadata("edit", generationConfig, 1, submission.referenceImages);
+        setRunningNodeId(childId);
+        setNodes((current) => [...current, { id: childId, type: CanvasNodeType.Image, title: `${node.title || "图片"} · 爆款复刻`, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: node.width, height: node.height, metadata: { ...canvasGenerationPromptMetadata("爆款复刻", submission.prompt), status: NODE_STATUS_LOADING, pluginId: "image-tools", pluginNodeId: "clone-recreate", ...generationMetadata } }]);
+        setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
+        setSelectedNodeIds(new Set([childId]));
+        setSelectedConnectionId(null);
+        setDialogNodeId(childId);
+        const controller = startGenerationRequest(childId, node.id, childId);
+        try {
+            const result = await runBackendCanvasGenerationTask({ projectId, nodeId: childId, mode: "image", prompt: submission.prompt, config: { ...generationConfig, productImageCount: submission.productImageCount }, referenceImages: submission.referenceImages, signal: controller.signal, metadata: { ...submission.metadata, source: "clone-recreate", sourceNodeId: node.id }, onTaskCreated: (task) => bindGenerationTask(childId, task) });
+            const image = result.images?.find((item) => item?.dataUrl);
+            if (!image?.dataUrl) throw new Error("爆款复刻任务没有返回图片");
+            const uploaded = await uploadImage(image.dataUrl);
+            const size = fitNodeSize(uploaded.width, uploaded.height, node.width, node.height);
+            const currentNode = nodesRef.current.find((item) => item.id === childId);
+            if (!currentNode) throw new Error("爆款复刻节点已被删除");
+            const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: commitProducedModel({ ...currentNode.metadata, ...imageMetadata(uploaded), prompt: submission.prompt, status: NODE_STATUS_SUCCESS, ...generationMetadata }) };
+            setNodes((current) => current.map((item) => item.id === childId ? finalizedNode : item));
+            await persistMediaNodes([finalizedNode]);
+        } catch (error) {
+            if (!isGenerationCanceled(error)) {
+                const details = generationErrorMessage(error);
+                message.error(details);
+                setNodes((current) => current.map((item) => item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: details } } : item));
+            }
+        } finally {
+            finishGenerationRequest(childId, controller);
+            setRunningNodeId(null);
+        }
+    }, [bindGenerationTask, connectionsRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, navigateToSettings, nodesRef, persistMediaNodes, projectId, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
+
     const openBackgroundRemoval = useCallback((node: CanvasNodeData) => {
         setImageEditPreset("remove-background");
         setImageEditNodeId(node.id);
@@ -1889,6 +1960,7 @@ export function useCanvasMediaTools({
         detectImageText,
         editTextImageNode,
         editAnnotatedImageNode,
+        createCloneRecreateNode,
         editImageNode,
         setUpscaleNodeId,
         splitImageNode,

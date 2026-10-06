@@ -274,6 +274,23 @@ export type CanvasNodeMetadata = {
     richText?: Record<string, unknown>;
     composerContent?: string;
     prompt?: string;
+    /**
+     * F-09 爆款复刻：声明本节点输入中前 N 张是「产品图」，其余为版式参考图。
+     * 经 buildGenerationConfig 落到请求体的 productImageCount，后端据此注入图片角色清单。
+     *
+     * ★ 前置条件：产品图必须排在 referenceImages 前 N 位（后端只能按位置编号，顺序写反不报错）。
+     * 非 F-09 节点不设该字段 ⇒ 请求体 omitempty 省略 ⇒ 零影响。
+     */
+    productImageCount?: number;
+    /**
+     * F-09 爆款复刻：用户在参数面选择的三项（复刻程度 / 复刻侧重 / 文字策略）。
+     * 只存 value（不存 des 文本）—— 提示词片段由后端单点持有（防两份真值）。
+     */
+    cloneRecreateParams?: {
+        cloneDegree: "style-reference" | "high-structure";
+        cloneScope: ("composition" | "palette" | "lighting" | "typography" | "background" | "people-models")[];
+        copyMode: "no-copy" | "auto-copy" | "exact-copy";
+    };
     /** 文本节点是否处于列表模式；用于触发多模态分析并创建多维表格。 */
     listMode?: boolean;
     promptTemplateOperation?: string;

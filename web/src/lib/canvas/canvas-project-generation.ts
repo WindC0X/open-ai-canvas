@@ -454,6 +454,11 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
         audioDialect: node?.metadata?.audioDialect ?? config.audioDialect ?? defaultConfig.audioDialect,
         audioInstructions: node?.metadata?.audioInstructions ?? config.audioInstructions ?? defaultConfig.audioInstructions,
         count: String(node?.metadata?.count ?? (mode === "image" ? config.canvasImageCount || config.count || defaultConfig.count : config.count || defaultConfig.count)),
+        // F-09 爆款复刻：节点声明的产品图张数（模板实例化时写入）。非 F-09 节点为 undefined，
+        // 请求体因 omitempty 省略该字段，后端不注入角色清单。
+        productImageCount: node?.metadata?.productImageCount,
+        // F-09 爆款复刻：参数面选择（动态段拼装源，后端消费）。
+        clonePromptParams: node?.metadata?.cloneRecreateParams,
     };
     const imageSize = mode === "image" ? requestedConfig.size : undefined;
     // 无 requirements 的调用（重试、媒体工具等）也按当前能力与尺寸路由到组内最低价兼容模型，

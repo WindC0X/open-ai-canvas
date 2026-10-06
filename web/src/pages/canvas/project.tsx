@@ -150,6 +150,7 @@ import { useCanvasKeyboard } from "./use-canvas-keyboard";
 import { useCanvasMediaTools } from "./use-canvas-media-tools";
 import { useCanvasNodeEditor } from "./use-canvas-node-editor";
 import { useCanvasNodeOperations } from "./use-canvas-node-operations";
+import { useCanvasTemplateCards } from "./use-canvas-template-cards";
 import { useCanvasProjectLifecycle } from "./use-canvas-project-lifecycle";
 import { useCanvasRenderModel } from "./use-canvas-render-model";
 import { useCanvasHoverAttribution } from "./use-canvas-hover-attribution";
@@ -2770,6 +2771,16 @@ function InfiniteCanvasPage() {
             onOpenProjectCharacters: () => openCharacterLibrary(),
         },
     });
+    // F-09 三期 §2.3：空状态模板卡入口（点卡 → 实例化完整节点组）。
+    const { cards: templateCardDefs, instantiateTemplate } = useCanvasTemplateCards({
+        nodesRef,
+        connectionsRef,
+        commitNodes: (next) => { nodesRef.current = next; setNodes(next); },
+        commitConnections: (next) => { connectionsRef.current = next; setConnections(next); },
+        selectNodes: setSelectedNodeIds,
+        getCanvasCenter,
+    });
+    const templateCards = templateCardDefs.map((card) => ({ ...card, onPick: () => instantiateTemplate(card.id) }));
     const emptyStateKind = resolveCanvasEmptyStateKind({
         nodeCount: nodes.length,
         shortDramaEnabled,
@@ -2777,7 +2788,7 @@ function InfiniteCanvasPage() {
         starterMode: currentProject?.starterMode,
     });
     const emptyCanvasState = emptyStateKind === "freeform" ? (
-        <CanvasFreeformEmptyState commands={freeformCreateCommands} />
+        <CanvasFreeformEmptyState commands={freeformCreateCommands} templateCards={templateCards} />
     ) : emptyStateKind === "linked" ? (
         <CanvasLinkedProjectEmptyState
             projectName={linkedProjectQuery.data?.project.name || currentProject?.title || "项目画布"}
@@ -3211,6 +3222,9 @@ function InfiniteCanvasPage() {
                             count={selectedNodeBounds.count}
                             onSendSelectionToAgent={() => sendSelectionToAgent()}
                             selectedVideoCount={selectedVideoNodes.length}
+                            // F-09 三期 §3.2：dual_image 谓词的消费输入（选中项中的图片节点数）。
+                            selectedImageCount={nodes.filter((item) => selectedNodeIds.has(item.id) && item.type === CanvasNodeType.Image).length}
+                            onCreateCloneRecreate={() => instantiateTemplate("clone-recreate")}
                             mergingVideos={Boolean(mergeVideoProgress)}
                             onAlign={alignSelectedNodes}
                             onArrange={arrangeSelectedNodes}

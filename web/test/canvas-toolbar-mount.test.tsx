@@ -14,7 +14,10 @@ test("画布编辑区保留三件套渲染点（文件层回归护栏）", () =>
 
 test("emptyCanvasState 消费 freeformCreateCommands（无节点时仍有创建路径）", () => {
     expect(pageSource).toContain("const emptyCanvasState =");
-    expect(pageSource).toContain("<CanvasFreeformEmptyState commands={freeformCreateCommands} />");
+    // F-09 三期（2026-10-06）：空状态同时接收模板卡（点卡实例化节点组）。
+    // 断言放宽为「commands 仍在 + 组件仍被渲染」，避免把新增的 templateCards prop 当成回归。
+    expect(pageSource).toContain("<CanvasFreeformEmptyState");
+    expect(pageSource).toContain("commands={freeformCreateCommands}");
     expect(pageSource).toContain("useCanvasCreateCommands(");
 });
 

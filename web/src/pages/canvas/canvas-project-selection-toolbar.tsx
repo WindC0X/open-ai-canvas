@@ -13,6 +13,8 @@ type CanvasProjectSelectionToolbarProps = {
     containerRef: RefObject<HTMLDivElement | null>;
     count: number;
     selectedVideoCount: number;
+    /** 选中项中的图片节点数（F-09 三期 §3.2：dual_image 谓词的消费输入）。 */
+    selectedImageCount: number;
     mergingVideos: boolean;
     onAlign: (mode: CanvasAlignmentMode) => void;
     onArrange: (mode: "row" | "column" | "grid" | "flow") => void;
@@ -21,19 +23,22 @@ type CanvasProjectSelectionToolbarProps = {
     onBatchConnect: () => void;
     onMergeVideos: () => void;
     onSendSelectionToAgent: () => void;
+    /** F-09 三期 §2.3：用选中的 2 张图实例化爆款复刻模板。 */
+    onCreateCloneRecreate: () => void;
 };
 
-export function CanvasProjectSelectionToolbar({ anchorRef, containerRef, count, selectedVideoCount, mergingVideos, onAlign, onArrange, onCreateStoryboard, onCreateReferenceGroup, onBatchConnect, onMergeVideos, onSendSelectionToAgent }: CanvasProjectSelectionToolbarProps) {
+export function CanvasProjectSelectionToolbar({ anchorRef, containerRef, count, selectedVideoCount, selectedImageCount, mergingVideos, onAlign, onArrange, onCreateStoryboard, onCreateReferenceGroup, onBatchConnect, onMergeVideos, onSendSelectionToAgent, onCreateCloneRecreate }: CanvasProjectSelectionToolbarProps) {
     const theme = canvasThemes[useCanvasThemeStore((state) => state.theme)];
 
     const handlers = {
-        onAlign, onArrange, onCreateStoryboard, onCreateReferenceGroup, onBatchConnect, onMergeVideos, onSendSelectionToAgent,
+        onAlign, onArrange, onCreateStoryboard, onCreateReferenceGroup, onBatchConnect, onMergeVideos, onSendSelectionToAgent, onCreateCloneRecreate,
     } as Partial<ToolbarHandlers> as ToolbarHandlers;
 
     const ctx: ToolContext = {
         selectedCount: count,
         selectedNodeTypes: new Set(),
         selectedVideoCount,
+        selectedImageCount,
         canvasTool: "move",
         workspaceMode: "professional",
         isProjectLinked: false,

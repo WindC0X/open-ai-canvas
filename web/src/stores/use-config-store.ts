@@ -148,6 +148,23 @@ export type AiConfig = {
     videoWatermark: string;
     videoArkPrivateAssetUpload: string;
     systemPrompt: string;
+    /**
+     * F-09 克隆复刻：声明 referenceImages 前 N 张是「产品图」。
+     * 后端用它生成图片角色清单（providerConfig.ProductImageCount）；0/未设表示不注入。
+     *
+     * ★ 前置条件：产品图必须排在 referenceImages 的【前 N 个位置】。
+     * 数组无语义标签，后端只能按位置编号；顺序写反会导致编号与模型所见完全相反且不报错。
+     */
+    productImageCount?: number;
+    /**
+     * F-09 爆款复刻：参数面选择（复刻程度/复刻侧重/文字策略）。
+     * 只传 value；选项的 des 文本在后端单点存放并拼装（防两份真值）。
+     */
+    clonePromptParams?: {
+        cloneDegree: "style-reference" | "high-structure";
+        cloneScope: ("composition" | "palette" | "lighting" | "typography" | "background" | "people-models")[];
+        copyMode: "no-copy" | "auto-copy" | "exact-copy";
+    };
     models: string[];
     imageModels: string[];
     videoModels: string[];

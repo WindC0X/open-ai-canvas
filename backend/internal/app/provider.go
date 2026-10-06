@@ -108,6 +108,10 @@ type providerConfig struct {
 	//   看到的图片【完全相反】，且不会报错 —— 正是 F-09 方案 §1.1⑦ 描述的陷阱。
 	//   数组无语义标签，后端只能按位置编号，因此这条约束靠调用方保证。
 	ProductImageCount int `json:"productImageCount,omitempty"`
+	// ClonePromptParams 爆款复刻的参数面选择（复刻程度/复刻侧重/文字策略）。
+	// 后端据此拼装六段式骨架的动态段（prompt_clone_skeleton.go）；
+	// 选项的 des 文本在后端单点存放，前端只传 value（防两份真值）。
+	ClonePromptParams clonePromptParams `json:"clonePromptParams,omitempty"`
 }
 
 const providerHTTPTimeout = 5 * time.Minute
@@ -256,6 +260,9 @@ func (s *Service) processCanvasGenerationTask(ctx context.Context, userID string
 	// 图片角色清单必须在这之后注入：hydrateGenerationMedia 完成 ReferenceImages 定序，
 	// 编号才能对齐真正发给 API 的数组顺序（F-09 方案 §1.1 ⑦ 陷阱）。
 	applyImageRolePrompt(&input)
+	// 六段式骨架（层2）在角色清单【之后】注入 ⇒ 最终顺序为「角色清单 → 六段式 → 用户提示词」，
+	// 角色清单保持在最前（它回答「哪张图是什么角色」，是复刻的前置说明）。
+	applyCloneSkeletonPrompt(&input)
 	if input.Mode == "video" && input.VideoCapability != nil {
 		if err := validateVideoTask(input.VideoCapability, input); err != nil {
 			return nil, err

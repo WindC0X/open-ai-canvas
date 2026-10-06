@@ -271,6 +271,7 @@ export function CanvasNodeToolbar({
         selectedCount: 0,
         selectedNodeTypes: new Set(),
         selectedVideoCount: 0,
+        selectedImageCount: 0,
         canvasTool: "move",
         workspaceMode: workspaceMode || "professional",
         isProjectLinked: false,

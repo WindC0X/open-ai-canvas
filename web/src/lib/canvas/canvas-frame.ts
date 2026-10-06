@@ -17,7 +17,11 @@ export function isCanvasFolderNode(node?: CanvasNodeData | null) {
 }
 
 export function canFrameContain(node: CanvasNodeData) {
-    return node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Drawing || node.type === CanvasNodeType.Script || node.type === CanvasNodeType.Video;
+    // ★ F-09 三期（2026-10-06）：加入 Config —— 爆款复刻模板需要「2 图节点 + 生成节点」
+    // 作为一组整体移动/复制。Config 此前被排除，导致生成节点无法进 Frame。
+    // 可行性已验（web/test/canvas-frame-config-containment.test.ts）：展开态下
+    // 跨边界连线不重定向；折叠态的重定向是所有节点类型的既有行为，非 Config 特有。
+    return node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Drawing || node.type === CanvasNodeType.Script || node.type === CanvasNodeType.Video || node.type === CanvasNodeType.Config;
 }
 
 export function canFolderContain(node: CanvasNodeData) {

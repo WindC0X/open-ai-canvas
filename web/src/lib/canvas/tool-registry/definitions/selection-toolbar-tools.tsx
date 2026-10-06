@@ -1,4 +1,4 @@
-import { AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignHorizontalJustifyStart, AlignHorizontalSpaceAround, AlignHorizontalSpaceBetween, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalSpaceAround, AlignVerticalSpaceBetween, AtSign, Film, FolderTree, Grid3X3, LayoutTemplate, Link2, LoaderCircle, Workflow } from "lucide-react";
+import { AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignHorizontalJustifyStart, AlignHorizontalSpaceAround, AlignHorizontalSpaceBetween, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalSpaceAround, AlignVerticalSpaceBetween, AtSign, Film, FolderTree, Grid3X3, LayoutTemplate, Link2, LoaderCircle, Sparkles, Workflow } from "lucide-react";
 
 import { registerToolbarTools, type ToolDefinition } from "@/lib/canvas/tool-registry";
 
@@ -30,6 +30,20 @@ export const selectionToolbarTools: ToolDefinition[] = [
         applicable: (ctx) => ctx.selectedVideoCount >= 2,
         disabled: (ctx) => ctx.mergingVideos,
         run: (ctx) => ctx.handlers.onMergeVideos(),
+    },
+    {
+        // F-09 三期 §3.2：`dual_image` 谓词的真实消费方 —— 恰好选中 2 张图片时可用。
+        // 此前该谓词零消费方、零测试（控制线 2026-10-05 加的悬空谓词），本批接上。
+        id: "selection-clone-recreate",
+        toolbar: "selection",
+        category: "selection",
+        label: "爆款复刻",
+        icon: <Sparkles />,
+        defaultVisible: true,
+        defaultOrder: 152,
+        // 真实入口消费路径：谓词判定「恰好 2 张图」，不满足则不渲染该按钮。
+        applicable: (ctx) => ctx.selectedImageCount === 2,
+        run: (ctx) => ctx.handlers.onCreateCloneRecreate(),
     },
 ];
 

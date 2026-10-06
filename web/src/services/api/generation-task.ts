@@ -424,6 +424,11 @@ export function backendProviderConfig(config: AiConfig, mode: BackendGenerationM
         audioDialect: config.audioDialect,
         audioInstructions: config.audioInstructions,
         systemPrompt: config.systemPrompt,
+        // F-09 爆款复刻：产品图张数，后端据此注入图片角色清单（prompt_image_role.go）。
+        // undefined 时 JSON 序列化会省略该键（后端 ProductImageCount 亦为 omitempty）⇒ 非 F-09 零影响。
+        productImageCount: config.productImageCount,
+        // F-09 爆款复刻：参数面选择（后端据此拼装六段式动态段）。
+        clonePromptParams: config.clonePromptParams,
     };
     if (logicalModelIDForConfig(config)) return generationOptions;
     return {
