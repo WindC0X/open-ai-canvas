@@ -2,7 +2,7 @@
 //
 // 来源：F-09 克隆复刻（clone-to-edit）三期 —— ImgAk wfapp-52 的完整提示词模板。
 // 一手逐字取自 docs/artifacts/f09-input-spec/S1-meitu-piccopilot-deep-dive/corpus/imgak/wfapp-52-detail.json
-// 的 inputs[17]（output.prompt 六段式正文）与 inputs[5]/[6]/[8]（concatRules 的 des 文本）。
+// 的 inputs[17]（output.prompt 六段式正文）与 inputs[5]/[6]/[7]（concatRules 的 des 文本）。
 //
 // ★ 为什么放在后端（控制线 2026-10-06 裁定 C-2）：
 //   1. 第四段「原创与文字安全」是 H3 合规红线，属判据级要求，不可由用户误改破坏；
@@ -56,7 +56,7 @@ var cloneRuleScopeText = map[string]string{
 	"people-models": "只参考人物或模特的类型、人数、姿态、画面位置、穿搭气质及与商品的互动；必须重新生成人物身份与面部特征，使长相和可识别身份与参考人物明显不同。",
 }
 
-// cloneRuleCopyText 文字策略选项的 des 文本（inputs[8].constraint.item[].des 逐字）。
+// cloneRuleCopyText 文字策略选项的 des 文本（inputs[7].constraint.item[].des 逐字）。
 var cloneRuleCopyText = map[string]string{
 	"no-copy":    "画面不添加标题、卖点、价格、Logo或随机乱码。",
 	"auto-copy":  "根据参考图的视觉主题、用户主体图中清晰可确认的信息、成片用途、平台与目标市场，自动生成 1 条简短标题，必要时增加 1 条中性行动语并排入画面。不得照抄参考图文字，不得编造品牌名、价格、折扣、销量、排名、参数、功效、认证或其他无法核实事实；信息不足时使用不涉及主体事实的中性文案。",

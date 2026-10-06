@@ -5,7 +5,7 @@
  *   ImgAk wfapp-52 的 concatRules 用 `sourceProperty: "des"`，
  *   即把选项的**描述文本**（非 label）拼进提示词。
  *   逐字取自 docs/artifacts/f09-input-spec/S1-meitu-piccopilot-deep-dive/corpus/imgak/wfapp-52-detail.json
- *   的 inputs[5]（clone.degree）/ inputs[6]（clone.scope）/ inputs[8]（copy.mode）的 constraint.item[].des。
+ *   的 inputs[5]（clone.degree）/ inputs[6]（clone.scope）/ inputs[7]（copy.mode）的 constraint.item[].des。
  *
  * ★ 拼装位置（控制线 2026-10-06 裁定 C-2）：
  *   `des` 文本只在【后端】存一份并拼装（prompt_clone_skeleton.go），
