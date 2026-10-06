@@ -2255,3 +2255,39 @@ main 推进至 `0dcd507d`；测试线已用该锚点跑完 b12r25（GO，3124/0/
   **参数面 UI 未实现**（只落地数据结构与提交链路，用户当前拿默认参数）；
   只实现 3 条 concatRules（其余 8 条无 UI 可填值）；未做浏览器实测；未做真实生成。
 - **报告落盘**：`docs/artifacts/f09-canvas-template-delivery-report.md`（9 节）。
+
+## 2026-10-06 · F-09 三期修复批（A线，40b9c915，已 push）
+
+- **背景**：门 2 绿（测试线 14 passed / 0 failed ×2）；评审线复核发现 2 阻塞 + 4 非阻塞；
+  控制线另查 3 项 + □5-2 定性为缺陷。
+- **缺陷性质**：**登记层与运行时接线脱节**（非功能失效）。
+- **交付**：`40b9c915`（10 files +469/-17），已 push fork，三方一致（local = fork = 40b9c915）。
+- **★ B-1（核心修复）**：`dual_image` 谓词悬空 —— 入口原先内联 `ctx.selectedImageCount === 2`
+  （谓词的第二份实现）。改为调用 `capabilityContextSatisfied` ⇒ 单一真值。
+  **判据（决定性）**：注入「谓词 `===2` → `===5`」——
+  **修复前**：真实入口测试**全绿（未红）** ⇒ 入口不经过谓词（控制线独立验证）；
+  **修复后**：真实入口测试 **2 red** ⇒ 改谓词入口随之改变 ⇒ 接线成立。
+  架构合规：不违反「禁止把能力层字段塞进 ToolDefinition」—— 是按钮层**调用**能力层**谓词函数**，
+  不是搬字段（架构方案 §1.1 的唯一契约仍是 `executionChain.handler` ↔ `ToolbarHandlers.onXxx`）。
+- **B-2**：handler `createCloneRecreateNode` 零消费方 ⇒ `project.tsx` `onGenerate` 按
+  `metadata.cloneRecreateParams` 派发（只有模板产出的生成节点走专属链，其他 Config 零影响）。
+- **新-1/新-2**：`entryPoints` 两个入口分开登记（`create-card` → 模板 id；`selection-toolbar` → 真实 tool id）。
+- **新-3**：升格枝无运行时派发机制（`grep entryPoints web/src/` 除定义外零命中）⇒ 登记为架构缺口，本批不实现。
+- **N-1**：守卫扩 `create-card` 校验源（`CANVAS_TEMPLATES`）+ 新增「kind 必在 `GUARDED_ENTRY_KINDS` 内」
+  断言（未来新增 kind 会被强制同步，防静默跳过）。
+- **N-3**：选区入口填入选中图（`instantiateTemplate(id, sourceImageIds?)`，按模板顺序填槽位）。
+- **N-4**：默认 `copyMode` 改 `no-copy`（依据 `F-09-IMPLEMENTATION-PLAN.md:468`「短期只保留 no-copy」）。
+- **□5-2**：模板卡在 guided 态不可达（默认新建画布 = guided）⇒ 控制线裁定为**缺陷**
+  （任务书 §2.3 判据①写的是「空状态出现」而非「freeform 态出现」）。方案 D：guided 态加**独立区域**
+  （不混入短剧引导语义）。
+- **未修并上报**：**N-2** 顺序契约可被用户操作破坏（`productImageCount` 写死 1，删图/重排后静默错位；
+  后端无法校验 —— `providerMedia` 无语义标签）。评估过三条修法（动态计算/监听删除/槽位锁定）均有代价，
+  倾向只登记边界，等控制线裁定。
+- **门禁**：tsc 0 / eslint 0 / bun test **3178 pass 0 fail**（起点 3167 + 11）
+  / registry-namespace-guard 15 pass / F-09 测试组 55 pass / go build 0。
+- **证伪**：8 处注入，实测 **3/1/1/1/1/1/1/1 red**，恢复后全绿。
+- **★ V9 ①（注释免疫）实例**：`f09-fix-batch.test.ts` 首版用
+  `expect(source).not.toContain("ctx.selectedImageCount === 2")` 反证内联比较已移除，
+  但**被修复注释里引用的旧代码满足**（注释写了 `原先这里写 ctx.selectedImageCount === 2`）
+  ⇒ 改为**剥离注释后断言**（先 `replace` 掉块注释与行注释）。这是 V9 ① 家族的新实例。
+- **报告落盘**：`docs/artifacts/f09-canvas-template-fix-report.md`（7 节）。
