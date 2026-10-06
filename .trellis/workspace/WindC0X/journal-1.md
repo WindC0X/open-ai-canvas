@@ -2815,3 +2815,92 @@ f09-fix-batch.test.ts:63-71（新，A线 修复批新增）
 ```
 
 **★ 控制线的借用处理已足够**（每次还原 + 主动告知 + 我事后核实零残留）。
+
+---
+
+## 预演结论：A线 WIP 方向正确 + ★ 意外收获（2026-10-06）
+
+**快照 md5**：`1dd9ec2d 6127ab2b e265bfa9 ce5d7fa3 bc41ed8f d00474e3`
+
+### ① 结论：修复方向正确 ✓
+
+**新架构**（实测确认）：
+```
+project.tsx
+  dispatchConfigGenerate(nodeId, mode, prompt)      ← 唯一入口
+    → dispatchConfigGenerateAction(node, mode, prompt, { onCloneRecreate, onGenericGenerate })
+      → resolveConfigGenerateAction(node)           ← 纯函数判据
+```
+
+**6 项验证**：
+| # | 项 | 结果 |
+|---|---|---|
+| ① | `dispatchConfigGenerate` 调用点 | **2 个** ✓（`CanvasNodePromptPanel` + **`CanvasConfigNodePanel`**） |
+| ② | `resolveConfigGenerateAction` 行为测试 | ✓（4 种入参） |
+| ③ | `dispatchConfigGenerateAction` spy 断言 | ✓ |
+| ④ | `resolveTemplateImageSlots` 过滤测试 | ✓ |
+| ⑤ | `:2537` 在 `CanvasConfigNodePanel` 块内 | ✓（位置解析确认） |
+| ⑥ | 接线测试的位置断言 | ✓（见 ② 意外收获） |
+
+**⇒ B2-1 根因已修**（派发从不可达的 `CanvasNodePromptPanel` 移到 Config 真实入口）。
+
+### ② ★★ 意外收获：撞上 A线 的注入间隙，恰好验证了新测试有效
+
+**时间线**：
+```
+13:44:31  主仓组件 = templateCards.map + <button>          ← 正确实现
+13:45:20  我导出 v1 ⇒ [].map（卡片列表恒空）                ← A线 注入 A
+13:45:40  主仓组件 = templateCards.map + <span role="none"> ← A线 注入 B
+13:46:18  我导出 v2 ⇒ <span role="none">                    ← 仍是注入态
+```
+
+**在注入 B 状态下跑测试**：
+```
+(fail) ★ 行为：每张卡渲染为【可点击 button】（不是纯文本）
+⇒ A线 的新渲染测试【确实能捕获「元素类型变化」】✓
+```
+
+**对比旧文本断言**：
+```
+旧：expect(source).toContain("或现成模板开始")
+  ⇒ 注入 B 时文本仍在 ⇒ 【不红】✗
+新：renderToStaticMarkup + 匹配 <button>
+  ⇒ 注入 B 时无 <button> ⇒ 【红】✓
+⇒ 这正是「行为断言 vs 文本断言」的实证对照（A线 用注入自证了新测试价值）
+```
+
+### ③ 观察（非缺陷）：A线 的注入验证会短暂污染共享工作区
+
+```
+现象：A线 连续做 2 次注入（A: [].map；B: <span role="none">），每次恢复
+     但我两次抓取【都落在注入间隙】
+⇒ 影响：其他线导出快照会抓到注入态
+```
+
+**★ 建议**：
+```
+① 注入验证最好在【独立树】做（不污染共享工作区）
+② 若必须在主仓 ⇒ 每次注入后【立即】恢复（A线 做到了，只是撞上间隙）
+③ 其他线导出快照前先核对 md5（我这次的做法 ✓）
+```
+
+### ★ 教训二十八：跨线并行时，「工作区快照」是【移动目标】
+
+> 我在预演中两次导出 patch，**两次都落在 A线 的注入间隙** ——
+> 第一次抓到 `[].map`（注入 A），第二次抓到 `<span role="none">`（注入 B）。
+>
+> **教训**：
+> · 工作区（未提交）是**共享可变状态**，其内容随他线操作实时变化
+> · 「导出快照」≠「固定版本」—— 必须**核对 md5** 才能确认抓到的是哪个状态
+> · ★ 若要**稳定**的复核对象 ⇒ **必须等 commit**（工作区快照只能做预演）
+>
+> **同族**：教训二十七（归因前分离证据来源）——
+> 本条补充：**快照前核实版本（md5）**，否则「我测的是哪一版」不可知。
+>
+> **★ 正面价值**：这次「撞上注入间隙」反而**意外验证了 A线 的新测试有效**
+> （在注入 B 状态下跑 ⇒ 1 fail）——
+> ⇒ 说明「意外」有时提供**自然实验**（不需要自己构造注入）
+
+### 隔离树状态
+
+`_f09fix` @ `f88feac7` **pristine**（5 层检查：untracked 空 / 6 文件无差异 / 0 探针 / 0 备份 / HEAD 正确）
