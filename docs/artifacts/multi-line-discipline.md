@@ -1753,3 +1753,24 @@ tr '\0' '\n' < /proc/<pid>/environ | grep -E "TRELLIS_CONTEXT_ID|ORCA_TERMINAL_H
 - **V10-b**：`git diff` 导出他人未提交改动时，用 `git diff HEAD`（含暂存区），
   否则会漏掉已暂存的改动。
 - **V10-c**：判断某次 git 操作是否失败，以**操作方输出**为准，reflog 只反映成功状态。
+- **V10-d**（控制线建议）：**隔离树的创建起点以 `.git/worktrees/<name>/logs/HEAD` 为准**，
+  它比 `ps` 可靠（进程退出后不可查）。
+- **V10-e**（★ A线 实验发现，2026-10-06）：**`git worktree remove` 会删除该 worktree 的
+  reflog**。因此「reflog 无记录 X」**不能**证明「从未以 X 建过该树」，
+  只能证明「**当前**这棵树的创建起点不是 X」。
+  若需证明「曾以 X 建过」，须改用**管理目录时间戳**
+  （`.git/worktrees/<name>/gitdir`、`commondir`、`logs` 的 mtime = 创建时刻）
+  与进程启动时间对照，**或**在操作现场保留输出。
+
+  **实验（2026-10-06，/tmp 隔离仓库）**：
+  ```
+  ① git worktree add --detach tree1 <C1>  ⇒ reflog 首行 = C1
+  ② git worktree remove --force tree1     ⇒ .git/worktrees/tree1 目录【整体删除】（含 reflog）
+  ③ git worktree add --detach tree1 <C2>  ⇒ reflog 首行 = C2，★ 无 C1 任何痕迹
+  ⇒ 「reflog 无 C1」但 C1 确实建过 ⇒ 该证据不足以证明「未建过」
+  ```
+  **本实例应用**：`_f09fix` 的 reflog 首行 = `40b9c915`，但评审线确实先以 `9b80133d`
+  建过同路径（PID 980725 的 ps 原文为证，含 context ID）。
+  ⇒ 不能由 reflog 断言「那次失败」，只能断言「当前树的起点是 40b9c915」；
+  而管理目录 mtime（13:13）**晚于** PID 980725 启动（13:09）
+  ⇒ **最可能**是「先建的树被 remove 后重建」，但**未经操作方输出确认前应标为待确认**。
