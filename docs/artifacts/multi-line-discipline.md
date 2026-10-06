@@ -1731,9 +1731,15 @@ tr '\0' '\n' < /proc/<pid>/environ | grep -E "TRELLIS_CONTEXT_ID|ORCA_TERMINAL_H
 - **⇒ 身份只能由 ID 证明，不能由行为推测**
 
 **★ 附带发现（同一事件）**：
-1. **`git diff` 拿不到已暂存改动**：评审线用 `git diff > patch` 导出未提交改动，
-   但 A线 的改动**已 `git add` 暂存** ⇒ patch 0 字节。
-   正确用法：`git diff HEAD`（含暂存）或 `git diff --cached`（仅暂存）。
+1. **`git diff` 只能看到未暂存且未提交的改动**（★ 本条经 A线 二次自查修正）：
+   评审线用 `git diff > patch` 导出「A线 的未提交修复」，得到 0 字节。
+   **主因**：修复批 `40b9c915` 已在 **13:08:24** 提交，patch 生成于 **13:10:48**
+   （晚 2 分 24 秒）⇒ 已提交内容 `git diff` 永远看不到 ⇒ 0 字节是**正常结果**，
+   不是异常。控制线据此推断「A线 已提交」**正确**。
+   **附带**：A线 的 journal 改动当时**已 `git add` 暂存**，同样不被 `git diff` 看到。
+   ⇒ 导出他人工作状态时，按需选择：
+      `git diff HEAD`（含暂存未提交）/ `git diff --cached`（仅暂存）/
+      `git show <commit>`（已提交）/ 或直接以 commit 为隔离树起点。
 2. **reflog 看不到失败的 commit**：控制线据 reflog 推断「A线 两次 commit 都成功」，
    但 A线 第一次 commit **失败**了（index.lock 被占），reflog 只记成功提交。
    ⇒ 判断「某次操作是否失败」不能只看 reflog，要看**操作方自己的输出**。
