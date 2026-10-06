@@ -1975,6 +1975,17 @@ diff /tmp/wip-md5-before.txt /tmp/wip-md5-after.txt
 ```
 **★ 成本 2 条命令，收益：把「无法事后证明」变成「可证明」**（测试线 补充）。
 
+**（本仓无脚本；测试仓提供工具化版本，可选加速）**：
+```
+open-ai-canvas-testing/scripts/wip-read-guard.sh @ d21981f
+  bash scripts/wip-read-guard.sh before <files>
+  bash scripts/wip-read-guard.sh after  <files>
+  强制流程：before 未记录则 after 拒绝核对
+  exit 0 = 窗口内无写入 / exit 1 = 被改 ⇒ 结论作废
+★ 手工命令仍为纪律本体（工具不可用时判据仍可执行）
+★ 跨仓引用标注路径 + 版本（同 V7 附2-a 精神）
+```
+
 **★ 正确做法（优先级）**：
 ```
 ① 等对方 STOP（工作区静止）—— 最稳
